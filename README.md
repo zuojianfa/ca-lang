@@ -122,7 +122,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [ ] loop
   - [ ] match
   - [ ] type
-  - [ ] last expression as return value in scope
+  - [x] last expression as return value in scope
   - [ ] immutable
   - [ ] mutable
   

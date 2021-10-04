@@ -10,6 +10,7 @@ enum OperandType {
   OT_Store,
   OT_Alloc,
   OT_CallInst,
+  OT_PHINode,
 };
 
 struct CalcOperand{

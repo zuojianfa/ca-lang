@@ -9,6 +9,7 @@
   TTE_Expr: TExprNode
  */
 typedef enum {
+  TTE_Empty,       // for empty expression
   TTE_Literal,     // literal type
   TTE_Id,          // identifier type
   TTE_Label,       // label type
@@ -64,6 +65,7 @@ typedef struct TWhileNode {
 */
 typedef struct TIfNode {
   int ncond;
+  int isexpr;
   struct ASTNode **conds;
   struct ASTNode **bodies;
   struct ASTNode *remain;

@@ -15,6 +15,7 @@ int add_fn_args(SymTable *st, int name);
 int add_fn_args_actual(SymTable *st, ActualArg arg);
 const char *label_name(const char *name);
 
+ASTNode *make_empty();
 ASTNode *make_expr(int op, int noperands, ...);
 ASTNode *make_expr_arglists(ST_ArgList *al);
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
@@ -25,7 +26,7 @@ ASTNode *make_lit(int value);
 ASTNode *make_label(int value);
 ASTNode *make_goto_label(int i);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
-ASTNode *make_if(int argc, ...);
+ASTNode *make_if(int isexpr, int argc, ...);
 
 void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);
@@ -68,15 +69,16 @@ extern char *yytext;
 %token			I64 U32 U64 F32 F64 BOOL CHAR UCHAR
 %token	<symnameid>	IDENT
 %token			WHILE IF PRINT GOTO EXTERN FN RET LET EXTERN_VAR
-%token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT
+%token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			GE LE EQ NE '>' '<'
 %left			'+' '-'
 %left			'*' '/'
 %nonassoc		UMINUS
-%type	<astnode>	stmt expr stmt_list label_def paragraphs fn_def fn_decl
+%type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl
 %type	<astnode>	paragraph fn_proto fn_args fn_args_p fn_args_ps fn_call fn_body fn_args_call fn_args_call_p
+%type	<astnode>	ifstmt ifexpr stmtexpr_list_block stmt_list_star
 %type	<arg>		fn_args_actual
 %type	<symnameid>	label_id
 
@@ -281,10 +283,10 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 
 		$$ = make_expr('=', 2, make_id($1), $3);
 		}
-	|	WHILE '(' expr ')' stmt { $$ = make_while($3, $5); }
-	|	IF '(' expr ')' stmt %prec IFX { $$ = make_if(2, $3, $5); }
-	|	IF '(' expr ')' stmt ELSE stmt { $$ = make_if(3, $3, $5, $7); }
-	|	'{' stmt_list '}'	{ $$ = $2; }
+	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
+|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
+	|	ifstmt                  { $$ = $1; }
+	|	stmt_list_block         { $$ = $1; }
 	|	label_def               { $$ = $1; }
 	|	GOTO label_id ';'
 		{
@@ -312,6 +314,24 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 
 		    $$ = make_expr(GOTO, 1, make_goto_label(lpos));
 		}
+		;
+
+ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
+		;
+
+ifexpr:		IF '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block    { $$ = make_if(1, 3, $3, $5, $7); }
+		;
+
+stmtexpr_list_block:
+		'{' expr '}'                        { $$ = $2; }
+	|	'{' stmt_list expr '}'              { $$ = $3; }
+		;
+
+stmt_list_block: '{' stmt_list_star '}'             { $$ = $2; }
+		;
+
+stmt_list_star:	stmt_list                           { $$ = $1; }
+	|	                                    { $$ = make_empty(); /* empty */}
 		;
 
 stmt_list:     	stmt                  { $$ = $1; }
@@ -375,6 +395,7 @@ expr:     	I32               { $$ = make_lit($1); }
 	|	expr EQ expr          { $$ = make_expr(EQ, 2, $1, $3); }
 	|	'('expr ')'           { $$ = $2; }
 	|	fn_call               { $$ = $1; }
+	|	ifexpr                { $$ = $1; }
 		;
 
 %%
@@ -439,6 +460,18 @@ void set_address(ASTNode *node, const SLoc *first, const SLoc *last) {
     node->symtable = curr_symtable;
 }
 
+ASTNode *make_empty() {
+    ASTNode *p;
+    if ((p = malloc(sizeof(ASTNode))) == NULL)
+	yyerror("out of memory");
+
+    /* copy information */
+    p->type = TTE_Empty;
+
+    set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+    return p;
+}
+
 ASTNode *make_lit(int value) {
     ASTNode *p;
     /* allocate node */
@@ -485,16 +518,26 @@ ASTNode *make_expr(int op, int noperands, ...) {
     for (i = 0; i < noperands; i++)
 	p->exprn.operands[i] = va_arg(ap, ASTNode*);
 
+    const SLoc *beg = &(SLoc){glineno, gcolno};
+    const SLoc *end = &(SLoc){glineno, gcolno};
+
     if (noperands == 1) {
-	p->begloc = p->exprn.operands[0]->begloc;
-	p->endloc = p->exprn.operands[0]->endloc;
+	if (p->exprn.operands[0]) {
+	    beg = &p->exprn.operands[0]->begloc;
+	    end = &p->exprn.operands[0]->endloc;
+	}
     } else if (noperands > 1){
-	p->begloc = p->exprn.operands[0]->begloc;
-	p->endloc = p->exprn.operands[noperands-1]->endloc;
-    } else {
-	p->begloc =  (SLoc){glineno, gcolno};
-	p->endloc =  (SLoc){glineno, gcolno};
+	if (p->exprn.operands[0]) {
+	    beg = &p->exprn.operands[0]->begloc;
+	}
+
+	if (p->exprn.operands[noperands-1]) {
+	    end = &p->exprn.operands[noperands-1]->endloc;
+	}
     }
+
+    p->begloc = *beg;
+    p->endloc = *end;
 
     va_end(ap);
     p->symtable = curr_symtable;
@@ -640,7 +683,7 @@ ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
     return p;
 }
 
-ASTNode *make_if(int argc, ...) {
+ASTNode *make_if(int isexpr, int argc, ...) {
     // TODO: implement multiple if else nodes
     va_list ap;
     ASTNode *p;
@@ -653,6 +696,7 @@ ASTNode *make_if(int argc, ...) {
 	yyerror("out of memory");
 
     p->ifn.ncond = ncond;
+    p->ifn.isexpr = isexpr;
     if ((p->ifn.conds = malloc(ncond * sizeof(ASTNode))) == NULL)
 	yyerror("out of memory");
 

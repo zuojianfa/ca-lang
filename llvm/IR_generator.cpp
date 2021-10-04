@@ -177,9 +177,12 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname, llvm
 				   diloc, ir1.builder().GetInsertBlock());
 }
 
+static void walk_empty(ASTNode *p) {}
+
 static Value *walk_literal(ASTNode *p) {
-  //if (enable_debug_info())
-  //  diinfo->emit_location(p->endloc.row, p->endloc.col);
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col);
+
   Value *v = ir1.gen_int(p->litn.value);
   auto operands = std::make_unique<CalcOperand>(OT_Const, v);
   oprand_stack.push_back(std::move(operands));
@@ -298,24 +301,37 @@ static void walk_if(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->begloc.row, p->begloc.col);
 
+  Value *tmpv1 = nullptr;
+  Value *tmpv2 = nullptr;
+  Value *tmpc = ir1.gen_var(ir1.int_type<int>(), "tmpc");
+
   BasicBlock *thenbb = ir1.gen_bb("thenbb");
   BasicBlock *outbb = ir1.gen_bb("outbb");
+  BasicBlock *elsebb = nullptr;
 
   walk_stack(p->ifn.conds[0]);
   Value *cond = pop_right_value("cond");
   cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
   if (p->ifn.remain) { /* if else */
-    BasicBlock *elsebb = ir1.gen_bb("elsebb");
+    elsebb = ir1.gen_bb("elsebb");
     ir1.builder().CreateCondBr(cond, thenbb, elsebb);
     curr_fn->getBasicBlockList().push_back(thenbb);
     ir1.builder().SetInsertPoint(thenbb);
     walk_stack(p->ifn.bodies[0]);
+    if (p->ifn.isexpr) {
+      tmpv1 = pop_right_value("tmpv");
+      ir1.store_var(tmpc, tmpv1);
+    }
 
     ir1.builder().CreateBr(outbb);
 
     curr_fn->getBasicBlockList().push_back(elsebb);
     ir1.builder().SetInsertPoint(elsebb);
     walk_stack(p->ifn.remain);
+    if (p->ifn.isexpr) {
+      tmpv2 = pop_right_value("tmpv");
+      ir1.store_var(tmpc, tmpv2);
+    }
   } else { /* if */
     ir1.builder().CreateCondBr(cond, thenbb, outbb);
     curr_fn->getBasicBlockList().push_back(thenbb);
@@ -326,6 +342,17 @@ static void walk_if(ASTNode *p) {
   ir1.builder().CreateBr(outbb);
   curr_fn->getBasicBlockList().push_back(outbb);
   ir1.builder().SetInsertPoint(outbb);
+  
+  if (p->ifn.isexpr) {
+#if 0 // the phi is not debugger friendly, so using alloc for temporary variable
+    PHINode *phiv = ir1.gen_phi(ir1.int_type<int>(), thenbb, tmpv1, elsebb, tmpv2);
+    auto pnv = std::make_unique<CalcOperand>(OT_PHINode, phiv);
+#else
+    auto pnv = std::make_unique<CalcOperand>(OT_Alloc, tmpc);
+#endif
+
+    oprand_stack.push_back(std::move(pnv));
+  }
 }
 
 static void walk_stmt_print(ASTNode *p) {
@@ -585,6 +612,7 @@ static Function *walk_fn_define(ASTNode *p) {
 
 typedef void (*walk_fn_t)(ASTNode *p);
 static walk_fn_t walk_fn_array[TTE_Num] = {
+  (walk_fn_t)walk_empty,
   (walk_fn_t)walk_literal,
   (walk_fn_t)walk_id,
   (walk_fn_t)walk_label,

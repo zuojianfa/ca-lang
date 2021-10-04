@@ -19,10 +19,11 @@ fn fib(count) {
 
 // just an condition
 let cond = 0;
-if (cond)
+if (cond) {
     print 101;
-else
+} else {
     print 201;
+}
 
 let aa = 100;
 let v1 = fib(aa);
