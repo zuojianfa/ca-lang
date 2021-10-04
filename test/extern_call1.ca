@@ -1,0 +1,11 @@
+extern fn getchar();
+extern fn time(d);
+
+let a = getchar();
+while(a != 113) {
+    let t = time(0);
+    print t;
+    print a;
+    a = getchar();
+}
+

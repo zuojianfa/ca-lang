@@ -1,0 +1,26 @@
+fn add(v1, v2) {
+    return v1 + v2;
+}
+
+fn sub(v1, v2) {
+    return v1 - v2;
+}
+
+fn mul(v1, v2) {
+    return v1 * v2;
+}
+
+fn div(v1, v2) {
+    return v1 / v2;
+}
+
+let a = add(3, 4);
+let b = sub(19, 3);
+let m = mul(a, b);
+let d = div(b, a);
+
+print a;
+print b;
+print m;
+print d;
+

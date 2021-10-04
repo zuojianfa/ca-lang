@@ -1,0 +1,15 @@
+let aaa = 1;
+print aaa;
+let bbb = 1;
+print bbb;
+let c = 0;
+let t = 0;
+while (c < 10000000) {
+	t = aaa;
+	aaa = bbb;
+	bbb = t + aaa;
+	c = c + 1;
+}
+
+print bbb;
+

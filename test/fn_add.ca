@@ -1,0 +1,10 @@
+fn add(a, b) {
+   return a + b;
+}
+
+let a = 1;
+let c = 2;
+let b = add(a, c);
+
+print b;
+

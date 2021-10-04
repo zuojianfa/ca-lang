@@ -1,0 +1,6 @@
+print 1+1;
+print 1+2;
+let a=2*3;let b=8/6;let c=a+b;
+print a;
+print b;
+print c;

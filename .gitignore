@@ -1,32 +1,18 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
+.cache/
+GPATH
+GRTAGS
+GTAGS
+a.out
+ca
+compile_commands.json
+lex.yy.c
+*.e
 *.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
+test/*.e
+test/*.o
+.clang-format
+.clang-format.swp
+.clangd/
+tags
+test/*.ll
+test/*.s

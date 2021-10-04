@@ -1,0 +1,6 @@
+let x = 32;
+let y = 53;
+let z = x*x + y*y + 2*x*y;
+print z;
+
+

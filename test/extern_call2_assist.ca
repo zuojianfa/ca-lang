@@ -1,0 +1,8 @@
+fn ca_add(a, b) {
+    return a + b;
+}
+
+fn ca_mul(a, b) {
+    return a * b;
+}
+

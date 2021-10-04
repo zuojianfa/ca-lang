@@ -1,0 +1,22 @@
+fn fib(count) {
+    let a = 1;
+    print a;
+    let b = 1;
+    print b;
+    let c = 0;
+    let t = 0;
+    while (c < count) {
+	t = a;
+	a = b;
+	b = t + a;
+	c = c + 1;
+    }
+
+    return b;
+}
+
+let aa = 100;
+let v1 = fib(aa);
+
+print v1;
+

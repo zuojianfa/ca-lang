@@ -1,0 +1,11 @@
+let ab = 2;
+if (ab == 1)
+	goto l1;
+else
+	goto l2;
+
+l1:
+	print 1;
+l2:
+	print 2;
+

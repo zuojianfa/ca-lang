@@ -1,0 +1,6 @@
+fn simple(a) {
+    return a;
+}
+
+simple(1);
+

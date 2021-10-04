@@ -1,0 +1,8 @@
+extern fn ca_add(a, b);
+extern fn ca_mul(a, b);
+
+let v1 = ca_add(100, 3);
+let v2 = ca_mul(3, 9);
+print v1;
+print v2;
+

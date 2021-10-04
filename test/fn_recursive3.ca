@@ -1,0 +1,20 @@
+
+fn recursive1(count) {
+    if (count < 10) {
+	print count;
+	let v = count + 1;
+	recursive1(v);
+    }
+}
+
+fn recursive2(count) {
+    if (count > 0) {
+	print count;
+	let v = count - 1;
+	recursive2(v);
+    }
+}
+
+let a = recursive2(100);
+
+

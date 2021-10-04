@@ -1,0 +1,10 @@
+fn simple(count, times) {
+    return count * times;
+}
+
+let c = 30033;
+let v1 = simple(c, 4);
+print v1;
+let v2 = simple(432, c);
+print v2;
+

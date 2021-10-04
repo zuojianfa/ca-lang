@@ -1,0 +1,20 @@
+let first = 1;
+print first;
+let second = 1;
+print second;
+let count = 0;
+let tmp = 0;
+
+l1:
+if (count >= 10000000)
+   goto l2;
+tmp = first;
+first = second;
+second = tmp + first;
+count = count + 1;
+goto l1;
+
+l2:
+
+print second;
+

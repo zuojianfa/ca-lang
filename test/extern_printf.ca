@@ -1,0 +1,4 @@
+extern fn printf(f, ...);
+
+let a = printf(1, 1);
+

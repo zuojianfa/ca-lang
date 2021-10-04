@@ -1,0 +1,29 @@
+let count = 0;
+
+extern fn fn2();
+
+fn fn1() {
+    if (count < 20) {
+	count = count + 1;
+	print count;
+	fn2();
+    }
+
+    return 0;
+}
+
+fn fn2() {
+    if (count < 20) {
+	count = count + 1;
+	print count;
+	fn1();
+    }
+
+    return 3;
+}
+
+let v1 = fn2();
+
+print v1;
+
+

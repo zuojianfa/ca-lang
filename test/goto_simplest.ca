@@ -1,0 +1,5 @@
+goto l1;
+print 1;
+l1:
+print 2;
+

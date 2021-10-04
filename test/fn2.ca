@@ -1,0 +1,22 @@
+fn fn1() {
+   print 1;
+}
+
+fn fn2() {
+   print 2;
+}
+
+fn fn3() {
+   print 3;
+}
+
+fn fn4() {
+   print 4;
+}
+
+fn1();
+fn2();
+fn3();
+fn4();
+
+

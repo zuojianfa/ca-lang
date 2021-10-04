@@ -1,0 +1,14 @@
+let count = 0;
+
+fn fn1() {
+    if (count < 13) {
+	count = count + 1;
+	print count;
+	fn1();
+    }
+
+    return 0;
+}
+
+fn1();
+

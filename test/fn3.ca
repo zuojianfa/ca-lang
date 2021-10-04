@@ -1,0 +1,17 @@
+let count = 0;
+
+fn fn1() {
+
+    while (count < 10) {
+	count = count + 1;
+	print count;
+    }
+
+    return 0;
+}
+
+fn1();
+
+count = -10;
+fn1();
+
