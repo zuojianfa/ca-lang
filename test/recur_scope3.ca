@@ -1,0 +1,14 @@
+let a = 1;
+fn func2() {
+    print a;
+    if (1) {
+        let a = 3;
+        print a;
+    }
+    print a;
+}
+
+fn main() {
+    func2();
+}
+

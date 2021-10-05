@@ -11,7 +11,8 @@ TODO: symbol table also stores the semantic information such as symbol type, wid
 */
 
 /* prototypes */
-SymTable *alter_symtable();
+SymTable *push_new_symtable();
+SymTable *pop_symtable();
 int add_fn_args(SymTable *st, int name);
 int add_fn_args_actual(SymTable *st, ActualArg arg);
 const char *label_name(const char *name);
@@ -69,7 +70,7 @@ extern char *yytext;
 %token	<litv>		I32
 %token			I64 U32 U64 F32 F64 BOOL CHAR UCHAR
 %token	<symnameid>	IDENT
-%token			WHILE IF PRINT GOTO EXTERN FN RET LET EXTERN_VAR
+%token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
 %token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
 %nonassoc		IFX
 %nonassoc		ELSE
@@ -79,7 +80,8 @@ extern char *yytext;
 %nonassoc		UMINUS
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl
 %type	<astnode>	paragraph fn_proto fn_args fn_args_p fn_args_ps fn_call fn_body fn_args_call fn_args_call_p
-%type	<astnode>	ifstmt ifexpr stmtexpr_list_block stmt_list_star
+%type	<astnode>	ifstmt stmt_list_star block_body
+%type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
 %type	<arg>		fn_args_actual
 %type	<symnameid>	label_id
 
@@ -102,26 +104,22 @@ paragraph:     	stmt
 	|	fn_decl
 		;
 
-fn_def:		fn_proto '{' fn_body '}'
+fn_def:		fn_proto fn_body
 		{
-		    $1->fndefn.stmts = $3;
+		    $1->fndefn.stmts = $2;
+		    $1->endloc.row = glineno; $$->endloc.col = gcolno;
 		    $$ = $1;
-		    curr_symtable = curr_symtable->parent;
+		    pop_symtable();
 		    curr_fn_symtable = &g_root_symtable;
 		}
 	;
 
-fn_body:	stmt_list { $$ = $1; }
-	|
-		{
-		    /*allow empty statement*/
-		    $$ = make_expr(RET, 1, make_lit(0));
-		}
+fn_body:	block_body { $$ = $1; }
 	;
 
 fn_decl: 	EXTERN { extern_flag = 1; } fn_proto ';'
 		{
-		    curr_symtable = curr_symtable->parent;
+		    pop_symtable();
 		    extern_flag = 0;
 		    $$ = $3;
 		}
@@ -146,7 +144,7 @@ fn_call:	IDENT '(' fn_args_call ')'
 
 fn_proto:	FN IDENT
 		{
-		    SymTable *st = alter_symtable();
+		    SymTable *st = push_new_symtable();
 		    if (!extern_flag) {
 			/* begin processing a new function, so create new symbol table */
 			curr_fn_symtable = st;
@@ -320,16 +318,27 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 
 ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
 		;
-
-ifexpr:		IF '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block    { $$ = make_if(1, 3, $3, $5, $7); }
+//////////////////////////////////////////////////////////////
+/* TODO: realize the conflict problem when open the stmt expression using `IF` not `IFE` */
+ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { $$ = make_if(1, 3, $3, $5, $7); }
 		;
 
-stmtexpr_list_block:
-		'{' expr '}'                        { $$ = $2; }
-	|	'{' stmt_list expr '}'              { $$ = $3; }
+stmtexpr_list_block: { SymTable *st = push_new_symtable(); }
+		exprblock_body { $$ = $2; SymTable *st = pop_symtable(); }
+		;
+exprblock_body: '{' stmtexpr_list '}'               { $$ = $2; }
 		;
 
-stmt_list_block: '{' stmt_list_star '}'             { $$ = $2; }
+stmtexpr_list: 	stmt_list expr { $$ = $2; }
+	|	expr { $$ = $1; }
+		;
+/**/
+//////////////////////////////////////////////////////////////
+stmt_list_block: { SymTable *st = push_new_symtable(); }
+		block_body { $$ = $2; SymTable *st = pop_symtable(); }
+		;
+
+block_body: 	'{'stmt_list_star '}'              { $$ = $2; }
 		;
 
 stmt_list_star:	stmt_list                           { $$ = $1; }
@@ -403,11 +412,18 @@ expr:     	I32               { $$ = make_lit($1); }
 
 %%
 
-SymTable *alter_symtable() {
+SymTable *push_new_symtable() {
     SymTable *st = (SymTable *)malloc(sizeof(SymTable));
     sym_init(st, curr_symtable);
     curr_symtable = st;
     return st;
+}
+
+SymTable *pop_symtable() {
+  if (curr_symtable != &g_root_symtable)
+    curr_symtable = curr_symtable->parent;
+
+  return curr_symtable;
 }
 
 int add_fn_args(SymTable *st, int name) {

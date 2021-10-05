@@ -17,18 +17,22 @@ fn func2() {
         let a = 3;
         print a;
         print_hello();
-        // if (1) {
-        //     let a = 4;
-        //     print a;
-        //     print_hello();
-        //     if (1) {
-        //         let a = 5;
-        //         print a;
-        //         print_hello();
-        //     }
-        //     print a;
-        //     print_hello();
-        // }
+        if (1) {
+            let a = 4;
+            print a;
+            print_hello();
+            if (0) {
+                let a = 5;
+                print a;
+                print_hello();
+            } else {
+                let a = 6;
+                print a;
+                print_hello();
+            }
+            print a;
+            print_hello();
+        }
         print a;
         print_hello();
     }

@@ -597,6 +597,10 @@ static Function *walk_fn_define(ASTNode *p) {
     diinfo->emit_location(p->begloc.row, p->begloc.col);
 
   walk_stack(p->fndefn.stmts);
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col);
+
   if (!g_with_ret_value)
     ir1.builder().CreateRet(ir1.gen_int<int>(0));
 

@@ -1,0 +1,15 @@
+fn func() {
+    let a = 1;
+    if (a) {
+        print 4;
+    } else {
+        print 6;
+    }
+
+    //print 7;
+}
+
+fn main() {
+    func();
+    print 1;
+}

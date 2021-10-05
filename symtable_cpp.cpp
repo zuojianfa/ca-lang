@@ -32,6 +32,7 @@ static std::unordered_map<std::string, int> s_token_map = {
   {"!=",     NE},
   {"while",  WHILE},
   {"if",     IF},
+  {"ife",    IFE},
   {"else",   ELSE},
   {"print",  PRINT},
   {"goto",   GOTO},
