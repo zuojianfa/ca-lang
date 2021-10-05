@@ -1,0 +1,9 @@
+let a = 1;
+fn func1() {
+    print a;
+}
+
+fn main() {
+    func1();
+}
+

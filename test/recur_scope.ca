@@ -1,0 +1,57 @@
+extern fn putchar(c);
+extern fn print_hello();
+
+let a = 1;
+fn func1() {
+    print a;
+    print_hello();
+    let a = 2;
+    print a;
+    print_hello();
+}
+
+fn func2() {
+    print a;
+    print_hello();
+    if (1) {
+        let a = 3;
+        print a;
+        print_hello();
+        // if (1) {
+        //     let a = 4;
+        //     print a;
+        //     print_hello();
+        //     if (1) {
+        //         let a = 5;
+        //         print a;
+        //         print_hello();
+        //     }
+        //     print a;
+        //     print_hello();
+        // }
+        print a;
+        print_hello();
+    }
+    print a;
+    print_hello();
+}
+
+fn main() {
+    func1();
+    func2();
+}
+
+fn print_hello() {
+    // print 'Hello ca!'
+    putchar(72);
+    putchar(101);
+    putchar(108);
+    putchar(108);
+    putchar(111);
+    putchar(32);
+    putchar(99);
+    putchar(97);
+    putchar(33);
+    putchar(10);
+}
+

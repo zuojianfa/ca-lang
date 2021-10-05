@@ -74,6 +74,7 @@ typedef struct TIfNode {
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   SymTable *symtable;    /* the scoped symbol table */
+  STEntry *entry;
   SLoc begloc;           /* the source code begin location of code unit */
   SLoc endloc;           /* the source code end location of code unit */
   union {

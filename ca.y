@@ -11,6 +11,7 @@ TODO: symbol table also stores the semantic information such as symbol type, wid
 */
 
 /* prototypes */
+SymTable *alter_symtable();
 int add_fn_args(SymTable *st, int name);
 int add_fn_args_actual(SymTable *st, ActualArg arg);
 const char *label_name(const char *name);
@@ -65,7 +66,7 @@ extern char *yytext;
   ActualArg arg;   /* argument */
 };
 
-%token	<litv>	I32
+%token	<litv>		I32
 %token			I64 U32 U64 F32 F64 BOOL CHAR UCHAR
 %token	<symnameid>	IDENT
 %token			WHILE IF PRINT GOTO EXTERN FN RET LET EXTERN_VAR
@@ -145,10 +146,7 @@ fn_call:	IDENT '(' fn_args_call ')'
 
 fn_proto:	FN IDENT
 		{
-		    SymTable *st = (SymTable *)malloc(sizeof(SymTable));
-		    sym_init(st, curr_symtable);
-		    curr_symtable = st;
-
+		    SymTable *st = alter_symtable();
 		    if (!extern_flag) {
 			/* begin processing a new function, so create new symbol table */
 			curr_fn_symtable = st;
@@ -269,9 +267,11 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 			yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
 				glineno, gcolno, symname_get($2), entry->sloc.row, entry->sloc.col);
 
-		    sym_insert(curr_symtable, $2, Sym_Variable);
+		    entry = sym_insert(curr_symtable, $2, Sym_Variable);
 
-		    $$ = make_expr('=', 2, make_id($2), $4);
+		    ASTNode *idn = make_id($2);
+		    idn->entry = entry;
+		    $$ = make_expr('=', 2, idn, $4);
 		}		
 	|	IDENT '=' expr ';'
 		{
@@ -281,10 +281,12 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 		    return -1;
 		}
 
-		$$ = make_expr('=', 2, make_id($1), $3);
+		ASTNode *idn = make_id($1);
+		idn->entry = entry;
+		$$ = make_expr('=', 2, idn, $3);
 		}
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
-|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
+	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { $$ = $1; }
 	|	stmt_list_block         { $$ = $1; }
 	|	label_def               { $$ = $1; }
@@ -381,6 +383,7 @@ expr:     	I32               { $$ = make_lit($1); }
 			yyerror("line: %d, col: %d: Variable name '%s' not defined", glineno, gcolno, symname_get($1));
 
 		    $$ = make_id($1);
+		    $$->entry = entry;
 		}
 	|	'-'expr %prec UMINUS  { $$ = make_expr(UMINUS, 1, $2); }
 	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
@@ -399,6 +402,13 @@ expr:     	I32               { $$ = make_lit($1); }
 		;
 
 %%
+
+SymTable *alter_symtable() {
+    SymTable *st = (SymTable *)malloc(sizeof(SymTable));
+    sym_init(st, curr_symtable);
+    curr_symtable = st;
+    return st;
+}
 
 int add_fn_args(SymTable *st, int name) {
     if (curr_arglist.argc >= MAX_ARGS) {
@@ -442,6 +452,8 @@ int add_fn_args_actual(SymTable *st, ActualArg arg) {
 		glineno, gcolno, symname_get(arg.symnameid));
 	return -1;
     }
+
+    arg.entry = entry;
 
     entry = sym_insert(st, arg.symnameid, Sym_Variable);
     curr_arglistactual.args[curr_arglistactual.argc++] = arg;
@@ -591,10 +603,13 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     p->exprn.op = op;
     p->exprn.noperand = noperands;
     for (i = 0; i < noperands; i++) {
-	if (al->args[i].type == AT_LITERAL)
-	    p->exprn.operands[i] = make_lit(al->args[i].litv);
-	else
-	    p->exprn.operands[i] = make_id(al->args[i].symnameid);
+      if (al->args[i].type == AT_LITERAL) {
+	p->exprn.operands[i] = make_lit(al->args[i].litv);
+	p->exprn.operands[i]->entry = NULL;
+      } else {
+	p->exprn.operands[i] = make_id(al->args[i].symnameid);
+	p->exprn.operands[i]->entry = al->args[i].entry;
+      }
     }
 
     if (noperands == 1) {

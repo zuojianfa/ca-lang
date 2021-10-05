@@ -193,23 +193,26 @@ static Value *walk_literal(ASTNode *p) {
 // generate variable, if in a function then it is a local variable, when not in
 // a function but `-nomain` is specified then generate a global variable else
 // also generate a global variable for other use
-static Value *walk_id(ASTNode *p) {
+static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
   Value *var;
   const char *name = symname_get(p->idn.i);
-  STEntry *entry = sym_getsym(p->symtable, p->idn.i, 1);
+  //STEntry *entry = sym_getsym(p->symtable, p->idn.i, 1);
+  STEntry *entry = p->entry;
   if (entry->sym_type != Sym_Variable)
     yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
 
   if (entry->u.llvm_value) {
     var = static_cast<Value *>(entry->u.llvm_value);
+    if (defval)
+      ir1.builder().CreateStore(defval, var, name);
   } else {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
     if (curr_fn == main_fn) {
-      var = ir1.gen_global_var(ir1.int_type<int>(), name);
+      var = ir1.gen_global_var(ir1.int_type<int>(), name, defval);
       if (enable_debug_info())
 	emit_global_var_dbginfo(name, p->endloc.row);
     } else {
-      var = ir1.gen_var(ir1.int_type<int>(), name);
+      var = ir1.gen_var(ir1.int_type<int>(), name, defval);
       if (enable_debug_info())
 	emit_local_var_dbginfo(curr_fn, name, var, p->endloc.row);
     }
@@ -228,9 +231,14 @@ static Value *walk_id(ASTNode *p) {
   }
 #endif
 
+  return var;
+}
+
+static Value *walk_id(ASTNode *p) {
+  Value *var = walk_id_defv(p);
+  
   auto operands = std::make_unique<CalcOperand>(OT_Alloc, var);
   oprand_stack.push_back(std::move(operands));
-
   return var;
 }
 
@@ -373,17 +381,14 @@ static void walk_stmt_print(ASTNode *p) {
 }
 
 static void walk_stmt_assign(ASTNode *p) {
-  walk_stack(p->exprn.operands[0]);
-  // TODO: should here using pop_right_value instead of following 2
-  Value *var = oprand_stack.back()->operand;
-  oprand_stack.pop_back();
-
   walk_stack(p->exprn.operands[1]);
   Value *v = pop_right_value();
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
-  v = ir1.builder().CreateStore(v, var, symname_get(p->exprn.operands[0]->idn.i));
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Store, v));
+
+  Value *vp = walk_id_defv(p->exprn.operands[0], v);
+
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Store, vp));
 }
 
 static void walk_stmt_minus(ASTNode *p) {

@@ -38,6 +38,7 @@ typedef enum ArgType {
 
 typedef struct ActualArg {
   ArgType type;
+  struct STEntry *entry;
   union {
     int litv; /* integer value */
     int symnameid; /* variable value */
