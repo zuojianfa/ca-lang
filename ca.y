@@ -72,6 +72,7 @@ extern char *yytext;
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
 %token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
+%token			ARROW INFER
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			GE LE EQ NE '>' '<'
@@ -82,6 +83,7 @@ extern char *yytext;
 %type	<astnode>	paragraph fn_proto fn_args fn_args_p fn_args_ps fn_call fn_body fn_args_call fn_args_call_p
 %type	<astnode>	ifstmt stmt_list_star block_body
 %type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
+%type	<astnode>	iddef
 %type	<arg>		fn_args_actual
 %type	<symnameid>	label_id
 
@@ -150,7 +152,7 @@ fn_proto:	FN IDENT
 			curr_fn_symtable = st;
 		    }
 		}
-		'(' fn_args ')'
+		'(' fn_args ')' ret_type
 		{
 		SLoc beg = {glineno, gcolno};
 		SLoc end = {glineno, gcolno};
@@ -204,12 +206,13 @@ fn_args_ps:	fn_args_p              { curr_arglist.contain_varg = 0; $$ = make_ex
 	|                              { $$ = make_expr(ARG_LISTS, 0); }
 	;
 
-fn_args_p:	fn_args_p ',' IDENT
+fn_args_p:	fn_args_p ',' iddef
 		{
+		    // TODO iddef
 		    add_fn_args(curr_symtable, $3);
 		    $$ = NULL;
 		}
-	|	IDENT
+	|	iddef
 		{
 		    add_fn_args(curr_symtable, $1);
 		    $$ = NULL;
@@ -257,6 +260,11 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	PRINT expr ';'          { $$ = make_expr(PRINT, 1, $2); }
 	|	RET expr ';'            { $$ = make_expr(RET, 1, $2); }
 	|	RET ';'                 { $$ = make_expr(RET, 0); }
+	|	LET iddef '=' expr ';'
+		{
+		    // TODO:
+		    
+		}
 	|	LET IDENT '=' expr ';'
 		{
 		    /* TODO: in the future realize multiple let statement in one scope */
@@ -329,7 +337,7 @@ stmtexpr_list_block: { SymTable *st = push_new_symtable(); }
 exprblock_body: '{' stmtexpr_list '}'               { $$ = $2; }
 		;
 
-stmtexpr_list: 	stmt_list expr { $$ = $2; }
+stmtexpr_list: 	stmt_list expr { $$ = $2; /* TODO: put stmt_list into list */ }
 	|	expr { $$ = $1; }
 		;
 /**/
@@ -409,6 +417,40 @@ expr:     	I32               { $$ = make_lit($1); }
 	|	fn_call               { $$ = $1; }
 	|	ifexpr                { $$ = $1; }
 		;
+
+datatype:	instance_type
+	|	pointer_type
+	;
+
+instance_type:	atomic_type
+	|	userdef_type
+	;
+
+atomic_type:	I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
+		{
+		    // TODO: handle user defined type
+		}
+		;
+
+userdef_type:	IDENT
+	;
+
+pointer_type:	'*' instance_type
+	|	'*' pointer_type
+	;
+
+iddef:		IDENT ':' datatype
+		{
+		    // TODO:
+		}
+	;
+
+ret_type:	ARROW datatype
+	|	// TODO: 
+	;
+
+literal:	
+	;
 
 %%
 

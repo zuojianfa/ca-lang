@@ -1,0 +1,6 @@
+let a: int = 1;
+let b: double = 2;
+
+fn func(a: i32, b: f32) -> f64 {
+    return 1;
+}

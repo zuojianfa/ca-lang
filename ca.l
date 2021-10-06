@@ -33,6 +33,8 @@ int gcolno = 0;
 "=="		{ UPDATE_LINE_LOCINFO(); return EQ; }
 "!="		{ UPDATE_LINE_LOCINFO(); return NE; }
 "..."		{ UPDATE_LINE_LOCINFO(); return VARG; }
+"->"		{ UPDATE_LINE_LOCINFO(); return ARROW; }
+"=>"		{ UPDATE_LINE_LOCINFO(); return INFER; }
 
 ({letter}|_)+({letter}|{digit}|_)*	{
 		int tok = find_lexical_keyword(yytext);
