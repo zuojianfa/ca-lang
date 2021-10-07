@@ -13,6 +13,7 @@
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -103,6 +104,30 @@ static Value *pop_right_value(const char *name = "load") {
 
 static int enable_debug_info() { return genv.emit_debug; }
 static int enable_emit_main() { return genv.emit_main; }
+static Type *gen_type_from_token(int tok) {
+  switch (tok) {
+  case I32:
+    return ir1.int_type<int>();
+  case I64:
+    return ir1.int_type<int64_t>();
+  case U32:
+    return ir1.int_type<uint32_t>();
+  case U64:
+    return ir1.int_type<uint64_t>();
+  case F32:
+    return ir1.float_type<float>();
+  case F64:
+    return ir1.float_type<double>();
+  case BOOL:
+    return ir1.bool_type();
+  case CHAR:
+    return ir1.int_type<int8_t>();
+  case UCHAR:
+    return ir1.int_type<uint8_t>();
+  default:
+    return nullptr;
+  }
+}
 
 static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, int startrow) {
   int row = startrow;
@@ -135,12 +160,17 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
   int i = 0;
   for (auto &arg: fn->args()) {
     int argn = arglist.argnames[i];
+    STEntry *entry = sym_getsym(st, argn, 0);
 
     /* should equal to arg.getName().str().c_str() */
     const char *name = symname_get(argn);
 
     // get the argument from call parameter into this field
-    AllocaInst *slot = ir1.gen_var(ir1.int_type<int>(), name, &arg);
+    if (entry->sym_type != Sym_Variable)
+      yyerror("symbol type is not variable: (%d != %d)", entry->sym_type, Sym_Variable);
+
+    Type *type = gen_type_from_token(entry->u.var->datatype->type);
+    AllocaInst *slot = ir1.gen_var(type, name, &arg);
 
     if (enable_debug_info()) {
       DILocalVariable *divar = diinfo->dibuilder->createParameterVariable(disp, arg.getName(), i, diunit, row, diinfo->int_type_di(), true);
@@ -151,7 +181,6 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     }
 
     // save the value into symbol table
-    STEntry *entry = sym_getsym(st, argn, 0);
     entry->u.llvm_value = static_cast<void *>(slot);
 
     ++i;
@@ -180,8 +209,8 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname, llvm
 
 static void walk_empty(ASTNode *p) {}
 
-static Value *gen_literal_value(CALiteral *value) {
-  switch (value->datatype->type) {
+static Value *gen_literal_value(CALiteral *value, int typetok) {
+  switch (typetok) {
   case I32:
     return ir1.gen_int(value->u.i32value);
   case I64:
@@ -209,10 +238,18 @@ static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  Value *v = gen_literal_value(&p->litn.litv);
+  Value *v = gen_literal_value(&p->litn.litv, p->litn.litv.datatype->type);
   auto operands = std::make_unique<CalcOperand>(OT_Const, v);
   oprand_stack.push_back(std::move(operands));
 
+  return v;
+}
+
+static Value *walk_typed_literal(ASTNode *p, CADataType *datatype) {
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col);
+
+  Value *v = gen_literal_value(&p->litn.litv, datatype->type);
   return v;
 }
 
@@ -437,12 +474,13 @@ static void walk_stmt_print(ASTNode *p) {
 }
 
 static void walk_stmt_assign(ASTNode *p) {
-  walk_stack(p->exprn.operands[1]);
-  Value *v = pop_right_value();
+  ASTNode *idn = p->exprn.operands[0];
+  ASTNode *litn = p->exprn.operands[1];
+  Value *v = walk_typed_literal(litn, idn->entry->u.var->datatype);
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  Value *vp = walk_id_defv(p->exprn.operands[0], v);
+  Value *vp = walk_id_defv(idn, v);
 
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Store, vp));
 }
@@ -493,7 +531,9 @@ static void walk_stmt_call(ASTNode *p) {
   for (int i = 0; i < args->exprn.noperand; ++i) {
     Value *v;
     if (args->exprn.operands[i]->type == TTE_Literal) {
-      v = gen_literal_value(&args->exprn.operands[i]->litn.litv);
+      // TODO: match the literal type with function argument type (in second param) 
+      v = gen_literal_value(&args->exprn.operands[i]->litn.litv,
+			    args->exprn.operands[i]->litn.litv.datatype->type);
     } else {
       const char *argname = symname_get(args->exprn.operands[i]->idn.i);
       walk_stack(args->exprn.operands[i]);

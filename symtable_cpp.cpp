@@ -136,10 +136,12 @@ CADataType *catype_get_by_name(int name) {
 
 int catype_put_by_token(int token, CADataType *datatype) {
   // TODO:
+  return 0;
 }
 
 CADataType *catype_get_by_token(int token) {
   // TODO:
+  return nullptr;
 }
 
 static int parse_lexical_char(const char *text) {
@@ -251,30 +253,30 @@ int sym_check_insert_withname(SymTable *st, const char *name, SymType type) {
   return pos;
 }
 
-STEntry *sym_check_insert(SymTable *st, int encode, SymType type) {
+STEntry *sym_check_insert(SymTable *st, int name, SymType type) {
   SymTableInner *t = ((SymTableInner *)st->opaque);
 
-  auto itr = t->find(encode);
+  auto itr = t->find(name);
   if (itr == t->end()) {
     auto entry = std::make_unique<STEntry>();
-    entry->sym_name = encode;
+    entry->sym_name = name;
     entry->sym_type = type;
-    auto result = t->insert(std::make_pair(encode, std::move(entry)));
+    auto result = t->insert(std::make_pair(name, std::move(entry)));
     return result.first->second.get();
   }
 
   return itr->second.get();
 }
 
-STEntry *sym_insert(SymTable *st, int encode, SymType type) {
+STEntry *sym_insert(SymTable *st, int name, SymType type) {
   SymTableInner *t = ((SymTableInner *)st->opaque);
   auto entry = std::make_unique<STEntry>();
-  entry->sym_name = encode;
+  entry->sym_name = name;
   entry->sym_value = 0;
   entry->sym_type = type;
   // entry->sloc = ?; TODO: assign a location
   entry->u.llvm_value = NULL;
-  auto result = t->insert(std::make_pair(encode, std::move(entry)));
+  auto result = t->insert(std::make_pair(name, std::move(entry)));
 
   return result.first->second.get();
 }

@@ -106,7 +106,7 @@ typedef struct RootTree {
 
 SymTable *push_new_symtable();
 SymTable *pop_symtable();
-int add_fn_args(SymTable *st, int name);
+int add_fn_args(SymTable *st, CAVariable *var);
 int add_fn_args_actual(SymTable *st, ActualArg arg);
 const char *label_name(const char *name);
 
@@ -119,7 +119,7 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
 ASTNode *make_fn_decl(int name, ST_ArgList *al, SLoc beg, SLoc end);
 ASTNode *make_fn_define(int name, ST_ArgList *al, SLoc beg, SLoc end);
 ASTNode *make_id(int id);
-ASTNode *make_vardef(int id, ASTNode *exprn);
+ASTNode *make_vardef(CAVariable *var, ASTNode *exprn);
 ASTNode *make_assign(int id, ASTNode *exprn);
 ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);

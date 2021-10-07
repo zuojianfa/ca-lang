@@ -4,6 +4,7 @@
 
 #include "ca.h"
 #include "ca.tab.h"
+#include "symtable.h"
 
 RootTree *gtree = NULL;
 
@@ -40,7 +41,9 @@ SymTable *pop_symtable() {
   return curr_symtable;
 }
 
-int add_fn_args(SymTable *st, int name) {
+int add_fn_args(SymTable *st, CAVariable *var) {
+    int name = var->name;
+    CADataType *datatype = var->datatype;
     if (curr_arglist.argc >= MAX_ARGS) {
 	yyerror("line: %d, col: %d: too many args '%s', max args support is %d",
 		glineno, gcolno, symname_get(name), MAX_ARGS);
@@ -55,6 +58,10 @@ int add_fn_args(SymTable *st, int name) {
     }
 
     entry = sym_insert(st, name, Sym_Variable);
+    CAVariable *cavar = (CAVariable *)malloc(sizeof(CAVariable));
+    cavar->datatype = datatype;
+    cavar->name = name;
+    entry->u.var = cavar;
     curr_arglist.argnames[curr_arglist.argc++] = name;
     return 0;
 }
@@ -143,8 +150,9 @@ ASTNode *make_id(int i) {
     return p;
 }
 
-ASTNode *make_vardef(int id, ASTNode *exprn) {
+ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
   /* TODO: in the future realize multiple let statement in one scope */
+  int id = var->name;
   STEntry *entry = sym_getsym(curr_symtable, id, 0);
   if (entry) {
     yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
@@ -153,6 +161,7 @@ ASTNode *make_vardef(int id, ASTNode *exprn) {
   }
 
   entry = sym_insert(curr_symtable, id, Sym_Variable);
+  entry->u.var = var;
 
   ASTNode *idn = make_id(id);
   idn->entry = entry;

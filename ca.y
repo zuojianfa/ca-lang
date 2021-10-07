@@ -32,9 +32,11 @@ extern int gcolno;
 
 %}/* symbol table */
 
-%error-verbose
+%define parse.error detailed
 
 %union {
+  CADataType *datatype;
+  CAVariable *var;
   CALiteral litv;   /* literal value */
   int symnameid;    /* symbol table index */
   ASTNode *astnode; /* node pointer */
@@ -58,9 +60,11 @@ extern int gcolno;
 %type	<astnode>	paragraph fn_proto fn_args fn_args_p fn_args_ps fn_call fn_body fn_args_call fn_args_call_p
 %type	<astnode>	ifstmt stmt_list_star block_body
 %type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
-%type	<astnode>	iddef
+%type	<var>		iddef
 %type	<arg>		fn_args_actual
 %type	<symnameid>	label_id
+%type	<symnameid>	atomic_type
+%type	<datatype>	datatype instance_type
 
 %%
 
@@ -128,17 +132,8 @@ fn_args_ps:	fn_args_p              { curr_arglist.contain_varg = 0; $$ = make_ex
 	|                              { $$ = make_expr(ARG_LISTS, 0); }
 	;
 
-fn_args_p:	fn_args_p ',' iddef
-		{
-		    // TODO iddef
-		    add_fn_args(curr_symtable, $3);
-		    $$ = NULL;
-		}
-	|	iddef
-		{
-		    add_fn_args(curr_symtable, $1);
-		    $$ = NULL;
-		}
+fn_args_p:	fn_args_p ',' iddef    { add_fn_args(curr_symtable, $3); $$ = NULL; }
+	|	iddef                  { add_fn_args(curr_symtable, $1); $$ = NULL; }
 	;
 
 fn_args_call:	{ curr_arglistactual.argc = 0; }
@@ -182,12 +177,7 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	PRINT expr ';'          { $$ = make_expr(PRINT, 1, $2); }
 	|	RET expr ';'            { $$ = make_expr(RET, 1, $2); }
 	|	RET ';'                 { $$ = make_expr(RET, 0); }
-	|	LET iddef '=' expr ';'
-		{
-		    // TODO:
-		    
-		}
-	|	LET IDENT '=' expr ';' { $$ = make_vardef($2, $4); }
+	|	LET iddef '=' expr ';' { $$ = make_vardef($2, $4); }
 	|	IDENT '=' expr ';'     { $$ = make_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
@@ -254,18 +244,22 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	ifexpr                { $$ = $1; }
 		;
 
-datatype:	instance_type
+datatype:	instance_type         { $$ = $1; }
 	|	pointer_type
 	;
 
 instance_type:	atomic_type
+		{
+		    CADataType *dt = catype_get_by_name($1);
+		    if (!dt)
+			yyerror("cannot find type: %s", symname_get($1));
+		    $$ = dt;
+		}
 	|	struct_type
 	;
 
 atomic_type:	I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
-		{
-		    // TODO: handle user defined type
-		}
+		    // { /* TODO: handle user defined type */ }
 		;
 
 struct_type:	IDENT
@@ -276,8 +270,28 @@ pointer_type:	'*' instance_type
 	;
 
 iddef:		IDENT ':' datatype
+		{	
+		    CAVariable *cavar = (CAVariable *)malloc(sizeof(CAVariable));
+		    cavar->datatype = $3;
+		    cavar->name = $1;
+
+		    $$ = cavar;
+		}
+	|	IDENT
 		{
-		    // TODO:
+		    int name = symname_check("i32");
+		    if (name == -1)
+			yyerror("cannot find i32 symnameid");
+
+		    CADataType *dt = catype_get_by_name(name);
+		    if (!dt)
+			yyerror("cannot get i32 datatype");
+
+		    CAVariable *cavar = (CAVariable *)malloc(sizeof(CAVariable));
+		    cavar->datatype = dt;
+		    cavar->name = $1;
+
+		    $$ = cavar;
 		}
 	;
 

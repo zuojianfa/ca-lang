@@ -1,0 +1,15 @@
+fn func1() {
+    let a: i32 = 32;
+    //let b: f32 = 344.34324;
+    //let c: char = 'C';
+
+    print a;
+    //print b;
+    //print c;
+    return 0;
+}
+
+fn main() {
+    func1();
+}
+
