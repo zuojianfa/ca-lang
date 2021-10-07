@@ -389,6 +389,31 @@ static void walk_if(ASTNode *p) {
   }
 }
 
+static const char *get_printf_format(int type) {
+  switch (type) {
+  case I32:
+    return "%d";
+  case I64:
+    return "%ld";
+  case U32:
+    return "%u";
+  case U64:
+    return "%lu";
+  case F32:
+    return "%f";
+  case F64:
+    return "%lf";
+  case CHAR:
+    return "%c";
+  case UCHAR:
+    return "%c";
+  case BOOL:
+    return "%1d";
+  default:
+    return "\n";
+  }
+}
+
 static void walk_stmt_print(ASTNode *p) {
   walk_stack(p->exprn.operands[0]);
   Value *v = pop_right_value();
@@ -396,7 +421,12 @@ static void walk_stmt_print(ASTNode *p) {
   if (!printf_fn)
     yyerror("cannot find declared extern printf function");
 
-  Constant *format_str = ir1.builder().CreateGlobalStringPtr("%d\n");
+  const char *format = "%d\n";
+  // TODO: support when not directly literal node
+  if (p->exprn.operands[0]->type == ASTNodeType::TTE_Literal)
+    format = get_printf_format(p->exprn.operands[0]->litn.litv.datatype->type);
+
+  Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
   std::vector<Value *> printf_args(1, format_str);
   printf_args.push_back(v);
 

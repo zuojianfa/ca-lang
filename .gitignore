@@ -16,3 +16,5 @@ test/*.o
 tags
 test/*.ll
 test/*.s
+ca.tab.h
+ca.tab.c
