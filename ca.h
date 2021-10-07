@@ -28,7 +28,7 @@ struct ASTNode;
 
 /* literals */
 typedef struct {
-  int value; /* value of literal */
+  CALiteral litv; /* value of literal */
 } TLiteralNode;
 
 /* identifiers */
@@ -110,18 +110,24 @@ int add_fn_args(SymTable *st, int name);
 int add_fn_args_actual(SymTable *st, ActualArg arg);
 const char *label_name(const char *name);
 
+ASTNode *make_label_node(int value);
+ASTNode *make_goto_node(int i);
 ASTNode *make_empty();
 ASTNode *make_expr(int op, int noperands, ...);
 ASTNode *make_expr_arglists(ST_ArgList *al);
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
 ASTNode *make_fn_decl(int name, ST_ArgList *al, SLoc beg, SLoc end);
 ASTNode *make_fn_define(int name, ST_ArgList *al, SLoc beg, SLoc end);
-ASTNode *make_id(int i);
-ASTNode *make_lit(int value);
-ASTNode *make_label(int value);
-ASTNode *make_goto_label(int i);
+ASTNode *make_id(int id);
+ASTNode *make_vardef(int id, ASTNode *exprn);
+ASTNode *make_assign(int id, ASTNode *exprn);
+ASTNode *make_goto(int labelid);
+ASTNode *make_label_def(int labelid);
+ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
+ASTNode *make_fn_call(int fnname, ASTNode *param);
+ASTNode *make_ident_expr(int id);
 
 void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);

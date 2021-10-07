@@ -24,8 +24,15 @@ int gcolno = 0;
 
 %%
 
-0	        { UPDATE_LINE_LOCINFO(); yylval.litv = atoi(yytext); return I32; }
-[1-9][0-9]*	{ UPDATE_LINE_LOCINFO(); yylval.litv = atoi(yytext); return I32; }
+0	        { UPDATE_LINE_LOCINFO(); create_literal(&yylval.litv, yytext, U64); return LITERAL; }
+[1-9][0-9]*	{ UPDATE_LINE_LOCINFO(); create_literal(&yylval.litv, yytext, U64); return LITERAL; }
+\-[1-9][0-9]*	{ UPDATE_LINE_LOCINFO(); create_literal(&yylval.litv, yytext, I64); return LITERAL; }
+\-?0\.[0-9]+	{ UPDATE_LINE_LOCINFO(); create_literal(&yylval.litv, yytext, F64); return LITERAL; }
+\-?[1-9][0-9]*\.[0-9]+	{ UPDATE_LINE_LOCINFO(); create_literal(&yylval.litv, yytext, F64); return LITERAL; }
+\'.\'		{ UPDATE_LINE_LOCINFO(); create_literal(&yylval.litv, yytext+1, UCHAR); return LITERAL; }
+"true"		{ UPDATE_LINE_LOCINFO(); create_literal(&yylval.litv, "1", BOOL); return LITERAL; }
+"false"		{ UPDATE_LINE_LOCINFO(); create_literal(&yylval.litv, "0", BOOL); return LITERAL; }
+
 \/\/.*$         { UPDATE_LINE_LOCINFO(); /* return COMMENT; */ }
 [-()<>=+*/;{}.:,]	{ UPDATE_LINE_LOCINFO(); return *yytext; }
 ">="		{ UPDATE_LINE_LOCINFO(); return GE; }
@@ -37,13 +44,12 @@ int gcolno = 0;
 "=>"		{ UPDATE_LINE_LOCINFO(); return INFER; }
 
 ({letter}|_)+({letter}|{digit}|_)*	{
+		UPDATE_LINE_LOCINFO();
+		yylval.symnameid = symname_check_insert(yytext);
 		int tok = find_lexical_keyword(yytext);
 		if (tok != -1)
 			return tok;
 
-		yylval.symnameid = symname_check_insert(yytext);
-		// yylval.symnameid = sym_check_insert(curr_symtable, yytext, Sym_Variable);
-		UPDATE_LINE_LOCINFO();
 		return IDENT;
 	}
 \n	{ glineno_prev = glineno; gcolno_prev = gcolno; ++glineno; gcolno = 0; }

@@ -3,6 +3,7 @@
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
@@ -179,11 +180,36 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname, llvm
 
 static void walk_empty(ASTNode *p) {}
 
+static Value *gen_literal_value(CALiteral *value) {
+  switch (value->datatype->type) {
+  case I32:
+    return ir1.gen_int(value->u.i32value);
+  case I64:
+    return ir1.gen_int(value->u.i64value);
+  case U32:
+    return ir1.gen_int(value->u.u32value);
+  case U64:
+    return ir1.gen_int(value->u.u64value);
+  case F32:
+    return ir1.gen_float(value->u.f32value);
+  case F64:
+    return ir1.gen_float(value->u.f64value);
+  case BOOL:
+    return ir1.gen_bool(value->u.boolvalue);
+  case CHAR:
+    return ir1.gen_int(value->u.charvalue);
+  case UCHAR:
+    return ir1.gen_int(value->u.ucharvalue);
+  default:
+    return nullptr;
+  }
+}
+
 static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  Value *v = ir1.gen_int(p->litn.value);
+  Value *v = gen_literal_value(&p->litn.litv);
   auto operands = std::make_unique<CalcOperand>(OT_Const, v);
   oprand_stack.push_back(std::move(operands));
 
@@ -437,7 +463,7 @@ static void walk_stmt_call(ASTNode *p) {
   for (int i = 0; i < args->exprn.noperand; ++i) {
     Value *v;
     if (args->exprn.operands[i]->type == TTE_Literal) {
-      v = ir1.gen_int<int>(args->exprn.operands[i]->litn.value);
+      v = gen_literal_value(&args->exprn.operands[i]->litn.litv);
     } else {
       const char *argname = symname_get(args->exprn.operands[i]->idn.i);
       walk_stack(args->exprn.operands[i]);

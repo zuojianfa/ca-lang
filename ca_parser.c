@@ -24,6 +24,8 @@ extern int gcolno_prev;
 extern int glineno;
 extern int gcolno;
 
+void yyerror(const char *s, ...);
+
 SymTable *push_new_symtable() {
     SymTable *st = (SymTable *)malloc(sizeof(SymTable));
     sym_init(st, curr_symtable);
@@ -59,7 +61,7 @@ int add_fn_args(SymTable *st, int name) {
 
 int add_fn_args_actual(SymTable *st, ActualArg arg) {
     if (curr_arglist.argc >= MAX_ARGS) {
-	if (arg.type == AT_LITERAL)
+	if (arg.type == AT_Literal)
 	    yyerror("line: %d, col: %d: too many args '%d', max args support is %d",
 		    glineno, gcolno, arg.litv, MAX_ARGS);
 	else
@@ -69,7 +71,7 @@ int add_fn_args_actual(SymTable *st, ActualArg arg) {
 	return -1;
     }
 
-    if (arg.type == AT_LITERAL) {
+    if (arg.type == AT_Literal) {
 	curr_arglistactual.args[curr_arglistactual.argc++] = arg;
 	return 0;
     }
@@ -112,14 +114,14 @@ ASTNode *make_empty() {
     return p;
 }
 
-ASTNode *make_lit(int value) {
+ASTNode *make_literal(CALiteral *litv) {
     ASTNode *p;
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
 	yyerror("out of memory");
     /* copy information */
     p->type = TTE_Literal;
-    p->litn.value = value;
+    p->litn.litv = *litv;
     p->begloc.row = glineno_prev;
     p->begloc.col = gcolno_prev;
     p->endloc.row = glineno;
@@ -139,6 +141,90 @@ ASTNode *make_id(int i) {
 
     set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
     return p;
+}
+
+ASTNode *make_vardef(int id, ASTNode *exprn) {
+  /* TODO: in the future realize multiple let statement in one scope */
+  STEntry *entry = sym_getsym(curr_symtable, id, 0);
+  if (entry) {
+    yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
+	    glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
+    return NULL;
+  }
+
+  entry = sym_insert(curr_symtable, id, Sym_Variable);
+
+  ASTNode *idn = make_id(id);
+  idn->entry = entry;
+  return make_expr('=', 2, idn, exprn);
+}
+
+ASTNode *make_assign(int id, ASTNode *exprn) {
+  STEntry *entry = sym_getsym(curr_symtable, id, 1);
+  if (!entry) {
+    yyerror("line: %d, col: %d: symbol '%s' not defined", glineno, gcolno, symname_get(id));
+    return NULL;
+  }
+
+  ASTNode *idn = make_id(id);
+  idn->entry = entry;
+  return make_expr('=', 2, idn, exprn);
+}
+
+ASTNode *make_goto(int labelid) {
+  const char *name = symname_get(labelid);
+  /* because the label name can using the same name as other names (variable, function, etc)
+     so innerly represent the label name as "l:<name>", in order to distinguish them */
+  const char *l = label_name(name);
+  int lpos = symname_check_insert(l);
+  STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
+  if (entry) {
+    switch(entry->sym_type) {
+    case Sym_Label:
+    case Sym_Label_Hanging:
+      break;
+    default:
+      yyerror("line: %d, col: %d: label name '%s' appear but not aim to be a label",
+	      glineno, gcolno, name);
+      return NULL;
+    }
+  } else {
+    entry = sym_insert(curr_fn_symtable, lpos, Sym_Label_Hanging);
+    SLoc loc = {glineno, gcolno};
+    entry->sloc = loc;
+  }
+
+  return make_expr(GOTO, 1, make_goto_node(lpos));
+}
+
+ASTNode *make_label_def(int labelid) {
+  const char *name = symname_get(labelid);
+  /* because the label name can using the same name as other names (variable, function, etc)
+     so innerly represent the label name as "l:<name>", in order to distinguish them */
+  const char *l = label_name(name);
+  int lpos = symname_check_insert(l);
+  STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
+  if (entry) {
+    switch(entry->sym_type) {
+    case Sym_Label:
+      yyerror("line: %d, col: %d: Label '%s' redefinition", glineno, gcolno, name);
+      return NULL;
+    case Sym_Label_Hanging:
+      entry->sym_type = Sym_Label;
+      break;
+    default:
+      yyerror("line: %d, col: %d: label name '%s' appear but not aim to be a label",
+	      glineno, gcolno, name);
+      return NULL;
+    }
+  } else {
+    entry = sym_insert(curr_fn_symtable, lpos, Sym_Label);
+  }
+
+  SLoc loc = {glineno, gcolno};
+  entry->sloc = loc;
+
+  return make_label_node(lpos);
 }
 
 ASTNode *make_expr(int op, int noperands, ...) {
@@ -231,8 +317,8 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     p->exprn.op = op;
     p->exprn.noperand = noperands;
     for (i = 0; i < noperands; i++) {
-      if (al->args[i].type == AT_LITERAL) {
-	p->exprn.operands[i] = make_lit(al->args[i].litv);
+      if (al->args[i].type == AT_Literal) {
+	p->exprn.operands[i] = make_literal(&al->args[i].litv);
 	p->exprn.operands[i]->entry = NULL;
       } else {
 	p->exprn.operands[i] = make_id(al->args[i].symnameid);
@@ -255,7 +341,7 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     return p;
 }
 
-ASTNode *make_label(int i) {
+ASTNode *make_label_node(int i) {
     ASTNode *p = make_id(i);
     if (p) {
 	p->type = TTE_Label;
@@ -265,7 +351,7 @@ ASTNode *make_label(int i) {
     return NULL;
 }
 
-ASTNode *make_goto_label(int i) {
+ASTNode *make_goto_node(int i) {
     ASTNode *p = make_id(i);
     if (p) {
 	p->type = TTE_LabelGoto;
@@ -363,6 +449,76 @@ ASTNode *make_if(int isexpr, int argc, ...) {
     return p;
 }
 
+ASTNode *make_fn_args(int id) {
+  SLoc beg = {glineno, gcolno};
+  SLoc end = {glineno, gcolno};
+
+  STEntry *entry = sym_getsym(&g_root_symtable, id, 0);
+  if (extern_flag) {
+    if (entry) {
+      /* check if function declaration is the same */
+      if (curr_arglist.argc != entry->u.arglists->argc) {
+	yyerror("line: %d, col: %d: function '%s' declaration not identical, see: line %d, col %d.",
+		glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
+	return NULL;
+      }
+    } else {
+      entry = sym_check_insert(&g_root_symtable, id, Sym_FnDecl);
+      entry->u.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
+      *entry->u.arglists = curr_arglist;
+    }
+
+    return make_fn_decl(id, &curr_arglist, beg, end);
+  } else {
+    if (entry) {
+      if (entry->sym_type == Sym_FnDef) {
+	yyerror("line: %d, col: %d: function '%s' already defined on line %d, col %d.",
+		glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
+	return NULL;
+      }
+
+      if (entry->sym_type == Sym_FnDecl) {
+	entry->sym_type = Sym_FnDef;
+	SLoc loc = {glineno, gcolno};
+	entry->sloc = loc;
+      }
+    } else {
+      entry = sym_check_insert(&g_root_symtable, id, Sym_FnDef);
+      entry->u.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
+      *entry->u.arglists = curr_arglist;
+    }
+
+    return make_fn_define(id, &curr_arglist, beg, end);
+  }
+}
+
+ASTNode *make_fn_call(int fnname, ASTNode *param) {
+  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
+  if (!entry) {
+    yyerror("line: %d, col: %d: function '%s' not defined", glineno, gcolno, symname_get(fnname));
+    return NULL;
+  }
+
+  if (entry->sym_type != Sym_FnDecl && entry->sym_type != Sym_FnDef) {
+    yyerror("line: %d, col: %d: '%s' is not a function", glineno, gcolno, symname_get(fnname));
+    return NULL;
+  }
+
+  return make_expr(FN_CALL, 2, make_id(fnname), param);
+}
+
+ASTNode *make_ident_expr(int id) {
+  STEntry *entry = sym_getsym(curr_symtable, id, 1);
+  if (!entry) {
+    yyerror("line: %d, col: %d: Variable name '%s' not defined", glineno, gcolno, symname_get(id));
+    return NULL;
+  }
+
+  ASTNode *node = make_id(id);
+  node->entry = entry;
+  return node;
+}
+
 void freeNode(ASTNode *p) {
     int i;
     if (!p) return;
@@ -423,6 +579,7 @@ int yyparser_init() {
 
     symname_init();
     lexical_init();
+    catype_init();
 
     if (sym_init(&g_root_symtable, NULL)) {
 	yyerror("init symbol table failed\n");

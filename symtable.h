@@ -1,6 +1,7 @@
 #ifndef __symtable_h__
 #define __symtable_h__
 
+#include <stdint.h>
 #include <stdio.h>
 #ifdef __cplusplus
 extern "C" {
@@ -25,6 +26,53 @@ typedef enum SymType {
 
 #define MAX_ARGS 16
 
+typedef struct CADataType {
+  int type;       // type type: I32 I64 ... STRUCT ARRAY
+  int formalname; // type name symname_xxx
+  int size;       // type size
+  union {
+    struct CAStruct *struct_layout;  // when type is STRUCT
+    struct CAArray *array_layout;    // when type is ARRAY
+  };
+} CADataType;
+
+struct CAStructField {
+  int name;           // field name
+  CADataType *type;   // field type
+};
+
+struct CAStruct {
+  int fieldnum;
+  struct CAStructField *fields;
+};
+
+struct CAArray {
+  int size;           // array size
+  CADataType *type;   // array type
+};
+
+typedef struct CALiteral {
+  CADataType *datatype;
+  union {
+    int      i32value;
+    int64_t  i64value;
+    uint32_t u32value;
+    uint64_t u64value;
+    float    f32value;
+    double   f64value;
+    int      boolvalue;
+    char     charvalue;
+    uint8_t  ucharvalue;
+    void    *structvalue;
+    void    *arrayvalue;
+  } u;
+} CALiteral;
+
+typedef struct CAVariable {
+  CADataType *datatype;
+  int name;
+} CAVariable;
+
 typedef struct ST_ArgList {
   int argc;                 // function argument count
   int contain_varg;         // contain variable argument
@@ -32,15 +80,16 @@ typedef struct ST_ArgList {
 } ST_ArgList;
 
 typedef enum ArgType {
-  AT_LITERAL,
-  AT_VARIABLE,
+  AT_Literal,
+  AT_Variable,
 } ArgType;
 
 typedef struct ActualArg {
   ArgType type;
   struct STEntry *entry;
   union {
-    int litv; /* integer value */
+    /* literal value, only value so not in symbol table */
+    struct CALiteral litv;
     int symnameid; /* variable value */
   };
 } ActualArg;
@@ -55,11 +104,12 @@ typedef struct ST_ArgListActual {
 // for function it will append a prefix of 'f:'. example: f:fibs
 typedef struct STEntry {
   int sym_name;		// symbol name index in global symbol table
-  int sym_value;	// symbol value
+  int sym_value;	// symbol value, should not used
   SymType sym_type;	// symbol type
-  SLoc sloc;		// symbol defination line number and column
+  SLoc sloc;		// symbol definition line number and column
   union {
     ST_ArgList *arglists; // when type is Sym_ArgList
+    CAVariable *var;
 
     // opaque memory, for storing llvm Value * type, used here for code generation, in code generation it will be filled and used, when type is Variable
     void *llvm_value;
@@ -70,6 +120,15 @@ typedef struct SymTable {
   void *opaque;
   struct SymTable *parent;
 } SymTable;
+
+// type finding
+int catype_init();
+int catype_put_by_name(int name, CADataType *datatype);
+CADataType *catype_get_by_name(int name);
+int catype_put_by_token(int token, CADataType *datatype);
+CADataType *catype_get_by_token(int token);
+
+void create_literal(CALiteral *lit, const char *text, int typetok);
 
 // the globally symbol name table, it store names and it's index
 int symname_init();

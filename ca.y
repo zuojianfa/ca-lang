@@ -33,24 +33,25 @@ extern int gcolno;
 %}/* symbol table */
 
 %union {
-  int litv; /* integer value */
-  int symnameid; /* symbol table index */
+  CALiteral litv;   /* literal value */
+  int symnameid;    /* symbol table index */
   ASTNode *astnode; /* node pointer */
-  ActualArg arg;   /* argument */
+  ActualArg arg;    /* argument */
 };
 
-%token	<litv>		I32
-%token			I64 U32 U64 F32 F64 BOOL CHAR UCHAR
+%token	<litv>		LITERAL
+%token	<symnameid>	I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
 %token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
-%token			ARROW INFER
+%token			ARROW INFER TYPE
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			GE LE EQ NE '>' '<'
 %left			'+' '-'
 %left			'*' '/'
 %nonassoc		UMINUS
+%type	<litv>		literal lit_field lit_field_list lit_struct_def
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl
 %type	<astnode>	paragraph fn_proto fn_args fn_args_p fn_args_ps fn_call fn_body fn_args_call fn_args_call_p
 %type	<astnode>	ifstmt stmt_list_star block_body
@@ -99,21 +100,7 @@ fn_decl: 	EXTERN { extern_flag = 1; } fn_proto ';'
 		}
 	;
 
-fn_call:	IDENT '(' fn_args_call ')'
-		{
-		STEntry *entry = sym_getsym(&g_root_symtable, $1, 0);
-		if (!entry) {
-		    yyerror("line: %d, col: %d: function '%s' not defined", glineno, gcolno, symname_get($1));
-		    return -1;
-		}
-
-		if (entry->sym_type != Sym_FnDecl && entry->sym_type != Sym_FnDef) {
-		    yyerror("line: %d, col: %d: '%s' is not a function", glineno, gcolno, symname_get($1));
-		    return -1;
-		}
-
-		$$ = make_expr(FN_CALL, 2, make_id($1), $3);
-		}
+fn_call:	IDENT '(' fn_args_call ')' { $$ = make_fn_call($1, $3); }
 	;
 
 fn_proto:	FN IDENT
@@ -126,46 +113,7 @@ fn_proto:	FN IDENT
 		}
 		'(' fn_args ')' ret_type
 		{
-		SLoc beg = {glineno, gcolno};
-		SLoc end = {glineno, gcolno};
-
-		STEntry *entry = sym_getsym(&g_root_symtable, $2, 0);
-		if (extern_flag) {
-		    if (entry) {
-			/* check if function declaration is the same */
-			if (curr_arglist.argc != entry->u.arglists->argc) {
-			    yyerror("line: %d, col: %d: function '%s' declaration not identical, see: line %d, col %d.",
-				    glineno, gcolno, symname_get($2), entry->sloc.row, entry->sloc.col);
-			    return -1;
-		        }
-		    } else {
-			entry = sym_check_insert(&g_root_symtable, $2, Sym_FnDecl);
-			entry->u.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
-			*entry->u.arglists = curr_arglist;
-		    }
-
-		    $$ = make_fn_decl($2, &curr_arglist, beg, end);
-		} else {
-		    if (entry) {
-			if (entry->sym_type == Sym_FnDef) {
-			    yyerror("line: %d, col: %d: function '%s' already defined on line %d, col %d.",
-				    glineno, gcolno, symname_get($2), entry->sloc.row, entry->sloc.col);
-			    return -1;
-		        }
-
-		        if (entry->sym_type == Sym_FnDecl) {
-			    entry->sym_type = Sym_FnDef;
-			    SLoc loc = {glineno, gcolno};
-			    entry->sloc = loc;
-			}
-		    } else {
-			entry = sym_check_insert(&g_root_symtable, $2, Sym_FnDef);
-			entry->u.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
-			*entry->u.arglists = curr_arglist;
-		    }
-
-		    $$ = make_fn_define($2, &curr_arglist, beg, end);
-		}
+		    $$ = make_fn_args($2);
 		}
 	;
 
@@ -214,14 +162,14 @@ fn_args_call_p:	fn_args_call_p ',' fn_args_actual
 fn_args_actual:	IDENT
 		{
 		    ActualArg arg;
-		    arg.type = AT_VARIABLE;
+		    arg.type = AT_Variable;
 		    arg.symnameid = $1;
 		    $$ = arg;
 		}
-	|	I32
+	|	literal
 		{
 		    ActualArg arg;
-		    arg.type = AT_LITERAL;
+		    arg.type = AT_Literal;
 		    arg.litv = $1;
 		    $$ = arg;
 		}
@@ -237,63 +185,14 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 		    // TODO:
 		    
 		}
-	|	LET IDENT '=' expr ';'
-		{
-		    /* TODO: in the future realize multiple let statement in one scope */
-		    STEntry *entry = sym_getsym(curr_symtable, $2, 0);
-		    if (entry)
-			yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
-				glineno, gcolno, symname_get($2), entry->sloc.row, entry->sloc.col);
-
-		    entry = sym_insert(curr_symtable, $2, Sym_Variable);
-
-		    ASTNode *idn = make_id($2);
-		    idn->entry = entry;
-		    $$ = make_expr('=', 2, idn, $4);
-		}		
-	|	IDENT '=' expr ';'
-		{
-		STEntry *entry = sym_getsym(curr_symtable, $1, 1);
-		if (!entry) {
-		    yyerror("line: %d, col: %d: symbol '%s' not defined", glineno, gcolno, symname_get($1));
-		    return -1;
-		}
-
-		ASTNode *idn = make_id($1);
-		idn->entry = entry;
-		$$ = make_expr('=', 2, idn, $3);
-		}
+	|	LET IDENT '=' expr ';' { $$ = make_vardef($2, $4); }
+	|	IDENT '=' expr ';'     { $$ = make_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { $$ = $1; }
 	|	stmt_list_block         { $$ = $1; }
 	|	label_def               { $$ = $1; }
-	|	GOTO label_id ';'
-		{
-    		    const char *name = symname_get($2);
-		    /* because the label name can using the same name as other names (variable, function, etc)
-		       so innerly represent the label name as "l:<name>", in order to distinguish them */
-		    const char *l = label_name(name);
-		    int lpos = symname_check_insert(l);
-		    STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
-		    if (entry) {
-			switch(entry->sym_type) {
-			case Sym_Label:
-			case Sym_Label_Hanging:
-			    break;
-			default:
-			    yyerror("line: %d, col: %d: label name '%s' appear but not aim to be a label",
-				    glineno, gcolno, name);
-			    return -1;
-			}
-		    } else {
-			entry = sym_insert(curr_fn_symtable, lpos, Sym_Label_Hanging);
-			SLoc loc = {glineno, gcolno};
-			entry->sloc = loc;
-		    }
-
-		    $$ = make_expr(GOTO, 1, make_goto_label(lpos));
-		}
+	|	GOTO label_id ';'       { $$ = make_goto($2); }
 		;
 
 ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
@@ -329,51 +228,14 @@ stmt_list:     	stmt                  { $$ = $1; }
 	|	stmt_list stmt        { $$ = make_expr(';', 2, $1, $2); }
 		;
 
-label_def:	label_id ':'
-		{
-		    const char *name = symname_get($1);
-		    /* because the label name can using the same name as other names (variable, function, etc)
-		       so innerly represent the label name as "l:<name>", in order to distinguish them */
-		    const char *l = label_name(name);
-		    int lpos = symname_check_insert(l);
-		    STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
-		    if (entry) {
-		      switch(entry->sym_type) {
-		      case Sym_Label:
-			yyerror("line: %d, col: %d: Label '%s' redefinition", glineno, gcolno, name);
-			return -1;
-		      case Sym_Label_Hanging:
-			entry->sym_type = Sym_Label;
-			break;
-		      default:
-			yyerror("line: %d, col: %d: label name '%s' appear but not aim to be a label",
-				glineno, gcolno, name);
-			return -1;
-		      }
-		    } else {
-		      entry = sym_insert(curr_fn_symtable, lpos, Sym_Label);
-		    }
-
-		    SLoc loc = {glineno, gcolno};
-		    entry->sloc = loc;
-
-		    $$ = make_label(lpos);
-		}
+label_def:	label_id ':'          { $$ = make_label_def($1); }
 		;
 
 label_id:	IDENT		      { $$ = $1; }
 		;
 
-expr:     	I32               { $$ = make_lit($1); }
-	|	IDENT
-		{
-		    STEntry *entry = sym_getsym(curr_symtable, $1, 1);
-		    if (!entry)
-			yyerror("line: %d, col: %d: Variable name '%s' not defined", glineno, gcolno, symname_get($1));
-
-		    $$ = make_id($1);
-		    $$->entry = entry;
-		}
+expr:     	literal               { $$ = make_literal(&$1); }
+	|	IDENT                 { $$ = make_ident_expr($1); }
 	|	'-'expr %prec UMINUS  { $$ = make_expr(UMINUS, 1, $2); }
 	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
 	|	expr '-' expr         { $$ = make_expr('-', 2, $1, $3); }
@@ -395,7 +257,7 @@ datatype:	instance_type
 	;
 
 instance_type:	atomic_type
-	|	userdef_type
+	|	struct_type
 	;
 
 atomic_type:	I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
@@ -404,7 +266,7 @@ atomic_type:	I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
 		}
 		;
 
-userdef_type:	IDENT
+struct_type:	IDENT
 	;
 
 pointer_type:	'*' instance_type
@@ -421,7 +283,25 @@ ret_type:	ARROW datatype
 	|	// TODO: 
 	;
 
-literal:	
+literal:	LITERAL          { $$ = $1; }
+	|	lit_struct_def   { $$ = $1; }
+	;
+
+lit_struct_def:	IDENT '{' lit_field_list  '}'
+		{
+		    // TODO: define structure
+		    
+		}
+	;
+
+lit_field_list:	lit_field_list ',' lit_field
+		{
+		    // TODO: define structure 
+		}
+	|	lit_field        { $$ = $1; }
+	;
+
+lit_field:	literal          { $$ = $1; }
 	;
 
 %%
