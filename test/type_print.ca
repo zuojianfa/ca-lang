@@ -1,0 +1,21 @@
+print 4333;
+print '\n';
+print '\t';
+print 432.43243;
+print '\n';
+print ' ';
+print true;
+print '\n';
+print false;
+print '\n';
+print 'H';
+print 'e';
+print 'l';
+print 'l';
+print 'o';
+print ' ';
+print 'C';
+print 'A';
+print '!';
+print '\n';
+

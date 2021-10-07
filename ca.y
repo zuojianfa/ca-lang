@@ -32,6 +32,8 @@ extern int gcolno;
 
 %}/* symbol table */
 
+%error-verbose
+
 %union {
   CALiteral litv;   /* literal value */
   int symnameid;    /* symbol table index */

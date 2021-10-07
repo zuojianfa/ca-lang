@@ -71,6 +71,8 @@ using SymTableInner = std::unordered_map<int, std::unique_ptr<STEntry>>;
 EXTERN_C
 #endif
 
+void yyerror(const char *s, ...);
+
 int lexical_init() {
   return 0;
 }
@@ -140,6 +142,23 @@ CADataType *catype_get_by_token(int token) {
   // TODO:
 }
 
+static int parse_lexical_char(const char *text) {
+  if (text[0] != '\\')
+    return text[0];
+
+  switch(text[1]) {
+  case 'r':
+    return '\r';
+  case 'n':
+    return '\n';
+  case 't':
+    return '\t';
+  default:
+    yyerror("unimplemented special character");
+    return -1;
+  }
+}
+
 void create_literal(CALiteral *lit, const char *text, int typetok) {
   switch (typetok) {
   case I32:
@@ -171,12 +190,12 @@ void create_literal(CALiteral *lit, const char *text, int typetok) {
     lit->u.boolvalue = atof(text) ? 1 : 0;
     break;
   case CHAR:
-    lit->datatype = catype_get_by_name(symname_check("char"));
-    lit->u.charvalue = text[0];
+    lit->datatype = catype_get_by_name(symname_check("char"));    
+    lit->u.charvalue = (char)parse_lexical_char(text);
     break;
   case UCHAR:
     lit->datatype = catype_get_by_name(symname_check("uchar"));
-    lit->u.ucharvalue = (uint8_t)text[0];
+    lit->u.ucharvalue = (uint8_t)parse_lexical_char(text);
     break;
   default:
     break;
