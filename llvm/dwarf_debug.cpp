@@ -12,6 +12,35 @@
 
 namespace dwarf_debug {
 
+void DWARFDebugInfo::initialize_types() {
+  llvm::DIType *type;
+  type = dibuilder->createBasicType("i32", 32, llvm::dwarf::DW_ATE_signed);
+  _ditypes["i32"] = type;
+  _ditypes["int"] = type;
+  _ditypes["i64"] = dibuilder->createBasicType("i64", 64, llvm::dwarf::DW_ATE_signed);
+
+  type = dibuilder->createBasicType("u32", 32, llvm::dwarf::DW_ATE_unsigned);
+  _ditypes["u32"] = type;
+  _ditypes["uint"] = type;
+  _ditypes["u64"] = dibuilder->createBasicType("u64", 64, llvm::dwarf::DW_ATE_unsigned);
+
+  type = dibuilder->createBasicType("f32", 32, llvm::dwarf::DW_ATE_float);
+  _ditypes["f32"] = type;
+  _ditypes["float"] = type;
+
+  type = dibuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float);
+  _ditypes["f64"] = type;
+  _ditypes["double"] = type;
+
+  _ditypes["bool"] = dibuilder->createBasicType("bool", 8, llvm::dwarf::DW_ATE_boolean);
+  _ditypes["char"] = dibuilder->createBasicType("char", 8, llvm::dwarf::DW_ATE_signed_char);
+  _ditypes["uchar"] = dibuilder->createBasicType("char", 8, llvm::dwarf::DW_ATE_unsigned_char);
+}
+
+llvm::DIType *DWARFDebugInfo::get_ditype(const char *type) {
+  return _ditypes[type];
+}
+
 DWARFDebugInfo::DWARFDebugInfo(llvm::IRBuilder<> &builder, llvm::Module &module,
                                const char *src_path)
   : builder(builder), dibuilder(std::make_unique<llvm::DIBuilder>(module)) {
@@ -30,6 +59,8 @@ DWARFDebugInfo::DWARFDebugInfo(llvm::IRBuilder<> &builder, llvm::Module &module,
   module.addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
   llvm::DIFile *difile = dibuilder->createFile(file, dir);
   dicu = dibuilder->createCompileUnit(llvm::dwarf::DW_LANG_C, difile, "ca compiler", 0, "", 0);
+
+  initialize_types();
 }
 
 void DWARFDebugInfo::emit_location(int row, int col) {

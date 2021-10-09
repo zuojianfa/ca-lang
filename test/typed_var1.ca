@@ -1,11 +1,22 @@
 fn func1() {
-    //let a: i32 = 32;
+    let a: i32 = 32;
     let b: f32 = 344.34324;
-    //let c: char = 'A';
+    let c: f64 = 3.123;
+    let d: char = 'A';
+    let e: bool = true;
 
-    //print a;
+    print a;
+    print '\n';
     print b;
-    //print c;
+    print '\n';
+    print c;
+    print '\n';
+    print d;
+    print '\n';
+    print e;
+    print '\n';
+    print 323.1223;
+    print '\n';
     return 0;
 }
 

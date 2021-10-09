@@ -7,6 +7,8 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace dwarf_debug {
@@ -14,6 +16,9 @@ namespace dwarf_debug {
 class DWARFDebugInfo {
 public:
   DWARFDebugInfo(llvm::IRBuilder<> &builder, llvm::Module &module, const char *src_path);
+
+  void initialize_types();
+  llvm::DIType *get_ditype(const char *type);
 
   void emit_location(int row = -1, int col = 0);
   void set_difile(llvm::DIFile *difile) { this->difile = difile; }
@@ -30,6 +35,9 @@ public:
   llvm::IRBuilder<> &builder;
   std::unique_ptr<llvm::DIBuilder> dibuilder;
   llvm::DIFile *difile;
+
+private:
+  std::unordered_map<std::string, llvm::DIType *> _ditypes;
 };
 
 }

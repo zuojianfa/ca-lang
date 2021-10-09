@@ -66,7 +66,7 @@ static bool g_with_ret_value = false;
 
 // llvm section
 
-// NEXT TODO: add debug information for functions
+// NEXT TODO: add return value type, pass expression calculation type
 
 #define MAX_OPS 10000
 
@@ -104,6 +104,31 @@ static Value *pop_right_value(const char *name = "load") {
 
 static int enable_debug_info() { return genv.emit_debug; }
 static int enable_emit_main() { return genv.emit_main; }
+static const char *get_type_string(int tok) {
+  switch (tok) {
+  case I32:
+    return "i32";
+  case I64:
+    return "i64";
+  case U32:
+    return "u32";
+  case U64:
+    return "u64";
+  case F32:
+    return "f32";
+  case F64:
+    return "f64";
+  case BOOL:
+    return "bool";
+  case CHAR:
+    return "char";
+  case UCHAR:
+    return "uchar";
+  default:
+    return nullptr;
+  }
+}
+
 static Type *gen_type_from_token(int tok) {
   switch (tok) {
   case I32:
@@ -173,7 +198,8 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     AllocaInst *slot = ir1.gen_var(type, name, &arg);
 
     if (enable_debug_info()) {
-      DILocalVariable *divar = diinfo->dibuilder->createParameterVariable(disp, arg.getName(), i, diunit, row, diinfo->int_type_di(), true);
+      DIType *ditype = diinfo->get_ditype(get_type_string(entry->u.var->datatype->type));
+      DILocalVariable *divar = diinfo->dibuilder->createParameterVariable(disp, arg.getName(), i, diunit, row, ditype, true);
 
       const DILocation *diloc = DILocation::get(disp->getContext(), row, 0, disp);
       diinfo->dibuilder->insertDeclare(slot, divar, diinfo->dibuilder->createExpression(),
@@ -187,20 +213,22 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
   }
 }
 
-static void emit_global_var_dbginfo(const char *varname, int row) {
+static void emit_global_var_dbginfo(const char *varname, const char *type, int row) {
+  DIType *ditype = diinfo->get_ditype(type);
   llvm::DIGlobalVariableExpression *digve =
-    diinfo->dibuilder->createGlobalVariableExpression(diunit, varname, StringRef(), diunit, row,
-						      diinfo->int_type_di(), false);
+    diinfo->dibuilder->createGlobalVariableExpression(diunit, varname, StringRef(), diunit, row, ditype, false);
 }
 
-static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname, llvm::Value *var, int row) {
+static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname,
+				   const char *typestr, llvm::Value *var, int row) {
   auto itr = fn_debug_map.find(fn);
   if (itr == fn_debug_map.end())
     yyerror("cannot find function '%s' in map", fn->getName().str().c_str());
 
   auto &dbginfo = *itr->second;
+  DIType *ditype = diinfo->get_ditype(typestr);
   DILocalVariable *divar =
-    diinfo->dibuilder->createAutoVariable(dbginfo.disp, varname, diunit, row, diinfo->int_type_di(), true);
+    diinfo->dibuilder->createAutoVariable(dbginfo.disp, varname, diunit, row, ditype, true);
 
   const DILocation *diloc = DILocation::get(dbginfo.disp->getContext(), row, 0, dbginfo.disp);
   diinfo->dibuilder->insertDeclare(var, divar, diinfo->dibuilder->createExpression(),
@@ -286,14 +314,15 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
   } else {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
     Type *type = gen_type_from_token(p->entry->u.var->datatype->type);
+    const char *typestr = get_type_string(p->entry->u.var->datatype->type);
     if (curr_fn == main_fn) {
       var = ir1.gen_global_var(type, name, defval);
       if (enable_debug_info())
-	emit_global_var_dbginfo(name, p->endloc.row);
+	emit_global_var_dbginfo(name, typestr, p->endloc.row);
     } else {
       var = ir1.gen_var(type, name, defval);
       if (enable_debug_info())
-	emit_local_var_dbginfo(curr_fn, name, var, p->endloc.row);
+	emit_local_var_dbginfo(curr_fn, name, typestr, var, p->endloc.row);
     }
     entry->u.var->llvm_value = static_cast<void *>(var);
   }
@@ -478,8 +507,11 @@ static void walk_stmt_print(ASTNode *p) {
   // TODO: handle expression value transfer
   if (p->exprn.operands[0]->type == ASTNodeType::TTE_Literal)
     format = get_printf_format(p->exprn.operands[0]->litn.litv.datatype->type);
-  else
+  else {
     format = get_printf_format(p->exprn.operands[0]->entry->u.var->datatype->type);
+    if (p->exprn.operands[0]->entry->u.var->datatype->type == F32)
+      v = ir1.builder().CreateFPExt(v, ir1.float_type<double>());
+  }
 
   Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
   std::vector<Value *> printf_args(1, format_str);
