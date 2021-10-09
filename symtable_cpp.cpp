@@ -146,7 +146,7 @@ CADataType *catype_get_by_token(int token) {
   return nullptr;
 }
 
-bool catype_is_float(int typetok) {
+int catype_is_float(int typetok) {
   return (typetok == F32 || typetok == F64);
 }
 

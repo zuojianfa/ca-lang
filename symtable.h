@@ -119,7 +119,7 @@ int catype_put_by_name(int name, CADataType *datatype);
 CADataType *catype_get_by_name(int name);
 int catype_put_by_token(int token, CADataType *datatype);
 CADataType *catype_get_by_token(int token);
-bool catype_is_float(int typetok);
+int catype_is_float(int typetok);
 
 void create_literal(CALiteral *lit, const char *text, int typetok);
 

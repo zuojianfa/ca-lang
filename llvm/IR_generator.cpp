@@ -570,6 +570,7 @@ static void walk_stmt_call(ASTNode *p) {
 
 static void walk_stmt_ret(ASTNode *p) {
   if (p->exprn.noperand) {
+    // TODO: match the function return value and the literal return value
     walk_stack(p->exprn.operands[0]);
     Value *v = pop_right_value();
     if (enable_debug_info())
