@@ -181,7 +181,7 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     }
 
     // save the value into symbol table
-    entry->u.llvm_value = static_cast<void *>(slot);
+    entry->u.var->llvm_value = static_cast<void *>(slot);
 
     ++i;
   }
@@ -209,26 +209,40 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname, llvm
 
 static void walk_empty(ASTNode *p) {}
 
+static int64_t parse_to_int64(CALiteral *value) {
+  if (catype_is_float(value->datatype->type))
+    return (int64_t)value->u.f64value;
+  else
+    return value->u.i64value;
+}
+
+static double parse_to_double(CALiteral *value) {
+  if (catype_is_float(value->datatype->type))
+    return value->u.f64value;
+  else
+    return (double)value->u.i64value;
+}
+
 static Value *gen_literal_value(CALiteral *value, int typetok) {
   switch (typetok) {
   case I32:
-    return ir1.gen_int(value->u.i32value);
+    return ir1.gen_int((int)parse_to_int64(value));
   case I64:
-    return ir1.gen_int(value->u.i64value);
+    return ir1.gen_int(parse_to_int64(value));
   case U32:
-    return ir1.gen_int(value->u.u32value);
+    return ir1.gen_int((uint32_t)parse_to_int64(value));
   case U64:
-    return ir1.gen_int(value->u.u64value);
+    return ir1.gen_int((uint64_t)parse_to_int64(value));
   case F32:
-    return ir1.gen_float(value->u.f32value);
+    return ir1.gen_float((float)parse_to_double(value));
   case F64:
-    return ir1.gen_float(value->u.f64value);
+    return ir1.gen_float(parse_to_double(value));
   case BOOL:
-    return ir1.gen_bool(value->u.boolvalue);
+    return ir1.gen_bool(!!parse_to_int64(value));
   case CHAR:
-    return ir1.gen_int(value->u.charvalue);
+    return ir1.gen_int((char)parse_to_int64(value));
   case UCHAR:
-    return ir1.gen_int(value->u.ucharvalue);
+    return ir1.gen_int((uint8_t)parse_to_int64(value));
   default:
     return nullptr;
   }
@@ -239,6 +253,7 @@ static Value *walk_literal(ASTNode *p) {
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
   Value *v = gen_literal_value(&p->litn.litv, p->litn.litv.datatype->type);
+
   auto operands = std::make_unique<CalcOperand>(OT_Const, v);
   oprand_stack.push_back(std::move(operands));
 
@@ -264,22 +279,23 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
   if (entry->sym_type != Sym_Variable)
     yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
 
-  if (entry->u.llvm_value) {
-    var = static_cast<Value *>(entry->u.llvm_value);
+  if (entry->u.var->llvm_value) {
+    var = static_cast<Value *>(entry->u.var->llvm_value);
     if (defval)
       ir1.builder().CreateStore(defval, var, name);
   } else {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
+    Type *type = gen_type_from_token(p->entry->u.var->datatype->type);
     if (curr_fn == main_fn) {
-      var = ir1.gen_global_var(ir1.int_type<int>(), name, defval);
+      var = ir1.gen_global_var(type, name, defval);
       if (enable_debug_info())
 	emit_global_var_dbginfo(name, p->endloc.row);
     } else {
-      var = ir1.gen_var(ir1.int_type<int>(), name, defval);
+      var = ir1.gen_var(type, name, defval);
       if (enable_debug_info())
 	emit_local_var_dbginfo(curr_fn, name, var, p->endloc.row);
     }
-    entry->u.llvm_value = static_cast<void *>(var);
+    entry->u.var->llvm_value = static_cast<void *>(var);
   }
 
 #if 0
@@ -459,9 +475,11 @@ static void walk_stmt_print(ASTNode *p) {
     yyerror("cannot find declared extern printf function");
 
   const char *format = "%d\n";
-  // TODO: support when not directly literal node
+  // TODO: handle expression value transfer
   if (p->exprn.operands[0]->type == ASTNodeType::TTE_Literal)
     format = get_printf_format(p->exprn.operands[0]->litn.litv.datatype->type);
+  else
+    format = get_printf_format(p->exprn.operands[0]->entry->u.var->datatype->type);
 
   Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
   std::vector<Value *> printf_args(1, format_str);
@@ -476,7 +494,9 @@ static void walk_stmt_print(ASTNode *p) {
 static void walk_stmt_assign(ASTNode *p) {
   ASTNode *idn = p->exprn.operands[0];
   ASTNode *litn = p->exprn.operands[1];
+
   Value *v = walk_typed_literal(litn, idn->entry->u.var->datatype);
+
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
@@ -872,7 +892,7 @@ static int llvm_codegen_jit() {
   exit_on_error(jit1->add_module(std::move(tsm), rt));
   auto func_symbol = exit_on_error(jit1->find("main"));
   int (*func)() = (int (*)())(intptr_t)func_symbol.getAddress();
-  printf("func ret: %d\n", func());
+  printf("\nreturn value: %d\n", func());
   exit_on_error(rt->remove());
   return 0;
 }

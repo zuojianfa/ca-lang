@@ -23,7 +23,9 @@ static std::unordered_map<std::string, int> s_token_map = {
   {"u32",    U32},
   {"u64",    U64},
   {"float",  F32},
+  {"f32",    F32},
   {"double", F64},
+  {"f64",    F64},
   {"bool",   BOOL},
   {"char",   CHAR},
   {"uchar",  UCHAR},
@@ -47,7 +49,7 @@ static std::unordered_map<std::string, int> s_token_map = {
 };
 
 // name to CADatatype map
-static std::unordered_map<int, std::unique_ptr<CADataType>> s_type_map;
+static std::unordered_map<int, CADataType*> s_type_map;
 
 static int symname_insert(const std::string &s) {
   size_t tsize = s_symname_buffer.size() + s.size() + 1;
@@ -131,7 +133,7 @@ CADataType *catype_get_by_name(int name) {
   if (itr == s_type_map.end())
     return nullptr;
 
-  return itr->second.get();
+  return itr->second;
 }
 
 int catype_put_by_token(int token, CADataType *datatype) {
@@ -142,6 +144,10 @@ int catype_put_by_token(int token, CADataType *datatype) {
 CADataType *catype_get_by_token(int token) {
   // TODO:
   return nullptr;
+}
+
+bool catype_is_float(int typetok) {
+  return (typetok == F32 || typetok == F64);
 }
 
 static int parse_lexical_char(const char *text) {
@@ -165,7 +171,7 @@ void create_literal(CALiteral *lit, const char *text, int typetok) {
   switch (typetok) {
   case I32:
     lit->datatype = catype_get_by_name(symname_check("i32"));
-    lit->u.i32value = atoi(text);
+    lit->u.i64value = atoi(text);
     break;
   case I64:
     lit->datatype = catype_get_by_name(symname_check("i64"));
@@ -173,15 +179,15 @@ void create_literal(CALiteral *lit, const char *text, int typetok) {
     break;
   case U32:
     lit->datatype = catype_get_by_name(symname_check("u32"));
-    lit->u.u32value = (uint32_t)atoll(text);
+    sscanf(text, "%lu", &lit->u.i64value);
     break;
   case U64:
     lit->datatype = catype_get_by_name(symname_check("u64"));
-    sscanf(text, "%lu", &lit->u.u64value);
+    sscanf(text, "%lu", &lit->u.i64value);
     break;
   case F32:
     lit->datatype = catype_get_by_name(symname_check("f32"));
-    lit->u.f32value = (float)atof(text);
+    lit->u.f64value = atof(text);
     break;
   case F64:
     lit->datatype = catype_get_by_name(symname_check("f64"));
@@ -189,19 +195,32 @@ void create_literal(CALiteral *lit, const char *text, int typetok) {
     break;
   case BOOL:
     lit->datatype = catype_get_by_name(symname_check("bool"));
-    lit->u.boolvalue = atof(text) ? 1 : 0;
+    lit->u.i64value = atoll(text) ? 1 : 0;
     break;
   case CHAR:
     lit->datatype = catype_get_by_name(symname_check("char"));    
-    lit->u.charvalue = (char)parse_lexical_char(text);
+    lit->u.i64value = (char)parse_lexical_char(text);
     break;
   case UCHAR:
     lit->datatype = catype_get_by_name(symname_check("uchar"));
-    lit->u.ucharvalue = (uint8_t)parse_lexical_char(text);
+    lit->u.i64value = (uint8_t)parse_lexical_char(text);
     break;
   default:
     break;
   }
+}
+
+CAVariable *cavar_create(int name, CADataType *datatype) {
+  CAVariable *var = new CAVariable;
+  var->datatype = datatype;
+  var->name = name;
+  var->llvm_value = nullptr;
+  return var;
+}
+
+void cavar_destroy(CAVariable **var) {
+  delete *var;
+  *var = nullptr;
 }
 
 int symname_init() {
@@ -272,10 +291,9 @@ STEntry *sym_insert(SymTable *st, int name, SymType type) {
   SymTableInner *t = ((SymTableInner *)st->opaque);
   auto entry = std::make_unique<STEntry>();
   entry->sym_name = name;
-  entry->sym_value = 0;
   entry->sym_type = type;
   // entry->sloc = ?; TODO: assign a location
-  entry->u.llvm_value = NULL;
+  entry->u.var = nullptr;
   auto result = t->insert(std::make_pair(name, std::move(entry)));
 
   return result.first->second.get();
@@ -331,14 +349,6 @@ SLoc sym_getsloc(SymTable *st, int idx, int parent) {
 
 void sym_setsloc(SymTable *st, int idx, SLoc loc) {
   sym_getsym(st, idx, 0)->sloc = loc;
-}
-
-int sym_getvalue(SymTable *st, int idx, int parent) {
-  return sym_getsym(st, idx, parent)->sym_value;
-}
-
-void sym_setvalue(SymTable *st, int idx, int value) {
-  sym_getsym(st, idx, 0)->sym_value = value;
 }
 
 void sym_destroy(SymTable *st) {

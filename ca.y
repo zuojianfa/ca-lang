@@ -63,7 +63,7 @@ extern int gcolno;
 %type	<var>		iddef
 %type	<arg>		fn_args_actual
 %type	<symnameid>	label_id
-%type	<symnameid>	atomic_type
+%type	<symnameid>	atomic_type struct_type
 %type	<datatype>	datatype instance_type
 
 %%
@@ -256,27 +256,23 @@ instance_type:	atomic_type
 		    $$ = dt;
 		}
 	|	struct_type
+		{
+		    $$ = NULL;
+		}
 	;
 
 atomic_type:	I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
 		    // { /* TODO: handle user defined type */ }
 		;
 
-struct_type:	IDENT
+struct_type:	IDENT { $$ = $1; }
 	;
 
 pointer_type:	'*' instance_type
 	|	'*' pointer_type
 	;
 
-iddef:		IDENT ':' datatype
-		{	
-		    CAVariable *cavar = (CAVariable *)malloc(sizeof(CAVariable));
-		    cavar->datatype = $3;
-		    cavar->name = $1;
-
-		    $$ = cavar;
-		}
+iddef:		IDENT ':' datatype { $$ = cavar_create($1, $3); }
 	|	IDENT
 		{
 		    int name = symname_check("i32");
@@ -287,11 +283,7 @@ iddef:		IDENT ':' datatype
 		    if (!dt)
 			yyerror("cannot get i32 datatype");
 
-		    CAVariable *cavar = (CAVariable *)malloc(sizeof(CAVariable));
-		    cavar->datatype = dt;
-		    cavar->name = $1;
-
-		    $$ = cavar;
+		    $$ = cavar_create($1, dt);
 		}
 	;
 

@@ -58,10 +58,7 @@ int add_fn_args(SymTable *st, CAVariable *var) {
     }
 
     entry = sym_insert(st, name, Sym_Variable);
-    CAVariable *cavar = (CAVariable *)malloc(sizeof(CAVariable));
-    cavar->datatype = datatype;
-    cavar->name = name;
-    entry->u.var = cavar;
+    entry->u.var = cavar_create(name, datatype);
     curr_arglist.argnames[curr_arglist.argc++] = name;
     return 0;
 }
@@ -92,7 +89,7 @@ int add_fn_args_actual(SymTable *st, ActualArg arg) {
 
     arg.entry = entry;
 
-    entry = sym_insert(st, arg.symnameid, Sym_Variable);
+    //entry = sym_insert(st, arg.symnameid, Sym_Variable);
     curr_arglistactual.args[curr_arglistactual.argc++] = arg;
     return 0;
 }
