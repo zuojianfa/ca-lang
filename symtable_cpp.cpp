@@ -16,6 +16,7 @@
 static std::vector<char> s_symname_buffer;
 static std::unordered_map<std::string, int> s_symname_name2pos;
 static std::unordered_map<std::string, int> s_token_map = {
+  {"void",   VOID},
   {"int",    I32},
   {"i32",    I32},
   {"i64",    I64},
@@ -101,6 +102,7 @@ static CADataType *catype_make_type(const char *name, int type, int size) {
 int catype_init() {
   CADataType *datatype;
   int name;
+  datatype = catype_make_type("void", VOID, 0); // void
   datatype = catype_make_type("i32", I32, 4); // i32
 
   name = symname_check_insert("int");
@@ -169,6 +171,8 @@ static int parse_lexical_char(const char *text) {
 
 void create_literal(CALiteral *lit, const char *text, int typetok) {
   switch (typetok) {
+  case VOID:
+    yyerror("void type have no literal value");
   case I32:
     lit->datatype = catype_get_by_name(symname_check("i32"));
     lit->u.i64value = atoi(text);
@@ -207,6 +211,27 @@ void create_literal(CALiteral *lit, const char *text, int typetok) {
     break;
   default:
     break;
+  }
+}
+
+void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok) {
+  if (len > 1023)
+    yyerror("too long literal length: %d", len);
+
+  litb->typetok = typetok;
+  litb->len = len;
+  memcpy(litb->text, text, len);
+  litb->text[len] = 0;
+}
+
+int def_lit_type(int typetok) {
+  switch (typetok) {
+  case U64:
+  case I64:
+    return I32;
+  case F64:
+  default:
+    return typetok;
   }
 }
 

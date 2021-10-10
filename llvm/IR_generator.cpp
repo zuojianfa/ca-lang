@@ -66,7 +66,7 @@ static bool g_with_ret_value = false;
 
 // llvm section
 
-// NEXT TODO: add return value type, pass expression calculation type
+// NEXT TODO: pass expression calculation type, handle expression value transfer between expression tree. note: rust not support different type variable to do calculation, so add `as` to convert between type
 
 #define MAX_OPS 10000
 
@@ -106,6 +106,8 @@ static int enable_debug_info() { return genv.emit_debug; }
 static int enable_emit_main() { return genv.emit_main; }
 static const char *get_type_string(int tok) {
   switch (tok) {
+  case VOID:
+    return "void";
   case I32:
     return "i32";
   case I64:
@@ -131,6 +133,8 @@ static const char *get_type_string(int tok) {
 
 static Type *gen_type_from_token(int tok) {
   switch (tok) {
+  case VOID:
+    return ir1.void_type();
   case I32:
     return ir1.int_type<int>();
   case I64:
@@ -253,6 +257,9 @@ static double parse_to_double(CALiteral *value) {
 
 static Value *gen_literal_value(CALiteral *value, int typetok) {
   switch (typetok) {
+  case VOID:
+    yyerror("void type have no literal value");
+    return nullptr;
   case I32:
     return ir1.gen_int((int)parse_to_int64(value));
   case I64:
@@ -473,6 +480,9 @@ static void walk_if(ASTNode *p) {
 
 static const char *get_printf_format(int type) {
   switch (type) {
+  case VOID:
+    yyerror("void type have no format value");
+    return "\n";
   case I32:
     return "%d";
   case I64:
@@ -601,17 +611,30 @@ static void walk_stmt_call(ASTNode *p) {
 }
 
 static void walk_stmt_ret(ASTNode *p) {
+  Type *rettype = curr_fn->getReturnType();
   if (p->exprn.noperand) {
-    // TODO: match the function return value and the literal return value
     walk_stack(p->exprn.operands[0]);
     Value *v = pop_right_value();
     if (enable_debug_info())
       diinfo->emit_location(p->endloc.row, p->endloc.col);
 
+    // match the function return value and the literal return value
+    if (rettype != v->getType()) {
+      yyerror("line: %d, column: %d, return type of value: %s not match function type",
+	      p->exprn.operands[0]->begloc.row, p->exprn.operands[0]->begloc.col, v->getName().str().c_str());
+      return;
+    }
+
     ir1.builder().CreateRet(v);
   } else {
     if (enable_debug_info())
       diinfo->emit_location(p->endloc.row, p->endloc.col);
+
+    if (rettype != ir1.void_type()) {
+      yyerror("line: %d, column: %d, void function type cannot return value",
+	      p->exprn.operands[0]->begloc.row, p->exprn.operands[0]->begloc.col);
+      return;
+    }
 
     ir1.builder().CreateRetVoid();
   }
@@ -717,7 +740,8 @@ static Function *walk_fn_declare(ASTNode *p) {
       params.push_back(ir1.int_type<int>());
     }
 
-    fn = ir1.gen_extern_fn(ir1.int_type<int>(), fnname, params, &param_names, !!p->fndecln.args.contain_varg);
+    Type *rettype = gen_type_from_token(p->fndecln.ret->type);
+    fn = ir1.gen_extern_fn(rettype, fnname, params, &param_names, !!p->fndecln.args.contain_varg);
     function_map.insert(std::make_pair(fnname, fn));
     fn->setCallingConv(CallingConv::C);
 

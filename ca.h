@@ -44,9 +44,9 @@ typedef struct {
 } TExprNode;
 
 typedef struct TFnDeclNode {
-  int is_extern;  // is extern function
-  int ret;        // specify if have return value, can extend into return different type
-  int name;       // function name subscript to sym array
+  int is_extern;   // is extern function
+  CADataType *ret; // specify if have return value, can extend into return different type
+  int name;        // function name subscript to sym array
   ST_ArgList args;
 } TFnDeclNode;
 
@@ -116,8 +116,8 @@ ASTNode *make_empty();
 ASTNode *make_expr(int op, int noperands, ...);
 ASTNode *make_expr_arglists(ST_ArgList *al);
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
-ASTNode *make_fn_decl(int name, ST_ArgList *al, SLoc beg, SLoc end);
-ASTNode *make_fn_define(int name, ST_ArgList *al, SLoc beg, SLoc end);
+ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
+ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
 ASTNode *make_id(int id);
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn);
 ASTNode *make_assign(int id, ASTNode *exprn);
@@ -126,7 +126,7 @@ ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
-ASTNode *make_fn_args(int id);
+ASTNode *make_fn_proto(int id, CADataType *rettype);
 ASTNode *make_fn_call(int fnname, ASTNode *param);
 ASTNode *make_ident_expr(int id);
 

@@ -38,13 +38,15 @@ extern int gcolno;
   CADataType *datatype;
   CAVariable *var;
   CALiteral litv;   /* literal value */
+  LitBuffer litb;   /* literal buffer */
+  IdToken idtok;    /* return type token */
   int symnameid;    /* symbol table index */
   ASTNode *astnode; /* node pointer */
   ActualArg arg;    /* argument */
 };
 
-%token	<litv>		LITERAL
-%token	<symnameid>	I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT
+%token	<litb>		LITERAL
+%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
 %token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
@@ -64,7 +66,8 @@ extern int gcolno;
 %type	<arg>		fn_args_actual
 %type	<symnameid>	label_id
 %type	<symnameid>	atomic_type struct_type
-%type	<datatype>	datatype instance_type
+%type	<idtok>		type_postfix
+%type	<datatype>	datatype instance_type ret_type
 
 %%
 
@@ -119,7 +122,7 @@ fn_proto:	FN IDENT
 		}
 		'(' fn_args ')' ret_type
 		{
-		    $$ = make_fn_args($2);
+		    $$ = make_fn_proto($2, $7);
 		}
 	;
 
@@ -261,7 +264,7 @@ instance_type:	atomic_type
 		}
 	;
 
-atomic_type:	I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
+atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
 		    // { /* TODO: handle user defined type */ }
 		;
 
@@ -287,12 +290,28 @@ iddef:		IDENT ':' datatype { $$ = cavar_create($1, $3); }
 		}
 	;
 
-ret_type:	ARROW datatype
-	|	// TODO: 
+ret_type:	ARROW datatype   { $$ = $2; }
+	|	{
+		    int name = symname_check_insert("void");
+		    CADataType *dt = catype_get_by_name(name);
+		    if (!dt)
+			yyerror("cannot get void datatype");
+
+		    $$ = dt;
+		}
 	;
 
-literal:	LITERAL          { $$ = $1; }
+literal:	LITERAL { create_literal(&$$, $1.text, def_lit_type($1.typetok)); }
+	|	LITERAL type_postfix { create_literal(&$$, $1.text, $2.typetok); }
 	|	lit_struct_def   { $$ = $1; }
+	;
+
+type_postfix:	I32 { $$.symnameid = $1; $$.typetok = I32; }
+	| 	I64 { $$.symnameid = $1; $$.typetok = I64; }
+	| 	U32 { $$.symnameid = $1; $$.typetok = U32; }
+	| 	U64 { $$.symnameid = $1; $$.typetok = U64; }
+	| 	F32 { $$.symnameid = $1; $$.typetok = F32; }
+	| 	F64 { $$.symnameid = $1; $$.typetok = F64; }
 	;
 
 lit_struct_def:	IDENT '{' lit_field_list  '}'

@@ -61,6 +61,17 @@ typedef struct CALiteral {
   } u;
 } CALiteral;
 
+typedef struct LitBuffer {
+  int typetok;
+  int len;
+  char text[1024];
+} LitBuffer;
+
+typedef struct IdToken {
+  int symnameid;
+  int typetok;
+} IdToken;
+
 typedef struct CAVariable {
   CADataType *datatype;
   int name;
@@ -122,6 +133,8 @@ CADataType *catype_get_by_token(int token);
 int catype_is_float(int typetok);
 
 void create_literal(CALiteral *lit, const char *text, int typetok);
+void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok);
+int def_lit_type(int typetok);
 
 CAVariable *cavar_create(int name, CADataType *datatype);
 void cavar_destroy(CAVariable **var);

@@ -281,11 +281,35 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
     int op = ARG_LISTS;
     ASTNode *p;
     int i;
+
+    int void_count = 0;
+    for (i = 0; i < noperands; ++i) {
+      int name = al->argnames[i];
+      STEntry *entry = sym_getsym(curr_symtable, name, 0);
+      if (!entry) {
+	yyerror("cannot get entry for %s\n", symname_get(name));
+	return NULL;
+      }
+
+      if (entry->u.var->datatype->type == VOID)
+	void_count += 1;
+    }
+
+    if (noperands > 1 && void_count > 0) {
+      yyerror("void function should only have void");
+      return NULL;
+    }
+
+    if (void_count == 1)
+      return make_expr(ARG_LISTS, 0);
+
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
 	yyerror("out of memory");
+
     if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
 	yyerror("out of memory");
+
     /* copy information */
     p->type = TTE_Expr;
     p->exprn.op = op;
@@ -367,7 +391,7 @@ ASTNode *make_goto_node(int i) {
     return NULL;
 }
 
-ASTNode *make_fn_decl(int name, ST_ArgList *al, SLoc beg, SLoc end) {
+ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end) {
     ASTNode *p;
     int i;
     /* allocate node */
@@ -376,7 +400,7 @@ ASTNode *make_fn_decl(int name, ST_ArgList *al, SLoc beg, SLoc end) {
 
     /* copy information */
     p->type = TTE_FnDecl;
-    p->fndecln.ret = 0;
+    p->fndecln.ret = rettype;
     p->fndecln.name = name;
     p->fndecln.args = *al;
     p->fndecln.is_extern = 0; // TODO: make extern real extern
@@ -385,8 +409,8 @@ ASTNode *make_fn_decl(int name, ST_ArgList *al, SLoc beg, SLoc end) {
     return p;
 }
 
-ASTNode *make_fn_define(int name, ST_ArgList *al, SLoc beg, SLoc end) {
-    ASTNode *decl = make_fn_decl(name, al, beg, end);
+ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end) {
+    ASTNode *decl = make_fn_decl(name, al, rettype, beg, end);
     ASTNode *p;
     int i;
     /* allocate node */
@@ -455,7 +479,7 @@ ASTNode *make_if(int isexpr, int argc, ...) {
     return p;
 }
 
-ASTNode *make_fn_args(int id) {
+ASTNode *make_fn_proto(int id, CADataType *rettype) {
   SLoc beg = {glineno, gcolno};
   SLoc end = {glineno, gcolno};
 
@@ -474,7 +498,7 @@ ASTNode *make_fn_args(int id) {
       *entry->u.arglists = curr_arglist;
     }
 
-    return make_fn_decl(id, &curr_arglist, beg, end);
+    return make_fn_decl(id, &curr_arglist, rettype, beg, end);
   } else {
     if (entry) {
       if (entry->sym_type == Sym_FnDef) {
@@ -494,7 +518,7 @@ ASTNode *make_fn_args(int id) {
       *entry->u.arglists = curr_arglist;
     }
 
-    return make_fn_define(id, &curr_arglist, beg, end);
+    return make_fn_define(id, &curr_arglist, rettype, beg, end);
   }
 }
 

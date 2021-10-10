@@ -1,4 +1,4 @@
-fn func1() {
+fn func1() -> i64 {
     let a: i32 = 32;
     let b: f32 = 344.34324;
     let c: f64 = 3.123;
@@ -17,7 +17,7 @@ fn func1() {
     print '\n';
     print 323.1223;
     print '\n';
-    return 0;
+    return 0i64;
 }
 
 fn main() {

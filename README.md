@@ -116,6 +116,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 
 - [ ] add pointer type
 
+- [ ] add type convertion `as` keyword
+
 - [ ] support multiple compile unit and link them together
 
 - [ ] support rust grammar
@@ -125,6 +127,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [x] last expression as return value in scope
   - [ ] immutable
   - [ ] mutable
+  
+- [ ] support never return type `!` like rust
   
 - [x] support invoke extern c function
 
