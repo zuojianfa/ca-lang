@@ -46,7 +46,7 @@ extern int gcolno;
 };
 
 %token	<litb>		LITERAL
-%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT
+%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
 %token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
@@ -301,8 +301,8 @@ ret_type:	ARROW datatype   { $$ = $2; }
 		}
 	;
 
-literal:	LITERAL { create_literal(&$$, $1.text, def_lit_type($1.typetok)); }
-	|	LITERAL type_postfix { create_literal(&$$, $1.text, $2.typetok); }
+literal:	LITERAL { create_literal(&$$, $1.text, $1.typetok, -1); }
+	|	LITERAL type_postfix { create_literal(&$$, $1.text, $1.typetok, $2.typetok); }
 	|	lit_struct_def   { $$ = $1; }
 	;
 

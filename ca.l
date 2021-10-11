@@ -40,8 +40,8 @@ int gcolno = 0;
 \-[1-9][0-9]*	{ UPDATE_LINE_LOCINFO(); set_litbuf(&yylval.litb, yytext, yyleng, I64); return LITERAL; }
 \-?0\.[0-9]+	{ UPDATE_LINE_LOCINFO(); set_litbuf(&yylval.litb, yytext, yyleng, F64); return LITERAL; }
 \-?[1-9][0-9]*\.[0-9]+	{ UPDATE_LINE_LOCINFO(); set_litbuf(&yylval.litb, yytext, yyleng, F64); return LITERAL; }
-\'\\.\'		{ UPDATE_LINE_LOCINFO(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, CHAR); return LITERAL; }
-\'.\'		{ UPDATE_LINE_LOCINFO(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, UCHAR); return LITERAL; }
+\'\\.\'		{ UPDATE_LINE_LOCINFO(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, UCHAR); return LITERAL; }
+\'.\'		{ UPDATE_LINE_LOCINFO(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, CHAR); return LITERAL; }
 "true"		{ UPDATE_LINE_LOCINFO(); set_litbuf(&yylval.litb, "1", 1, BOOL); return LITERAL; }
 "false"		{ UPDATE_LINE_LOCINFO(); set_litbuf(&yylval.litb, "0", 1, BOOL); return LITERAL; }
 

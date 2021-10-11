@@ -3,7 +3,9 @@
 #include "ca.tab.h"
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -12,7 +14,20 @@
 #include <vector>
 #include <unordered_map>
 
-//static char *s_symname_buffer = NULL;
+#define EXTERN_C extern "C" {
+
+#ifdef __cplusplus
+EXTERN_C
+#endif
+
+void yyerror(const char *s, ...);
+
+#ifdef __cplusplus
+}
+#endif
+
+
+// static char *s_symname_buffer = NULL;
 static std::vector<char> s_symname_buffer;
 static std::unordered_map<std::string, int> s_symname_name2pos;
 static std::unordered_map<std::string, int> s_token_map = {
@@ -50,7 +65,108 @@ static std::unordered_map<std::string, int> s_token_map = {
 };
 
 // name to CADatatype map
-static std::unordered_map<int, CADataType*> s_type_map;
+static std::unordered_map<int, CADataType *> s_type_map;
+
+// used for literal value convertion, left side is lexical literal value right
+// side is real literal value 
+// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
+static int s_type_convertable_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID + 1] = {
+  {0, }, // VOID -> other-type, means convert from VOID type to other type
+  {0, },   // I32 -> other-type
+  {0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0}, // I64 ->
+  {0, }, // U32 ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0}, // U64 ->
+  {0, }, // F32 ->
+  {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0}, // F64 ->
+  {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, // BOOL ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0}, // CHAR ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0}, // UCHAR ->
+  {0, }, // STRUCT
+  {0, }, // ATOMTYPE_END
+};
+
+static int type_convertable(int from, int to) {
+  return s_type_convertable_table[from-VOID][to-VOID];
+}
+
+static int check_i64_value_scope(int64_t lit, int typetok) {
+  // the match table should match the corrsponding line of array s_type_convertable_table
+  switch(typetok) {
+  case I32:
+    if (lit < std::numeric_limits<int>::min())
+      return 1;
+    return 0;
+  case I64:
+  case F32:
+  case F64:
+    return 0;
+  default:
+    yyerror("i64 lexcial value incompatible with %s", get_type_string(typetok));
+    return -1;
+  }
+}
+
+static int check_u64_value_scope(uint64_t lit, int typetok) {
+  // the match table should match the corrsponding line of array s_type_convertable_table
+  switch(typetok) {
+  case I32:
+    if (lit > std::numeric_limits<int>::max())
+      return -1;
+    return 0;
+  case I64:
+    if (lit > std::numeric_limits<int64_t>::max())
+      return -1;
+    return 0;
+  case U64:
+  case F32:
+  case F64:
+    return 0;
+  case U32:
+    if (lit > std::numeric_limits<uint32_t>::max())
+      return -1;
+    return 0;
+  case CHAR:
+    if (lit > std::numeric_limits<char>::max())
+      return -1;
+    return 0;
+  case UCHAR:
+    if (lit > std::numeric_limits<uint8_t>::max())
+      return -1;
+    return 0;
+  default:
+    yyerror("u64 lexcial value incompatible with %s", get_type_string(typetok));
+    return -1;
+  }
+}
+
+static int check_f64_value_scope(double lit, int typetok) {
+  // the match table should match the corrsponding line of array s_type_convertable_table
+  switch(typetok) {
+  case F32:
+    if (lit < std::numeric_limits<float>::min() || lit > std::numeric_limits<float>::max())
+      return 1;
+    return 0;
+  case F64:
+    return 0;
+  default:
+    yyerror("f64 lexcial value incompatible with %s", get_type_string(typetok));
+    return -1;
+  }
+}
+
+static int check_char_value_scope(char lit, int typetok) {
+  if (typetok == UCHAR && lit < 0)
+    return 1;
+
+  return 0;
+}
+
+static int check_uchar_value_scope(uint8_t lit, int typetok) {
+  if (typetok == CHAR && lit > 127)
+    return -1;
+
+  return 0;
+}
 
 static int symname_insert(const std::string &s) {
   size_t tsize = s_symname_buffer.size() + s.size() + 1;
@@ -68,13 +184,9 @@ static int symname_insert(const std::string &s) {
 
 using SymTableInner = std::unordered_map<int, std::unique_ptr<STEntry>>;
 
-#define EXTERN_C extern "C" {
-
 #ifdef __cplusplus
 EXTERN_C
 #endif
-
-void yyerror(const char *s, ...);
 
 int lexical_init() {
   return 0;
@@ -169,38 +281,114 @@ static int parse_lexical_char(const char *text) {
   }
 }
 
+const char *get_type_string(int tok) {
+  switch (tok) {
+  case VOID:
+    return "void";
+  case I32:
+    return "i32";
+  case I64:
+    return "i64";
+  case U32:
+    return "u32";
+  case U64:
+    return "u64";
+  case F32:
+    return "f32";
+  case F64:
+    return "f64";
+  case BOOL:
+    return "bool";
+  case CHAR:
+    return "char";
+  case UCHAR:
+    return "uchar";
+  default:
+    yyerror("bad type token: %d", tok);
+    return nullptr;
+  }
+}
+
 void create_literal(CALiteral *lit, const char *text, int littypetok, int manualtypetok) {
   // TODO: check if text match the typetok, example: 'a' means char, and it cannot apply any postfix
   // true, false means boolean, it cannot apply any postfix
   // if manualtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
-  int typetok;
-  if (manualtypetok == -1)
-    typetok = littypetok;
-  else
-    typetok = manualtypetok;
 
-  switch (typetok) {
-  case VOID:
-    yyerror("void type have no literal value");
-  case I32:
-    lit->datatype = catype_get_by_name(symname_check("i32"));
-    lit->u.i64value = atoi(text);
-    break;
+  //def_lit_type
+  // U64 stand for positive integer value in lexical
+  // I64 stand for positive integer value in lexical
+  // F64 stand for floating point number in lexical
+  // BOOL stand for boolean point number in lexical 
+  // UCHAR stand for \. transfermation value in lexical
+  // CHAR stand for any character value in lexical
+
+  const char *typestr;
+
+  int typetok;
+  if (manualtypetok == -1) {
+    lit->fixed_type = 0;
+  } else {
+    lit->fixed_type = 1;
+  }
+
+  if (lit->fixed_type) {
+    const char *name = get_type_string(manualtypetok);
+    // check convertable
+    if (!type_convertable(littypetok, manualtypetok)) {
+      yyerror("bad literal value definition: %s cannot be %s",
+	      get_type_string(littypetok), get_type_string(manualtypetok));
+      return;
+    }
+
+    int badscope = 0;
+    // check literal value scope
+    switch (littypetok) {
+    case I64: // I64 stand for positive integer value in lexical
+      lit->u.i64value = atoll(text);
+      badscope = check_i64_value_scope(lit->u.i64value, manualtypetok);
+      break;
+    case U64:
+      sscanf(text, "%lu", &lit->u.i64value);
+      badscope = check_u64_value_scope((uint64_t)lit->u.i64value, manualtypetok);
+      break;
+    case F64:
+      lit->u.f64value = atof(text);
+      badscope = check_f64_value_scope(lit->u.f64value, manualtypetok);
+      break;
+    case BOOL:
+      lit->u.i64value = atoll(text) ? 1 : 0;
+      break;
+    case CHAR:
+      lit->u.i64value = (char)parse_lexical_char(text);
+      badscope = check_char_value_scope(lit->u.i64value, manualtypetok);
+      break;
+    case UCHAR:
+      lit->u.i64value = (uint8_t)parse_lexical_char(text);
+      badscope = check_uchar_value_scope(lit->u.i64value, manualtypetok);
+    default:
+       yyerror("%s type have no lexical value", get_type_string(littypetok));
+      break;
+    }
+
+    if (badscope) {
+      yyerror("bad literal value definition: %s cannot be %s",
+	      get_type_string(littypetok), get_type_string(manualtypetok));
+      return;
+    }
+      
+    lit->datatype = catype_get_by_name(symname_check(name));
+    return;
+  }
+
+  // handle non-fixed value
+  switch (littypetok) {
   case I64:
     lit->datatype = catype_get_by_name(symname_check("i64"));
     lit->u.i64value = atoll(text);
     break;
-  case U32:
-    lit->datatype = catype_get_by_name(symname_check("u32"));
-    sscanf(text, "%lu", &lit->u.i64value);
-    break;
   case U64:
     lit->datatype = catype_get_by_name(symname_check("u64"));
     sscanf(text, "%lu", &lit->u.i64value);
-    break;
-  case F32:
-    lit->datatype = catype_get_by_name(symname_check("f32"));
-    lit->u.f64value = atof(text);
     break;
   case F64:
     lit->datatype = catype_get_by_name(symname_check("f64"));
@@ -219,6 +407,7 @@ void create_literal(CALiteral *lit, const char *text, int littypetok, int manual
     lit->u.i64value = (uint8_t)parse_lexical_char(text);
     break;
   default:
+    yyerror("void type have no literal value");
     break;
   }
 }

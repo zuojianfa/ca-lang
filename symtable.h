@@ -52,6 +52,7 @@ struct CAArray {
 };
 
 typedef struct CALiteral {
+  int fixed_type;         // specify if literal type is defined (fixed) or according to context
   CADataType *datatype;
   union {
     int64_t  i64value;      // store either integer type value include unsigned
@@ -132,6 +133,7 @@ int catype_put_by_token(int token, CADataType *datatype);
 CADataType *catype_get_by_token(int token);
 int catype_is_float(int typetok);
 
+const char *get_type_string(int tok);
 void create_literal(CALiteral *lit, const char *text, int littypetok, int manualtypetok);
 void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok);
 int def_lit_type(int typetok);

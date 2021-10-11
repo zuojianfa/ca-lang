@@ -117,32 +117,6 @@ static Value *pop_right_value(const char *name = "load") {
 
 static int enable_debug_info() { return genv.emit_debug; }
 static int enable_emit_main() { return genv.emit_main; }
-static const char *get_type_string(int tok) {
-  switch (tok) {
-  case VOID:
-    return "void";
-  case I32:
-    return "i32";
-  case I64:
-    return "i64";
-  case U32:
-    return "u32";
-  case U64:
-    return "u64";
-  case F32:
-    return "f32";
-  case F64:
-    return "f64";
-  case BOOL:
-    return "bool";
-  case CHAR:
-    return "char";
-  case UCHAR:
-    return "uchar";
-  default:
-    return nullptr;
-  }
-}
 
 static Type *gen_type_from_token(int tok) {
   switch (tok) {
