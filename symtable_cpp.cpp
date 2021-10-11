@@ -169,7 +169,16 @@ static int parse_lexical_char(const char *text) {
   }
 }
 
-void create_literal(CALiteral *lit, const char *text, int typetok) {
+void create_literal(CALiteral *lit, const char *text, int littypetok, int manualtypetok) {
+  // TODO: check if text match the typetok, example: 'a' means char, and it cannot apply any postfix
+  // true, false means boolean, it cannot apply any postfix
+  // if manualtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
+  int typetok;
+  if (manualtypetok == -1)
+    typetok = littypetok;
+  else
+    typetok = manualtypetok;
+
   switch (typetok) {
   case VOID:
     yyerror("void type have no literal value");

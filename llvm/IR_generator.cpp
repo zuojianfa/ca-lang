@@ -66,7 +66,20 @@ static bool g_with_ret_value = false;
 
 // llvm section
 
-// NEXT TODO: pass expression calculation type, handle expression value transfer between expression tree. note: rust not support different type variable to do calculation, so add `as` to convert between type
+// NEXT TODO: pass expression calculation type, handle expression value transfer
+// between expression tree. note: rust not support different type variable to do
+// calculation, so add `as` to convert between type
+// 1. mathimatic calculation must need the same type or error
+// 2. the literal type have 2 forms:
+//   a. with postfix to indicate it's type,
+//   b. without postfix, just consider it's value when do calculation. example
+//   432432 means integer value (any integer value), -43433 mean an Neg bound to
+//   43433, 33.33 mean f64 value (default is f64 not f32 value)
+// 
+//   
+// 
+// So I need to seperate this two condition
+// 
 
 #define MAX_OPS 10000
 

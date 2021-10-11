@@ -132,7 +132,7 @@ int catype_put_by_token(int token, CADataType *datatype);
 CADataType *catype_get_by_token(int token);
 int catype_is_float(int typetok);
 
-void create_literal(CALiteral *lit, const char *text, int typetok);
+void create_literal(CALiteral *lit, const char *text, int littypetok, int manualtypetok);
 void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok);
 int def_lit_type(int typetok);
 
