@@ -2,6 +2,7 @@
 GPATH
 GRTAGS
 GTAGS
+TAGS
 a.out
 ca
 compile_commands.json

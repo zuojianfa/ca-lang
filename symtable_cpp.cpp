@@ -329,6 +329,7 @@ void create_literal(CALiteral *lit, const char *text, int littypetok, int manual
   if (manualtypetok == -1) {
     lit->fixed_type = 0;
   } else {
+    lit->intent_type = 0;
     lit->fixed_type = 1;
   }
 

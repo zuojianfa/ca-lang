@@ -310,8 +310,15 @@ static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  // TODO: how to determine the binding type of literal value (the second parameter)
-  Value *v = gen_literal_value(&p->litn.litv, p->litn.litv.intent_type);
+  // the intent_type is for determining the binding type of literal value
+  // when fixed_type is set use it else use intent_type
+  int typetok = 0;
+  if (p->litn.litv.fixed_type)
+    typetok = p->litn.litv.datatype->type;
+  else
+    typetok = p->litn.litv.intent_type;
+
+  Value *v = gen_literal_value(&p->litn.litv, typetok);
 
   auto operands = std::make_unique<CalcOperand>(OT_Const, v, p->litn.litv.intent_type);
   oprand_stack.push_back(std::move(operands));
