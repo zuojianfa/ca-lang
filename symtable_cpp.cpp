@@ -67,8 +67,9 @@ static std::unordered_map<std::string, int> s_token_map = {
 // name to CADatatype map
 static std::unordered_map<int, CADataType *> s_type_map;
 
-// used for literal value convertion, left side is lexical literal value right
-// side is real literal value 
+// used for literal value convertion, left side is lexical literal value (I64
+// stand for negative integer value, U64 stand for positive integer value, F64
+// stand for floating point value) right side is real literal value
 // VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
 static int s_type_convertable_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID + 1] = {
   {0, }, // VOID -> other-type, means convert from VOID type to other type
@@ -89,7 +90,8 @@ static int type_convertable(int from, int to) {
   return s_type_convertable_table[from-VOID][to-VOID];
 }
 
-static int check_i64_value_scope(int64_t lit, int typetok) {
+// check if specified type: typetok can accept literal value
+int check_i64_value_scope(int64_t lit, int typetok) {
   // the match table should match the corrsponding line of array s_type_convertable_table
   switch(typetok) {
   case I32:
@@ -106,7 +108,7 @@ static int check_i64_value_scope(int64_t lit, int typetok) {
   }
 }
 
-static int check_u64_value_scope(uint64_t lit, int typetok) {
+int check_u64_value_scope(uint64_t lit, int typetok) {
   // the match table should match the corrsponding line of array s_type_convertable_table
   switch(typetok) {
   case I32:
@@ -139,7 +141,7 @@ static int check_u64_value_scope(uint64_t lit, int typetok) {
   }
 }
 
-static int check_f64_value_scope(double lit, int typetok) {
+int check_f64_value_scope(double lit, int typetok) {
   // the match table should match the corrsponding line of array s_type_convertable_table
   switch(typetok) {
   case F32:
@@ -154,14 +156,14 @@ static int check_f64_value_scope(double lit, int typetok) {
   }
 }
 
-static int check_char_value_scope(char lit, int typetok) {
+int check_char_value_scope(char lit, int typetok) {
   if (typetok == UCHAR && lit < 0)
     return 1;
 
   return 0;
 }
 
-static int check_uchar_value_scope(uint8_t lit, int typetok) {
+int check_uchar_value_scope(uint8_t lit, int typetok) {
   if (typetok == CHAR && lit > 127)
     return -1;
 
@@ -309,19 +311,18 @@ const char *get_type_string(int tok) {
   }
 }
 
+// TODO: check if text match the typetok, example: 'a' means char, and it cannot apply any postfix
+// true, false means boolean, it cannot apply any postfix
+// if manualtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
+
+//def_lit_type
+// U64 stand for positive integer value in lexical
+// I64 stand for positive integer value in lexical
+// F64 stand for floating point number in lexical
+// BOOL stand for boolean point number in lexical 
+// UCHAR stand for \. transfermation value in lexical
+// CHAR stand for any character value in lexical
 void create_literal(CALiteral *lit, const char *text, int littypetok, int manualtypetok) {
-  // TODO: check if text match the typetok, example: 'a' means char, and it cannot apply any postfix
-  // true, false means boolean, it cannot apply any postfix
-  // if manualtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
-
-  //def_lit_type
-  // U64 stand for positive integer value in lexical
-  // I64 stand for positive integer value in lexical
-  // F64 stand for floating point number in lexical
-  // BOOL stand for boolean point number in lexical 
-  // UCHAR stand for \. transfermation value in lexical
-  // CHAR stand for any character value in lexical
-
   const char *typestr;
 
   int typetok;
@@ -357,6 +358,7 @@ void create_literal(CALiteral *lit, const char *text, int littypetok, int manual
       break;
     case BOOL:
       lit->u.i64value = atoll(text) ? 1 : 0;
+      badscope = (manualtypetok != BOOL);
       break;
     case CHAR:
       lit->u.i64value = (char)parse_lexical_char(text);
@@ -380,29 +382,35 @@ void create_literal(CALiteral *lit, const char *text, int littypetok, int manual
     return;
   }
 
-  // handle non-fixed value
+  // handle non-fixed type literal value
   switch (littypetok) {
   case I64:
+    lit->intent_type = I32;
     lit->datatype = catype_get_by_name(symname_check("i64"));
     lit->u.i64value = atoll(text);
     break;
   case U64:
+    lit->intent_type = I32;
     lit->datatype = catype_get_by_name(symname_check("u64"));
     sscanf(text, "%lu", &lit->u.i64value);
     break;
   case F64:
+    lit->intent_type = F64;
     lit->datatype = catype_get_by_name(symname_check("f64"));
     lit->u.f64value = atof(text);
     break;
   case BOOL:
+    lit->intent_type = BOOL;
     lit->datatype = catype_get_by_name(symname_check("bool"));
     lit->u.i64value = atoll(text) ? 1 : 0;
     break;
   case CHAR:
+    lit->intent_type = CHAR;
     lit->datatype = catype_get_by_name(symname_check("char"));    
     lit->u.i64value = (char)parse_lexical_char(text);
     break;
   case UCHAR:
+    lit->intent_type = CHAR;
     lit->datatype = catype_get_by_name(symname_check("uchar"));
     lit->u.i64value = (uint8_t)parse_lexical_char(text);
     break;

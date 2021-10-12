@@ -53,6 +53,7 @@ struct CAArray {
 
 typedef struct CALiteral {
   int fixed_type;         // specify if literal type is defined (fixed) or according to context
+  int intent_type;        // specify the indent type when fixed_type is false, when only literal value appear
   CADataType *datatype;
   union {
     int64_t  i64value;      // store either integer type value include unsigned
@@ -124,6 +125,13 @@ typedef struct SymTable {
   void *opaque;
   struct SymTable *parent;
 } SymTable;
+
+// type checking
+int check_i64_value_scope(int64_t lit, int typetok);
+int check_u64_value_scope(uint64_t lit, int typetok);
+int check_f64_value_scope(double lit, int typetok);
+int check_char_value_scope(char lit, int typetok);
+int check_uchar_value_scope(uint8_t lit, int typetok);
 
 // type finding
 int catype_init();

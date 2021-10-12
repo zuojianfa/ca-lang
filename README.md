@@ -162,7 +162,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
-
+- [ ] expression calculation result
+- [ ] handle expression type checking
 - [ ] support other atomic type
 - [ ] support point type
 - [ ] support array type

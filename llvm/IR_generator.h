@@ -14,8 +14,10 @@ enum OperandType {
 };
 
 struct CalcOperand{
-CalcOperand(OperandType t, llvm::Value *v) : type(t), operand(v) {}
+CalcOperand(OperandType t, llvm::Value *v, int typetok) :
+  type(t), operand(v), datatypetok(typetok) {}
   OperandType type;
+  int datatypetok;
   llvm::Value *operand;
 };
 

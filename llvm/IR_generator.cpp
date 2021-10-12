@@ -90,18 +90,21 @@ struct FnDebugInfo {
 };
 
 static llvm::Function *main_fn = nullptr;
-static llvm::Function *curr_fn = nullptr; // handle when processing current function, the top level function is main function
+
+// handle when processing current function, the top level function is main function
+static llvm::Function *curr_fn = nullptr;
 static llvm::BasicBlock *main_bb = nullptr;
 static llvm::DIFile *diunit = nullptr;
 static std::vector<std::unique_ptr<CalcOperand>> oprand_stack;
-static std::map<std::string, BasicBlock *> label_map; // for storing defined BasicBlock, or pre-define BasicBlock in GOTO statement
-static std::map<std::string, Function *> function_map;
-static std::map<std::string, Value *> var_map;
-static std::map<llvm::Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
+
+// for storing defined BasicBlock, or pre-define BasicBlock in GOTO statement
+static std::map<std::string, BasicBlock *> label_map;
+static std::map<std::string, ASTNode *> function_map;
+static std::map<Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
 
 static int walk_stack(ASTNode *p);
 
-static Value *pop_right_value(const char *name = "load") {
+static std::pair<Value *, int> pop_right_value(const char *name = "load") {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
   oprand_stack.pop_back();
 
@@ -112,7 +115,7 @@ static Value *pop_right_value(const char *name = "load") {
     v = o->operand;
   }
 
-  return v;
+  return std::make_pair(v, o->datatypetok);
 }
 
 static int enable_debug_info() { return genv.emit_debug; }
@@ -242,7 +245,40 @@ static double parse_to_double(CALiteral *value) {
     return (double)value->u.i64value;
 }
 
+static int can_type_binding(CALiteral *lit, int typetok) {
+  switch (lit->datatype->type) {
+  case I64:
+    return !check_i64_value_scope(lit->u.i64value, typetok);
+  case U64:
+    return !check_u64_value_scope((uint64_t)lit->u.i64value, typetok);
+  case F64:
+    return !check_f64_value_scope(lit->u.f64value, typetok);
+  case BOOL:
+    return (typetok == BOOL);
+  case CHAR:
+    return !check_char_value_scope(lit->u.i64value, typetok);
+  case UCHAR:
+    return !check_uchar_value_scope(lit->u.i64value, typetok);
+  default:
+    yyerror("bad lexical literal type: '%s'", get_type_string(lit->datatype->type));
+    return 0;
+  }  
+}
+
 static Value *gen_literal_value(CALiteral *value, int typetok) {
+  // check if literal value type matches the given typetok, if not match, report error
+  if (value->fixed_type && value->datatype->type != typetok) {
+    yyerror("literal value type '%s' not match the variable type '%s'",
+	    get_type_string(value->datatype->type), get_type_string(typetok));
+    return nullptr;
+  }
+
+  if (!value->fixed_type && !can_type_binding(value, typetok)) {
+    yyerror("literal value type '%s' not match the variable type '%s'",
+	    get_type_string(value->datatype->type), get_type_string(typetok));
+    return nullptr;
+  }
+
   switch (typetok) {
   case VOID:
     yyerror("void type have no literal value");
@@ -274,9 +310,10 @@ static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  Value *v = gen_literal_value(&p->litn.litv, p->litn.litv.datatype->type);
+  // TODO: how to determine the binding type of literal value (the second parameter)
+  Value *v = gen_literal_value(&p->litn.litv, p->litn.litv.intent_type);
 
-  auto operands = std::make_unique<CalcOperand>(OT_Const, v);
+  auto operands = std::make_unique<CalcOperand>(OT_Const, v, p->litn.litv.intent_type);
   oprand_stack.push_back(std::move(operands));
 
   return v;
@@ -321,25 +358,13 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
     entry->u.var->llvm_value = static_cast<void *>(var);
   }
 
-#if 0
-  auto itr = var_map.find(name);
-  if (itr != var_map.end())
-    var = itr->second;
-  else {
-    if (enable_debug_info())
-      diinfo->emit_location(p->endloc.row, p->endloc.col);
-    var = ir1.gen_var(ir1.int_type<int>(), name);
-    var_map.insert(std::make_pair(name, var));
-  }
-#endif
-
   return var;
 }
 
 static Value *walk_id(ASTNode *p) {
   Value *var = walk_id_defv(p);
   
-  auto operands = std::make_unique<CalcOperand>(OT_Alloc, var);
+  auto operands = std::make_unique<CalcOperand>(OT_Alloc, var, p->entry->u.var->datatype->type);
   oprand_stack.push_back(std::move(operands));
   return var;
 }
@@ -389,7 +414,8 @@ static void walk_while(ASTNode *p) {
   curr_fn->getBasicBlockList().push_back(condbb);
   ir1.builder().SetInsertPoint(condbb);
   walk_stack(p->whilen.cond);
-  Value *cond = pop_right_value("cond");
+  auto pair = pop_right_value("cond");
+  Value *cond = pair.first;
   cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "while_cond_cmp");
   ir1.builder().CreateCondBr(cond, whilebb, endwhilebb);
 
@@ -420,8 +446,12 @@ static void walk_if(ASTNode *p) {
   BasicBlock *elsebb = nullptr;
 
   walk_stack(p->ifn.conds[0]);
-  Value *cond = pop_right_value("cond");
+  auto pair = pop_right_value("cond");
+  Value *cond = pair.first;
   cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
+
+  int tt1 = 0, tt2 = 0;
+
   if (p->ifn.remain) { /* if else */
     elsebb = ir1.gen_bb("elsebb");
     ir1.builder().CreateCondBr(cond, thenbb, elsebb);
@@ -429,8 +459,9 @@ static void walk_if(ASTNode *p) {
     ir1.builder().SetInsertPoint(thenbb);
     walk_stack(p->ifn.bodies[0]);
     if (p->ifn.isexpr) {
-      tmpv1 = pop_right_value("tmpv");
-      ir1.store_var(tmpc, tmpv1);
+      auto tmpv1 = pop_right_value("tmpv");
+      ir1.store_var(tmpc, tmpv1.first);
+      tt1 = tmpv1.second;
     }
 
     ir1.builder().CreateBr(outbb);
@@ -439,8 +470,9 @@ static void walk_if(ASTNode *p) {
     ir1.builder().SetInsertPoint(elsebb);
     walk_stack(p->ifn.remain);
     if (p->ifn.isexpr) {
-      tmpv2 = pop_right_value("tmpv");
-      ir1.store_var(tmpc, tmpv2);
+      auto tmpv2 = pop_right_value("tmpv");
+      ir1.store_var(tmpc, tmpv2.first);
+      tt2 = tmpv2.second;
     }
   } else { /* if */
     ir1.builder().CreateCondBr(cond, thenbb, outbb);
@@ -454,11 +486,16 @@ static void walk_if(ASTNode *p) {
   ir1.builder().SetInsertPoint(outbb);
   
   if (p->ifn.isexpr) {
+    if (tt1 != tt2) {
+      yyerror("expression type not equal in if ... else ... expression");
+      return;
+    }
+
 #if 0 // the phi is not debugger friendly, so using alloc for temporary variable
     PHINode *phiv = ir1.gen_phi(ir1.int_type<int>(), thenbb, tmpv1, elsebb, tmpv2);
-    auto pnv = std::make_unique<CalcOperand>(OT_PHINode, phiv);
+    auto pnv = std::make_unique<CalcOperand>(OT_PHINode, phiv, tt1);
 #else
-    auto pnv = std::make_unique<CalcOperand>(OT_Alloc, tmpc);
+    auto pnv = std::make_unique<CalcOperand>(OT_Alloc, tmpc, tt1);
 #endif
 
     oprand_stack.push_back(std::move(pnv));
@@ -495,13 +532,19 @@ static const char *get_printf_format(int type) {
 
 static void walk_stmt_print(ASTNode *p) {
   walk_stack(p->exprn.operands[0]);
-  Value *v = pop_right_value();
+  auto pair = pop_right_value();
+  Value *v = pair.first;
   Function *printf_fn = ir1.module().getFunction("printf");
   if (!printf_fn)
     yyerror("cannot find declared extern printf function");
 
   const char *format = "%d\n";
-  // TODO: handle expression value transfer
+  // handle expression value transfer
+  format = get_printf_format(pair.second);
+  if (pair.second == F32)
+    v = ir1.builder().CreateFPExt(v, ir1.float_type<double>());
+
+#if 0
   if (p->exprn.operands[0]->type == ASTNodeType::TTE_Literal)
     format = get_printf_format(p->exprn.operands[0]->litn.litv.datatype->type);
   else {
@@ -509,6 +552,7 @@ static void walk_stmt_print(ASTNode *p) {
     if (p->exprn.operands[0]->entry->u.var->datatype->type == F32)
       v = ir1.builder().CreateFPExt(v, ir1.float_type<double>());
   }
+#endif
 
   Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
   std::vector<Value *> printf_args(1, format_str);
@@ -531,16 +575,17 @@ static void walk_stmt_assign(ASTNode *p) {
 
   Value *vp = walk_id_defv(idn, v);
 
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Store, vp));
+  auto u = std::make_unique<CalcOperand>(OT_Store, vp, idn->entry->u.var->datatype->type);
+  oprand_stack.push_back(std::move(u));
 }
 
 static void walk_stmt_minus(ASTNode *p) {
   walk_stack(p->exprn.operands[0]);
-  Value *v = pop_right_value();
+  auto pair = pop_right_value();
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
-  v = ir1.gen_sub(ir1.gen_int(0), v);
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v));
+  Value *v = ir1.gen_sub(ir1.gen_int(0), pair.first);
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v, pair.second));
 }
 
 static void walk_stmt_goto(ASTNode *p) {
@@ -580,35 +625,54 @@ static void walk_stmt_call(ASTNode *p) {
   for (int i = 0; i < args->exprn.noperand; ++i) {
     Value *v;
     if (args->exprn.operands[i]->type == TTE_Literal) {
-      // TODO: match the literal type with function argument type (in second param) 
+      // match the literal type with function argument type (in second param)
+      ASTNode *fnast = function_map.find(fnname)->second;
+      STEntry *entry = sym_getsym(fnast->symtable, fnast->fndecln.args.argnames[i], 0);
+      if (!entry) {
+	yyerror("cannot find argument name: '%s'", symname_get(fnast->fndecln.args.argnames[i]));
+	return;
+      }
+
+      if (entry->sym_type != Sym_Variable) {
+	yyerror("symbol type '%d' not a variable", entry->sym_type);
+      }
+      
       v = gen_literal_value(&args->exprn.operands[i]->litn.litv,
-			    args->exprn.operands[i]->litn.litv.datatype->type);
+			    entry->u.var->datatype->type);
     } else {
       const char *argname = symname_get(args->exprn.operands[i]->idn.i);
       walk_stack(args->exprn.operands[i]);
-      v = pop_right_value(argname);
+      auto pair = pop_right_value(argname);
+      v = pair.first;
     }
 
     argv.push_back(v);
   }
  
   CallInst *callret = ir1.builder().CreateCall(fn, argv, fnname);
-  auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret);
+  auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, -1);
   oprand_stack.push_back(std::move(operands));
 }
 
 static void walk_stmt_ret(ASTNode *p) {
   Type *rettype = curr_fn->getReturnType();
+  ASTNode *retn = p->exprn.operands[0];
   if (p->exprn.noperand) {
-    walk_stack(p->exprn.operands[0]);
-    Value *v = pop_right_value();
+    if (retn->type == TTE_Literal && !retn->litn.litv.fixed_type) {
+      auto itr = function_map.find(curr_fn->getName().str());
+      retn->litn.litv.intent_type = itr->second->fndecln.ret->type;
+    }
+
+    walk_stack(retn);
+    auto pair = pop_right_value();
+    Value *v = pair.first;
     if (enable_debug_info())
       diinfo->emit_location(p->endloc.row, p->endloc.col);
 
     // match the function return value and the literal return value
     if (rettype != v->getType()) {
       yyerror("line: %d, column: %d, return type of value: %s not match function type",
-	      p->exprn.operands[0]->begloc.row, p->exprn.operands[0]->begloc.col, v->getName().str().c_str());
+	      retn->begloc.row, retn->begloc.col, v->getName().str().c_str());
       return;
     }
 
@@ -619,7 +683,7 @@ static void walk_stmt_ret(ASTNode *p) {
 
     if (rettype != ir1.void_type()) {
       yyerror("line: %d, column: %d, void function type cannot return value",
-	      p->exprn.operands[0]->begloc.row, p->exprn.operands[0]->begloc.col);
+	      retn->begloc.row, retn->begloc.col);
       return;
     }
 
@@ -631,10 +695,18 @@ static void walk_stmt_ret(ASTNode *p) {
 
 static void walk_stmt_expr(ASTNode *p) {
   walk_stack(p->exprn.operands[0]);
-  Value *v1 = pop_right_value("v1");
+  auto pair1 = pop_right_value("v1");
   walk_stack(p->exprn.operands[1]);
-  Value *v2 = pop_right_value("v2");
+  auto pair2 = pop_right_value("v2");
+  Value *v1 = pair1.first;
+  Value *v2 = pair2.first;
   Value *v3 = nullptr;
+
+  if (pair1.second != pair2.second) {
+    yyerror("operation have 2 different types: '%s', '%s'",
+	    get_type_string(pair1.second), get_type_string(pair1.second));
+    return;
+  }
 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -681,7 +753,7 @@ static void walk_stmt_expr(ASTNode *p) {
     break;
   }
 
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v3));
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v3, pair1.second));
 }
 
 static void walk_statement(ASTNode *p) {
@@ -723,13 +795,27 @@ static Function *walk_fn_declare(ASTNode *p) {
     std::vector<const char *> param_names;
     std::vector<Type *> params;
     for (int i = 0; i < p->fndecln.args.argc; ++i) {
-      param_names.push_back(symname_get(p->fndecln.args.argnames[i]));
-      params.push_back(ir1.int_type<int>());
+      int argname = p->fndecln.args.argnames[i];
+      param_names.push_back(symname_get(argname));
+
+      STEntry *entry = sym_getsym(p->symtable, argname, 0);
+      if (!entry) {
+	yyerror("cannot get parameter for %s\n", symname_get(argname));
+	return NULL;
+      }
+
+      if (entry->sym_type != SymType::Sym_Variable) {
+	yyerror("parameter is not variable type: %d", entry->sym_type);
+	return nullptr;
+      }
+
+      Type *type = gen_type_from_token(entry->u.var->datatype->type);
+      params.push_back(type);
     }
 
     Type *rettype = gen_type_from_token(p->fndecln.ret->type);
     fn = ir1.gen_extern_fn(rettype, fnname, params, &param_names, !!p->fndecln.args.contain_varg);
-    function_map.insert(std::make_pair(fnname, fn));
+    function_map.insert(std::make_pair(fnname, p));
     fn->setCallingConv(CallingConv::C);
 
     //AttrListPtr func_printf_PAL;
@@ -848,7 +934,6 @@ static int llvm_codegen_begin(RootTree *tree) {
     printf_fn = ir1.gen_extern_fn(ir1.int_type<int>(), "printf",
 				  std::vector<Type *>(1, ir1.intptr_type<char>()),
 				  &param_names,	true);
-    function_map.insert(std::make_pair("printf", printf_fn));
     printf_fn->setCallingConv(CallingConv::C);
 
     //AttrListPtr func_printf_PAL;
@@ -968,7 +1053,7 @@ static int llvm_codegen_end() {
   }
 
 #if 0
-  // TODO: this code fragment should put into when generating a function failed
+  // this code fragment should put into when generating a function failed
   // when generating each new function a lexical block should be pushed and when
   // the new function is generate over, then the should pop up the lexical block
   // when any error occurs when generating function body, then remove function.
