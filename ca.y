@@ -50,7 +50,7 @@ extern int gcolno;
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
 %token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
-%token			ARROW INFER TYPE
+%token			ARROW INFER TYPE AS
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			GE LE EQ NE '>' '<'
@@ -62,7 +62,7 @@ extern int gcolno;
 %type	<astnode>	paragraph fn_proto fn_args fn_args_p fn_args_ps fn_call fn_body fn_args_call fn_args_call_p
 %type	<astnode>	ifstmt stmt_list_star block_body
 %type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
-%type	<var>		iddef
+%type	<var>		iddef iddef_typed
 %type	<arg>		fn_args_actual
 %type	<symnameid>	label_id
 %type	<symnameid>	atomic_type struct_type
@@ -135,8 +135,8 @@ fn_args_ps:	fn_args_p              { curr_arglist.contain_varg = 0; $$ = make_ex
 	|                              { $$ = make_expr(ARG_LISTS, 0); }
 	;
 
-fn_args_p:	fn_args_p ',' iddef    { add_fn_args(curr_symtable, $3); $$ = NULL; }
-	|	iddef                  { add_fn_args(curr_symtable, $1); $$ = NULL; }
+fn_args_p:	fn_args_p ',' iddef_typed    { add_fn_args(curr_symtable, $3); $$ = NULL; }
+	|	iddef_typed                  { add_fn_args(curr_symtable, $1); $$ = NULL; }
 	;
 
 fn_args_call:	{ curr_arglistactual.argc = 0; }
@@ -180,8 +180,8 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	PRINT expr ';'          { $$ = make_expr(PRINT, 1, $2); }
 	|	RET expr ';'            { $$ = make_expr(RET, 1, $2); }
 	|	RET ';'                 { $$ = make_expr(RET, 0); }
-	|	LET iddef '=' expr ';' { $$ = make_vardef($2, $4); }
-	|	IDENT '=' expr ';'     { $$ = make_assign($1, $3); }
+	|	LET iddef '=' expr ';'  { $$ = make_vardef($2, $4); }
+	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { $$ = $1; }
@@ -245,6 +245,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	'('expr ')'           { $$ = $2; }
 	|	fn_call               { $$ = $1; }
 	|	ifexpr                { $$ = $1; }
+	|	expr AS datatype      { $$ = $1; /* TODO: handle AS expression */ }
 		;
 
 datatype:	instance_type         { $$ = $1; }
@@ -275,19 +276,11 @@ pointer_type:	'*' instance_type
 	|	'*' pointer_type
 	;
 
-iddef:		IDENT ':' datatype { $$ = cavar_create($1, $3); }
-	|	IDENT
-		{
-		    int name = symname_check("i32");
-		    if (name == -1)
-			yyerror("cannot find i32 symnameid");
+iddef:		iddef_typed  { $$ = $1; }
+	|	IDENT        { $$ = cavar_create($1, NULL); }
+	;
 
-		    CADataType *dt = catype_get_by_name(name);
-		    if (!dt)
-			yyerror("cannot get i32 datatype");
-
-		    $$ = cavar_create($1, dt);
-		}
+iddef_typed:	IDENT ':' datatype { $$ = cavar_create($1, $3); }
 	;
 
 ret_type:	ARROW datatype   { $$ = $2; }

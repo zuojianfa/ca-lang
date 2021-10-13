@@ -147,6 +147,41 @@ ASTNode *make_id(int i) {
     return p;
 }
 
+static int get_expr_type(ASTNode *exprn) {
+  // TODO: realize the guess work
+  switch(exprn->type) {
+  case TTE_Literal:
+  case TTE_Id:
+  case TTE_Expr:
+    switch (exprn->exprn.op) {
+    case FN_CALL:
+    case EQ:
+    case NE:
+    case LE:
+    case GE:
+    case '>':
+    case '<':
+    case '/':
+    case '*':
+    case '-':
+    case '+':
+    case UMINUS:
+    default:
+      break;
+    }
+    break;
+  case TTE_If:
+    // for if expresssion
+  default:
+    break;
+  }
+
+  // not default as i32 value, should according to the assigned value
+  int name = symname_check("i32");
+  if (name == -1)
+    yyerror("cannot find i32 symnameid");
+}
+
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
   /* TODO: in the future realize multiple let statement in one scope */
   int id = var->name;
@@ -155,6 +190,12 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
     yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
 	    glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
     return NULL;
+  }
+
+  if (var->datatype == NULL) {
+    // binding type with the expression type
+    int name = get_expr_type(exprn);
+    var->datatype = catype_get_by_name(name);
   }
 
   entry = sym_insert(curr_symtable, id, Sym_Variable);

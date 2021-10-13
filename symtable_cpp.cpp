@@ -21,6 +21,8 @@ EXTERN_C
 #endif
 
 void yyerror(const char *s, ...);
+extern int glineno;
+extern int gcolno;
 
 #ifdef __cplusplus
 }
@@ -337,7 +339,8 @@ void create_literal(CALiteral *lit, const char *text, int littypetok, int manual
     const char *name = get_type_string(manualtypetok);
     // check convertable
     if (!type_convertable(littypetok, manualtypetok)) {
-      yyerror("bad literal value definition: %s cannot be %s",
+      yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
+	      glineno, gcolno,
 	      get_type_string(littypetok), get_type_string(manualtypetok));
       return;
     }
@@ -369,13 +372,14 @@ void create_literal(CALiteral *lit, const char *text, int littypetok, int manual
       lit->u.i64value = (uint8_t)parse_lexical_char(text);
       badscope = check_uchar_value_scope(lit->u.i64value, manualtypetok);
     default:
-       yyerror("%s type have no lexical value", get_type_string(littypetok));
+       yyerror("line: %d, col: %d: %s type have no lexical value",
+	       glineno, gcolno, get_type_string(littypetok));
       break;
     }
 
     if (badscope) {
-      yyerror("bad literal value definition: %s cannot be %s",
-	      get_type_string(littypetok), get_type_string(manualtypetok));
+      yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
+	      glineno, gcolno, get_type_string(littypetok), get_type_string(manualtypetok));
       return;
     }
       
@@ -416,7 +420,7 @@ void create_literal(CALiteral *lit, const char *text, int littypetok, int manual
     lit->u.i64value = (uint8_t)parse_lexical_char(text);
     break;
   default:
-    yyerror("void type have no literal value");
+    yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
     break;
   }
 }

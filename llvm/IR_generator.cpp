@@ -265,23 +265,23 @@ static int can_type_binding(CALiteral *lit, int typetok) {
   }  
 }
 
-static Value *gen_literal_value(CALiteral *value, int typetok) {
+static Value *gen_literal_value(CALiteral *value, int typetok, SLoc loc) {
   // check if literal value type matches the given typetok, if not match, report error
   if (value->fixed_type && value->datatype->type != typetok) {
-    yyerror("literal value type '%s' not match the variable type '%s'",
-	    get_type_string(value->datatype->type), get_type_string(typetok));
+    yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
+	    loc.row, loc.col, get_type_string(value->datatype->type), get_type_string(typetok));
     return nullptr;
   }
 
   if (!value->fixed_type && !can_type_binding(value, typetok)) {
-    yyerror("literal value type '%s' not match the variable type '%s'",
-	    get_type_string(value->datatype->type), get_type_string(typetok));
+    yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
+	    loc.row, loc.col, get_type_string(value->datatype->type), get_type_string(typetok));
     return nullptr;
   }
 
   switch (typetok) {
   case VOID:
-    yyerror("void type have no literal value");
+    yyerror("line: %d, col: %d: void type have no literal value", loc.row, loc.col);
     return nullptr;
   case I32:
     return ir1.gen_int((int)parse_to_int64(value));
@@ -318,7 +318,7 @@ static Value *walk_literal(ASTNode *p) {
   else
     typetok = p->litn.litv.intent_type;
 
-  Value *v = gen_literal_value(&p->litn.litv, typetok);
+  Value *v = gen_literal_value(&p->litn.litv, typetok, p->begloc);
 
   auto operands = std::make_unique<CalcOperand>(OT_Const, v, p->litn.litv.intent_type);
   oprand_stack.push_back(std::move(operands));
@@ -330,7 +330,7 @@ static Value *walk_typed_literal(ASTNode *p, CADataType *datatype) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  Value *v = gen_literal_value(&p->litn.litv, datatype->type);
+  Value *v = gen_literal_value(&p->litn.litv, datatype->type, p->begloc);
   return v;
 }
 
@@ -573,9 +573,32 @@ static void walk_stmt_print(ASTNode *p) {
 
 static void walk_stmt_assign(ASTNode *p) {
   ASTNode *idn = p->exprn.operands[0];
-  ASTNode *litn = p->exprn.operands[1];
+  ASTNode *exprn = p->exprn.operands[1];
+  Value *v;
+  if (!idn->entry->u.var->datatype) {
+    // when variable type not determined yet, it means:
+    // 1) the variable is in definition stage, not just assigment 
+    // 2) the variable type is not specified by identifier itself
+    // it should inferenced by the right value: right expression
+    walk_stack(exprn);
+    auto pair = pop_right_value("tmpexpr");
+    const char *typestr = get_type_string(pair.second);
+    int name = symname_check(typestr);
+    if (name == -1) {
+      yyerror("line: %d, column: %d, cannot find name for '%s'",
+	      p->begloc.row, p->begloc.col, typestr);
+      return;
+    }
 
-  Value *v = walk_typed_literal(litn, idn->entry->u.var->datatype);
+    idn->entry->u.var->datatype = catype_get_by_name(name);
+    v = pair.first;
+  } else {
+    // the variable is an assigment statement or variable type is determined
+
+    
+    
+    v = walk_typed_literal(exprn, idn->entry->u.var->datatype);
+  }
 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -645,7 +668,8 @@ static void walk_stmt_call(ASTNode *p) {
       }
       
       v = gen_literal_value(&args->exprn.operands[i]->litn.litv,
-			    entry->u.var->datatype->type);
+			    entry->u.var->datatype->type,
+			    args->exprn.operands[i]->begloc);
     } else {
       const char *argname = symname_get(args->exprn.operands[i]->idn.i);
       walk_stack(args->exprn.operands[i]);
