@@ -169,6 +169,16 @@ NEXT TODO:
 - [ ] support array type
 - [ ] debug support inner field scope, 
 
+detailed TODO LIST:
+- [ ] change LitBuffer->text into integer number that in symname table `set_litbuf`
+- [ ] put the literal generation in `create_literal` into walk stage, and in walk stage creating the literal
+- [ ] walk bottom-up the expression and fill the expr_type field in ASTNode until the use of it
+- [ ] remove function `get_expr_type`
+- [ ] refactor `make_vardef` when encounting `var->datatype == NULL`
+- [ ] determing the var type in function `make_vardef`, can it put into walk stage to determine the variable type? answer it must be in the walk stage because the expression's type is determined in the walk stage, because the expression's operands type cannot determined in the first stage, or very complex
+- [ ] make_expr function may also remove `expr_type` inference, consider if it can inference the expression type and so remove the inference in walk stage?
+Answer: it seems cannot, because when parse the literal value, it cannot create a complete parsed literal value, because lack of the buddle operands's type
+
 
 # License
 See `LICENSE` file in this directory, for license in directory `cruntime` see cruntime/README.md

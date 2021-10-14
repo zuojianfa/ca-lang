@@ -210,9 +210,8 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
   if (var->datatype == NULL) {
     // binding type with the expression type
     // TODO: create datatype here from expression node or in the walk routine
-    int name = ge t_expr_type(exprn);
-    exprn->
-    int name = symname_check("i32");
+    int name = get_expr_type(exprn);
+    name = symname_check("i32");
     var->datatype = catype_get_by_name(name);
   }
 
@@ -306,7 +305,7 @@ ASTNode *make_expr(int op, int noperands, ...) {
     p->exprn.op = op;
     p->exprn.noperand = noperands;
     // TODO: inference the expression type here or in the walk routine
-    p->exprn.expr_type = ?;
+    p->exprn.expr_type = 0;
     va_start(ap, noperands);
     for (i = 0; i < noperands; i++)
 	p->exprn.operands[i] = va_arg(ap, ASTNode*);

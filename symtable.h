@@ -52,13 +52,21 @@ struct CAArray {
 };
 
 typedef struct CALiteral {
-  int fixed_type;         // specify if literal type is defined (fixed) with postfix (u32,f64, ...)
-  int intent_type;        // when fixed_type is false, it stand for the type of the default literal value when have no any context
+  // specify if literal type is defined (fixed) with postfix (u32,f64, ...)
+  int fixed_type;
+
+  // when fixed_type is false, it stand for the type of the default literal value
+  // when have no any context
+  int intent_type;
+
   // the literal I64 for negative integer value, U64 for positive integer value,
   // F64 for floating point value, BOOL is true false value, CHAR is 'x' value,
   // UCHAR is '\x' value
-  int littypetok;  
-  int manualtypetok;      // the postfix type when postfix is set
+  int littypetok;
+
+  int borning_var_type;
+
+  int postfixtypetok;      // the postfix type when postfix is set
 
   CADataType *datatype;
   union {
@@ -148,7 +156,7 @@ CADataType *catype_get_by_token(int token);
 int catype_is_float(int typetok);
 
 const char *get_type_string(int tok);
-void create_literal(CALiteral *lit, const char *text, int littypetok, int manualtypetok);
+void create_literal(CALiteral *lit, char *text, int littypetok, int postfixtypetok);
 void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok);
 int def_lit_type(int typetok);
 

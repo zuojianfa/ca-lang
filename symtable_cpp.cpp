@@ -23,6 +23,7 @@ EXTERN_C
 void yyerror(const char *s, ...);
 extern int glineno;
 extern int gcolno;
+extern int borning_var_type;
 
 #ifdef __cplusplus
 }
@@ -316,7 +317,7 @@ const char *get_type_string(int tok) {
 
 // TODO: check if text match the typetok, example: 'a' means char, and it cannot apply any postfix
 // true, false means boolean, it cannot apply any postfix
-// if manualtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
+// if postfixtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
 
 // def_lit_type
 // U64 stand for positive integer value in lexical
@@ -330,10 +331,10 @@ const char *get_type_string(int tok) {
 // 1) littypetok: it's the literal type by itself, I64 for negative integer
 // value, U64 for positive integer value, F64 for floating point value, BOOL is
 // true false value, CHAR is 'x' value, UCHAR is '\x' value.
-// 2) manualtypetok: it's the literal type in the postfix of the literal, e.g.
+// 2) postfixtypetok: it's the literal type in the postfix of the literal, e.g.
 // 43243u32 4343243.432f32 43243.343f64 -4332i64 3f64 ..., the scope or type of
-// manualtypetok must compitable with the littypetok type. e.g. when literal
-// value is 4324324321433u32 then the manualtypetok is U32, it is a bad value
+// postfixtypetok must compitable with the littypetok type. e.g. when literal
+// value is 4324324321433u32 then the postfixtypetok is U32, it is a bad value
 // and will report an error because U32 is out of the range the literal. and
 // when literal value is 43243243.343i32 it also report the error, because
 // floating point literal value cannot be i32 type, but 432432f32 is right
@@ -345,7 +346,7 @@ const char *get_type_string(int tok) {
 // The 3 parameters will affect the inference of the literal type by following
 // rules:
 // 1). if all the operands of an operator are non-fixed literal value
-// (`lit->fixed_type == 0` or manualtypetok is not provided (-1 value)), it
+// (`lit->fixed_type == 0` or postfixtypetok is not provided (-1 value)), it
 // uses the variable's type (`borning_var_type`)
 // 2) when one of the operand is the fixed literal then the other non-fixed
 // literal value's type will be the fixed literal value's type. when have
@@ -360,24 +361,28 @@ const char *get_type_string(int tok) {
 // for the first scan is hard to determine the types, because the expression may
 // have multiple part and the pre part don't know the later part's type
 
-void create_literal(CALiteral *lit, const char *text, int littypetok, int manualtypetok) {
+void create_literal(CALiteral *lit, char *text, int littypetok, int postfixtypetok) {
   const char *typestr;
 
   int typetok;
-  if (manualtypetok == -1) {
+  lit->littypetok = littypetok;
+  lit->borning_var_type = borning_var_type;
+  if (postfixtypetok == -1) {
     lit->fixed_type = 0;
+    lit->postfixtypetok = 0;
   } else {
     lit->intent_type = 0;
     lit->fixed_type = 1;
+    lit->postfixtypetok = postfixtypetok;
   }
 
   if (lit->fixed_type) {
-    const char *name = get_type_string(manualtypetok);
+    const char *name = get_type_string(postfixtypetok);
     // check convertable
-    if (!type_convertable(littypetok, manualtypetok)) {
+    if (!type_convertable(littypetok, postfixtypetok)) {
       yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
 	      glineno, gcolno,
-	      get_type_string(littypetok), get_type_string(manualtypetok));
+	      get_type_string(littypetok), get_type_string(postfixtypetok));
       return;
     }
 
@@ -386,27 +391,27 @@ void create_literal(CALiteral *lit, const char *text, int littypetok, int manual
     switch (littypetok) {
     case I64: // I64 stand for positive integer value in lexical
       lit->u.i64value = atoll(text);
-      badscope = check_i64_value_scope(lit->u.i64value, manualtypetok);
+      badscope = check_i64_value_scope(lit->u.i64value, postfixtypetok);
       break;
     case U64:
       sscanf(text, "%lu", &lit->u.i64value);
-      badscope = check_u64_value_scope((uint64_t)lit->u.i64value, manualtypetok);
+      badscope = check_u64_value_scope((uint64_t)lit->u.i64value, postfixtypetok);
       break;
     case F64:
       lit->u.f64value = atof(text);
-      badscope = check_f64_value_scope(lit->u.f64value, manualtypetok);
+      badscope = check_f64_value_scope(lit->u.f64value, postfixtypetok);
       break;
     case BOOL:
       lit->u.i64value = atoll(text) ? 1 : 0;
-      badscope = (manualtypetok != BOOL);
+      badscope = (postfixtypetok != BOOL);
       break;
     case CHAR:
       lit->u.i64value = (char)parse_lexical_char(text);
-      badscope = check_char_value_scope(lit->u.i64value, manualtypetok);
+      badscope = check_char_value_scope(lit->u.i64value, postfixtypetok);
       break;
     case UCHAR:
       lit->u.i64value = (uint8_t)parse_lexical_char(text);
-      badscope = check_uchar_value_scope(lit->u.i64value, manualtypetok);
+      badscope = check_uchar_value_scope(lit->u.i64value, postfixtypetok);
     default:
        yyerror("line: %d, col: %d: %s type have no lexical value",
 	       glineno, gcolno, get_type_string(littypetok));
@@ -415,7 +420,7 @@ void create_literal(CALiteral *lit, const char *text, int littypetok, int manual
 
     if (badscope) {
       yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	      glineno, gcolno, get_type_string(littypetok), get_type_string(manualtypetok));
+	      glineno, gcolno, get_type_string(littypetok), get_type_string(postfixtypetok));
       return;
     }
       
