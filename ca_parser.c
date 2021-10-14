@@ -15,6 +15,20 @@ SymTable *curr_symtable = NULL;
 /* mainly for label processing, because label is function scope symbol */
 SymTable *curr_fn_symtable = NULL;
 
+/* flag to indicate the background type to guide inference the type of literal
+   contained in the right expresssion, it has following regular for type
+   inferencing:
+   1. if all the operands for a operator are non-fixed literal value, it use
+   the variable's type
+   2. when one of the operand is the fixed literal then the other non-fixed
+   literal value's type will be the fixed literal value's type. when have
+   multiple different fixed type in the expression, then report error
+   3. when the variable not specify a value, its type will be inferenced by the
+   right value's type. The right value's type try to use the first value that
+   with the fixed type as the expression's type. When the other part of the
+   expression have different type then report error
+ */ 
+int borning_var_type = 0;
 int extern_flag = 0; /* indicate if handling the extern function */
 /*int call_flag = 0;  indicate if under a call statement, used for real parameter checking */
 ST_ArgList curr_arglist;
@@ -126,6 +140,7 @@ ASTNode *make_literal(CALiteral *litv) {
     /* copy information */
     p->type = TTE_Literal;
     p->litn.litv = *litv;
+    p->litn.bg_type = borning_var_type;
     p->begloc.row = glineno_prev;
     p->begloc.col = gcolno_prev;
     p->endloc.row = glineno;
@@ -194,7 +209,10 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
 
   if (var->datatype == NULL) {
     // binding type with the expression type
-    int name = get_expr_type(exprn);
+    // TODO: create datatype here from expression node or in the walk routine
+    int name = ge t_expr_type(exprn);
+    exprn->
+    int name = symname_check("i32");
     var->datatype = catype_get_by_name(name);
   }
 
@@ -287,6 +305,8 @@ ASTNode *make_expr(int op, int noperands, ...) {
     p->type = TTE_Expr;
     p->exprn.op = op;
     p->exprn.noperand = noperands;
+    // TODO: inference the expression type here or in the walk routine
+    p->exprn.expr_type = ?;
     va_start(ap, noperands);
     for (i = 0; i < noperands; i++)
 	p->exprn.operands[i] = va_arg(ap, ASTNode*);
@@ -355,6 +375,7 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
     p->type = TTE_Expr;
     p->exprn.op = op;
     p->exprn.noperand = noperands;
+    p->exprn.expr_type = 0;
     for (i = 0; i < noperands; i++)
 	p->exprn.operands[i] = make_id(al->argnames[i]);
 
@@ -387,6 +408,7 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     p->type = TTE_Expr;
     p->exprn.op = op;
     p->exprn.noperand = noperands;
+    p->exprn.expr_type = 0;
     for (i = 0; i < noperands; i++) {
       if (al->args[i].type == AT_Literal) {
 	p->exprn.operands[i] = make_literal(&al->args[i].litv);

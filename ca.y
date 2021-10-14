@@ -23,6 +23,7 @@ extern SymTable *curr_symtable;
 /* mainly for label processing, because label is function scope symbol */
 extern SymTable *curr_fn_symtable;
 
+extern int borning_var_type;
 extern int extern_flag;
 extern ST_ArgList curr_arglist;
 extern ST_ArgListActual curr_arglistactual;
@@ -50,12 +51,13 @@ extern int gcolno;
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
 %token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
-%token			ARROW INFER TYPE AS
+%token			ARROW INFER TYPE
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			GE LE EQ NE '>' '<'
 %left			'+' '-'
 %left			'*' '/'
+%left			AS
 %nonassoc		UMINUS
 %type	<litv>		literal lit_field lit_field_list lit_struct_def
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl
@@ -180,7 +182,7 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	PRINT expr ';'          { $$ = make_expr(PRINT, 1, $2); }
 	|	RET expr ';'            { $$ = make_expr(RET, 1, $2); }
 	|	RET ';'                 { $$ = make_expr(RET, 0); }
-	|	LET iddef '=' expr ';'  { $$ = make_vardef($2, $4); }
+	|	LET iddef '=' expr ';'  { $$ = make_vardef($2, $4); borning_var_type = 0; }
 	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
@@ -276,7 +278,7 @@ pointer_type:	'*' instance_type
 	|	'*' pointer_type
 	;
 
-iddef:		iddef_typed  { $$ = $1; }
+iddef:		iddef_typed  { $$ = $1; borning_var_type = $1->datatype->type; }
 	|	IDENT        { $$ = cavar_create($1, NULL); }
 	;
 

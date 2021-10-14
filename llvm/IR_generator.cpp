@@ -595,7 +595,7 @@ static void walk_stmt_assign(ASTNode *p) {
   } else {
     // the variable is an assigment statement or variable type is determined
 
-    
+    // let a: i32 = (434 + 34) 
     
     v = walk_typed_literal(exprn, idn->entry->u.var->datatype);
   }
@@ -788,6 +788,7 @@ static void walk_stmt_expr(ASTNode *p) {
 }
 
 static void walk_statement(ASTNode *p) {
+  // not allow global assign value, global variable definition is not assign
   if (!curr_fn && p->exprn.op != '=' && p->exprn.op != ';')
     return;
 

@@ -64,6 +64,7 @@ static std::unordered_map<std::string, int> s_token_map = {
   {"...",    VARG},
   {"struct", STRUCT},
   {"type",   TYPE},
+  {"as",     AS},
 };
 
 // name to CADatatype map
@@ -317,13 +318,48 @@ const char *get_type_string(int tok) {
 // true, false means boolean, it cannot apply any postfix
 // if manualtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
 
-//def_lit_type
+// def_lit_type
 // U64 stand for positive integer value in lexical
 // I64 stand for positive integer value in lexical
 // F64 stand for floating point number in lexical
-// BOOL stand for boolean point number in lexical 
+// BOOL stand for boolean point number in lexical
 // UCHAR stand for \. transfermation value in lexical
 // CHAR stand for any character value in lexical
+
+// literal type depends on the input of
+// 1) littypetok: it's the literal type by itself, I64 for negative integer
+// value, U64 for positive integer value, F64 for floating point value, BOOL is
+// true false value, CHAR is 'x' value, UCHAR is '\x' value.
+// 2) manualtypetok: it's the literal type in the postfix of the literal, e.g.
+// 43243u32 4343243.432f32 43243.343f64 -4332i64 3f64 ..., the scope or type of
+// manualtypetok must compitable with the littypetok type. e.g. when literal
+// value is 4324324321433u32 then the manualtypetok is U32, it is a bad value
+// and will report an error because U32 is out of the range the literal. and
+// when literal value is 43243243.343i32 it also report the error, because
+// floating point literal value cannot be i32 type, but 432432f32 is right
+// value.
+// 3) borning_var_type: if not 0 value, it means a variable is borning
+// (creating) and the variable's type is borning_var_type, it will guide the
+// final literal type.
+//
+// The 3 parameters will affect the inference of the literal type by following
+// rules:
+// 1). if all the operands of an operator are non-fixed literal value
+// (`lit->fixed_type == 0` or manualtypetok is not provided (-1 value)), it
+// uses the variable's type (`borning_var_type`)
+// 2) when one of the operand is the fixed literal then the other non-fixed
+// literal value's type will be the fixed literal value's type. when have
+// multiple different fixed type in the expression, then report an error
+// 3) when the variable not specify a value, the literal's type will be
+// inferenced by the right ( = right-expr) expression's type. It tries to uses
+// the first value that with the fixed type as the expression's type. When the
+// other part of the expression have different type then report an error
+// final literal's type
+//
+// so the final literal type should better be determined in the walk routines,
+// for the first scan is hard to determine the types, because the expression may
+// have multiple part and the pre part don't know the later part's type
+
 void create_literal(CALiteral *lit, const char *text, int littypetok, int manualtypetok) {
   const char *typestr;
 

@@ -52,8 +52,14 @@ struct CAArray {
 };
 
 typedef struct CALiteral {
-  int fixed_type;         // specify if literal type is defined (fixed) or according to context
-  int intent_type;        // specify the indent type when fixed_type is false, when only literal value appear
+  int fixed_type;         // specify if literal type is defined (fixed) with postfix (u32,f64, ...)
+  int intent_type;        // when fixed_type is false, it stand for the type of the default literal value when have no any context
+  // the literal I64 for negative integer value, U64 for positive integer value,
+  // F64 for floating point value, BOOL is true false value, CHAR is 'x' value,
+  // UCHAR is '\x' value
+  int littypetok;  
+  int manualtypetok;      // the postfix type when postfix is set
+
   CADataType *datatype;
   union {
     int64_t  i64value;      // store either integer type value include unsigned

@@ -29,6 +29,7 @@ struct ASTNode;
 /* literals */
 typedef struct {
   CALiteral litv; /* value of literal */
+  int bg_type;    /* for inference the literal's type */
 } TLiteralNode;
 
 /* identifiers */
@@ -40,6 +41,7 @@ typedef struct {
 typedef struct {
   int op;       /* operator */
   int noperand; /* number of operands */
+  int expr_type;/* the expression's type: see borning_var_type */
   struct ASTNode **operands; /* operands */
 } TExprNode;
 
