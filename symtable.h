@@ -64,9 +64,13 @@ typedef struct CALiteral {
   // UCHAR is '\x' value
   int littypetok;
 
+  // the just being creating variable's type, used to guide the literal type
   int borning_var_type;
 
   int postfixtypetok;      // the postfix type when postfix is set
+
+  // text id in symname table, text is used for latering literal type inference
+  int textid;
 
   CADataType *datatype;
   union {
@@ -80,7 +84,7 @@ typedef struct CALiteral {
 typedef struct LitBuffer {
   int typetok;
   int len;
-  char text[1024];
+  int text;
 } LitBuffer;
 
 typedef struct IdToken {
@@ -156,8 +160,8 @@ CADataType *catype_get_by_token(int token);
 int catype_is_float(int typetok);
 
 const char *get_type_string(int tok);
-void create_literal(CALiteral *lit, char *text, int littypetok, int postfixtypetok);
-void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok);
+void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok);
+void set_litbuf(LitBuffer *litb, char *text, int len, int typetok);
 int def_lit_type(int typetok);
 
 CAVariable *cavar_create(int name, CADataType *datatype);

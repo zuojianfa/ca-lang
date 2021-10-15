@@ -360,11 +360,9 @@ const char *get_type_string(int tok) {
 // so the final literal type should better be determined in the walk routines,
 // for the first scan is hard to determine the types, because the expression may
 // have multiple part and the pre part don't know the later part's type
-
-void create_literal(CALiteral *lit, char *text, int littypetok, int postfixtypetok) {
-  const char *typestr;
-
+void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok) {
   int typetok;
+  lit->textid = textid;
   lit->littypetok = littypetok;
   lit->borning_var_type = borning_var_type;
   if (postfixtypetok == -1) {
@@ -375,105 +373,15 @@ void create_literal(CALiteral *lit, char *text, int littypetok, int postfixtypet
     lit->fixed_type = 1;
     lit->postfixtypetok = postfixtypetok;
   }
-
-  if (lit->fixed_type) {
-    const char *name = get_type_string(postfixtypetok);
-    // check convertable
-    if (!type_convertable(littypetok, postfixtypetok)) {
-      yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	      glineno, gcolno,
-	      get_type_string(littypetok), get_type_string(postfixtypetok));
-      return;
-    }
-
-    int badscope = 0;
-    // check literal value scope
-    switch (littypetok) {
-    case I64: // I64 stand for positive integer value in lexical
-      lit->u.i64value = atoll(text);
-      badscope = check_i64_value_scope(lit->u.i64value, postfixtypetok);
-      break;
-    case U64:
-      sscanf(text, "%lu", &lit->u.i64value);
-      badscope = check_u64_value_scope((uint64_t)lit->u.i64value, postfixtypetok);
-      break;
-    case F64:
-      lit->u.f64value = atof(text);
-      badscope = check_f64_value_scope(lit->u.f64value, postfixtypetok);
-      break;
-    case BOOL:
-      lit->u.i64value = atoll(text) ? 1 : 0;
-      badscope = (postfixtypetok != BOOL);
-      break;
-    case CHAR:
-      lit->u.i64value = (char)parse_lexical_char(text);
-      badscope = check_char_value_scope(lit->u.i64value, postfixtypetok);
-      break;
-    case UCHAR:
-      lit->u.i64value = (uint8_t)parse_lexical_char(text);
-      badscope = check_uchar_value_scope(lit->u.i64value, postfixtypetok);
-    default:
-       yyerror("line: %d, col: %d: %s type have no lexical value",
-	       glineno, gcolno, get_type_string(littypetok));
-      break;
-    }
-
-    if (badscope) {
-      yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	      glineno, gcolno, get_type_string(littypetok), get_type_string(postfixtypetok));
-      return;
-    }
-      
-    lit->datatype = catype_get_by_name(symname_check(name));
-    return;
-  }
-
-  // handle non-fixed type literal value
-  switch (littypetok) {
-  case I64:
-    lit->intent_type = I32;
-    lit->datatype = catype_get_by_name(symname_check("i64"));
-    lit->u.i64value = atoll(text);
-    break;
-  case U64:
-    lit->intent_type = I32;
-    lit->datatype = catype_get_by_name(symname_check("u64"));
-    sscanf(text, "%lu", &lit->u.i64value);
-    break;
-  case F64:
-    lit->intent_type = F64;
-    lit->datatype = catype_get_by_name(symname_check("f64"));
-    lit->u.f64value = atof(text);
-    break;
-  case BOOL:
-    lit->intent_type = BOOL;
-    lit->datatype = catype_get_by_name(symname_check("bool"));
-    lit->u.i64value = atoll(text) ? 1 : 0;
-    break;
-  case CHAR:
-    lit->intent_type = CHAR;
-    lit->datatype = catype_get_by_name(symname_check("char"));    
-    lit->u.i64value = (char)parse_lexical_char(text);
-    break;
-  case UCHAR:
-    lit->intent_type = CHAR;
-    lit->datatype = catype_get_by_name(symname_check("uchar"));
-    lit->u.i64value = (uint8_t)parse_lexical_char(text);
-    break;
-  default:
-    yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
-    break;
-  }
 }
 
-void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok) {
-  if (len > 1023)
-    yyerror("too long literal length: %d", len);
+void set_litbuf(LitBuffer *litb, char *text, int len, int typetok) {
+  text[len] = 0;
+  int name = symname_check_insert(text);
 
   litb->typetok = typetok;
   litb->len = len;
-  memcpy(litb->text, text, len);
-  litb->text[len] = 0;
+  litb->text = name;
 }
 
 int def_lit_type(int typetok) {

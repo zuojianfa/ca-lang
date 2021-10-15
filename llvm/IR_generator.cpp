@@ -306,6 +306,99 @@ static Value *gen_literal_value(CALiteral *value, int typetok, SLoc loc) {
   }
 }
 
+static void inference_literal_type(ASTNode *p) {
+  const char *text = symname_get(textid);
+
+  if (lit->fixed_type) {
+    const char *name = get_type_string(postfixtypetok);
+    // check convertable
+    if (!type_convertable(littypetok, postfixtypetok)) {
+      yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
+	      glineno, gcolno,
+	      get_type_string(littypetok), get_type_string(postfixtypetok));
+      return;
+    }
+
+    int badscope = 0;
+    // check literal value scope
+    switch (littypetok) {
+    case I64: // I64 stand for positive integer value in lexical
+      lit->u.i64value = atoll(text);
+      badscope = check_i64_value_scope(lit->u.i64value, postfixtypetok);
+      break;
+    case U64:
+      sscanf(text, "%lu", &lit->u.i64value);
+      badscope = check_u64_value_scope((uint64_t)lit->u.i64value, postfixtypetok);
+      break;
+    case F64:
+      lit->u.f64value = atof(text);
+      badscope = check_f64_value_scope(lit->u.f64value, postfixtypetok);
+      break;
+    case BOOL:
+      lit->u.i64value = atoll(text) ? 1 : 0;
+      badscope = (postfixtypetok != BOOL);
+      break;
+    case CHAR:
+      lit->u.i64value = (char)parse_lexical_char(text);
+      badscope = check_char_value_scope(lit->u.i64value, postfixtypetok);
+      break;
+    case UCHAR:
+      lit->u.i64value = (uint8_t)parse_lexical_char(text);
+      badscope = check_uchar_value_scope(lit->u.i64value, postfixtypetok);
+    default:
+       yyerror("line: %d, col: %d: %s type have no lexical value",
+	       glineno, gcolno, get_type_string(littypetok));
+      break;
+    }
+
+    if (badscope) {
+      yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
+	      glineno, gcolno, get_type_string(littypetok), get_type_string(postfixtypetok));
+      return;
+    }
+      
+    lit->datatype = catype_get_by_name(symname_check(name));
+    return;
+  }
+
+  // handle non-fixed type literal value
+  switch (littypetok) {
+  case I64:
+    lit->intent_type = I32;
+    lit->datatype = catype_get_by_name(symname_check("i64"));
+    lit->u.i64value = atoll(text);
+    break;
+  case U64:
+    lit->intent_type = I32;
+    lit->datatype = catype_get_by_name(symname_check("u64"));
+    sscanf(text, "%lu", &lit->u.i64value);
+    break;
+  case F64:
+    lit->intent_type = F64;
+    lit->datatype = catype_get_by_name(symname_check("f64"));
+    lit->u.f64value = atof(text);
+    break;
+  case BOOL:
+    lit->intent_type = BOOL;
+    lit->datatype = catype_get_by_name(symname_check("bool"));
+    lit->u.i64value = atoll(text) ? 1 : 0;
+    break;
+  case CHAR:
+    lit->intent_type = CHAR;
+    lit->datatype = catype_get_by_name(symname_check("char"));    
+    lit->u.i64value = (char)parse_lexical_char(text);
+    break;
+  case UCHAR:
+    lit->intent_type = CHAR;
+    lit->datatype = catype_get_by_name(symname_check("uchar"));
+    lit->u.i64value = (uint8_t)parse_lexical_char(text);
+    break;
+  default:
+    yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
+    break;
+  }
+}
+
 static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -571,6 +664,57 @@ static void walk_stmt_print(ASTNode *p) {
   ir1.builder().CreateCall(printf_fn, printf_args, "n");
 }
 
+// How to inference the type of variable and determine the literal type in right
+// expression?
+// 1. when variable type already determined, the variable type will used to
+// guide and check the right side type. it requires the right expression have
+// the same type as the variable.
+//   when the right side expression is a final (left) expression (id or literal)
+//   1) When the right side type already determined then check if it match the
+//   variable type, when not match then report an error.
+//   2) When the right side type not determined, then try to determinate the
+//   right side type as the same type of the variable. when cannot make the same
+//   type then error occurs.
+//   when the right side is a complex expression, then recursive the procedure
+//   of following
+//   1) the complex expression finally should have the same type as the variable
+//   2) each children expression of the complex expression should have the same
+//   type as the variable, then recursive each children expression for the type
+//   until to leaf and when arrive to leaf it is the procedure of above.
+//
+// 2. when variable type not determined, the variable's type need inferenced
+// according to the right expression, it will use the right side expression's
+// type as it's type.
+//   when the right side is a final expression (id or literal) then use the id
+//   or the literal's type as the variable's type.
+//   1) when the literal is not determined yet then use the intent_type of the
+//   literal type as both the literal's type and the variable's type. It need
+//   check if the intent_type matches the literal value, when not match then
+//   report an error.
+//   2) when the literal type is determined (with a postfix type), then check if
+//   the literal value matches the determined type.
+//
+//   when the right side is a complex expression, then all the children node of
+//   it should have or inferenced into the same type, when they have different
+//   type then report error. when all have the same type then the variable type
+//   uses it as it's type.
+//   1) for each children of the right side expression, do determinate their's
+//   type recursively (because the children may also have it's children, so it's
+//   recursive), the recursive finally case is the above condition (final
+//   expression).
+//   TODO: how to spread one determined type in the deep tree structure
+//   e.g. let a = (3243 + (432432 + (3432 * 43243 + 43i64 * (433 + 232)))) + 333;
+//               +
+//         +        333
+//   3243        +
+//        432432     +
+//                *             *
+//           3432   43243 43i64    +
+//                             433   232
+//   
+//   the 43i64 will make all the other part have the same type with it, the
+//   32i64 is deeper and in different layers, how to determined it?
+//
 static void walk_stmt_assign(ASTNode *p) {
   ASTNode *idn = p->exprn.operands[0];
   ASTNode *exprn = p->exprn.operands[1];

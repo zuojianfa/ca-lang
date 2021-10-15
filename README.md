@@ -170,7 +170,7 @@ NEXT TODO:
 - [ ] debug support inner field scope, 
 
 detailed TODO LIST:
-- [ ] change LitBuffer->text into integer number that in symname table `set_litbuf`
+- [x] change LitBuffer->text into integer number that in symname table `set_litbuf`
 - [ ] put the literal generation in `create_literal` into walk stage, and in walk stage creating the literal
 - [ ] walk bottom-up the expression and fill the expr_type field in ASTNode until the use of it
 - [ ] remove function `get_expr_type`
