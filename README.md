@@ -164,6 +164,7 @@ is scopeline the real skip function start for debugging? try it
 NEXT TODO: 
 - [ ] expression calculation result
 - [ ] handle expression type checking
+- [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] support other atomic type
 - [ ] support point type
 - [ ] support array type

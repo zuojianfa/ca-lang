@@ -703,7 +703,8 @@ static void walk_stmt_print(ASTNode *p) {
 //   recursive), the recursive finally case is the above condition (final
 //   expression).
 //   TODO: how to spread one determined type in the deep tree structure
-//   e.g. let a = (3243 + (432432 + (3432 * 43243 + 43i64 * (433 + 232)))) + 333;
+//   e.g. let a = (3243 + (432432 + (3432 * 43243 + 43i64 * (433 + 232)))) +
+//   333;
 //               +
 //         +        333
 //   3243        +
@@ -711,10 +712,26 @@ static void walk_stmt_print(ASTNode *p) {
 //                *             *
 //           3432   43243 43i64    +
 //                             433   232
-//   
+//
 //   the 43i64 will make all the other part have the same type with it, the
 //   32i64 is deeper and in different layers, how to determined it?
 //
+// Generally, the type of left and right side have following regular:
+// 1) when both side have not determined a type then, the right side will use
+// the common literal regular to determine the expression's type, and the left
+// variable use the right side's type
+// 2) when both side have a determined type then they should have the same type,
+// or report an error.
+// 3) when left side determined a type, right side not determined a type, then
+// the left side will guide the right side's type and will check if the literal
+// matches the left side type
+// 4) when left side not determined a type and the right side determined a type
+// then the left side will use the right side's type
+// 5) when the right side is complexed expression, then all the part of the
+// expression should have the same type. when some part not have a determined
+// type then it will use the type in the same expression. 
+//
+
 static void walk_stmt_assign(ASTNode *p) {
   ASTNode *idn = p->exprn.operands[0];
   ASTNode *exprn = p->exprn.operands[1];
