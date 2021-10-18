@@ -93,6 +93,7 @@ static llvm::Function *main_fn = nullptr;
 
 // handle when processing current function, the top level function is main function
 static llvm::Function *curr_fn = nullptr;
+static ASTNode *curr_fn_node = nullptr;
 static llvm::BasicBlock *main_bb = nullptr;
 static llvm::DIFile *diunit = nullptr;
 static std::vector<std::unique_ptr<CalcOperand>> oprand_stack;
@@ -824,8 +825,11 @@ static void walk_stmt_ret(ASTNode *p) {
 
     // match the function return value and the literal return value
     if (rettype != v->getType()) {
-      yyerror("line: %d, column: %d, return type of value: %s not match function type",
-	      retn->begloc.row, retn->begloc.col, v->getName().str().c_str());
+      int rettypetok = curr_fn_node ? curr_fn_node->fndefn.fn_decl->fndecln.ret->type : I32;
+      int exprtypetok = get_expr_type_from_tree(retn, 0);
+      yyerror("line: %d, column: %d, return value `%s` type '%s' not match function type '%s'",
+	      retn->begloc.row, retn->begloc.col, get_node_name_or_value(retn),
+	      get_type_string(exprtypetok), get_type_string(rettypetok));
       return;
     }
 
@@ -988,6 +992,8 @@ static Function *walk_fn_define(ASTNode *p) {
     yyerror("argument number not identical with definition (%d != %d)",
 	    p->fndefn.fn_decl->fndecln.args.argc, fn->arg_size());
 
+  curr_fn_node = p;
+
   BasicBlock *bb = ir1.gen_bb("entry", fn);
   ir1.builder().SetInsertPoint(bb);
   curr_fn = fn;
@@ -1018,6 +1024,7 @@ static Function *walk_fn_define(ASTNode *p) {
     curr_fn = nullptr;
   }
 
+  curr_fn_node = nullptr;
   return fn;
 }
 

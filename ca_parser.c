@@ -349,7 +349,7 @@ ASTNode *make_label_def(int labelid) {
 }
 
 static int is_valued_expr(int op) {
-  return (op != ARG_LISTS && op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET);
+  return (op != ARG_LISTS && op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET && op != '=');
 }
 
 int get_expr_type_from_tree(ASTNode *node, int ispost) {
@@ -359,7 +359,8 @@ int get_expr_type_from_tree(ASTNode *node, int ispost) {
   case TTE_Id:
     //STEntry *entry = sym_getsym(node->symtable, node->idn.i, 1);
     if (!node->entry || node->entry->sym_type != Sym_Variable) {
-      yyerror("the name '%s' is not a variable", symname_get(node->idn.i));
+      yyerror("line: %d, col: %d: the name '%s' is not a variable",
+	      node->begloc.col, node->begloc.row, symname_get(node->idn.i));
       return 0;
     }
 
@@ -371,7 +372,7 @@ int get_expr_type_from_tree(ASTNode *node, int ispost) {
   }
 }
 
-static const char *get_name_or_value(ASTNode *node) {
+const char *get_node_name_or_value(ASTNode *node) {
   switch (node->type) {
   case TTE_Literal:
     return symname_get(node->litn.litv.textid);
@@ -462,6 +463,7 @@ int inference_expr_type(ASTNode *p) {
   case TTE_Literal:
     type1 = inference_literal_type(&p->litn.litv);
     p->litn.litv.fixed_type = 1;
+    return type1;
   case TTE_Expr:
     if (p->exprn.expr_type)
       return p->exprn.expr_type;
@@ -480,8 +482,10 @@ int inference_expr_type(ASTNode *p) {
 
     p->exprn.expr_type = type1;
     return type1;
+  case TTE_Id:
+    return p->entry->u.var->datatype ? p->entry->u.var->datatype->type : 0;
   default:
-    yyerror("line: %d, col: %d: the expression already typed, no need to to inference",
+    yyerror("line: %d, col: %d: the expression already typed, no need to do inference",
 	    glineno, gcolno);
     return 0;
   }
@@ -601,8 +605,8 @@ static int reduce_node_and_type(ASTNode *p, int *expr_types, int noperands) {
 	typei = i;
       } else if (type1 != expr_types[i]) {
 	yyerror("type name conflicting: '%s' of type '%s', '%s' of type '%s'",
-		get_name_or_value(p->exprn.operands[typei]), get_type_string(type1),
-		get_name_or_value(p->exprn.operands[i]), get_type_string(expr_types[i]));
+		get_node_name_or_value(p->exprn.operands[typei]), get_type_string(type1),
+		get_node_name_or_value(p->exprn.operands[i]), get_type_string(expr_types[i]));
 	return 0;
       }
     } else {
@@ -654,22 +658,38 @@ ASTNode *make_expr(int op, int noperands, ...) {
     va_start(ap, noperands);
     for (i = 0; i < noperands; i++) {
       p->exprn.operands[i] = va_arg(ap, ASTNode*);
-      if (check_type) {
-	expr_types[i] = get_expr_type_from_tree(p->exprn.operands[i], 1);
-      }
     }
 
     int expr_len = noperands;
     int rettype = 0;
-    if (op == FN_CALL) {
-      ASTNode *idn = p->exprn.operands[0];
-      STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-      expr_types[0] = entry->u.s.rettype->type;
-      expr_len = 1;
-      rettype = entry->u.s.rettype->type;
+    if (check_type) {
+      switch(op) {
+      case FN_CALL: {
+	ASTNode *idn = p->exprn.operands[0];
+	STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
+	expr_types[0] = entry->u.s.rettype->type;
+	expr_len = 1;
+	break;
+      }
+	/*
+      case '=': {
+	expr_types[0] = p->exprn.operands[1]->entry->u.var->datatype ?
+	  p->exprn.operands[1]->entry->u.var->datatype->type : 0;
+	expr_types[1] = get_expr_type_from_tree(p->exprn.operands[1], 1);
+	break;
+      }
+	*/
+      default:
+	for (i = 0; i < noperands; i++) {
+	  expr_types[i] = get_expr_type_from_tree(p->exprn.operands[i], 1);
+	}
+        break;
+      }
+
+      rettype = reduce_node_and_type(p, expr_types, expr_len);
     }
 
-    p->exprn.expr_type = check_type ? reduce_node_and_type(p, expr_types, expr_len) : rettype;
+    p->exprn.expr_type = rettype;
 
     const SLoc *beg = &(SLoc){glineno, gcolno};
     const SLoc *end = &(SLoc){glineno, gcolno};

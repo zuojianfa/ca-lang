@@ -122,6 +122,7 @@ void determine_literal_type(CALiteral *lit, int typetok);
 int get_expr_type_from_tree(ASTNode *node, int ispost);
 int inference_expr_type(ASTNode *p);
 void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok);
+const char *get_node_name_or_value(ASTNode *node);
 
 ASTNode *make_label_node(int value);
 ASTNode *make_goto_node(int i);

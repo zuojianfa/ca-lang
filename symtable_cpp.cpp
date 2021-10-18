@@ -306,7 +306,6 @@ const char *get_type_string(int tok) {
 }
 
 void set_litbuf(LitBuffer *litb, char *text, int len, int typetok) {
-  text[len] = 0;
   int name = symname_check_insert(text);
 
   litb->typetok = typetok;

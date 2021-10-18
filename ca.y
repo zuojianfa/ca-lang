@@ -196,7 +196,7 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	GOTO label_id ';'       { $$ = make_goto($2); }
 		;
 
-ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = inference_expr_type($3); make_if(0, 3, $3, $5, $7); }
+ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { inference_expr_type($3); $$ = make_if(0, 3, $3, $5, $7); }
 		;
 //////////////////////////////////////////////////////////////
 /* TODO: realize the conflict problem when open the stmt expression using `IF` not `IFE` */
