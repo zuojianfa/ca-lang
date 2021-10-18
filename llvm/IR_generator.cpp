@@ -262,7 +262,7 @@ static int can_type_binding(CALiteral *lit, int typetok) {
   default:
     yyerror("bad lexical literal type: '%s'", get_type_string(lit->datatype->type));
     return 0;
-  }  
+  }
 }
 
 static Value *gen_literal_value(CALiteral *value, int typetok, SLoc loc) {
@@ -306,99 +306,6 @@ static Value *gen_literal_value(CALiteral *value, int typetok, SLoc loc) {
   }
 }
 
-static void inference_literal_type(ASTNode *p) {
-  const char *text = symname_get(textid);
-
-  if (lit->fixed_type) {
-    const char *name = get_type_string(postfixtypetok);
-    // check convertable
-    if (!type_convertable(littypetok, postfixtypetok)) {
-      yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	      glineno, gcolno,
-	      get_type_string(littypetok), get_type_string(postfixtypetok));
-      return;
-    }
-
-    int badscope = 0;
-    // check literal value scope
-    switch (littypetok) {
-    case I64: // I64 stand for positive integer value in lexical
-      lit->u.i64value = atoll(text);
-      badscope = check_i64_value_scope(lit->u.i64value, postfixtypetok);
-      break;
-    case U64:
-      sscanf(text, "%lu", &lit->u.i64value);
-      badscope = check_u64_value_scope((uint64_t)lit->u.i64value, postfixtypetok);
-      break;
-    case F64:
-      lit->u.f64value = atof(text);
-      badscope = check_f64_value_scope(lit->u.f64value, postfixtypetok);
-      break;
-    case BOOL:
-      lit->u.i64value = atoll(text) ? 1 : 0;
-      badscope = (postfixtypetok != BOOL);
-      break;
-    case CHAR:
-      lit->u.i64value = (char)parse_lexical_char(text);
-      badscope = check_char_value_scope(lit->u.i64value, postfixtypetok);
-      break;
-    case UCHAR:
-      lit->u.i64value = (uint8_t)parse_lexical_char(text);
-      badscope = check_uchar_value_scope(lit->u.i64value, postfixtypetok);
-    default:
-       yyerror("line: %d, col: %d: %s type have no lexical value",
-	       glineno, gcolno, get_type_string(littypetok));
-      break;
-    }
-
-    if (badscope) {
-      yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	      glineno, gcolno, get_type_string(littypetok), get_type_string(postfixtypetok));
-      return;
-    }
-      
-    lit->datatype = catype_get_by_name(symname_check(name));
-    return;
-  }
-
-  // handle non-fixed type literal value
-  switch (littypetok) {
-  case I64:
-    lit->intent_type = I32;
-    lit->datatype = catype_get_by_name(symname_check("i64"));
-    lit->u.i64value = atoll(text);
-    break;
-  case U64:
-    lit->intent_type = I32;
-    lit->datatype = catype_get_by_name(symname_check("u64"));
-    sscanf(text, "%lu", &lit->u.i64value);
-    break;
-  case F64:
-    lit->intent_type = F64;
-    lit->datatype = catype_get_by_name(symname_check("f64"));
-    lit->u.f64value = atof(text);
-    break;
-  case BOOL:
-    lit->intent_type = BOOL;
-    lit->datatype = catype_get_by_name(symname_check("bool"));
-    lit->u.i64value = atoll(text) ? 1 : 0;
-    break;
-  case CHAR:
-    lit->intent_type = CHAR;
-    lit->datatype = catype_get_by_name(symname_check("char"));    
-    lit->u.i64value = (char)parse_lexical_char(text);
-    break;
-  case UCHAR:
-    lit->intent_type = CHAR;
-    lit->datatype = catype_get_by_name(symname_check("uchar"));
-    lit->u.i64value = (uint8_t)parse_lexical_char(text);
-    break;
-  default:
-    yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
-    break;
-  }
-}
-
 static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -408,8 +315,11 @@ static Value *walk_literal(ASTNode *p) {
   int typetok = 0;
   if (p->litn.litv.fixed_type)
     typetok = p->litn.litv.datatype->type;
-  else
+  else {
+    yyerror("line: %d, col: %d: should never used the intent type",
+	    p->begloc.col, p->begloc.row);
     typetok = p->litn.litv.intent_type;
+  }
 
   Value *v = gen_literal_value(&p->litn.litv, typetok, p->begloc);
 
@@ -732,35 +642,75 @@ static void walk_stmt_print(ASTNode *p) {
 // type then it will use the type in the same expression. 
 //
 
+// NEXT TODO: consider following 4 condition, for an
+// assigment:
+// 1) left have a type, right have a type, then check if they are the same
+// 2) left have a type, right no type, then invoke `determine_literal_type`
+// function uses left's type as the expression's type
+// 3) left no type, right have a type, then use the right side type as the left
+// (variable)'s type
+// 4) both have no type, then inference the right side expression type with
+// default one and apply it into the left side variable
+
+// TODO: check the walk_stack procedure for right side expression
 static void walk_stmt_assign(ASTNode *p) {
   ASTNode *idn = p->exprn.operands[0];
   ASTNode *exprn = p->exprn.operands[1];
+
+  int exprntypetok = get_expr_type_from_tree(exprn, 0);
   Value *v;
-  if (!idn->entry->u.var->datatype) {
+  if (idn->entry->u.var->datatype) {
+    // when the variable has a specified type: `let a: i32 = ?`
+    if (exprntypetok) {
+      // both side have specified type: `let a: i32 = (33 + (33i32 + 4323))`
+      if (idn->entry->u.var->datatype->type != exprntypetok) {
+	yyerror("line: %d, column: %d, expected `%s`, found `%s`",
+		p->begloc.row, p->begloc.col,
+		get_type_string(idn->entry->u.var->datatype->type),
+		get_type_string(exprntypetok));
+	return;
+      }
+
+    } else {
+      // right side have no determined a type: `let a: i32 = 4343`
+      determine_expr_type(exprn, idn->entry->u.var->datatype->type);
+    }
+
+    walk_stack(exprn);
+    auto pair = pop_right_value("tmpexpr");
+    v = pair.first;
+    //v = walk_typed_literal(exprn, idn->entry->u.var->datatype);
+  } else {
     // when variable type not determined yet, it means:
     // 1) the variable is in definition stage, not just assigment 
     // 2) the variable type is not specified by identifier itself
     // it should inferenced by the right value: right expression
-    walk_stack(exprn);
-    auto pair = pop_right_value("tmpexpr");
-    const char *typestr = get_type_string(pair.second);
-    int name = symname_check(typestr);
+    if (!exprntypetok) {
+      // when both side have no a determined type, then determine the right side type
+      exprntypetok = inference_expr_type(exprn);
+    }
+
+    if (!exprntypetok) {
+      yyerror("line: %d, column: %d, inference literal type failed",
+	      p->begloc.row, p->begloc.col);
+      return;
+    }
+
+    // when right side have a determined type
+    const char *namestr = get_type_string(exprntypetok);
+    int name = symname_check(namestr);
     if (name == -1) {
       yyerror("line: %d, column: %d, cannot find name for '%s'",
-	      p->begloc.row, p->begloc.col, typestr);
+	      p->begloc.row, p->begloc.col, namestr);
       return;
     }
 
     idn->entry->u.var->datatype = catype_get_by_name(name);
+    walk_stack(exprn);
+    auto pair = pop_right_value("tmpexpr");
     v = pair.first;
-  } else {
-    // the variable is an assigment statement or variable type is determined
-
-    // let a: i32 = (434 + 34) 
-    
-    v = walk_typed_literal(exprn, idn->entry->u.var->datatype);
   }
-
+ 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
@@ -770,13 +720,24 @@ static void walk_stmt_assign(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
+static bool is_unsigned_type(int type) {
+  return type == U32 || type == U64 || type == UCHAR;
+}
+
 static void walk_stmt_minus(ASTNode *p) {
+  int type = get_expr_type_from_tree(p->exprn.operands[0], 0);
+  if (is_unsigned_type(type)) {
+    yyerror("unsigned type `%s` cannot apply `-` operator", get_type_string(type));
+    return;
+  }
+
   walk_stack(p->exprn.operands[0]);
+
   auto pair = pop_right_value();
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
   Value *v = ir1.gen_sub(ir1.gen_int(0), pair.first);
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v, pair.second));
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v, type));
 }
 
 static void walk_stmt_goto(ASTNode *p) {
@@ -893,10 +854,12 @@ static void walk_stmt_expr(ASTNode *p) {
   Value *v1 = pair1.first;
   Value *v2 = pair2.first;
   Value *v3 = nullptr;
+  int type1 = p->exprn.operands[0]->exprn.expr_type;
+  int type2 = p->exprn.operands[1]->exprn.expr_type;
 
-  if (pair1.second != pair2.second) {
+  if (type1 != type2) {
     yyerror("operation have 2 different types: '%s', '%s'",
-	    get_type_string(pair1.second), get_type_string(pair1.second));
+	    get_type_string(type1), get_type_string(type2));
     return;
   }
 
@@ -945,7 +908,7 @@ static void walk_stmt_expr(ASTNode *p) {
     break;
   }
 
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v3, pair1.second));
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v3, type1));
 }
 
 static void walk_statement(ASTNode *p) {

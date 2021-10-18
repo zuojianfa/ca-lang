@@ -27,6 +27,7 @@ extern int borning_var_type;
 extern int extern_flag;
 extern ST_ArgList curr_arglist;
 extern ST_ArgListActual curr_arglistactual;
+extern int curr_fn_rettype;
 
 extern int glineno;
 extern int gcolno;
@@ -96,6 +97,7 @@ fn_def:		fn_proto fn_body
 		    $1->endloc.row = glineno; $$->endloc.col = gcolno;
 		    $$ = $1;
 		    pop_symtable();
+		    curr_fn_rettype = 0;
 		    curr_fn_symtable = &g_root_symtable;
 		}
 	;
@@ -107,6 +109,7 @@ fn_decl: 	EXTERN { extern_flag = 1; } fn_proto ';'
 		{
 		    pop_symtable();
 		    extern_flag = 0;
+		    curr_fn_rettype = 0;
 		    $$ = $3;
 		}
 	;
@@ -124,6 +127,7 @@ fn_proto:	FN IDENT
 		}
 		'(' fn_args ')' ret_type
 		{
+		    curr_fn_rettype = $7->type;
 		    $$ = make_fn_proto($2, $7);
 		}
 	;
@@ -178,25 +182,25 @@ fn_args_actual:	IDENT
 	;
 
 stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
-	|	expr ';'                { $$ = $1; }
-	|	PRINT expr ';'          { $$ = make_expr(PRINT, 1, $2); }
-	|	RET expr ';'            { $$ = make_expr(RET, 1, $2); }
+	|	expr ';'                { inference_expr_type($1); $$ = $1; }
+	|	PRINT expr ';'          { inference_expr_type($2); $$ = make_expr(PRINT, 1, $2); }
+	|	RET expr ';'            { determine_expr_type($2, curr_fn_rettype); $$ = make_expr(RET, 1, $2); }
 	|	RET ';'                 { $$ = make_expr(RET, 0); }
 	|	LET iddef '=' expr ';'  { $$ = make_vardef($2, $4); borning_var_type = 0; }
 	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
-	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
-	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
+	|	WHILE '(' expr ')' stmt_list_block { inference_expr_type($3); $$ = make_while($3, $5); }
+	|	IF '(' expr ')' stmt_list_block %prec IFX { inference_expr_type($3); $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { $$ = $1; }
 	|	stmt_list_block         { $$ = $1; }
 	|	label_def               { $$ = $1; }
 	|	GOTO label_id ';'       { $$ = make_goto($2); }
 		;
 
-ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
+ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = inference_expr_type($3); make_if(0, 3, $3, $5, $7); }
 		;
 //////////////////////////////////////////////////////////////
 /* TODO: realize the conflict problem when open the stmt expression using `IF` not `IFE` */
-ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { $$ = make_if(1, 3, $3, $5, $7); }
+ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { inference_expr_type($3); $$ = make_if(1, 3, $3, $5, $7); }
 		;
 
 stmtexpr_list_block: { SymTable *st = push_new_symtable(); }
@@ -205,8 +209,8 @@ stmtexpr_list_block: { SymTable *st = push_new_symtable(); }
 exprblock_body: '{' stmtexpr_list '}'               { $$ = $2; }
 		;
 
-stmtexpr_list: 	stmt_list expr { $$ = $2; /* TODO: put stmt_list into list */ }
-	|	expr { $$ = $1; }
+stmtexpr_list: 	stmt_list expr { inference_expr_type($2); $$ = $2; /* TODO: put stmt_list into list */ }
+	|	expr { inference_expr_type($1); $$ = $1; }
 		;
 /**/
 //////////////////////////////////////////////////////////////
@@ -258,7 +262,8 @@ instance_type:	atomic_type
 		{
 		    CADataType *dt = catype_get_by_name($1);
 		    if (!dt)
-			yyerror("cannot find type: %s", symname_get($1));
+			yyerror("line: %d, col: %d: cannot find type: %s",
+				glineno, gcolno, symname_get($1));
 		    $$ = dt;
 		}
 	|	struct_type
@@ -290,7 +295,7 @@ ret_type:	ARROW datatype   { $$ = $2; }
 		    int name = symname_check_insert("void");
 		    CADataType *dt = catype_get_by_name(name);
 		    if (!dt)
-			yyerror("cannot get void datatype");
+			yyerror("line: %d, col: cannot get void datatype", glineno, gcolno);
 
 		    $$ = dt;
 		}

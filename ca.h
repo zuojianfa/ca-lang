@@ -41,7 +41,13 @@ typedef struct {
 typedef struct {
   int op;       /* operator */
   int noperand; /* number of operands */
-  int expr_type;/* the expression's type: see borning_var_type */
+
+  /* the expression's type: see borning_var_type. When the node not suitable for
+     value type or there is no type determined for the expression then it have
+     `0` value, or it is the intention type value may be used inference in later
+     use
+   */
+  int expr_type;
   struct ASTNode **operands; /* operands */
 } TExprNode;
 
@@ -111,6 +117,11 @@ SymTable *pop_symtable();
 int add_fn_args(SymTable *st, CAVariable *var);
 int add_fn_args_actual(SymTable *st, ActualArg arg);
 const char *label_name(const char *name);
+int determine_expr_type(ASTNode *node, int typetok);
+void determine_literal_type(CALiteral *lit, int typetok);
+int get_expr_type_from_tree(ASTNode *node, int ispost);
+int inference_expr_type(ASTNode *p);
+void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok);
 
 ASTNode *make_label_node(int value);
 ASTNode *make_goto_node(int i);

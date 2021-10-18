@@ -171,7 +171,13 @@ NEXT TODO:
 - [ ] debug support inner field scope, 
 
 detailed TODO LIST:
+NEXT TODO see ca_parser.c: 335's comment message
+- [ ] TODO: ca_parser.c: 365
+- [ ] NEXT TODO make
+NEXT TODO: handle expression type infer in PRINT RET WHILE etc
+
 - [x] change LitBuffer->text into integer number that in symname table `set_litbuf`
+- [ ] add type flag (in expression tree node) in parser to bottom up check if there exist specific type defined
 - [ ] put the literal generation in `create_literal` into walk stage, and in walk stage creating the literal
 - [ ] walk bottom-up the expression and fill the expr_type field in ASTNode until the use of it
 - [ ] remove function `get_expr_type`

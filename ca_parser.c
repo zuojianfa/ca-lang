@@ -1,4 +1,5 @@
 
+#include <alloca.h>
 #include <stdlib.h>
 #include <stdarg.h>
 
@@ -33,6 +34,7 @@ int extern_flag = 0; /* indicate if handling the extern function */
 /*int call_flag = 0;  indicate if under a call statement, used for real parameter checking */
 ST_ArgList curr_arglist;
 ST_ArgListActual curr_arglistactual;
+int curr_fn_rettype = 0;
 
 extern int glineno_prev;
 extern int gcolno_prev;
@@ -40,6 +42,69 @@ extern int glineno;
 extern int gcolno;
 
 void yyerror(const char *s, ...);
+
+// TODO: check if text match the typetok, example: 'a' means char, and it cannot apply any postfix
+// true, false means boolean, it cannot apply any postfix
+// if postfixtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
+
+// def_lit_type
+// U64 stand for positive integer value in lexical
+// I64 stand for positive integer value in lexical
+// F64 stand for floating point number in lexical
+// BOOL stand for boolean point number in lexical
+// UCHAR stand for \. transfermation value in lexical
+// CHAR stand for any character value in lexical
+
+// literal type depends on the input of
+// 1) littypetok: it's the literal type by itself, I64 for negative integer
+// value, U64 for positive integer value, F64 for floating point value, BOOL is
+// true false value, CHAR is 'x' value, UCHAR is '\x' value.
+// 2) postfixtypetok: it's the literal type in the postfix of the literal, e.g.
+// 43243u32 4343243.432f32 43243.343f64 -4332i64 3f64 ..., the scope or type of
+// postfixtypetok must compitable with the littypetok type. e.g. when literal
+// value is 4324324321433u32 then the postfixtypetok is U32, it is a bad value
+// and will report an error because U32 is out of the range the literal. and
+// when literal value is 43243243.343i32 it also report the error, because
+// floating point literal value cannot be i32 type, but 432432f32 is right
+// value.
+// 3) borning_var_type: if not 0 value, it means a variable is borning
+// (creating) and the variable's type is borning_var_type, it will guide the
+// final literal type.
+//
+// The 3 parameters will affect the inference of the literal type by following
+// rules:
+// 1). if all the operands of an operator are non-fixed literal value
+// (`lit->fixed_type == 0` or postfixtypetok is not provided (-1 value)), it
+// uses the variable's type (`borning_var_type`)
+// 2) when one of the operand is the fixed literal then the other non-fixed
+// literal value's type will be the fixed literal value's type. when have
+// multiple different fixed type in the expression, then report an error
+// 3) when the variable not specify a value, the literal's type will be
+// inferenced by the right ( = right-expr) expression's type. It tries to uses
+// the first value that with the fixed type as the expression's type. When the
+// other part of the expression have different type then report an error
+// final literal's type
+//
+// so the final literal type should better be determined in the walk routines,
+// for the first scan is hard to determine the types, because the expression may
+// have multiple part and the pre part don't know the later part's type
+void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok) {
+  int typetok;
+  lit->textid = textid;
+  lit->littypetok = littypetok;
+  lit->borning_var_type = borning_var_type;
+  if (postfixtypetok == -1) {
+    lit->fixed_type = 0;
+    lit->postfixtypetok = 0;
+  } else {
+    lit->intent_type = 0;
+    lit->fixed_type = 1;
+    lit->postfixtypetok = postfixtypetok;
+
+    // here can directly determine literal type, it is postfixtypetok
+    determine_literal_type(lit, postfixtypetok);
+  }
+}
 
 SymTable *push_new_symtable() {
     SymTable *st = (SymTable *)malloc(sizeof(SymTable));
@@ -163,7 +228,7 @@ ASTNode *make_id(int i) {
 }
 
 static int get_expr_type(ASTNode *exprn) {
-  // TODO: realize the guess work
+  // TODO: remove this function
   switch(exprn->type) {
   case TTE_Literal:
   case TTE_Id:
@@ -205,14 +270,6 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
     yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
 	    glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
     return NULL;
-  }
-
-  if (var->datatype == NULL) {
-    // binding type with the expression type
-    // TODO: create datatype here from expression node or in the walk routine
-    int name = get_expr_type(exprn);
-    name = symname_check("i32");
-    var->datatype = catype_get_by_name(name);
   }
 
   entry = sym_insert(curr_symtable, id, Sym_Variable);
@@ -291,24 +348,328 @@ ASTNode *make_label_def(int labelid) {
   return make_label_node(lpos);
 }
 
+static int is_valued_expr(int op) {
+  return (op != ARG_LISTS && op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET);
+}
+
+int get_expr_type_from_tree(ASTNode *node, int ispost) {
+  switch (node->type) {
+  case TTE_Literal:
+    return ispost ? node->litn.litv.postfixtypetok : node->litn.litv.datatype->type;
+  case TTE_Id:
+    //STEntry *entry = sym_getsym(node->symtable, node->idn.i, 1);
+    if (!node->entry || node->entry->sym_type != Sym_Variable) {
+      yyerror("the name '%s' is not a variable", symname_get(node->idn.i));
+      return 0;
+    }
+
+    return node->entry->u.var->datatype->type;
+  case TTE_Expr:
+    return node->exprn.expr_type;
+  default:
+    return 0;
+  }
+}
+
+static const char *get_name_or_value(ASTNode *node) {
+  switch (node->type) {
+  case TTE_Literal:
+    return symname_get(node->litn.litv.textid);
+  case TTE_Id:
+    return symname_get(node->idn.i);
+  default:
+    // TODO: trival the node and get the string representation of the node when not literal of id
+    // walk_node_string or from lexcial analyze
+    return "";
+  }
+}
+
+static int parse_lexical_char(const char *text) {
+  if (text[0] != '\\')
+    return text[0];
+
+  switch(text[1]) {
+  case 'r':
+    return '\r';
+  case 'n':
+    return '\n';
+  case 't':
+    return '\t';
+  default:
+    yyerror("unimplemented special character");
+    return -1;
+  }
+}
+
+// inference and set the literal type for the literal, when the literal have no
+// a determined type, different from `determine_literal_type`, the later is used by passing a defined type  
+int inference_literal_type(CALiteral *lit) {
+  if (lit->fixed_type) {
+    // no need inference, should report an error
+    return lit->datatype->type;
+  }
+
+  const char *text = symname_get(lit->textid);
+  int littypetok = lit->littypetok;
+
+  // handle non-fixed type literal value
+  switch (littypetok) {
+  case I64:
+    lit->intent_type = I32;
+    lit->datatype = catype_get_by_name(symname_check("i32"));
+    lit->u.i64value = atoll(text);
+    return I32;
+  case U64:
+    lit->intent_type = I32;
+    lit->datatype = catype_get_by_name(symname_check("i32"));
+    sscanf(text, "%lu", &lit->u.i64value);
+    return I32;
+  case F64:
+    lit->intent_type = F64;
+    lit->datatype = catype_get_by_name(symname_check("f64"));
+    lit->u.f64value = atof(text);
+    return F64;
+  case BOOL:
+    lit->intent_type = BOOL;
+    lit->datatype = catype_get_by_name(symname_check("bool"));
+    lit->u.i64value = atoll(text) ? 1 : 0;
+    return BOOL;
+  case CHAR:
+    lit->intent_type = CHAR;
+    lit->datatype = catype_get_by_name(symname_check("char"));    
+    lit->u.i64value = (char)parse_lexical_char(text);
+    return CHAR;
+  case UCHAR:
+    lit->intent_type = CHAR;
+    lit->datatype = catype_get_by_name(symname_check("uchar"));
+    lit->u.i64value = (uint8_t)parse_lexical_char(text);
+    return UCHAR;
+  default:
+    yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
+    return 0;
+  }
+}
+
+// inference and set the expr type for the expr, when the expr have no a
+// determined type, different from `determine_expr_type`, the later is used by
+// passing a defined type
+int inference_expr_type(ASTNode *p) {
+  // steps, it's a recursive steps
+  // 1. firstly inference the expression type, it need check if the type can conflict, and determine a type
+  // 2. resolve the node type by using `determine_expr_type(exprn, type)`
+  int type1 = 0;
+  switch (p->type) {
+  case TTE_Literal:
+    type1 = inference_literal_type(&p->litn.litv);
+    p->litn.litv.fixed_type = 1;
+  case TTE_Expr:
+    if (p->exprn.expr_type)
+      return p->exprn.expr_type;
+
+    for (int i = 0; i < p->exprn.noperand; ++i) {
+      int type = inference_expr_type(p->exprn.operands[i]);
+      if (!type1) {
+	type1 = type;
+      } else if (type1 != type) {
+	yyerror("line: %d, column: %d, expected `%s`, found `%s`",
+		p->begloc.row, p->begloc.col,
+		get_type_string(type1), get_type_string(type));
+	return 0;
+      }
+    }
+
+    p->exprn.expr_type = type1;
+    return type1;
+  default:
+    yyerror("line: %d, col: %d: the expression already typed, no need to to inference",
+	    glineno, gcolno);
+    return 0;
+  }
+}
+
+// determine and set the literal type for the literal for a specified type,
+// different from `inference_literal_type` which have no a defined type
+// parameter
+void determine_literal_type(CALiteral *lit, int typetok) {
+  if (!typetok || typetok == VOID)
+    return;
+
+  int littypetok = lit->littypetok;
+
+  // check convertable
+  if (!type_convertable(littypetok, typetok)) {
+    yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
+	    glineno, gcolno,
+	    get_type_string(littypetok), get_type_string(typetok));
+    return;
+  }
+
+  const char *text = symname_get(lit->textid);
+
+  int badscope = 0;
+
+  // check literal value scope
+  switch (littypetok) {
+  case I64: // I64 stand for positive integer value in lexical
+    lit->u.i64value = atoll(text);
+    badscope = check_i64_value_scope(lit->u.i64value, typetok);
+    break;
+  case U64:
+    sscanf(text, "%lu", &lit->u.i64value);
+    badscope = check_u64_value_scope((uint64_t)lit->u.i64value, typetok);
+    break;
+  case F64:
+    lit->u.f64value = atof(text);
+    badscope = check_f64_value_scope(lit->u.f64value, typetok);
+    break;
+  case BOOL:
+    lit->u.i64value = atoll(text) ? 1 : 0;
+    badscope = (typetok != BOOL);
+    break;
+  case CHAR:
+    lit->u.i64value = (char)parse_lexical_char(text);
+    badscope = check_char_value_scope(lit->u.i64value, typetok);
+    break;
+  case UCHAR:
+    lit->u.i64value = (uint8_t)parse_lexical_char(text);
+    badscope = check_uchar_value_scope(lit->u.i64value, typetok);
+  default:
+    yyerror("line: %d, col: %d: %s type have no lexical value",
+	    glineno, gcolno, get_type_string(littypetok));
+    break;
+  }
+
+  if (badscope) {
+    yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
+	    glineno, gcolno, get_type_string(littypetok), get_type_string(typetok));
+    return;
+  }
+
+  const char *name = get_type_string(typetok);
+  lit->datatype = catype_get_by_name(symname_check(name));
+  lit->fixed_type = 1;
+}
+
+// determine and set the expr type for the expr for a specified type, different
+// from `inference_expr_type` which have no a defined type parameter
+int determine_expr_type(ASTNode *node, int typetok) {
+  switch(node->type) {
+  case TTE_Literal:
+    if (node->litn.litv.fixed_type)
+      return 0;
+
+    // here determine the literal type in this place compare to when create literal node
+    determine_literal_type(&node->litn.litv, typetok);
+    break;
+  case TTE_Expr:
+    if (node->exprn.expr_type)
+      return node->exprn.expr_type;
+
+    for (int i = 0; i < node->exprn.noperand; ++i) {
+      determine_expr_type(node->exprn.operands[i], typetok);
+      node->exprn.expr_type = typetok;
+    }
+    break;
+  default:
+    yyerror("the node need not determine a type, not a literal and an expression: %d", node->type);
+    break;
+  }
+
+  return 0;
+}
+
+// reduce the node type when existing one of the determined type in the
+// expression, when all part are not determined then not determine the type
+// when in walk stage the assignment statement will determine the variable's
+// type and the right expression's type when the expression's type not
+// determined
+static int reduce_node_and_type(ASTNode *p, int *expr_types, int noperands) {
+  // check if exist type in the each node and type is conflicting for each node
+  // but here cannot create literal value when the value not determined a type
+  // because it may be a tree, or can make the type by tranverlling the tree?
+  // The answer is yes, here can determine the literal type when the expression
+  // exists an fixed type part
+  int type1 = 0;
+  int typei = 0;
+  int notypeid = 0;
+  int *nonfixed_node = (int *)alloca(noperands * sizeof(int));
+  for (int i = 0; i < noperands; ++i) {
+    if (expr_types[i]) {
+      nonfixed_node[i] = 0;
+      if (!type1) {
+	type1 = expr_types[i];
+	typei = i;
+      } else if (type1 != expr_types[i]) {
+	yyerror("type name conflicting: '%s' of type '%s', '%s' of type '%s'",
+		get_name_or_value(p->exprn.operands[typei]), get_type_string(type1),
+		get_name_or_value(p->exprn.operands[i]), get_type_string(expr_types[i]));
+	return 0;
+      }
+    } else {
+      nonfixed_node[i] = 1;
+    }
+  }
+
+  // the expression have not a determined type, then do nothing
+  if (!type1)
+    return type1;
+
+  // when the expression have any fixed type node
+  for (int i = 0; i < noperands; ++i) {
+    if (nonfixed_node[i]) {
+      determine_expr_type(p->exprn.operands[i], type1);
+    }
+  }
+
+  return type1;
+}
+
+// UMINUS + - * / < > GE LE NE EQ
+// the left type and right type seperately calculation and interface, if the
+// right side have the fixed type, or the right side will use the left side's
+// type, and when the left side not have a type yet, then it will use the right
+// side's type and when the right side have no fixed type then, the right side
+// literal will use the literal itself's default type or intent type
 ASTNode *make_expr(int op, int noperands, ...) {
     va_list ap;
     ASTNode *p;
     int i;
+
+    int check_type = is_valued_expr(op);
+    int *expr_types = check_type ? (int *)alloca(noperands * sizeof(int)) : NULL;
+
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
 	yyerror("out of memory");
     if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
 	yyerror("out of memory");
+
     /* copy information */
     p->type = TTE_Expr;
     p->exprn.op = op;
     p->exprn.noperand = noperands;
-    // TODO: inference the expression type here or in the walk routine
+
+    // try to inference the expression type here
     p->exprn.expr_type = 0;
     va_start(ap, noperands);
-    for (i = 0; i < noperands; i++)
-	p->exprn.operands[i] = va_arg(ap, ASTNode*);
+    for (i = 0; i < noperands; i++) {
+      p->exprn.operands[i] = va_arg(ap, ASTNode*);
+      if (check_type) {
+	expr_types[i] = get_expr_type_from_tree(p->exprn.operands[i], 1);
+      }
+    }
+
+    int expr_len = noperands;
+    int rettype = 0;
+    if (op == FN_CALL) {
+      ASTNode *idn = p->exprn.operands[0];
+      STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
+      expr_types[0] = entry->u.s.rettype->type;
+      expr_len = 1;
+      rettype = entry->u.s.rettype->type;
+    }
+
+    p->exprn.expr_type = check_type ? reduce_node_and_type(p, expr_types, expr_len) : rettype;
 
     const SLoc *beg = &(SLoc){glineno, gcolno};
     const SLoc *end = &(SLoc){glineno, gcolno};
@@ -549,16 +910,17 @@ ASTNode *make_fn_proto(int id, CADataType *rettype) {
   if (extern_flag) {
     if (entry) {
       /* check if function declaration is the same */
-      if (curr_arglist.argc != entry->u.arglists->argc) {
+      if (curr_arglist.argc != entry->u.s.arglists->argc) {
 	yyerror("line: %d, col: %d: function '%s' declaration not identical, see: line %d, col %d.",
 		glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
 	return NULL;
       }
     } else {
       entry = sym_check_insert(&g_root_symtable, id, Sym_FnDecl);
-      entry->u.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
-      *entry->u.arglists = curr_arglist;
+      entry->u.s.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
+      *entry->u.s.arglists = curr_arglist;
     }
+    entry->u.s.rettype = rettype;
 
     return make_fn_decl(id, &curr_arglist, rettype, beg, end);
   } else {
@@ -576,9 +938,10 @@ ASTNode *make_fn_proto(int id, CADataType *rettype) {
       }
     } else {
       entry = sym_check_insert(&g_root_symtable, id, Sym_FnDef);
-      entry->u.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
-      *entry->u.arglists = curr_arglist;
+      entry->u.s.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
+      *entry->u.s.arglists = curr_arglist;
     }
+    entry->u.s.rettype = rettype;
 
     return make_fn_define(id, &curr_arglist, rettype, beg, end);
   }

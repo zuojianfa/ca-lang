@@ -90,7 +90,7 @@ static int s_type_convertable_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID
   {0, }, // ATOMTYPE_END
 };
 
-static int type_convertable(int from, int to) {
+int type_convertable(int from, int to) {
   return s_type_convertable_table[from-VOID][to-VOID];
 }
 
@@ -234,8 +234,15 @@ int catype_init() {
   catype_put_by_name(name, datatype);         // uint
 
   catype_make_type("u64", U64, 8);            // u64
-  catype_make_type("f32", F32, 4);            // f32
-  catype_make_type("f64", F64, 8);            // f64
+
+  datatype = catype_make_type("f32", F32, 4); // f32
+  name = symname_check_insert("float");
+  catype_put_by_name(name, datatype);         // float
+
+  datatype = catype_make_type("f64", F64, 8); // f64
+  name = symname_check_insert("double");
+  catype_put_by_name(name, datatype);         // double
+
   catype_make_type("bool", BOOL, 1);          // bool
   catype_make_type("char", CHAR, 1);          // char
   catype_make_type("uchar", UCHAR, 1);        // uchar
@@ -270,23 +277,6 @@ int catype_is_float(int typetok) {
   return (typetok == F32 || typetok == F64);
 }
 
-static int parse_lexical_char(const char *text) {
-  if (text[0] != '\\')
-    return text[0];
-
-  switch(text[1]) {
-  case 'r':
-    return '\r';
-  case 'n':
-    return '\n';
-  case 't':
-    return '\t';
-  default:
-    yyerror("unimplemented special character");
-    return -1;
-  }
-}
-
 const char *get_type_string(int tok) {
   switch (tok) {
   case VOID:
@@ -312,66 +302,6 @@ const char *get_type_string(int tok) {
   default:
     yyerror("bad type token: %d", tok);
     return nullptr;
-  }
-}
-
-// TODO: check if text match the typetok, example: 'a' means char, and it cannot apply any postfix
-// true, false means boolean, it cannot apply any postfix
-// if postfixtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
-
-// def_lit_type
-// U64 stand for positive integer value in lexical
-// I64 stand for positive integer value in lexical
-// F64 stand for floating point number in lexical
-// BOOL stand for boolean point number in lexical
-// UCHAR stand for \. transfermation value in lexical
-// CHAR stand for any character value in lexical
-
-// literal type depends on the input of
-// 1) littypetok: it's the literal type by itself, I64 for negative integer
-// value, U64 for positive integer value, F64 for floating point value, BOOL is
-// true false value, CHAR is 'x' value, UCHAR is '\x' value.
-// 2) postfixtypetok: it's the literal type in the postfix of the literal, e.g.
-// 43243u32 4343243.432f32 43243.343f64 -4332i64 3f64 ..., the scope or type of
-// postfixtypetok must compitable with the littypetok type. e.g. when literal
-// value is 4324324321433u32 then the postfixtypetok is U32, it is a bad value
-// and will report an error because U32 is out of the range the literal. and
-// when literal value is 43243243.343i32 it also report the error, because
-// floating point literal value cannot be i32 type, but 432432f32 is right
-// value.
-// 3) borning_var_type: if not 0 value, it means a variable is borning
-// (creating) and the variable's type is borning_var_type, it will guide the
-// final literal type.
-//
-// The 3 parameters will affect the inference of the literal type by following
-// rules:
-// 1). if all the operands of an operator are non-fixed literal value
-// (`lit->fixed_type == 0` or postfixtypetok is not provided (-1 value)), it
-// uses the variable's type (`borning_var_type`)
-// 2) when one of the operand is the fixed literal then the other non-fixed
-// literal value's type will be the fixed literal value's type. when have
-// multiple different fixed type in the expression, then report an error
-// 3) when the variable not specify a value, the literal's type will be
-// inferenced by the right ( = right-expr) expression's type. It tries to uses
-// the first value that with the fixed type as the expression's type. When the
-// other part of the expression have different type then report an error
-// final literal's type
-//
-// so the final literal type should better be determined in the walk routines,
-// for the first scan is hard to determine the types, because the expression may
-// have multiple part and the pre part don't know the later part's type
-void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok) {
-  int typetok;
-  lit->textid = textid;
-  lit->littypetok = littypetok;
-  lit->borning_var_type = borning_var_type;
-  if (postfixtypetok == -1) {
-    lit->fixed_type = 0;
-    lit->postfixtypetok = 0;
-  } else {
-    lit->intent_type = 0;
-    lit->fixed_type = 1;
-    lit->postfixtypetok = postfixtypetok;
   }
 }
 

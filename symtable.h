@@ -53,6 +53,11 @@ struct CAArray {
 
 typedef struct CALiteral {
   // specify if literal type is defined (fixed) with postfix (u32,f64, ...)
+  // indicate if the literal type is determined, should not combine with
+  // postfixtypetok, because when it have no postfix but it's neibough have an
+  // postfix, then it will use the neighbour's type, but the postfixtypetok
+  // field always be 0
+  // if need remove this field, just use datatype null or not null for the existance
   int fixed_type;
 
   // when fixed_type is false, it stand for the type of the default literal value
@@ -72,6 +77,7 @@ typedef struct CALiteral {
   // text id in symname table, text is used for latering literal type inference
   int textid;
 
+  // when the literal type already determined then datatype is not NULL 
   CADataType *datatype;
   union {
     int64_t  i64value;      // store either integer type value include unsigned
@@ -134,7 +140,10 @@ typedef struct STEntry {
   SymType sym_type;	// symbol type
   SLoc sloc;		// symbol definition line number and column
   union {
-    ST_ArgList *arglists; // when type is Sym_ArgList
+    struct {
+      ST_ArgList *arglists; // when type is Sym_ArgList
+      CADataType *rettype;
+    } s;
     CAVariable *var;
   } u;
 } STEntry;
@@ -150,6 +159,7 @@ int check_u64_value_scope(uint64_t lit, int typetok);
 int check_f64_value_scope(double lit, int typetok);
 int check_char_value_scope(char lit, int typetok);
 int check_uchar_value_scope(uint8_t lit, int typetok);
+int type_convertable(int from, int to);
 
 // type finding
 int catype_init();
@@ -160,7 +170,6 @@ CADataType *catype_get_by_token(int token);
 int catype_is_float(int typetok);
 
 const char *get_type_string(int tok);
-void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok);
 void set_litbuf(LitBuffer *litb, char *text, int len, int typetok);
 int def_lit_type(int typetok);
 
