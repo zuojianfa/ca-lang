@@ -7,15 +7,31 @@ fn func2(b: f64) -> f64 {
 }
 
 fn main() {
-    let v1 = 3.5;
-    let v2 = 4.4;
     let a = func1(3.5);
     let b = func2(4.4);
     let c = a + b;
-    
-    //let d = func1(4.1) + func2(6.6);
     print c;
     print '\n';
-    //print d;
+
+    let v1 = 3.3;
+    let v2 = 4.1;
+    let a2 = func1(v1);
+    let b2 = func2(v2);
+    let c2 = a2 + b2;
+    print c2;
+    print '\n';
+
+    let d = func1(4.1) + func2(6.6);
+    print d;
+    print '\n';
+
+    let e = 2.6 + 6.3;
+    print e;
+    print '\n';
+
+    let f = func1(2.6 + 6.3);
+    print f;
+    print '\n';
+
 }
 

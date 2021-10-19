@@ -764,10 +764,12 @@ static void walk_stmt_call(ASTNode *p) {
 
   Function *fn = ir1.module().getFunction(fnname);
   if (!fn)
-    yyerror("cannot find declared function: '%s'", fnname);
+    yyerror("line: %d, col: %d: cannot find declared function: '%s'",
+	    p->begloc.row, p->begloc.col, fnname);
 
   if (args->exprn.op != ARG_LISTS_ACTUAL)
-    yyerror("not a argument list: '%s'", fnname);
+    yyerror("line: %d, col: %d: not a argument list: '%s'",
+	    p->begloc.row, p->begloc.col, fnname);
 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -780,12 +782,14 @@ static void walk_stmt_call(ASTNode *p) {
       ASTNode *fnast = function_map.find(fnname)->second;
       STEntry *entry = sym_getsym(fnast->symtable, fnast->fndecln.args.argnames[i], 0);
       if (!entry) {
-	yyerror("cannot find argument name: '%s'", symname_get(fnast->fndecln.args.argnames[i]));
+	yyerror("line: %d, col: %d: cannot find argument name: '%s'",
+		p->begloc.row, p->begloc.col, symname_get(fnast->fndecln.args.argnames[i]));
 	return;
       }
 
       if (entry->sym_type != Sym_Variable) {
-	yyerror("symbol type '%d' not a variable", entry->sym_type);
+	yyerror("line: %d, col: %d: symbol type '%d' not a variable",
+		p->begloc.row, p->begloc.col, entry->sym_type);
       }
       
       v = gen_literal_value(&args->exprn.operands[i]->litn.litv,

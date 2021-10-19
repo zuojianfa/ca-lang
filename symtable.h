@@ -110,6 +110,7 @@ typedef struct ST_ArgList {
   int argc;                 // function argument count
   int contain_varg;         // contain variable argument
   int argnames[MAX_ARGS];   // function argument name
+  struct SymTable *symtable;
 } ST_ArgList;
 
 typedef enum ArgType {
@@ -143,7 +144,7 @@ typedef struct STEntry {
     struct {
       ST_ArgList *arglists; // when type is Sym_ArgList
       CADataType *rettype;
-    } s;
+    } f;
     CAVariable *var;
   } u;
 } STEntry;

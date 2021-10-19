@@ -547,6 +547,7 @@ void determine_literal_type(CALiteral *lit, int typetok) {
   case UCHAR:
     lit->u.i64value = (uint8_t)parse_lexical_char(text);
     badscope = check_uchar_value_scope(lit->u.i64value, typetok);
+    break;
   default:
     yyerror("line: %d, col: %d: %s type have no lexical value",
 	    glineno, gcolno, get_type_string(littypetok));
@@ -678,7 +679,7 @@ ASTNode *make_expr(int op, int noperands, ...) {
       case FN_CALL: {
 	ASTNode *idn = p->exprn.operands[0];
 	STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-	expr_types[0] = entry->u.s.rettype->type;
+	expr_types[0] = entry->u.f.rettype->type;
 	expr_len = 1;
 	break;
       }
@@ -942,17 +943,17 @@ ASTNode *make_fn_proto(int id, CADataType *rettype) {
   if (extern_flag) {
     if (entry) {
       /* check if function declaration is the same */
-      if (curr_arglist.argc != entry->u.s.arglists->argc) {
+      if (curr_arglist.argc != entry->u.f.arglists->argc) {
 	yyerror("line: %d, col: %d: function '%s' declaration not identical, see: line %d, col %d.",
 		glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
 	return NULL;
       }
     } else {
       entry = sym_check_insert(&g_root_symtable, id, Sym_FnDecl);
-      entry->u.s.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
-      *entry->u.s.arglists = curr_arglist;
+      entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
+      *entry->u.f.arglists = curr_arglist;
     }
-    entry->u.s.rettype = rettype;
+    entry->u.f.rettype = rettype;
 
     return make_fn_decl(id, &curr_arglist, rettype, beg, end);
   } else {
@@ -970,10 +971,10 @@ ASTNode *make_fn_proto(int id, CADataType *rettype) {
       }
     } else {
       entry = sym_check_insert(&g_root_symtable, id, Sym_FnDef);
-      entry->u.s.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
-      *entry->u.s.arglists = curr_arglist;
+      entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
+      *entry->u.f.arglists = curr_arglist;
     }
-    entry->u.s.rettype = rettype;
+    entry->u.f.rettype = rettype;
 
     return make_fn_define(id, &curr_arglist, rettype, beg, end);
   }
@@ -992,7 +993,7 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
   }
 
   // check formal parameter and real parameter
-  ST_ArgList *formalparam = entry->u.s.arglists;
+  ST_ArgList *formalparam = entry->u.f.arglists;
 
   // check parameter number
   if(formalparam->contain_varg && formalparam->argc > param->exprn.noperand
@@ -1002,25 +1003,38 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
     return NULL;
   }
 
-  // NEXT TODO: check parameter type, check parameter
-  /*
-    for (int i = 0; i < args->exprn.noperand; ++i) {
-    STEntry *paramentry = sym_getsym(p->symtable, formalparam->argnames[i], 0);
-    int type = paramentry->u.var->datatype->type;
-    switch(param->exprn.operands[i]->type) {
-    case TTE_Literal:
-    case TTE_Id:
-    case TTE_Expr:
-    default:
-    break;
-    }
-    }*/
-
-
-  // resolve parameter type & literal value
+  // check and determine parameter type
   for (int i = 0; i < param->exprn.noperand; ++i) {
-    // NEXT TODO: get parameter type here
-    determine_expr_type(param->exprn.operands[i], int typetok);
+    STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
+    int formaltype = paramentry->u.var->datatype->type;
+    int realtype = formaltype;
+    ASTNode *expr = param->exprn.operands[i];
+
+    switch(expr->type) {
+    case TTE_Literal:
+      determine_literal_type(&expr->litn.litv, formaltype);
+      break;
+    case TTE_Id: {
+      // get the real parameter type
+      STEntry *identry = sym_getsym(param->symtable, expr->idn.i, 1);
+      realtype = identry->u.var->datatype->type;
+      break;
+    }
+    case TTE_Expr:
+      realtype = expr->exprn.expr_type;
+      // NEXT TODO: get parameter type here, resolve parameter type & literal value
+      //determine_expr_type(param->exprn.operands[i], formaltype);
+      break;
+    default:
+      break;
+    }
+
+    // check the formal parameter and real parameter type
+    if (realtype != formaltype) {
+      yyerror("line: %d, col: %d: the %d parameter type '%s' not match the parameter declared type '%s'",
+	      param->begloc.row, param->begloc.col, i, get_type_string(realtype), get_type_string(formaltype));
+      return NULL;
+    }
   }
 
   return make_expr(FN_CALL, 2, make_id(fnname), param);

@@ -132,7 +132,7 @@ fn_proto:	FN IDENT
 		}
 	;
 
-fn_args:	{ curr_arglist.argc = 0; }
+fn_args:	{ curr_arglist.argc = 0; curr_arglist.symtable = curr_symtable; }
 		fn_args_ps             { $$ = $2; }
 	;
 
