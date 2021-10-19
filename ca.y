@@ -186,7 +186,7 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	PRINT expr ';'          { inference_expr_type($2); $$ = make_expr(PRINT, 1, $2); }
 	|	RET expr ';'            { determine_expr_type($2, curr_fn_rettype); $$ = make_expr(RET, 1, $2); }
 	|	RET ';'                 { $$ = make_expr(RET, 0); }
-	|	LET iddef '=' expr ';'  { $$ = make_vardef($2, $4); borning_var_type = 0; }
+	|	LET iddef '=' expr ';'  { inference_expr_type($4); $$ = make_vardef($2, $4); borning_var_type = 0; }
 	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { inference_expr_type($3); $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { inference_expr_type($3); $$ = make_if(0, 2, $3, $5); }
@@ -268,6 +268,8 @@ instance_type:	atomic_type
 		}
 	|	struct_type
 		{
+		    yyerror("line: %d, col: %d: cannot find type: %s",
+			    glineno, gcolno, symname_get($1));
 		    $$ = NULL;
 		}
 	;

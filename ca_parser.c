@@ -188,7 +188,7 @@ void set_address(ASTNode *node, const SLoc *first, const SLoc *last) {
 ASTNode *make_empty() {
     ASTNode *p;
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
     p->type = TTE_Empty;
@@ -201,7 +201,7 @@ ASTNode *make_literal(CALiteral *litv) {
     ASTNode *p;
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
     /* copy information */
     p->type = TTE_Literal;
     p->litn.litv = *litv;
@@ -218,48 +218,13 @@ ASTNode *make_id(int i) {
     ASTNode *p;
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
     /* copy information */
     p->type = TTE_Id;
     p->idn.i = i;
 
     set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
     return p;
-}
-
-static int get_expr_type(ASTNode *exprn) {
-  // TODO: remove this function
-  switch(exprn->type) {
-  case TTE_Literal:
-  case TTE_Id:
-  case TTE_Expr:
-    switch (exprn->exprn.op) {
-    case FN_CALL:
-    case EQ:
-    case NE:
-    case LE:
-    case GE:
-    case '>':
-    case '<':
-    case '/':
-    case '*':
-    case '-':
-    case '+':
-    case UMINUS:
-    default:
-      break;
-    }
-    break;
-  case TTE_If:
-    // for if expresssion
-  default:
-    break;
-  }
-
-  // not default as i32 value, should according to the assigned value
-  int name = symname_check("i32");
-  if (name == -1)
-    yyerror("cannot find i32 symnameid");
 }
 
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
@@ -272,11 +237,56 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
     return NULL;
   }
 
+  int exprntypetok = get_expr_type_from_tree(exprn, 0);
+  if (var->datatype) {
+    // when the variable has a specified type: `let a: i32 = ?`
+    if (exprntypetok) {
+      // both side have specified type: `let a: i32 = (33 + (33i32 + 4323))`
+      if (var->datatype->type != exprntypetok) {
+	yyerror("line: %d, column: %d, expected `%s`, found `%s`",
+	        exprn->begloc.row, exprn->begloc.col,
+		get_type_string(var->datatype->type),
+		get_type_string(exprntypetok));
+	return NULL;
+      }
+    } else {
+      // right side have no determined a type: `let a: i32 = 4343`
+      determine_expr_type(exprn, var->datatype->type);
+    }
+  } else {
+    // when variable type not determined yet, it means:
+    // 1) the variable is in definition stage, not just assigment 
+    // 2) the variable type is not specified by identifier itself
+    // it should inferenced by the right value: right expression
+    if (!exprntypetok) {
+      // when both side have no a determined type, then determine the right side type
+      exprntypetok = inference_expr_type(exprn);
+    }
+
+    if (!exprntypetok) {
+      yyerror("line: %d, column: %d, inference literal type failed",
+	      exprn->begloc.row, exprn->begloc.col);
+      return NULL;
+    }
+
+    // when right side have a determined type
+    const char *namestr = get_type_string(exprntypetok);
+    int name = symname_check(namestr);
+    if (name == -1) {
+      yyerror("line: %d, column: %d, cannot find name for '%s'",
+	      exprn->begloc.row, exprn->begloc.col, namestr);
+      return NULL;
+    }
+
+    var->datatype = catype_get_by_name(name);
+  }
+
   entry = sym_insert(curr_symtable, id, Sym_Variable);
   entry->u.var = var;
 
   ASTNode *idn = make_id(id);
   idn->entry = entry;
+
   return make_expr('=', 2, idn, exprn);
 }
 
@@ -397,7 +407,7 @@ static int parse_lexical_char(const char *text) {
   case 't':
     return '\t';
   default:
-    yyerror("unimplemented special character");
+    yyerror("line: %d, col: %d: unimplemented special character", glineno, gcolno);
     return -1;
   }
 }
@@ -575,7 +585,7 @@ int determine_expr_type(ASTNode *node, int typetok) {
     }
     break;
   default:
-    yyerror("the node need not determine a type, not a literal and an expression: %d", node->type);
+    // the node need not determine a type, not a literal and an expression node
     break;
   }
 
@@ -604,7 +614,8 @@ static int reduce_node_and_type(ASTNode *p, int *expr_types, int noperands) {
 	type1 = expr_types[i];
 	typei = i;
       } else if (type1 != expr_types[i]) {
-	yyerror("type name conflicting: '%s' of type '%s', '%s' of type '%s'",
+	yyerror("line: %d, col: %d: type name conflicting: '%s' of type '%s', '%s' of type '%s'",
+		p->begloc.col, p->begloc.row,
 		get_node_name_or_value(p->exprn.operands[typei]), get_type_string(type1),
 		get_node_name_or_value(p->exprn.operands[i]), get_type_string(expr_types[i]));
 	return 0;
@@ -644,9 +655,9 @@ ASTNode *make_expr(int op, int noperands, ...) {
 
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
     if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
     p->type = TTE_Expr;
@@ -728,7 +739,8 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
       int name = al->argnames[i];
       STEntry *entry = sym_getsym(curr_symtable, name, 0);
       if (!entry) {
-	yyerror("cannot get entry for %s\n", symname_get(name));
+	yyerror("line: %d, col: %d: cannot get entry for %s\n",
+		glineno, gcolno, symname_get(name));
 	return NULL;
       }
 
@@ -737,7 +749,7 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
     }
 
     if (noperands > 1 && void_count > 0) {
-      yyerror("void function should only have void");
+      yyerror("line: %d, col: %d: void function should only have void", glineno, gcolno);
       return NULL;
     }
 
@@ -746,10 +758,10 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
 
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
     p->type = TTE_Expr;
@@ -781,9 +793,9 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     int i;
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
     if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
     /* copy information */
     p->type = TTE_Expr;
     p->exprn.op = op;
@@ -839,7 +851,7 @@ ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, S
     int i;
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
     p->type = TTE_FnDecl;
@@ -858,7 +870,7 @@ ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg,
     int i;
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
     p->type = TTE_FnDef;
@@ -874,7 +886,7 @@ ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
 
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
     p->type = TTE_While;
@@ -895,15 +907,15 @@ ASTNode *make_if(int isexpr, int argc, ...) {
 
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     p->ifn.ncond = ncond;
     p->ifn.isexpr = isexpr;
     if ((p->ifn.conds = malloc(ncond * sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     if ((p->ifn.bodies = malloc(ncond * sizeof(ASTNode))) == NULL)
-	yyerror("out of memory");
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
     p->type = TTE_If;
@@ -977,6 +989,38 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
   if (entry->sym_type != Sym_FnDecl && entry->sym_type != Sym_FnDef) {
     yyerror("line: %d, col: %d: '%s' is not a function", glineno, gcolno, symname_get(fnname));
     return NULL;
+  }
+
+  // check formal parameter and real parameter
+  ST_ArgList *formalparam = entry->u.s.arglists;
+
+  // check parameter number
+  if(formalparam->contain_varg && formalparam->argc > param->exprn.noperand
+     ||
+     !formalparam->contain_varg && formalparam->argc != param->exprn.noperand) {
+    yyerror("line: %d, col: %d: different number of actual parameter and formal parameter", glineno, gcolno);
+    return NULL;
+  }
+
+  // NEXT TODO: check parameter type, check parameter
+  /*
+    for (int i = 0; i < args->exprn.noperand; ++i) {
+    STEntry *paramentry = sym_getsym(p->symtable, formalparam->argnames[i], 0);
+    int type = paramentry->u.var->datatype->type;
+    switch(param->exprn.operands[i]->type) {
+    case TTE_Literal:
+    case TTE_Id:
+    case TTE_Expr:
+    default:
+    break;
+    }
+    }*/
+
+
+  // resolve parameter type & literal value
+  for (int i = 0; i < param->exprn.noperand; ++i) {
+    // NEXT TODO: get parameter type here
+    determine_expr_type(param->exprn.operands[i], int typetok);
   }
 
   return make_expr(FN_CALL, 2, make_id(fnname), param);

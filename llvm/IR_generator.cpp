@@ -66,8 +66,7 @@ static bool g_with_ret_value = false;
 
 // llvm section
 
-// NEXT TODO: pass expression calculation type, handle expression value transfer
-// between expression tree. note: rust not support different type variable to do
+// note: rust not support different type variable to do
 // calculation, so add `as` to convert between type
 // 1. mathimatic calculation must need the same type or error
 // 2. the literal type have 2 forms:
@@ -643,8 +642,7 @@ static void walk_stmt_print(ASTNode *p) {
 // type then it will use the type in the same expression. 
 //
 
-// NEXT TODO: consider following 4 condition, for an
-// assigment:
+// consider following 4 condition, for an assigment:
 // 1) left have a type, right have a type, then check if they are the same
 // 2) left have a type, right no type, then invoke `determine_literal_type`
 // function uses left's type as the expression's type

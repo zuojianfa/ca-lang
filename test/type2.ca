@@ -1,13 +1,21 @@
-fn func1() -> f32 {
-   return 3.4;
+fn func1(a: f64) -> f64 {
+    return a;
 }
 
-fn func2() -> f32 {
-    return 4.3;
+fn func2(b: f64) -> f64 {
+    return b;
 }
 
 fn main() {
-    let a = func1() + func2();
-    print a;
+    let v1 = 3.5;
+    let v2 = 4.4;
+    let a = func1(3.5);
+    let b = func2(4.4);
+    let c = a + b;
+    
+    //let d = func1(4.1) + func2(6.6);
+    print c;
+    print '\n';
+    //print d;
 }
 
