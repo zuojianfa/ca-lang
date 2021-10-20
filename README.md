@@ -105,21 +105,13 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 
 ## Grammar
 - [x] add function functionality
-
 - [ ] support array
-
 - [ ] support layered variable definition
-
 - [ ] add other atomic type
-
 - [ ] add record (struct) type
-
 - [ ] add pointer type
-
 - [ ] add type convertion `as` keyword
-
 - [ ] support multiple compile unit and link them together
-
 - [ ] support rust grammar
   - [ ] loop
   - [ ] match
@@ -127,16 +119,13 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [x] last expression as return value in scope
   - [ ] immutable
   - [ ] mutable
-  
 - [ ] support never return type `!` like rust
-  
 - [x] support invoke extern c function
-
   now directly support the extern c function, the `libc` is automatically added into the linker, so all the `libc` function can be used directly 
-
 - [x] support c variant parameter function
-
 - [x] support comment
+- [ ] support `0xxxxxxxx` literal
+
 
 ## Makefile
 - [ ] use cmake to build the system

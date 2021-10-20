@@ -7,6 +7,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
@@ -1017,9 +1018,18 @@ static Function *walk_fn_define(ASTNode *p) {
   if (enable_debug_info())
     diinfo->lexical_blocks.pop_back();
 
-  if (llvm::verifyFunction(*fn, &errs())) {
-    fprintf(stderr, "\nfrom line: %d, to line: %d: function verify failed\n",
-	    p->begloc.row, p->endloc.row);
+  // finalize the debug info for verify function successfully, it may slow down
+  // the performance invoke here, may move all function verification into later
+  // TODO: move into all module is processed
+  if (enable_debug_info())
+    diinfo->dibuilder->finalize();
+
+
+  std::string verify_message;
+  llvm::raw_string_ostream rso(verify_message);
+  if (llvm::verifyFunction(*fn, &rso)) {
+    fprintf(stderr, "\nfrom line %d, to line %d: function verify failed: %s\n",
+	    p->begloc.row, p->endloc.row, verify_message.c_str());
   }
 
   if (enable_emit_main()) {
@@ -1234,6 +1244,14 @@ static int llvm_codegen_end() {
   // finalize the debug info
   if (enable_debug_info())
     diinfo->dibuilder->finalize();
+
+  std::string verify_message;
+  llvm::raw_string_ostream rso(verify_message);
+  bool verify_debug = true;
+  if (verifyModule(ir1.module(), &rso, &verify_debug) ) {
+    fprintf(stderr, "\nmodule verify failed: %s\n",
+	    verify_message.c_str());
+  }
 
   switch (genv.llvm_gen_type) {
   case LGT_LL:
