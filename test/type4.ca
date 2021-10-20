@@ -1,0 +1,25 @@
+// fn func1() -> f64 {
+// }
+
+// fn func2() -> f64 {
+// }
+
+fn main() {
+    //let a = 1;
+    //let b = 2i32;
+    //let c = 3i64;
+    //let d = 4u32;
+    let e = 5u64;
+    //let f = 6.2f32;
+    //let g = 7.3f64;
+
+
+    //print a; print '\n';
+    //print b; print '\n';
+    //print c; print '\n';
+    //print d; print '\n';
+    print e; print '\n';
+    //print f; print '\n';
+    //print g; print '\n';
+}
+

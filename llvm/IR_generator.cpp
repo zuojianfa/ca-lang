@@ -1017,7 +1017,10 @@ static Function *walk_fn_define(ASTNode *p) {
   if (enable_debug_info())
     diinfo->lexical_blocks.pop_back();
 
-  llvm::verifyFunction(*fn);
+  if (llvm::verifyFunction(*fn, &errs())) {
+    fprintf(stderr, "\nfrom line: %d, to line: %d: function verify failed\n",
+	    p->begloc.row, p->endloc.row);
+  }
 
   if (enable_emit_main()) {
     ir1.builder().SetInsertPoint(main_bb);

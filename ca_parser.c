@@ -31,7 +31,7 @@ SymTable *curr_fn_symtable = NULL;
  */ 
 int borning_var_type = 0;
 int extern_flag = 0; /* indicate if handling the extern function */
-/*int call_flag = 0;  indicate if under a call statement, used for real parameter checking */
+/*int call_flag = 0;  indicate if under a call statement, used for actual parameter checking */
 ST_ArgList curr_arglist;
 ST_ArgListActual curr_arglistactual;
 int curr_fn_rettype = 0;
@@ -992,7 +992,7 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
     return NULL;
   }
 
-  // check formal parameter and real parameter
+  // check formal parameter and actual parameter
   ST_ArgList *formalparam = entry->u.f.arglists;
 
   // check parameter number
@@ -1015,7 +1015,7 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
       determine_literal_type(&expr->litn.litv, formaltype);
       break;
     case TTE_Id: {
-      // get the real parameter type
+      // get the actual parameter type
       STEntry *identry = sym_getsym(param->symtable, expr->idn.i, 1);
       realtype = identry->u.var->datatype->type;
       break;
@@ -1029,7 +1029,7 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
       break;
     }
 
-    // check the formal parameter and real parameter type
+    // check the formal parameter and actual parameter type
     if (realtype != formaltype) {
       yyerror("line: %d, col: %d: the %d parameter type '%s' not match the parameter declared type '%s'",
 	      param->begloc.row, param->begloc.col, i, get_type_string(realtype), get_type_string(formaltype));

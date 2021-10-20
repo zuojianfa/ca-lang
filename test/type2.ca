@@ -29,7 +29,9 @@ fn main() {
     print e;
     print '\n';
 
+    //3.0f32 + 3.0f64;
     let f = func1(2.6 + 6.3);
+    //let f = func1(e);
     print f;
     print '\n';
 
