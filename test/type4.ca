@@ -1,5 +1,6 @@
-// fn func1() -> f64 {
-// }
+fn func1(a: f64) -> f64 {
+    return a;
+}
 
 // fn func2() -> f64 {
 // }
@@ -27,13 +28,41 @@ fn main() -> i32 {
 
     let a2: i32  = 1;
     let b2: i32  = -432432;
-    let c2: i64  = 9223372036854775808;
+    let c21: i64 = 4323372036854775807 + 4323372036854775807;
+    let c22  = 9223372036854775807i64;
+    let c2: i64  = 9223372036854775807;
     let d2: u32  = 4000000000;
     let e2: u64  = 18446744073709551610;
     let f2: f32  = 6.2;
     let g2: f64  = 7.3;
     let h2: i32  = -2147483648;
     let i2: i64  = -9223372036854775808;
+
+    let a3 = 1;
+    let b3 = 2;
+    let c3 = 3;
+    let d3 = 4;
+    let e3 = 5;
+    let f3 = 6.2;
+    let g3 = 7.3;
+    let h3 = -2147483648;
+    let i3 = -9223372036854775808i64;
+
+    let x1 = f3 + g3;
+    print x1; print '\n';
+
+    let x2 = f3 + g3 + 44.33;
+    print x2; print '\n';
+
+    let x3 = func1(x1);
+    print x3; print '\n';
+
+    let x4 = func1(x2);
+    print x4; print '\n';
+
+    //let x5 = func1(f3 + g3 + 44.33);
+    //print x5; print '\n';
+
 
 //    let j = -4u32;
 //    let k = -5u64;
@@ -67,5 +96,16 @@ fn main() -> i32 {
     print g2; print '\n';
     print h2; print '\n';
     print i2; print '\n';
+
+    print a3; print '\n';
+    print b3; print '\n';
+    print c3; print '\n';
+    print d3; print '\n';
+    print e3; print '\n';
+    print f3; print '\n';
+    print g3; print '\n';
+    print h3; print '\n';
+    print i3; print '\n';
+
 }
 

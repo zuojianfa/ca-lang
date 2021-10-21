@@ -237,7 +237,8 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
     return NULL;
   }
 
-  int exprntypetok = get_expr_type_from_tree(exprn, 0);
+#if 0
+  int exprntypetok = get_expr_type_from_tree(exprn, 1);
   if (var->datatype) {
     // when the variable has a specified type: `let a: i32 = ?`
     if (exprntypetok) {
@@ -280,6 +281,7 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
 
     var->datatype = catype_get_by_name(name);
   }
+#endif
 
   entry = sym_insert(curr_symtable, id, Sym_Variable);
   entry->u.var = var;
@@ -359,7 +361,7 @@ ASTNode *make_label_def(int labelid) {
 }
 
 static int is_valued_expr(int op) {
-  return (op != ARG_LISTS && op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET && op != '=');
+  return (op != ARG_LISTS && op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET);
 }
 
 int get_expr_type_from_tree(ASTNode *node, int ispost) {
@@ -374,7 +376,7 @@ int get_expr_type_from_tree(ASTNode *node, int ispost) {
       return 0;
     }
 
-    return node->entry->u.var->datatype->type;
+    return node->entry->u.var->datatype ? node->entry->u.var->datatype->type : 0;
   case TTE_Expr:
     return node->exprn.expr_type;
   default:
@@ -422,43 +424,55 @@ int inference_literal_type(CALiteral *lit) {
 
   const char *text = symname_get(lit->textid);
   int littypetok = lit->littypetok;
+  int badscope = 0;
 
   // handle non-fixed type literal value
   switch (littypetok) {
   case I64:
     lit->intent_type = I32;
-    lit->datatype = catype_get_by_name(symname_check("i32"));
     lit->u.i64value = atoll(text);
-    return I32;
+    badscope = check_i64_value_scope(lit->u.i64value, I32);
+    break;
   case U64:
     lit->intent_type = I32;
-    lit->datatype = catype_get_by_name(symname_check("i32"));
     sscanf(text, "%lu", &lit->u.i64value);
-    return I32;
+    badscope = check_u64_value_scope((uint64_t)lit->u.i64value, I32);
+    break;
   case F64:
     lit->intent_type = F64;
-    lit->datatype = catype_get_by_name(symname_check("f64"));
+    badscope = check_f64_value_scope(lit->u.f64value, F64);
     lit->u.f64value = atof(text);
-    return F64;
+    break;
   case BOOL:
     lit->intent_type = BOOL;
-    lit->datatype = catype_get_by_name(symname_check("bool"));
     lit->u.i64value = atoll(text) ? 1 : 0;
-    return BOOL;
+    break;
   case CHAR:
     lit->intent_type = CHAR;
-    lit->datatype = catype_get_by_name(symname_check("char"));    
     lit->u.i64value = (char)parse_lexical_char(text);
-    return CHAR;
+    badscope = check_char_value_scope(lit->u.i64value, CHAR);
+    break;
   case UCHAR:
-    lit->intent_type = CHAR;
-    lit->datatype = catype_get_by_name(symname_check("uchar"));
+    lit->intent_type = UCHAR;
     lit->u.i64value = (uint8_t)parse_lexical_char(text);
-    return UCHAR;
+    badscope = check_uchar_value_scope(lit->u.i64value, UCHAR);
+    break;
   default:
     yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
     return 0;
   }
+
+  if (badscope) {
+    yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
+	    glineno, gcolno, get_type_string(littypetok), get_type_string(lit->intent_type));
+    return 0;
+  }
+
+  const char *name = get_type_string(lit->intent_type);
+  lit->datatype = catype_get_by_name(symname_check(name));
+  lit->fixed_type = 1;
+
+  return lit->intent_type;
 }
 
 // inference and set the expr type for the expr, when the expr have no a
@@ -585,6 +599,12 @@ int determine_expr_type(ASTNode *node, int typetok) {
       node->exprn.expr_type = typetok;
     }
     break;
+  case TTE_Id:
+    if (!node->entry->u.var->datatype) {
+      const char *name = get_type_string(typetok);
+      node->entry->u.var->datatype = catype_get_by_name(symname_check(name));
+    }
+    break;
   default:
     // the node need not determine a type, not a literal and an expression node
     break;
@@ -626,9 +646,22 @@ static int reduce_node_and_type(ASTNode *p, int *expr_types, int noperands) {
     }
   }
 
-  // the expression have not a determined type, then do nothing
-  if (!type1)
-    return type1;
+  if (!type1 && p->exprn.op == '=') {    
+    // when cannot determine a type then handle here
+    // when variable type not determined yet, it means:
+    // 1) the variable is in definition stage, not just assigment 
+    // 2) the variable type is not specified by identifier itself
+    // it should inferenced by the right value: right expression
+    // when both side have no a determined type, then determine the right side type first
+    type1 = inference_expr_type(p->exprn.operands[1]);
+    if (!type1) {
+      yyerror("line: %d, column: %d, inference expression type failed",
+	      p->begloc.row, p->begloc.col);
+      return 0;
+    }
+
+    nonfixed_node[1] = 0;
+  }
 
   // when the expression have any fixed type node
   for (int i = 0; i < noperands; ++i) {
