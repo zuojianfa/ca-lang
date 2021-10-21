@@ -1,0 +1,8 @@
+fn main() -> i32 {
+    let f3 = 6.2;
+    let g3 = 7.3 + f3;
+    print f3; print '\n';
+    print g3; print '\n';
+    return 0;
+}
+

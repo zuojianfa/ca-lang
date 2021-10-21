@@ -26,7 +26,6 @@ extern SymTable *curr_fn_symtable;
 extern int borning_var_type;
 extern int extern_flag;
 extern ST_ArgList curr_arglist;
-extern ST_ArgListActual curr_arglistactual;
 extern int curr_fn_rettype;
 
 extern int glineno;
@@ -145,10 +144,11 @@ fn_args_p:	fn_args_p ',' iddef_typed    { add_fn_args(curr_symtable, $3); $$ = N
 	|	iddef_typed                  { add_fn_args(curr_symtable, $1); $$ = NULL; }
 	;
 
-fn_args_call:	{ curr_arglistactual.argc = 0; }
+fn_args_call:	{ actualarglist_new_push(); }
 		fn_args_call_p
 		{
-		    $$ = make_expr_arglists_actual(&curr_arglistactual);
+		    $$ = make_expr_arglists_actual(actualarglist_current());
+		    actualarglist_pop();
 		}
 	|	{ $$ = make_expr(ARG_LISTS_ACTUAL, 0); }
 	;
@@ -165,7 +165,9 @@ fn_args_call_p:	fn_args_call_p ',' fn_args_actual
 		}
 	;
 
-fn_args_actual:	IDENT
+fn_args_actual: expr { $$.type = AT_Expr; $$.exprn = $1; }
+		/*
+	|	IDENT
 		{
 		    ActualArg arg;
 		    arg.type = AT_Variable;
@@ -178,7 +180,7 @@ fn_args_actual:	IDENT
 		    arg.type = AT_Literal;
 		    arg.litv = $1;
 		    $$ = arg;
-		}
+		}*/
 	;
 
 stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }

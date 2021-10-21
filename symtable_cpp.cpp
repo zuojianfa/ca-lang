@@ -5,6 +5,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <stack>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -89,6 +90,23 @@ static int s_type_convertable_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID
   {0, }, // STRUCT
   {0, }, // ATOMTYPE_END
 };
+
+static std::stack<std::unique_ptr<ST_ArgListActual>> s_actualarglist_stack;
+
+ST_ArgListActual *actualarglist_current() {
+  return s_actualarglist_stack.top().get();
+}
+
+ST_ArgListActual *actualarglist_new_push() {
+  auto aa = std::make_unique<ST_ArgListActual>();
+  aa->argc = 0;
+  s_actualarglist_stack.push(std::move(aa));
+  return s_actualarglist_stack.top().get();
+}
+
+void actualarglist_pop() {
+  s_actualarglist_stack.pop();
+}
 
 int type_convertable(int from, int to) {
   return s_type_convertable_table[from-VOID][to-VOID];

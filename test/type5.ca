@@ -1,9 +1,34 @@
+fn func1(a: f64) -> f64 {
+    return a;
+}
+
+fn func2(a: f64) -> f64 {
+    return a;
+}
+
+fn noparamfunc1() -> f64{
+    return 3.3;
+}
+
 fn main() -> i32 {
+    let x4 = func1(6.7 + noparamfunc1());
+    print x4; print '\n';
+
+    let x7 = func1(44.33 + func2(2.17) + 33.3);
+    print x7; print '\n';
+
     let f3 = 6.2;
     let g3 = 7.3;
     let x1 = f3 + g3;
-    //let c21: i64 = 4323372036854775807 + 4323372036854775807;
-    //let ccc: i64 = 4323372036854775807;
-    //ccc = 4323372036854775806;
+    let x5 = func1(f3 + g3 + 44.33);
+    print x5; print '\n';
+    let x61 = func2(2.17);
+    print x61; print '\n';
+    let x62 = 44.33 + f3;
+    print x62; print '\n';
+    let x6 = func1(10.17 + x61);
+    print x6; print '\n';
+    //print x7;
+    return 0;
 }
 

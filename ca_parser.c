@@ -33,7 +33,7 @@ int borning_var_type = 0;
 int extern_flag = 0; /* indicate if handling the extern function */
 /*int call_flag = 0;  indicate if under a call statement, used for actual parameter checking */
 ST_ArgList curr_arglist;
-ST_ArgListActual curr_arglistactual;
+
 int curr_fn_rettype = 0;
 
 extern int glineno_prev;
@@ -154,9 +154,17 @@ int add_fn_args_actual(SymTable *st, ActualArg arg) {
 	return -1;
     }
 
+    if (arg.type == AT_Expr) {
+      ST_ArgListActual *aa = actualarglist_current();
+      aa->args[aa->argc++] = arg;
+      return 0;
+    }
+
+    // TODO: remove following code
     if (arg.type == AT_Literal) {
-	curr_arglistactual.args[curr_arglistactual.argc++] = arg;
-	return 0;
+      ST_ArgListActual *aa = actualarglist_current();
+      aa->args[aa->argc++] = arg;
+      return 0;
     }
 
     STEntry *entry = sym_getsym(st, arg.symnameid, 0);
@@ -169,7 +177,8 @@ int add_fn_args_actual(SymTable *st, ActualArg arg) {
     arg.entry = entry;
 
     //entry = sym_insert(st, arg.symnameid, Sym_Variable);
-    curr_arglistactual.args[curr_arglistactual.argc++] = arg;
+    ST_ArgListActual *aa = actualarglist_current();
+    aa->args[aa->argc++] = arg;
     return 0;
 }
 
@@ -836,7 +845,10 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     p->exprn.noperand = noperands;
     p->exprn.expr_type = 0;
     for (i = 0; i < noperands; i++) {
-      if (al->args[i].type == AT_Literal) {
+      // TODO: remove AT_Literal AT_Variable statement
+      if (al->args[i].type == AT_Expr) {
+	p->exprn.operands[i] = al->args[i].exprn;
+      } else if (al->args[i].type == AT_Literal) {
 	p->exprn.operands[i] = make_literal(&al->args[i].litv);
 	p->exprn.operands[i]->entry = NULL;
       } else {
@@ -1032,7 +1044,8 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
   if(formalparam->contain_varg && formalparam->argc > param->exprn.noperand
      ||
      !formalparam->contain_varg && formalparam->argc != param->exprn.noperand) {
-    yyerror("line: %d, col: %d: different number of actual parameter and formal parameter", glineno, gcolno);
+    yyerror("line: %d, col: %d: actual parameter number `%d` not match formal parameter number `%d`",
+	    glineno, gcolno, param->exprn.noperand, formalparam->argc);
     return NULL;
   }
 
@@ -1041,8 +1054,9 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
     STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
     int formaltype = paramentry->u.var->datatype->type;
     int realtype = formaltype;
-    ASTNode *expr = param->exprn.operands[i];
+    ASTNode *expr = param->exprn.operands[i]; // get one parameter
 
+    // TODO: remove TTE_Literal and TTE_Id case for not used when using TTE_Expr
     switch(expr->type) {
     case TTE_Literal:
       determine_literal_type(&expr->litn.litv, formaltype);
@@ -1054,9 +1068,9 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
       break;
     }
     case TTE_Expr:
-      realtype = expr->exprn.expr_type;
       // NEXT TODO: get parameter type here, resolve parameter type & literal value
-      //determine_expr_type(param->exprn.operands[i], formaltype);
+      determine_expr_type(expr, formaltype);
+      realtype = expr->exprn.expr_type;
       break;
     default:
       break;

@@ -861,8 +861,8 @@ static void walk_stmt_expr(ASTNode *p) {
   Value *v1 = pair1.first;
   Value *v2 = pair2.first;
   Value *v3 = nullptr;
-  int type1 = p->exprn.operands[0]->exprn.expr_type;
-  int type2 = p->exprn.operands[1]->exprn.expr_type;
+  int type1 = get_expr_type_from_tree(p->exprn.operands[0], 0);
+  int type2 = get_expr_type_from_tree(p->exprn.operands[1], 0);
 
   if (type1 != type2) {
     yyerror("operation have 2 different types: '%s', '%s'",
@@ -988,6 +988,43 @@ static Function *walk_fn_declare(ASTNode *p) {
   return fn;
 }
 
+static void generate_final_return(ASTNode *p) {
+  // TODO: should check if the function returned a value instead of append a return value always
+  if (g_with_ret_value)
+    return;
+
+  switch(p->fndefn.fn_decl->fndecln.ret->type) {
+  case I32:
+    ir1.builder().CreateRet(ir1.gen_int<int>(0));
+    break;
+  case I64:
+    ir1.builder().CreateRet(ir1.gen_int<int64_t>(0));
+    break;
+  case U32:
+    ir1.builder().CreateRet(ir1.gen_int<uint32_t>(0));
+    break;
+  case U64:
+    ir1.builder().CreateRet(ir1.gen_int<uint64_t>(0));
+    break;
+  case CHAR:
+    ir1.builder().CreateRet(ir1.gen_int<int8_t>(0));
+    break;
+  case UCHAR:
+    ir1.builder().CreateRet(ir1.gen_int<uint8_t>(0));
+    break;
+  case BOOL:
+    ir1.builder().CreateRet(ir1.gen_bool(true));
+    break;
+  case VOID:
+    ir1.builder().CreateRetVoid();
+    break;
+  default:
+    yyerror("return type `%s` not implemented",
+	    get_type_string(p->fndefn.fn_decl->fndecln.ret->type));
+    break;
+ }
+}
+
 static Function *walk_fn_define(ASTNode *p) {
   g_with_ret_value = false;
   Function *fn = walk_fn_declare(p->fndefn.fn_decl);
@@ -1012,8 +1049,7 @@ static Function *walk_fn_define(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  if (!g_with_ret_value)
-    ir1.builder().CreateRet(ir1.gen_int<int>(0));
+  generate_final_return(p);
 
   if (enable_debug_info())
     diinfo->lexical_blocks.pop_back();
@@ -1308,8 +1344,9 @@ int walk(RootTree *tree) {
 }
 
 static void usage() {
+  // [-ll] | [-S] | [-native] | [-c] | [-jit] [-O] | [-g] | [-nomain] | [-dot <dotfile>]
   fprintf(stderr,
-	  "Usage: ca [-ll] | [-S] | [-native] | [-c] | [-jit] [-O] | [-g] <input> [<output>]\n"
+	  "Usage: ca [options] <input> [<output>]\n"
 	  "Options:\n"
 	  "         -ll:      compile into IR assembly file: .ll (llvm)\n"
 	  "         -S:       compile into native (as) assembly file: .s\n"
@@ -1318,6 +1355,8 @@ static void usage() {
 	  "         -jit:     interpret using jit (llvm)\n"
 	  "         -O:       do optimization\n"
 	  "         -g:       do not do any optimization (default value)\n"
+	  "         -main:    do generate the default main function\n"
+	  "         -dot <dotfile>:  generate the do not generate the default main function\n"
 	  );
   exit(-1);
 }
@@ -1328,10 +1367,11 @@ static int init_config(int argc, char *argv[]) {
   if (++arg >= argc)
     usage();
 
-  genv.llvm_gen_type = LGT_NATIVE;
+  genv.llvm_gen_type = LGT_JIT;
   genv.opt_level = OL_NONE;
   genv.emit_debug = 0;
-  genv.emit_main = 1;
+  genv.emit_main = 0;
+  genv.emit_dot = 0;
 
   int i = 0;
   while(i < 3) {
@@ -1350,12 +1390,22 @@ static int init_config(int argc, char *argv[]) {
 	genv.opt_level = OL_O1;
       } else if (!strcmp(argv[arg], "-g")) {
 	genv.emit_debug = 1;
-      } else if (!strcmp(argv[arg], "-nomain")) {
-	genv.emit_main = 0;
+      } else if (!strcmp(argv[arg], "-main")) {
+	genv.emit_main = 1;
+      } else if (!strcmp(argv[arg], "-dot")) {
+	genv.emit_dot = 1;
+	if (++arg >= argc || argv[arg][0] == '-') {
+	  fprintf(stderr, "Should specify a dot file path\n\n");
+	  usage();
+	}
+	strcpy(genv.dotpath, argv[arg]);
       } else {
 	usage();
       }
-      ++arg;
+
+      if (++arg >= argc)
+	usage();
+
       ++i;
       continue;
     }

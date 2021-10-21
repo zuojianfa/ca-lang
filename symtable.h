@@ -116,15 +116,18 @@ typedef struct ST_ArgList {
 typedef enum ArgType {
   AT_Literal,
   AT_Variable,
+  AT_Expr,
 } ArgType;
 
 typedef struct ActualArg {
+  // TODO: later remove all but only use ASTNode
   ArgType type;
   struct STEntry *entry; // when type is AT_Variable it is used
   union {
     /* literal value, only value so not in symbol table */
     struct CALiteral litv;
     int symnameid; /* variable value */
+    struct ASTNode *exprn; /* for all the expression */
   };
 } ActualArg;
 
@@ -153,6 +156,20 @@ typedef struct SymTable {
   void *opaque;
   struct SymTable *parent;
 } SymTable;
+
+// parameter handling
+// because function call can use embed form:
+// let a = func1(1 + func2(2 + func3(3, 4))), so the actual argument list should
+// use a stack struct for handling, just using function defined in symtable.h
+
+// get current actual argument list object
+ST_ArgListActual *actualarglist_current();
+
+// create new actual argument list object and push into layer
+ST_ArgListActual *actualarglist_new_push();
+
+// popup a actual argument list object and destroy it
+void actualarglist_pop();
 
 // type checking
 int check_i64_value_scope(int64_t lit, int typetok);

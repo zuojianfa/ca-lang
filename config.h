@@ -42,6 +42,8 @@ typedef struct CompileEnv {
   Optimize_Level opt_level;
   int emit_debug; // if enable debug information
   int emit_main;  // if emit main function
+  int emit_dot;   // if emit dot format file (graphviz) for the grammar
+  char dotpath[MAX_PATH + 1];   // dot file path when emit_dot is set
 } CompileEnv;
 
 extern CompileEnv genv;
