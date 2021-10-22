@@ -140,7 +140,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [ ] compile into llvm assembly binary file
 - [ ] Passing ld options for -native command
 - [ ] Write interactive interpreter like python command line
-- [ ] Add option `-nomain` to not emit main function
+- [x] Add option `-main` to emit main function, default not generate main function
 ## self-defined machine
 - [ ] add interpret machine
 - [ ] add instruction

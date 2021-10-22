@@ -1,6 +1,13 @@
 #ifndef __CA_H__
 #define __CA_H__
 
+#define BEGIN_EXTERN_C extern "C" {
+#define END_EXTERN_C }
+
+#ifdef __cplusplus
+BEGIN_EXTERN_C
+#endif
+
 #include "symtable.h"
 /*
   The relationship between the enum and data structure:
@@ -149,6 +156,10 @@ ASTNode *make_ident_expr(int id);
 
 void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);
+
+#ifdef __cplusplus
+END_EXTERN_C
+#endif
 
 #endif
 

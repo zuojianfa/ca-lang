@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ca.h"
+#include "dotgraph.h"
 #include "symtable.h"
 
 /* TODO: support redefinition variable in the same scope: { let a: int = 2; let a: double = 4.3; }
@@ -75,23 +76,26 @@ extern int gcolno;
 
 program:	paragraphs
 		{
+		    dot_emit("program", "paragraphs");
 		    gtree->root_symtable = &g_root_symtable;
 		    walk(gtree);
 		    return 0;
 		}
 		;
 
-paragraphs:	paragraphs paragraph          { node_chain(gtree, $2); }
+paragraphs:	paragraphs paragraph
+		{ dot_emit("paragraphs", "paragraphs paragraph"); node_chain(gtree, $2); }
 	|       { /*empty */ }
 	;
 
-paragraph:     	stmt
-	|	fn_def
-	|	fn_decl
+paragraph:     	stmt     { dot_emit("paragraph", "stmt"); }
+	|	fn_def   { dot_emit("paragraph", "fn_def"); }
+	|	fn_decl  { dot_emit("paragraph", "fn_decl"); }
 		;
 
 fn_def:		fn_proto fn_body
 		{
+		    dot_emit("fn_def", "fn_proto fn_body");
 		    $1->fndefn.stmts = $2;
 		    $1->endloc.row = glineno; $$->endloc.col = gcolno;
 		    $$ = $1;
@@ -101,11 +105,12 @@ fn_def:		fn_proto fn_body
 		}
 	;
 
-fn_body:	block_body { $$ = $1; }
+fn_body:	block_body { dot_emit("fn_body", "block_body"); $$ = $1; }
 	;
 
 fn_decl: 	EXTERN { extern_flag = 1; } fn_proto ';'
 		{
+		    dot_emit("fn_decl", "EXTERN fn_proto");
 		    pop_symtable();
 		    extern_flag = 0;
 		    curr_fn_rettype = 0;
@@ -113,7 +118,7 @@ fn_decl: 	EXTERN { extern_flag = 1; } fn_proto ';'
 		}
 	;
 
-fn_call:	IDENT '(' fn_args_call ')' { $$ = make_fn_call($1, $3); }
+fn_call:	IDENT '(' fn_args_call ')' { dot_emit("fn_call", symname_get($1)); $$ = make_fn_call($1, $3); }
 	;
 
 fn_proto:	FN IDENT
@@ -126,46 +131,50 @@ fn_proto:	FN IDENT
 		}
 		'(' fn_args ')' ret_type
 		{
+		    dot_emit("fn_proto", "FN IDENT ...");
 		    curr_fn_rettype = $7->type;
 		    $$ = make_fn_proto($2, $7);
 		}
 	;
 
 fn_args:	{ curr_arglist.argc = 0; curr_arglist.symtable = curr_symtable; }
-		fn_args_ps             { $$ = $2; }
+		fn_args_ps             { dot_emit("fn_args", "fn_args_ps"); $$ = $2; }
 	;
 
-fn_args_ps:	fn_args_p              { curr_arglist.contain_varg = 0; $$ = make_expr_arglists(&curr_arglist); }
-	|	fn_args_p ',' VARG     { curr_arglist.contain_varg = 1; $$ = make_expr_arglists(&curr_arglist); }
-	|                              { $$ = make_expr(ARG_LISTS, 0); }
+fn_args_ps:	fn_args_p              { dot_emit("fn_args_ps", "fn_args_p"); curr_arglist.contain_varg = 0; $$ = make_expr_arglists(&curr_arglist); }
+	|	fn_args_p ',' VARG     { dot_emit("fn_args_ps", "fn_args_p VARG");curr_arglist.contain_varg = 1; $$ = make_expr_arglists(&curr_arglist); }
+	|                              {dot_emit("fn_args_ps", ""); $$ = make_expr(ARG_LISTS, 0); }
 	;
 
-fn_args_p:	fn_args_p ',' iddef_typed    { add_fn_args(curr_symtable, $3); $$ = NULL; }
-	|	iddef_typed                  { add_fn_args(curr_symtable, $1); $$ = NULL; }
+fn_args_p:	fn_args_p ',' iddef_typed    { dot_emit("fn_args_ps", "fn_args_p ',' iddef_typed"); add_fn_args(curr_symtable, $3); $$ = NULL; }
+	|	iddef_typed                  { dot_emit("fn_args_p", "iddef_typed"); add_fn_args(curr_symtable, $1); $$ = NULL; }
 	;
 
 fn_args_call:	{ actualarglist_new_push(); }
 		fn_args_call_p
 		{
+		    dot_emit("fn_args_call", "fn_args_call_p");
 		    $$ = make_expr_arglists_actual(actualarglist_current());
 		    actualarglist_pop();
 		}
-	|	{ $$ = make_expr(ARG_LISTS_ACTUAL, 0); }
+	|	{ dot_emit("fn_args_call", ""); $$ = make_expr(ARG_LISTS_ACTUAL, 0); }
 	;
 
 fn_args_call_p:	fn_args_call_p ',' fn_args_actual
 		{
+		    dot_emit("fn_args_call_p", "fn_args_call_p ',' fn_args_actual"); 
 		    add_fn_args_actual(curr_symtable, $3);
 		    $$ = NULL;
 		}
 	|	fn_args_actual
 		{
+		    dot_emit("fn_args_call_p", "fn_args_actual");
 		    add_fn_args_actual(curr_symtable, $1);
 		    $$ = NULL;
 		}
 	;
 
-fn_args_actual: expr { $$.type = AT_Expr; $$.exprn = $1; }
+fn_args_actual: expr { dot_emit("fn_args_actual", "expr"); $$.type = AT_Expr; $$.exprn = $1; }
 		/*
 	|	IDENT
 		{
@@ -183,90 +192,92 @@ fn_args_actual: expr { $$.type = AT_Expr; $$.exprn = $1; }
 		}*/
 	;
 
-stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
-	|	expr ';'                { inference_expr_type($1); $$ = $1; }
-	|	PRINT expr ';'          { inference_expr_type($2); $$ = make_expr(PRINT, 1, $2); }
-	|	RET expr ';'            { check_return_type(curr_fn_rettype); determine_expr_type($2, curr_fn_rettype); $$ = make_expr(RET, 1, $2); }
+stmt:		';'			{ dot_emit("stmt", ";"); $$ = make_expr(';', 2, NULL, NULL); }
+	|	expr ';'                { dot_emit("stmt", "expr"); inference_expr_type($1); $$ = $1; }
+	|	PRINT expr ';'          { dot_emit("stmt", "PRINT expr"); inference_expr_type($2); $$ = make_expr(PRINT, 1, $2); }
+	|	RET expr ';'            { dot_emit("stmt", "RET expr"); check_return_type(curr_fn_rettype); determine_expr_type($2, curr_fn_rettype); $$ = make_expr(RET, 1, $2); }
 	|	RET ';'
 		{
+		    dot_emit("stmt", "RET"); 
 		    if (curr_fn_rettype != VOID)
 			yyerror("line: %d, col: %d: function have no return type", glineno, gcolno);
 		    $$ = make_expr(RET, 0);
 		}
-	|	LET iddef '=' expr ';'  { $$ = make_vardef($2, $4); borning_var_type = 0; }
-	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
-	|	WHILE '(' expr ')' stmt_list_block { inference_expr_type($3); $$ = make_while($3, $5); }
-	|	IF '(' expr ')' stmt_list_block %prec IFX { inference_expr_type($3); $$ = make_if(0, 2, $3, $5); }
-	|	ifstmt                  { $$ = $1; }
-	|	stmt_list_block         { $$ = $1; }
-	|	label_def               { $$ = $1; }
-	|	GOTO label_id ';'       { $$ = make_goto($2); }
+	|	LET iddef '=' expr ';'  { dot_emit("stmt", "vardef"); $$ = make_vardef($2, $4); borning_var_type = 0; }
+	|	IDENT '=' expr ';'      { dot_emit("stmt", "varassign"); $$ = make_assign($1, $3); }
+	|	WHILE '(' expr ')' stmt_list_block { dot_emit("stmt", "whileloop"); inference_expr_type($3); $$ = make_while($3, $5); }
+	|	IF '(' expr ')' stmt_list_block %prec IFX { dot_emit("stmt", "if"); inference_expr_type($3); $$ = make_if(0, 2, $3, $5); }
+	|	ifstmt                  { dot_emit("stmt", "ifstmt"); $$ = $1; }
+	|	stmt_list_block         { dot_emit("stmt", "stmt_list_block"); $$ = $1; }
+	|	label_def               { dot_emit("stmt", "label_def"); $$ = $1; }
+	|	GOTO label_id ';'       { dot_emit("stmt", "GOTO label_id"); $$ = make_goto($2); }
 		;
 
-ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { inference_expr_type($3); $$ = make_if(0, 3, $3, $5, $7); }
+ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { dot_emit("ifstmt", "ifelse"); inference_expr_type($3); $$ = make_if(0, 3, $3, $5, $7); }
 		;
 //////////////////////////////////////////////////////////////
 /* TODO: realize the conflict problem when open the stmt expression using `IF` not `IFE` */
-ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { inference_expr_type($3); $$ = make_if(1, 3, $3, $5, $7); }
+ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { dot_emit("ifexpr", "ife"); inference_expr_type($3); $$ = make_if(1, 3, $3, $5, $7); }
 		;
 
 stmtexpr_list_block: { SymTable *st = push_new_symtable(); }
-		exprblock_body { $$ = $2; SymTable *st = pop_symtable(); }
+		exprblock_body { dot_emit("stmtexpr_list_block", "exprblock_body"); $$ = $2; SymTable *st = pop_symtable(); }
 		;
-exprblock_body: '{' stmtexpr_list '}'               { $$ = $2; }
+exprblock_body: '{' stmtexpr_list '}'               { dot_emit("exprblock_body", "stmtexpr_list"); $$ = $2; }
 		;
 
-stmtexpr_list: 	stmt_list expr { inference_expr_type($2); $$ = $2; /* TODO: put stmt_list into list */ }
-	|	expr { inference_expr_type($1); $$ = $1; }
+stmtexpr_list: 	stmt_list expr { dot_emit("stmtexpr_list", "stmt_list expr"); inference_expr_type($2); $$ = $2; /* TODO: put stmt_list into list */ }
+	|	expr { dot_emit("stmtexpr_list", "expr"); inference_expr_type($1); $$ = $1; }
 		;
 /**/
 //////////////////////////////////////////////////////////////
 stmt_list_block: { SymTable *st = push_new_symtable(); }
-		block_body { $$ = $2; SymTable *st = pop_symtable(); }
+		block_body { dot_emit("stmt_list_block", "block_body"); $$ = $2; SymTable *st = pop_symtable(); }
 		;
 
-block_body: 	'{'stmt_list_star '}'              { $$ = $2; }
+block_body: 	'{'stmt_list_star '}'               { dot_emit("block_body", "stmt_list_star"); $$ = $2; }
 		;
 
-stmt_list_star:	stmt_list                           { $$ = $1; }
-	|	                                    { $$ = make_empty(); /* empty */}
+stmt_list_star:	stmt_list                           { dot_emit("stmt_list_star", "stmt_list"); $$ = $1; }
+	|	                                    { dot_emit("stmt_list_star", ""); $$ = make_empty(); /* empty */}
 		;
 
-stmt_list:     	stmt                  { $$ = $1; }
-	|	stmt_list stmt        { $$ = make_expr(';', 2, $1, $2); }
+stmt_list:     	stmt                  { dot_emit("stmt_list", "stmt"); $$ = $1; }
+	|	stmt_list stmt        { dot_emit("stmt_list", "stmt_list stmt"); $$ = make_expr(';', 2, $1, $2); }
 		;
 
-label_def:	label_id ':'          { $$ = make_label_def($1); }
+label_def:	label_id ':'          { dot_emit("label_def", "label_id"); $$ = make_label_def($1); }
 		;
 
-label_id:	IDENT		      { $$ = $1; }
+label_id:	IDENT		      { dot_emit("label_id", "IDENT"); $$ = $1; }
 		;
 
-expr:     	literal               { $$ = make_literal(&$1); }
-	|	IDENT                 { $$ = make_ident_expr($1); }
-	|	'-'expr %prec UMINUS  { $$ = make_expr(UMINUS, 1, $2); }
-	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
-	|	expr '-' expr         { $$ = make_expr('-', 2, $1, $3); }
-	|	expr '*' expr         { $$ = make_expr('*', 2, $1, $3); }
-	|	expr '/' expr         { $$ = make_expr('/', 2, $1, $3); }
-	|	expr '<' expr         { $$ = make_expr('<', 2, $1, $3); }
-	|	expr '>' expr         { $$ = make_expr('>', 2, $1, $3); }
-	|	expr GE expr          { $$ = make_expr(GE, 2, $1, $3); }
-	|	expr LE expr          { $$ = make_expr(LE, 2, $1, $3); }
-	|	expr NE expr          { $$ = make_expr(NE, 2, $1, $3); }
-	|	expr EQ expr          { $$ = make_expr(EQ, 2, $1, $3); }
-	|	'('expr ')'           { $$ = $2; }
-	|	fn_call               { $$ = $1; }
-	|	ifexpr                { $$ = $1; }
-	|	expr AS datatype      { $$ = $1; /* TODO: handle AS expression */ }
+expr:     	literal               { dot_emit("expr", "literal"); $$ = make_literal(&$1); }
+	|	IDENT                 { dot_emit("expr", "IDENT"); $$ = make_ident_expr($1); }
+	|	'-'expr %prec UMINUS  { dot_emit("expr", "-expr"); $$ = make_expr(UMINUS, 1, $2); }
+	|	expr '+' expr         { dot_emit("expr", "expr '+' expr"); $$ = make_expr('+', 2, $1, $3); }
+	|	expr '-' expr         { dot_emit("expr", "expr '-' expr"); $$ = make_expr('-', 2, $1, $3); }
+	|	expr '*' expr         { dot_emit("expr", "expr '*' expr"); $$ = make_expr('*', 2, $1, $3); }
+	|	expr '/' expr         { dot_emit("expr", "expr '/' expr"); $$ = make_expr('/', 2, $1, $3); }
+	|	expr '<' expr         { dot_emit("expr", "expr '<' expr"); $$ = make_expr('<', 2, $1, $3); }
+	|	expr '>' expr         { dot_emit("expr", "expr '>' expr"); $$ = make_expr('>', 2, $1, $3); }
+	|	expr GE expr          { dot_emit("expr", "expr GE expr"); $$ = make_expr(GE, 2, $1, $3); }
+	|	expr LE expr          { dot_emit("expr", "expr LE expr"); $$ = make_expr(LE, 2, $1, $3); }
+	|	expr NE expr          { dot_emit("expr", "expr NE expr"); $$ = make_expr(NE, 2, $1, $3); }
+	|	expr EQ expr          { dot_emit("expr", "expr EQ expr"); $$ = make_expr(EQ, 2, $1, $3); }
+	|	'('expr ')'           { dot_emit("expr", "'(' expr ')'"); $$ = $2; }
+	|	fn_call               { dot_emit("expr", "fn_call"); $$ = $1; }
+	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
+	|	expr AS datatype      { dot_emit("expr", "expr AS datatype"); $$ = $1; /* TODO: handle AS expression */ }
 		;
 
-datatype:	instance_type         { $$ = $1; }
-	|	pointer_type
+datatype:	instance_type         { dot_emit("datatype", "instance_type"); $$ = $1; }
+	|	pointer_type          { dot_emit("datatype", "pointer_type"); }
 	;
 
 instance_type:	atomic_type
 		{
+		    dot_emit("instance_type", "atomic_type");
 		    CADataType *dt = catype_get_by_name($1);
 		    if (!dt)
 			yyerror("line: %d, col: %d: cannot find type: %s",
@@ -275,6 +286,7 @@ instance_type:	atomic_type
 		}
 	|	struct_type
 		{
+		    dot_emit("instance_type", "struct_type");
 		    yyerror("line: %d, col: %d: cannot find type: %s",
 			    glineno, gcolno, symname_get($1));
 		    $$ = NULL;
@@ -285,22 +297,23 @@ atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
 		    // { /* TODO: handle user defined type */ }
 		;
 
-struct_type:	IDENT { $$ = $1; }
+struct_type:	IDENT { dot_emit("struct_type", "IDENT"); $$ = $1; }
 	;
 
-pointer_type:	'*' instance_type
-	|	'*' pointer_type
+pointer_type:	'*' instance_type { dot_emit("", ""); }
+	|	'*' pointer_type  { dot_emit("", ""); }
 	;
 
-iddef:		iddef_typed  { $$ = $1; borning_var_type = $1->datatype->type; }
-	|	IDENT        { $$ = cavar_create($1, NULL); }
+iddef:		iddef_typed  { dot_emit("iddef", "iddef_typed"); $$ = $1; borning_var_type = $1->datatype->type; }
+	|	IDENT        { dot_emit("iddef", "IDENT"); $$ = cavar_create($1, NULL); }
 	;
 
-iddef_typed:	IDENT ':' datatype { $$ = cavar_create($1, $3); }
+iddef_typed:	IDENT ':' datatype { dot_emit("iddef_typed", "IDENT ':' datatype"); $$ = cavar_create($1, $3); }
 	;
 
-ret_type:	ARROW datatype   { $$ = $2; }
+ret_type:	ARROW datatype   { dot_emit("ret_type", "ARROW datatype"); $$ = $2; }
 	|	{
+    		    dot_emit("ret_type", "");
 		    int name = symname_check_insert("void");
 		    CADataType *dt = catype_get_by_name(name);
 		    if (!dt)
@@ -310,21 +323,22 @@ ret_type:	ARROW datatype   { $$ = $2; }
 		}
 	;
 
-literal:	LITERAL { create_literal(&$$, $1.text, $1.typetok, -1); }
-	|	LITERAL type_postfix { create_literal(&$$, $1.text, $1.typetok, $2.typetok); }
-	|	lit_struct_def   { $$ = $1; }
+literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, $1.typetok, -1); }
+	|	LITERAL type_postfix { dot_emit("literal", "LITERAL type_postfix"); create_literal(&$$, $1.text, $1.typetok, $2.typetok); }
+	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
 	;
 
-type_postfix:	I32 { $$.symnameid = $1; $$.typetok = I32; }
-	| 	I64 { $$.symnameid = $1; $$.typetok = I64; }
-	| 	U32 { $$.symnameid = $1; $$.typetok = U32; }
-	| 	U64 { $$.symnameid = $1; $$.typetok = U64; }
-	| 	F32 { $$.symnameid = $1; $$.typetok = F32; }
-	| 	F64 { $$.symnameid = $1; $$.typetok = F64; }
+type_postfix:	I32 { dot_emit("type_postfix", "I32"); $$.symnameid = $1; $$.typetok = I32; }
+	| 	I64 { dot_emit("type_postfix", "I64"); $$.symnameid = $1; $$.typetok = I64; }
+	| 	U32 { dot_emit("type_postfix", "U32"); $$.symnameid = $1; $$.typetok = U32; }
+	| 	U64 { dot_emit("type_postfix", "U64"); $$.symnameid = $1; $$.typetok = U64; }
+	| 	F32 { dot_emit("type_postfix", "F32"); $$.symnameid = $1; $$.typetok = F32; }
+	| 	F64 { dot_emit("type_postfix", "F64"); $$.symnameid = $1; $$.typetok = F64; }
 	;
 
 lit_struct_def:	IDENT '{' lit_field_list  '}'
 		{
+		    dot_emit("", "");
 		    // TODO: define structure
 		    
 		}
@@ -332,12 +346,13 @@ lit_struct_def:	IDENT '{' lit_field_list  '}'
 
 lit_field_list:	lit_field_list ',' lit_field
 		{
+		    dot_emit("", "");
 		    // TODO: define structure 
 		}
-	|	lit_field        { $$ = $1; }
+	|	lit_field        { dot_emit("", ""); $$ = $1; }
 	;
 
-lit_field:	literal          { $$ = $1; }
+lit_field:	literal          { dot_emit("", ""); $$ = $1; }
 	;
 
 %%

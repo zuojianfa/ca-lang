@@ -5,6 +5,7 @@
 
 #include "ca.h"
 #include "ca.tab.h"
+#include "dotgraph.h"
 #include "symtable.h"
 
 RootTree *gtree = NULL;
@@ -1167,6 +1168,7 @@ int yyparser_init() {
     symname_init();
     lexical_init();
     catype_init();
+    dot_init();
 
     if (sym_init(&g_root_symtable, NULL)) {
 	yyerror("init symbol table failed\n");

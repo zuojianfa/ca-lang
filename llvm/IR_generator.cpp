@@ -26,15 +26,16 @@
 #include <sys/time.h>
 #include <utility>
 #include <vector>
+#include "ca.h"
 
 #ifdef __cplusplus
-extern "C" {
+BEGIN_EXTERN_C
 #endif
 
-#include "ca.h"
 #include "ca.tab.h"
 #include "config.h"
 #include "symtable.h"
+#include "dotgraph.h"
 
 void yyerror(const char *s, ...);
 int yyparse(void);
@@ -46,7 +47,7 @@ extern int glineno;
 extern int gcolno;
 
 #ifdef __cplusplus
-}
+END_EXTERN_C
 #endif
 
 extern FILE *yyin;
@@ -1397,6 +1398,7 @@ static int init_config(int argc, char *argv[]) {
   genv.emit_debug = 0;
   genv.emit_main = 0;
   genv.emit_dot = 0;
+  genv.dot_sparsed = 1;
 
   int i = 0;
   while(i < 3) {
@@ -1479,13 +1481,13 @@ static int init_config(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-  if (yyparser_init()) {
-    fprintf(stderr, "init parser failed\n");
+  if (init_config(argc, argv)) {
+    fprintf(stderr, "init config failed\n");
     exit(-1);
   }
 
-  if (init_config(argc, argv)) {
-    fprintf(stderr, "init config failed\n");
+  if (yyparser_init()) {
+    fprintf(stderr, "init parser failed\n");
     exit(-1);
   }
 
@@ -1493,6 +1495,8 @@ int main(int argc, char *argv[]) {
 
   yyin = genv.ginput;
   yyparse();
+
+  dot_finalize();
 
   return 0;
 }

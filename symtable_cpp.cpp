@@ -15,10 +15,8 @@
 #include <vector>
 #include <unordered_map>
 
-#define EXTERN_C extern "C" {
-
 #ifdef __cplusplus
-EXTERN_C
+BEGIN_EXTERN_C
 #endif
 
 void yyerror(const char *s, ...);
@@ -27,7 +25,7 @@ extern int gcolno;
 extern int borning_var_type;
 
 #ifdef __cplusplus
-}
+END_EXTERN_C
 #endif
 
 
@@ -209,7 +207,7 @@ static int symname_insert(const std::string &s) {
 using SymTableInner = std::unordered_map<int, std::unique_ptr<STEntry>>;
 
 #ifdef __cplusplus
-EXTERN_C
+BEGIN_EXTERN_C
 #endif
 
 int lexical_init() {
@@ -489,7 +487,7 @@ void sym_destroy(SymTable *st) {
 }
 
 #ifdef __cplusplus
-}
+END_EXTERN_C
 #endif
 
 

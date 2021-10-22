@@ -44,6 +44,9 @@ typedef struct CompileEnv {
   int emit_main;  // if emit main function
   int emit_dot;   // if emit dot format file (graphviz) for the grammar
   char dotpath[MAX_PATH + 1];   // dot file path when emit_dot is set
+  int dot_sparsed;
+  FILE *dotout;
+  int dot_step;
 } CompileEnv;
 
 extern CompileEnv genv;

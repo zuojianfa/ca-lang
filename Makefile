@@ -33,7 +33,7 @@ ca.tab.o: ca.tab.c
 ################################################################################
 
 LLVM_IR = lex.yy.o ca.tab.o symtable_cpp.o utils.o llvm/IR_generator.o \
-	llvm/ir1.o llvm/dwarf_debug.o ca_parser.o
+	llvm/ir1.o llvm/dwarf_debug.o ca_parser.o dotgraph.o
 
 ca: llvm/ir1.h ca.h ${LLVM_IR}
 	$(CLANGPP) ${CFLAGS} `${CLANG_CONFIG} --ldflags --system-libs --libs core orcjit native` ${LLVM_IR} -o $@

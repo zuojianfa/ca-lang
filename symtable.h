@@ -3,8 +3,9 @@
 
 #include <stdint.h>
 #include <stdio.h>
+
 #ifdef __cplusplus
-extern "C" {
+BEGIN_EXTERN_C
 #endif
 
 #define MAX_SYMS 1024
@@ -223,7 +224,7 @@ int lexical_init();
 int find_lexical_keyword(const char *name);
 
 #ifdef __cplusplus
-}
+END_EXTERN_C
 #endif
 
 #endif
