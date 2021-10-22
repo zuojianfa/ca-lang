@@ -186,7 +186,7 @@ fn_args_actual: expr { $$.type = AT_Expr; $$.exprn = $1; }
 stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	expr ';'                { inference_expr_type($1); $$ = $1; }
 	|	PRINT expr ';'          { inference_expr_type($2); $$ = make_expr(PRINT, 1, $2); }
-	|	RET expr ';'            { determine_expr_type($2, curr_fn_rettype); $$ = make_expr(RET, 1, $2); }
+	|	RET expr ';'            { check_return_type(curr_fn_rettype); determine_expr_type($2, curr_fn_rettype); $$ = make_expr(RET, 1, $2); }
 	|	RET ';'
 		{
 		    if (curr_fn_rettype != VOID)

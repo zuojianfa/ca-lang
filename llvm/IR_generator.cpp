@@ -386,7 +386,7 @@ static BasicBlock *walk_label(ASTNode *p) {
 
   BasicBlock *bb;
   const char *label_name = symname_get(p->idn.i) + 2;
-  auto itr = label_map.find(label_name); 
+  auto itr = label_map.find(label_name);
   if (itr != label_map.end()) {
     bb = itr->second;
   } else {
@@ -813,8 +813,10 @@ static void walk_stmt_call(ASTNode *p) {
 
 static void walk_stmt_ret(ASTNode *p) {
   Type *rettype = curr_fn->getReturnType();
-  ASTNode *retn = p->exprn.operands[0];
+  BasicBlock *retbb = (BasicBlock *)curr_fn_node->fndefn.retbb;
+
   if (p->exprn.noperand) {
+    ASTNode *retn = p->exprn.operands[0];
     if (retn->type == TTE_Literal && !retn->litn.litv.fixed_type) {
       auto itr = function_map.find(curr_fn->getName().str());
       retn->litn.litv.intent_type = itr->second->fndecln.ret->type;
@@ -836,19 +838,23 @@ static void walk_stmt_ret(ASTNode *p) {
       return;
     }
 
-    ir1.builder().CreateRet(v);
+    AllocaInst *retslot = (AllocaInst *)curr_fn_node->fndefn.retslot;
+    ir1.builder().CreateStore(v, retslot);
   } else {
     if (enable_debug_info())
       diinfo->emit_location(p->endloc.row, p->endloc.col);
 
     if (rettype != ir1.void_type()) {
       yyerror("line: %d, column: %d, void function type cannot return value",
-	      retn->begloc.row, retn->begloc.col);
+	      p->begloc.row, p->begloc.col);
       return;
     }
-
-    ir1.builder().CreateRetVoid();
   }
+
+  ir1.builder().CreateBr(retbb);
+
+  BasicBlock *bb = ir1.gen_bb("afterret", curr_fn);
+  ir1.builder().SetInsertPoint(bb);
 
   g_with_ret_value = true;
 }
@@ -989,9 +995,16 @@ static Function *walk_fn_declare(ASTNode *p) {
 }
 
 static void generate_final_return(ASTNode *p) {
-  // TODO: should check if the function returned a value instead of append a return value always
-  if (g_with_ret_value)
+  // should check if the function returned a value instead of append a return value always
+  if (g_with_ret_value) {
+    if (p->fndefn.fn_decl->fndecln.ret->type == VOID) {
+      ir1.builder().CreateRetVoid();
+    } else {
+      Value *v = ir1.builder().CreateLoad((Value *)p->fndefn.retslot, "retret");
+      ir1.builder().CreateRet(v);
+    }
     return;
+  }
 
   switch(p->fndefn.fn_decl->fndecln.ret->type) {
   case I32:
@@ -1033,10 +1046,20 @@ static Function *walk_fn_define(ASTNode *p) {
 	    p->fndefn.fn_decl->fndecln.args.argc, fn->arg_size());
 
   curr_fn_node = p;
+  curr_fn = fn;
+
+  BasicBlock *retbb = ir1.gen_bb("ret");
+  p->fndefn.retbb = (void *)retbb;
 
   BasicBlock *bb = ir1.gen_bb("entry", fn);
   ir1.builder().SetInsertPoint(bb);
-  curr_fn = fn;
+
+  if (p->fndefn.fn_decl->fndecln.ret->type != VOID) {
+    AllocaInst *retslot = ir1.gen_var(fn->getReturnType(), "retslot");
+    p->fndefn.retslot = (void *)retslot;
+  } else {
+    p->fndefn.retslot = nullptr;
+  }
 
   // insert here debugging information
   init_fn_param_info(fn, p->fndefn.fn_decl->fndecln.args, p->symtable, p->begloc.row);
@@ -1049,6 +1072,9 @@ static Function *walk_fn_define(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
+  ir1.builder().CreateBr(retbb);
+  fn->getBasicBlockList().push_back(retbb);
+  ir1.builder().SetInsertPoint(retbb);
   generate_final_return(p);
 
   if (enable_debug_info())
@@ -1059,7 +1085,6 @@ static Function *walk_fn_define(ASTNode *p) {
   // TODO: move into all module is processed
   if (enable_debug_info())
     diinfo->dibuilder->finalize();
-
 
   std::string verify_message;
   llvm::raw_string_ostream rso(verify_message);

@@ -6,7 +6,7 @@ fn func2(b: f64) -> f64 {
     return b;
 }
 
-fn main() {
+fn main() -> i32 {
     let a = func1(3.5);
     let b = func2(4.4);
     let c = a + b;
@@ -20,6 +20,7 @@ fn main() {
     let c2 = a2 + b2;
     print c2;
     print '\n';
+    return 0;
 
     let d = func1(4.1) + func2(6.6);
     print d;
@@ -34,6 +35,6 @@ fn main() {
     //let f = func1(e);
     print f;
     print '\n';
-
+    return 1;
 }
 

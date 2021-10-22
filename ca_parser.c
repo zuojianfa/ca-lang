@@ -43,6 +43,13 @@ extern int gcolno;
 
 void yyerror(const char *s, ...);
 
+void check_return_type(int fnrettype) {
+  if (fnrettype == VOID) {
+    yyerror("line: %d, col: %d: void type function, cannot return a value",
+	    glineno, gcolno);
+  }
+}
+
 // TODO: check if text match the typetok, example: 'a' means char, and it cannot apply any postfix
 // true, false means boolean, it cannot apply any postfix
 // if postfixtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages

@@ -146,7 +146,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [ ] add instruction
 - [ ] add code generation
 
-
+## Misc
+- [x] llvm require only one `ret` statement in one function, so when encounter multiple `return` statement in ca language, then need firstly alloca a variable and in the end function add a return label (return BasicBlock) and for each return statement, set the return value into the local variable and branch into the return label finally return the variable
 
 is scopeline the real skip function start for debugging? try it
 

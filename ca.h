@@ -61,6 +61,8 @@ typedef struct TFnDeclNode {
 typedef struct TFnDefNode {
   struct ASTNode *fn_decl;
   struct ASTNode *stmts;
+  void *retbb;   // opaque value for storing llvm::BasicBlock
+  void *retslot; // opaque value for storing return value slot
 } TFnDefNode;
 
 typedef struct TWhileNode {
@@ -112,6 +114,7 @@ typedef struct RootTree {
   int count;
 } RootTree;
 
+void check_return_type(int fnrettype);
 SymTable *push_new_symtable();
 SymTable *pop_symtable();
 int add_fn_args(SymTable *st, CAVariable *var);
