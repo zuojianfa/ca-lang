@@ -3,6 +3,7 @@
 #include "config.h"
 #include "ca.tab.h"
 
+#include <string>
 #include <unordered_map>
 
 #define CHECK_ENABLE_DOT()			\
