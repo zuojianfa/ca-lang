@@ -1,6 +1,6 @@
 let count = 0;
 
-fn fn1() {
+fn fn1() -> i64 {
     if (count < 13) {
 	count = count + 1;
 	print count;

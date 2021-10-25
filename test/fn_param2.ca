@@ -1,4 +1,4 @@
-fn fib(count) {
+fn fib(count: i32) -> i32 {
     let a = 1;
     print a;
     let b = 1;
@@ -13,17 +13,20 @@ fn fib(count) {
     }
 
     print b;
+    return b;
 }
 
-let cond = 0;
-if (cond) {
-    print 101;
-} else {
-    print 201;
+fn main() {
+    let cond = 0;
+    if (cond) {
+        print 101;
+    } else {
+        print 201;
+    }
+
+    let aa = 100;
+    let v1 = fib(aa);
+
+    print v1;
 }
-
-let aa = 100;
-let v1 = fib(aa);
-
-print v1;
 

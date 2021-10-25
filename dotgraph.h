@@ -11,6 +11,7 @@ void yyerror(const char *s, ...);
 
 void dot_init();
 void dot_emit(const char *from, const char *to);
+void dot_emit_expr(const char *from, const char *to, int op);
 void dot_finalize();
 
 #ifdef __cplusplus

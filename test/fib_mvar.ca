@@ -1,7 +1,8 @@
+fn main() {
 let aaa = 1;
-print aaa;
+print aaa; ; print '\n';
 let bbb = 1;
-print bbb;
+print bbb; ; print '\n';
 let c = 0;
 let t = 0;
 while (c < 10000000) {
@@ -13,3 +14,4 @@ while (c < 10000000) {
 
 print bbb;
 
+}

@@ -94,6 +94,7 @@ typedef struct ASTNode {
   STEntry *entry;
   SLoc begloc;           /* the source code begin location of code unit */
   SLoc endloc;           /* the source code end location of code unit */
+  int seq;
   union {
     TLiteralNode litn;   /* literals */
     TIdNode idn;         /* identifiers, include label, goto identifier */
@@ -134,14 +135,37 @@ int inference_expr_type(ASTNode *p);
 void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok);
 const char *get_node_name_or_value(ASTNode *node);
 
+
+ASTNode *build_mock_main_fn_node();
+
+int make_program();
+void make_paragraphs(ASTNode *paragraph);
+ASTNode *make_fn_def(ASTNode *proto, ASTNode *body);
+ASTNode *make_fn_body(ASTNode *blockbody);
+ASTNode *make_fn_decl(ASTNode *proto);
+ASTNode *make_fn_args(ASTNode *args);
+ASTNode *make_fn_args_ps(int varg);
+void make_fn_args_actual(ActualArg *arg, ASTNode *expr);
+ASTNode *make_stmt_print(ASTNode *expr);
+ASTNode *make_stmt_expr(ASTNode *expr);
+ASTNode *make_stmt_ret_expr(ASTNode *expr);
+ASTNode *make_stmt_ret();
+ASTNode *make_stmtexpr_list_block(ASTNode *exprblockbody);
+ASTNode *make_exprblock_body(ASTNode *stmtexprlist);
+ASTNode *make_stmtexpr_list(ASTNode *expr);
+CADataType *make_instance_type_atomic(int atomictype);
+CADataType *make_instance_type_struct(int structtype);
+CADataType *make_ret_type_void();
+void make_type_postfix(IdToken *idt, int id, int typetok);
+
 ASTNode *make_label_node(int value);
 ASTNode *make_goto_node(int i);
 ASTNode *make_empty();
 ASTNode *make_expr(int op, int noperands, ...);
 ASTNode *make_expr_arglists(ST_ArgList *al);
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
-ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
-ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
+//ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
+//ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
 ASTNode *make_id(int id);
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn);
 ASTNode *make_assign(int id, ASTNode *exprn);

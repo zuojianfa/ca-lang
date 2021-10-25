@@ -1,5 +1,5 @@
 // calculate fibonacci number
-fn fib(count) {
+fn fib(count: i32) -> i32 {
     let a = 1;
     print a;
     let b = 1;
@@ -17,6 +17,7 @@ fn fib(count) {
     print b;
 }
 
+fn main() {
 // just an condition
 let cond = 0;
 if (cond) {
@@ -30,3 +31,4 @@ let v1 = fib(aa);
 
 print v1;
 
+}

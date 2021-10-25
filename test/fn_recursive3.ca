@@ -1,20 +1,33 @@
+let a: i32 = 50;
 
-fn recursive1(count) {
+fn recursive1(count: i32) -> i32 {
+    let res = 0;
     if (count < 10) {
-	print count;
+	print count; print '\n';
 	let v = count + 1;
-	recursive1(v);
+	res = recursive1(v);
+        return v;
     }
+
+    return res;
 }
 
-fn recursive2(count) {
+fn recursive2(count: i32) -> i32 {
+    let res = 0;
     if (count > 0) {
-	print count;
+	//print count; print '\n';
 	let v = count - 1;
-	recursive2(v);
+	res = recursive2(v);
+        return v;
     }
+
+    return res;
 }
 
-let a = recursive2(100);
+fn main() -> i32 {
+    let a = recursive2(a);
+    print a;
+    return a;
+}
 
 

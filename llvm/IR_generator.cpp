@@ -96,6 +96,7 @@ static llvm::Function *main_fn = nullptr;
 static llvm::Function *curr_fn = nullptr;
 static ASTNode *curr_fn_node = nullptr;
 static llvm::BasicBlock *main_bb = nullptr;
+static ASTNode *main_fn_node = nullptr;
 static llvm::DIFile *diunit = nullptr;
 static std::vector<std::unique_ptr<CalcOperand>> oprand_stack;
 
@@ -658,8 +659,8 @@ static void walk_stmt_assign(ASTNode *p) {
   ASTNode *idn = p->exprn.operands[0];
   ASTNode *exprn = p->exprn.operands[1];
 
+#if 0
   int exprntypetok = get_expr_type_from_tree(exprn, 0);
-  Value *v;
   if (idn->entry->u.var->datatype) {
     // when the variable has a specified type: `let a: i32 = ?`
     if (exprntypetok) {
@@ -676,11 +677,6 @@ static void walk_stmt_assign(ASTNode *p) {
       // right side have no determined a type: `let a: i32 = 4343`
       determine_expr_type(exprn, idn->entry->u.var->datatype->type);
     }
-
-    walk_stack(exprn);
-    auto pair = pop_right_value("tmpexpr");
-    v = pair.first;
-    //v = walk_typed_literal(exprn, idn->entry->u.var->datatype);
   } else {
     // when variable type not determined yet, it means:
     // 1) the variable is in definition stage, not just assigment 
@@ -707,10 +703,12 @@ static void walk_stmt_assign(ASTNode *p) {
     }
 
     idn->entry->u.var->datatype = catype_get_by_name(name);
-    walk_stack(exprn);
-    auto pair = pop_right_value("tmpexpr");
-    v = pair.first;
   }
+#endif
+
+  walk_stack(exprn);
+  auto pair = pop_right_value("tmpexpr");
+  Value *v = pair.first;
  
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -757,6 +755,10 @@ static void walk_stmt_goto(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
   ir1.builder().CreateBr(bb);
+
+  // to avoid verify error of 'Terminator found in the middle of a basic block!'
+  BasicBlock *extrabb = ir1.gen_bb("extra", curr_fn);
+  ir1.builder().SetInsertPoint(extrabb);
 }
 
 static void walk_stmt_call(ASTNode *p) {
@@ -806,8 +808,10 @@ static void walk_stmt_call(ASTNode *p) {
 
     argv.push_back(v);
   }
+
+  bool isvoidty = fn->getReturnType()->isVoidTy();
  
-  CallInst *callret = ir1.builder().CreateCall(fn, argv, fnname);
+  CallInst *callret = ir1.builder().CreateCall(fn, argv, isvoidty ? "" : fnname);
   auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, -1);
   oprand_stack.push_back(std::move(operands));
 }
@@ -1055,15 +1059,15 @@ static Function *walk_fn_define(ASTNode *p) {
   BasicBlock *bb = ir1.gen_bb("entry", fn);
   ir1.builder().SetInsertPoint(bb);
 
+  // insert here debugging information
+  init_fn_param_info(fn, p->fndefn.fn_decl->fndecln.args, p->symtable, p->begloc.row);
+
   if (p->fndefn.fn_decl->fndecln.ret->type != VOID) {
     AllocaInst *retslot = ir1.gen_var(fn->getReturnType(), "retslot");
     p->fndefn.retslot = (void *)retslot;
   } else {
     p->fndefn.retslot = nullptr;
   }
-
-  // insert here debugging information
-  init_fn_param_info(fn, p->fndefn.fn_decl->fndecln.args, p->symtable, p->begloc.row);
 
   if (enable_debug_info())
     diinfo->emit_location(p->begloc.row, p->begloc.col);
@@ -1096,12 +1100,13 @@ static Function *walk_fn_define(ASTNode *p) {
 
   if (enable_emit_main()) {
     ir1.builder().SetInsertPoint(main_bb);
+    curr_fn_node = main_fn_node;
     curr_fn = main_fn;
   } else {
+    curr_fn_node = nullptr;
     curr_fn = nullptr;
   }
 
-  curr_fn_node = nullptr;
   return fn;
 }
 
@@ -1151,6 +1156,7 @@ static void do_optimize_pass() {
 }
 
 static int llvm_codegen_begin(RootTree *tree) {
+  // mock ASTNode for generated main function
   curr_fn = nullptr;
 
   if (enable_debug_info())
@@ -1159,12 +1165,18 @@ static int llvm_codegen_begin(RootTree *tree) {
   if (enable_emit_main()) {
     main_fn = ir1.gen_function(ir1.int_type<int>(), "main", std::vector<Type *>());
     main_bb = ir1.gen_bb("entry", main_fn);
+    main_fn_node = build_mock_main_fn_node();
+    main_fn_node->fndefn.retbb = (void *)ir1.gen_bb("ret");
+
+    curr_fn_node = main_fn_node;
     curr_fn = main_fn;
     ir1.builder().SetInsertPoint(main_bb);
     ST_ArgList arglist;
     arglist.argc = 0;
 
     init_fn_param_info(main_fn, arglist, tree->root_symtable, tree->begloc_main.row);
+    main_fn_node->fndefn.retslot =
+      (void *)ir1.gen_var(main_fn->getReturnType(), "retslot", ir1.gen_int<int>(0));
   }
 
   // TODO: add grammar for handling extern functions instead hardcoded here
@@ -1279,7 +1291,12 @@ static const char *make_native_linker_command(const char *input, const char *out
 static int llvm_codegen_end() {
   int ret = 0;
   if (enable_emit_main()) {
-    ir1.builder().CreateRet(ir1.gen_int(0));
+    BasicBlock *retbb = (BasicBlock *)main_fn_node->fndefn.retbb;
+    ir1.builder().CreateBr(retbb);
+    main_fn->getBasicBlockList().push_back(retbb);
+    ir1.builder().SetInsertPoint(retbb);
+    Value *v = ir1.builder().CreateLoad((Value *)main_fn_node->fndefn.retslot, "retret");
+    ir1.builder().CreateRet(v);
 
     // pop off the lexical block for the main function. When enhanced and define
     // other functions it will need encapsulate the related functions into function
@@ -1494,6 +1511,10 @@ int main(int argc, char *argv[]) {
   init_llvm_env();
 
   yyin = genv.ginput;
+
+  if (genv.llvm_gen_type == LGT_JIT)
+    fprintf(stderr, "program `%s` :\n", genv.src_path);
+
   yyparse();
 
   dot_finalize();

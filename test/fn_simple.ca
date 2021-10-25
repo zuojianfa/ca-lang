@@ -1,4 +1,4 @@
-fn simple(a) {
+fn simple(a: i64) -> i64 {
     return a;
 }
 

@@ -1,8 +1,8 @@
 let count = 0;
 
-extern fn fn2();
+extern fn fn2() -> f32;
 
-fn fn1() {
+fn fn1() -> f32 {
     if (count < 20) {
 	count = count + 1;
 	print count;
@@ -12,7 +12,7 @@ fn fn1() {
     return 0;
 }
 
-fn fn2() {
+fn fn2() -> f32 {
     if (count < 20) {
 	count = count + 1;
 	print count;
@@ -22,8 +22,10 @@ fn fn2() {
     return 3;
 }
 
+fn main() {
 let v1 = fn2();
 
 print v1;
+}
 
 

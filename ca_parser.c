@@ -7,6 +7,7 @@
 #include "ca.tab.h"
 #include "dotgraph.h"
 #include "symtable.h"
+#include "config.h"
 
 RootTree *gtree = NULL;
 
@@ -36,6 +37,7 @@ int extern_flag = 0; /* indicate if handling the extern function */
 ST_ArgList curr_arglist;
 
 int curr_fn_rettype = 0;
+int g_node_seqno = 0;
 
 extern int glineno_prev;
 extern int gcolno_prev;
@@ -43,6 +45,152 @@ extern int glineno;
 extern int gcolno;
 
 void yyerror(const char *s, ...);
+int walk(RootTree *tree);
+
+int make_program() {
+  dot_emit("program", "paragraphs");
+  gtree->root_symtable = &g_root_symtable;
+  walk(gtree);
+  return 0;
+}
+
+void make_paragraphs(ASTNode *paragraph) {
+  dot_emit("paragraphs", "paragraphs paragraph");
+  node_chain(gtree, paragraph);
+}
+
+ASTNode *make_fn_def(ASTNode *proto, ASTNode *body) {
+  dot_emit("fn_def", "fn_proto fn_body");
+  proto->fndefn.stmts = body;
+  proto->endloc.row = glineno;
+  proto->endloc.col = gcolno;
+  pop_symtable();
+
+  curr_fn_rettype = 0;
+  curr_fn_symtable = &g_root_symtable;
+  return proto;
+}
+
+ASTNode *make_fn_body(ASTNode *blockbody) {
+  dot_emit("fn_body", "block_body");
+  return blockbody;
+}
+
+ASTNode *make_fn_decl(ASTNode *proto) {
+  dot_emit("fn_decl", "EXTERN fn_proto");
+  pop_symtable();
+  extern_flag = 0;
+  curr_fn_rettype = 0;
+  return proto;
+}
+
+ASTNode *make_fn_args(ASTNode *args) {
+  dot_emit("fn_args", "fn_args_ps");
+  return args;
+}
+
+ASTNode *make_fn_args_ps(int varg) {
+  if (varg)
+    dot_emit("fn_args_ps", "fn_args_p VARG");
+  else
+    dot_emit("fn_args_ps", "fn_args_p");
+
+  curr_arglist.contain_varg = varg;
+  return make_expr_arglists(&curr_arglist);
+}
+
+void make_fn_args_actual(ActualArg *arg, ASTNode *expr) {
+  dot_emit("fn_args_actual", "expr");
+  arg->type = AT_Expr;
+  arg->exprn = expr;
+}
+
+ASTNode *make_stmt_print(ASTNode *expr) {
+  inference_expr_type(expr);
+  return make_expr(PRINT, 1, expr);
+}
+
+ASTNode *make_stmt_expr(ASTNode *expr) {
+  dot_emit("stmt", "expr");
+  inference_expr_type(expr);
+  return expr;
+}
+
+ASTNode *make_stmt_ret_expr(ASTNode *expr) {
+  if (!curr_fn_rettype && genv.emit_main) {
+    // when not in a function and emit main provided, then use int as the rettype
+    curr_fn_rettype = I32;
+  }
+
+  check_return_type(curr_fn_rettype);
+  determine_expr_type(expr, curr_fn_rettype);
+  return make_expr(RET, 1, expr);
+}
+
+ASTNode *make_stmt_ret() { 
+  if (curr_fn_rettype != VOID)
+    yyerror("line: %d, col: %d: function have no return type", glineno, gcolno);
+  return make_expr(RET, 0);
+}
+
+ASTNode *make_stmtexpr_list_block(ASTNode *exprblockbody) {
+  dot_emit("stmtexpr_list_block", "exprblock_body");
+  // or
+  dot_emit("stmt_list_block", "block_body");
+
+  SymTable *st = pop_symtable();
+  return exprblockbody;
+}
+
+ASTNode *make_exprblock_body(ASTNode *stmtexprlist) {
+  dot_emit("exprblock_body", "stmtexpr_list");
+  // or
+  dot_emit("block_body", "stmt_list_star");
+
+  return stmtexprlist;
+}
+
+ASTNode *make_stmtexpr_list(ASTNode *expr) {
+  dot_emit("stmtexpr_list", "stmt_list expr");
+  // or
+  dot_emit("stmtexpr_list", "expr");
+  
+  inference_expr_type(expr);
+  return expr;
+}
+
+CADataType *make_instance_type_atomic(int atomictype) {
+  dot_emit("instance_type", "atomic_type");
+  CADataType *dt = catype_get_by_name(atomictype);
+  if (!dt)
+    yyerror("line: %d, col: %d: cannot find type: %s",
+	    glineno, gcolno, symname_get(atomictype));
+  return dt;
+}
+
+CADataType *make_instance_type_struct(int structtype) {
+  dot_emit("instance_type", "struct_type");
+  yyerror("line: %d, col: %d: cannot find type: %s",
+	  glineno, gcolno, symname_get(structtype));
+
+  return NULL;
+}
+
+CADataType *make_ret_type_void() {
+  dot_emit("ret_type", "");
+  int name = symname_check_insert("void");
+  CADataType *dt = catype_get_by_name(name);
+  if (!dt)
+    yyerror("line: %d, col: cannot get void datatype", glineno, gcolno);
+
+  return dt;
+}
+
+void make_type_postfix(IdToken *idt, int id, int typetok) {
+  dot_emit("type_postfix", "I32");
+  idt->symnameid = id;
+  idt->typetok = typetok;
+}
 
 void check_return_type(int fnrettype) {
   if (fnrettype == VOID) {
@@ -129,6 +277,10 @@ SymTable *pop_symtable() {
 }
 
 int add_fn_args(SymTable *st, CAVariable *var) {
+  dot_emit("fn_args_p", "fn_args_p ',' iddef_typed");
+  // or
+  dot_emit("fn_args_p", "iddef_typed"); 
+  
     int name = var->name;
     CADataType *datatype = var->datatype;
     if (curr_arglist.argc >= MAX_ARGS) {
@@ -151,6 +303,10 @@ int add_fn_args(SymTable *st, CAVariable *var) {
 }
 
 int add_fn_args_actual(SymTable *st, ActualArg arg) {
+  dot_emit("fn_args_call_p", "fn_args_call_p ',' fn_args_actual");
+  // or
+  dot_emit("fn_args_call_p", "fn_args_actual");
+
     if (curr_arglist.argc >= MAX_ARGS) {
 	if (arg.type == AT_Literal)
 	    yyerror("line: %d, col: %d: too many args '%d', max args support is %d",
@@ -203,11 +359,14 @@ void set_address(ASTNode *node, const SLoc *first, const SLoc *last) {
 }
 
 ASTNode *make_empty() {
+    dot_emit("stmt_list_star", "");
+
     ASTNode *p;
     if ((p = malloc(sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
+    p->seq = ++g_node_seqno;
     p->type = TTE_Empty;
 
     set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
@@ -215,11 +374,15 @@ ASTNode *make_empty() {
 }
 
 ASTNode *make_literal(CALiteral *litv) {
+    dot_emit("expr", "literal");
+
     ASTNode *p;
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
     /* copy information */
+    p->seq = ++g_node_seqno;
     p->type = TTE_Literal;
     p->litn.litv = *litv;
     p->litn.bg_type = borning_var_type;
@@ -236,7 +399,9 @@ ASTNode *make_id(int i) {
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
     /* copy information */
+    p->seq = ++g_node_seqno;
     p->type = TTE_Id;
     p->idn.i = i;
 
@@ -245,6 +410,8 @@ ASTNode *make_id(int i) {
 }
 
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
+  dot_emit("stmt", "vardef");
+
   /* TODO: in the future realize multiple let statement in one scope */
   int id = var->name;
   STEntry *entry = sym_getsym(curr_symtable, id, 0);
@@ -306,10 +473,14 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
   ASTNode *idn = make_id(id);
   idn->entry = entry;
 
-  return make_expr('=', 2, idn, exprn);
+  ASTNode *node = make_expr('=', 2, idn, exprn);
+  borning_var_type = 0;
+  return node;
 }
 
 ASTNode *make_assign(int id, ASTNode *exprn) {
+  dot_emit("stmt", "varassign");
+
   STEntry *entry = sym_getsym(curr_symtable, id, 1);
   if (!entry) {
     yyerror("line: %d, col: %d: symbol '%s' not defined", glineno, gcolno, symname_get(id));
@@ -322,6 +493,8 @@ ASTNode *make_assign(int id, ASTNode *exprn) {
 }
 
 ASTNode *make_goto(int labelid) {
+  dot_emit("stmt", "GOTO label_id");
+
   const char *name = symname_get(labelid);
   /* because the label name can using the same name as other names (variable, function, etc)
      so innerly represent the label name as "l:<name>", in order to distinguish them */
@@ -348,6 +521,8 @@ ASTNode *make_goto(int labelid) {
 }
 
 ASTNode *make_label_def(int labelid) {
+  dot_emit("label_def", "label_id");
+
   const char *name = symname_get(labelid);
   /* because the label name can using the same name as other names (variable, function, etc)
      so innerly represent the label name as "l:<name>", in order to distinguish them */
@@ -697,6 +872,8 @@ static int reduce_node_and_type(ASTNode *p, int *expr_types, int noperands) {
 // side's type and when the right side have no fixed type then, the right side
 // literal will use the literal itself's default type or intent type
 ASTNode *make_expr(int op, int noperands, ...) {
+    dot_emit_expr("from", "to", op);
+
     va_list ap;
     ASTNode *p;
     int i;
@@ -711,6 +888,7 @@ ASTNode *make_expr(int op, int noperands, ...) {
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
+    p->seq = ++g_node_seqno;
     p->type = TTE_Expr;
     p->exprn.op = op;
     p->exprn.noperand = noperands;
@@ -815,6 +993,7 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
+    p->seq = ++g_node_seqno;
     p->type = TTE_Expr;
     p->exprn.op = op;
     p->exprn.noperand = noperands;
@@ -838,6 +1017,8 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
 }
 
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
+  dot_emit("fn_args_call", "fn_args_call_p");
+
     int noperands = al->argc;
     int op = ARG_LISTS_ACTUAL;
     ASTNode *p;
@@ -848,6 +1029,7 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
     /* copy information */
+    p->seq = ++g_node_seqno;
     p->type = TTE_Expr;
     p->exprn.op = op;
     p->exprn.noperand = noperands;
@@ -877,6 +1059,8 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     }
 
     p->symtable = curr_symtable;
+    actualarglist_pop();
+
     return p;
 }
 
@@ -900,14 +1084,44 @@ ASTNode *make_goto_node(int i) {
     return NULL;
 }
 
-ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end) {
+ASTNode *build_mock_main_fn_node() {
+  ASTNode *decl;
+
+  /* allocate node */
+  if ((decl = malloc(sizeof(ASTNode))) == NULL)
+    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
+  /* copy information */
+  decl->seq = ++g_node_seqno;
+  decl->type = TTE_FnDecl;
+  decl->fndecln.ret = catype_get_by_name(symname_check("i32"));
+  decl->fndecln.name = symname_check("main");
+  //decl->fndecln.args = *al;
+  decl->fndecln.is_extern = 0;
+
+  ASTNode *p;
+  /* allocate node */
+  if ((p = malloc(sizeof(ASTNode))) == NULL)
+    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
+  /* copy information */
+  p->seq = ++g_node_seqno;
+  p->type = TTE_FnDef;
+  p->fndefn.fn_decl = decl;
+  p->fndefn.stmts = NULL;
+
+  return p;
+}
+
+static ASTNode *build_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end) {
     ASTNode *p;
-    int i;
+
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
+    p->seq = ++g_node_seqno;
     p->type = TTE_FnDecl;
     p->fndecln.ret = rettype;
     p->fndecln.name = name;
@@ -918,15 +1132,16 @@ ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, S
     return p;
 }
 
-ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end) {
-    ASTNode *decl = make_fn_decl(name, al, rettype, beg, end);
+static ASTNode *build_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end) {
+    ASTNode *decl = build_fn_decl(name, al, rettype, beg, end);
     ASTNode *p;
-    int i;
+
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
+    p->seq = ++g_node_seqno;
     p->type = TTE_FnDef;
     p->fndefn.fn_decl = decl;
     p->fndefn.stmts = NULL;
@@ -936,6 +1151,9 @@ ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg,
 }
 
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
+    dot_emit("stmt", "whileloop");
+    inference_expr_type(cond);
+
     ASTNode *p;
 
     /* allocate node */
@@ -943,6 +1161,7 @@ ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     /* copy information */
+    p->seq = ++g_node_seqno;
     p->type = TTE_While;
     p->whilen.cond = cond;
     p->whilen.body = whilebody;
@@ -952,6 +1171,12 @@ ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
 }
 
 ASTNode *make_if(int isexpr, int argc, ...) {
+    dot_emit("stmt", "if");
+    // or
+    dot_emit("ifstmt", "ifelse");
+    // or
+    dot_emit("ifexpr", "ife");
+    
     // TODO: implement multiple if else nodes
     va_list ap;
     ASTNode *p;
@@ -963,6 +1188,7 @@ ASTNode *make_if(int isexpr, int argc, ...) {
     if ((p = malloc(sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
+    p->seq = ++g_node_seqno;
     p->ifn.ncond = ncond;
     p->ifn.isexpr = isexpr;
     if ((p->ifn.conds = malloc(ncond * sizeof(ASTNode))) == NULL)
@@ -977,6 +1203,8 @@ ASTNode *make_if(int isexpr, int argc, ...) {
     va_start(ap, argc);
     for (int i = 0; i < ncond; i++) {
 	p->ifn.conds[i] = va_arg(ap, ASTNode*);
+	inference_expr_type(p->ifn.conds[i]);
+
 	p->ifn.bodies[i] = va_arg(ap, ASTNode*);
     }
 
@@ -988,19 +1216,38 @@ ASTNode *make_if(int isexpr, int argc, ...) {
     return p;
 }
 
+// compare if the previous defined function proto is the same as the current defining
+static int check_fn_proto(STEntry *prev, int id, ST_ArgList *currargs, CADataType *rettype) {
+  /* check if function declaration is the same */
+  if (currargs->argc != prev->u.f.arglists->argc) {
+    yyerror("line: %d, col: %d: function '%s' declaration not identical, see: line %d, col %d.",
+	    glineno, gcolno, symname_get(id), prev->sloc.row, prev->sloc.col);
+    return -1;
+  }
+
+  // NEXT TODO: check parameter type here
+
+  // check if function return type is the same as declared
+  if (prev->u.f.rettype->type != rettype->type) {
+    yyerror("line: %d, col: %d: function '%s' return type not identical, see: line %d, col %d.",
+	    glineno, gcolno, symname_get(id), prev->sloc.row, prev->sloc.col);
+    return -1;
+  }
+
+  return 0;
+}
+
 ASTNode *make_fn_proto(int id, CADataType *rettype) {
+  dot_emit("fn_proto", "FN IDENT ...");
+  curr_fn_rettype = rettype->type;
+
   SLoc beg = {glineno, gcolno};
   SLoc end = {glineno, gcolno};
 
   STEntry *entry = sym_getsym(&g_root_symtable, id, 0);
   if (extern_flag) {
     if (entry) {
-      /* check if function declaration is the same */
-      if (curr_arglist.argc != entry->u.f.arglists->argc) {
-	yyerror("line: %d, col: %d: function '%s' declaration not identical, see: line %d, col %d.",
-		glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
-	return NULL;
-      }
+      check_fn_proto(entry, id, &curr_arglist, rettype);
     } else {
       entry = sym_check_insert(&g_root_symtable, id, Sym_FnDecl);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
@@ -1008,7 +1255,7 @@ ASTNode *make_fn_proto(int id, CADataType *rettype) {
     }
     entry->u.f.rettype = rettype;
 
-    return make_fn_decl(id, &curr_arglist, rettype, beg, end);
+    return build_fn_decl(id, &curr_arglist, rettype, beg, end);
   } else {
     if (entry) {
       if (entry->sym_type == Sym_FnDef) {
@@ -1021,7 +1268,13 @@ ASTNode *make_fn_proto(int id, CADataType *rettype) {
 	entry->sym_type = Sym_FnDef;
 	SLoc loc = {glineno, gcolno};
 	entry->sloc = loc;
+      } else {
+	yyerror("line: %d, col: %d: name '%s' is not a function defined on line %d, col %d.",
+		glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
+	return NULL;
       }
+
+      check_fn_proto(entry, id, &curr_arglist, rettype);
     } else {
       entry = sym_check_insert(&g_root_symtable, id, Sym_FnDef);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
@@ -1029,11 +1282,13 @@ ASTNode *make_fn_proto(int id, CADataType *rettype) {
     }
     entry->u.f.rettype = rettype;
 
-    return make_fn_define(id, &curr_arglist, rettype, beg, end);
+    return build_fn_define(id, &curr_arglist, rettype, beg, end);
   }
 }
 
 ASTNode *make_fn_call(int fnname, ASTNode *param) {
+  dot_emit("fn_call", symname_get(fnname));
+
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (!entry) {
     yyerror("line: %d, col: %d: function '%s' not defined", glineno, gcolno, symname_get(fnname));
@@ -1096,6 +1351,8 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
 }
 
 ASTNode *make_ident_expr(int id) {
+  dot_emit("expr", "IDENT"); 
+
   STEntry *entry = sym_getsym(curr_symtable, id, 1);
   if (!entry) {
     yyerror("line: %d, col: %d: Variable name '%s' not defined", glineno, gcolno, symname_get(id));

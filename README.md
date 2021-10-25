@@ -119,20 +119,24 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [x] last expression as return value in scope
   - [ ] immutable
   - [ ] mutable
+  - [ ] support attribute grammar like `#[derive(Clone)]`
 - [ ] support never return type `!` like rust
 - [x] support invoke extern c function
   now directly support the extern c function, the `libc` is automatically added into the linker, so all the `libc` function can be used directly 
 - [x] support c variant parameter function
 - [x] support comment
 - [ ] support `0xxxxxxxx` literal
-
+- [ ] when `-main` provided the global variable should use `#[scope(global)]` grammar to specifiy if it is a global variable
 
 ## Makefile
 - [ ] use cmake to build the system
 - [ ] make test .ca file automatically generating not write one by one
+
 ## Optimization
 - [ ] support optimization for each function not only `main`
 - [ ] support global optimization
+- [ ] add optimization for all functions, in `do_optimize_pass` function
+
 ## System
 - [x] jit (just in time running) support
 - [x] compile into executable file (linux)
@@ -141,6 +145,18 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [ ] Passing ld options for -native command
 - [ ] Write interactive interpreter like python command line
 - [x] Add option `-main` to emit main function, default not generate main function
+- [ ] support multi module compile, reference the functions / global variables in other ca module
+  it should be the same as C language
+- [ ] support smoothly invoke c libraries in order to make use of all kinds of C libraries
+  - [ ] write a tool to converting c function declare into ca's declare
+  - [ ] write a tool to convert c header file declear into ca's declare file
+- [ ] create self memory management runtime system, can invoke malloc directly
+  
+## Testing
+- [ ] convert (by hand) a real whole program project into ca language project
+  - [ ] simple one like find grep
+  - [ ] complex pure c redis
+
 ## self-defined machine
 - [ ] add interpret machine
 - [ ] add instruction

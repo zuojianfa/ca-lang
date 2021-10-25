@@ -1,0 +1,28 @@
+extern fn func1(a: i32);
+extern fn func2(a: i32, b: i64);
+extern fn func3(a: i32, b: i64, c: u32);
+extern fn func4(a: i32, b: i64, c: u32, d: u64);
+extern fn func5(a: i32, b: i64, c: u32, d: u64, e: f32);
+extern fn func6(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64);
+extern fn func7(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool);
+extern fn func8(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool, h: char);
+extern fn func9(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool, h: char, i: uchar);
+extern fn func_a(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool, h: char, i: uchar, hha: i64);
+
+extern fn func10(a: i32) -> i32;
+extern fn func20(a: i32, b: i64) -> i64;
+extern fn func30(a: i32, b: i64, c: u32); -> u32
+extern fn func40(a: i32, b: i64, c: u32, d: u64) -> u64;
+extern fn func50(a: i32, b: i64, c: u32, d: u64, e: f32) -> f32;
+extern fn func60(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64) -> f64;
+extern fn func70(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool) -> bool;
+extern fn func80(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool, h: char) -> char;
+extern fn func90(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool, h: char, i: uchar) -> uchar;
+extern fn func_a0(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool, h: char, i: uchar, hha: i64) -> i32;
+
+let a = 1;
+let b = 2;
+let c = a + b;
+
+print c;
+

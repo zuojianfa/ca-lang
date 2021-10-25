@@ -1,3 +1,4 @@
+fn main() {
 let ab = 2;
 if (ab == 1) {
 	goto l1;
@@ -10,3 +11,4 @@ l1:
 l2:
 	print 2;
 
+}
