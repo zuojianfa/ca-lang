@@ -47,6 +47,28 @@ Options:
 - clean code
 `make clean`
 
+## Compile with cmake
+### Debug Version
+```
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+make -j3
+```
+
+### Release Version
+```
+mkdir rbuild && cd rbuild
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j3
+```
+
+### Release Version with Debug
+```
+mkdir rbuild && cd rbuild
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j3
+```
+
 ## debug & optimization
 ### -g
 Add debug information into the object file, and can use gdb to debug the code
