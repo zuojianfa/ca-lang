@@ -103,6 +103,10 @@ static std::vector<std::unique_ptr<CalcOperand>> oprand_stack;
 // for storing defined BasicBlock, or pre-define BasicBlock in GOTO statement
 static std::map<std::string, BasicBlock *> label_map;
 static std::map<std::string, ASTNode *> function_map;
+
+// TODO: should here using a current debug info instead of the map, it no need
+// to use a map here, because it only used when function define, just like
+// curr_fn
 static std::map<Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
 
 static int walk_stack(ASTNode *p);
@@ -396,8 +400,20 @@ static BasicBlock *walk_label(ASTNode *p) {
     label_map.insert(std::make_pair(label_name, bb));
   }
 
-  if (enable_debug_info())
+  if (enable_debug_info()) {
     diinfo->emit_location(p->endloc.row, p->endloc.col);
+
+    auto itr = fn_debug_map.find(curr_fn);
+    if (itr == fn_debug_map.end())
+      yyerror("line: %d, col: %d: cannot find function '%s' in map",
+	      p->begloc.row, p->begloc.col, curr_fn->getName().str().c_str());
+
+    auto &dbginfo = *itr->second;
+    DILabel *dilabel = diinfo->dibuilder->createLabel(dbginfo.disp, label_name, diunit, p->endloc.row);
+
+    const DILocation *diloc = DILocation::get(dbginfo.disp->getContext(), p->endloc.row, 0, dbginfo.disp);
+    diinfo->dibuilder->insertLabel(dilabel, diloc, bb);
+  }
 
   ir1.builder().CreateBr(bb);
   curr_fn->getBasicBlockList().push_back(bb);
