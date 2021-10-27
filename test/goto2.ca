@@ -1,8 +1,8 @@
 fn main() {
 let first = 1;
-print first;
+print first; print '\n';
 let second = 1;
-print second;
+print second; print '\n';
 let count = 0;
 let tmp = 0;
 
@@ -19,6 +19,6 @@ goto l1;
 
 l2:
 
-print second;
+print second; print '\n';
 
 }

@@ -1,22 +1,25 @@
 int main() {
-    int first = 1;
-    int second = 1;
     int count = 0;
-    int tmp = 0;
-
 l1:
     if (count >= 5000000) {
+      int a = 0;
+      a = a + 1;
+      if (a == 1) {
+	int a = 1;
+	a = a + 1;
+	if (a == 2) {
+	  int a = 2;
+	  a = a + 2;
+	  int b = 4;
+	}
+      }
 	goto l2;
     }
 
-    tmp = first;
-    first = second;
-    second = tmp + first;
     count = count + 1;
     goto l1;
 
 l2:
-
-    return second;
+    return count;
 }
 

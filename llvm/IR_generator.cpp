@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <string>
 #include <sys/time.h>
 #include <utility>
 #include <vector>
@@ -468,7 +469,11 @@ static void walk_if(ASTNode *p) {
 
   Value *tmpv1 = nullptr;
   Value *tmpv2 = nullptr;
-  Value *tmpc = ir1.gen_var(ir1.int_type<int>(), "tmpc");
+  // TODO: the clang always alloca in the header of the function, it may error
+  // occurs when alloca in other blocks, how to do that?
+  Value *tmpc = nullptr; // for storing if expression temporary value
+  if (p->ifn.isexpr)
+    tmpc = ir1.gen_var(ir1.int_type<int>(), "tmpc");
 
   BasicBlock *thenbb = ir1.gen_bb("thenbb");
   BasicBlock *outbb = ir1.gen_bb("outbb");
@@ -722,13 +727,13 @@ static void walk_stmt_assign(ASTNode *p) {
   }
 #endif
 
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col);
+
   walk_stack(exprn);
   auto pair = pop_right_value("tmpexpr");
   Value *v = pair.first;
  
-  if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
-
   Value *vp = walk_id_defv(idn, v);
 
   auto u = std::make_unique<CalcOperand>(OT_Store, vp, idn->entry->u.var->datatype->type);

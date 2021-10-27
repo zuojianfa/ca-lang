@@ -58,7 +58,7 @@ DWARFDebugInfo::DWARFDebugInfo(llvm::IRBuilder<> &builder, llvm::Module &module,
 
   module.addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
   llvm::DIFile *difile = dibuilder->createFile(file, dir);
-  dicu = dibuilder->createCompileUnit(llvm::dwarf::DW_LANG_C, difile, "ca compiler", 0, "", 0);
+  dicu = dibuilder->createCompileUnit(llvm::dwarf::DW_LANG_C99, difile, "ca compiler", 0, "", 0);
 
   initialize_types();
 }
