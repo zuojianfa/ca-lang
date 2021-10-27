@@ -1236,6 +1236,10 @@ static int llvm_codegen_ll(const char *output = nullptr) {
   return 0;
 }
 
+static CodeGenOpt::Level to_llvm_codegenopt(Optimize_Level level) {
+  return (CodeGenOpt::Level)level;
+}
+
 static int llvm_codegen_native(CodeGenFileType type, const char *output = nullptr) {
   // x86_64-pc-linux-gnu (clang --version)
   std::string target_triple = llvm::sys::getDefaultTargetTriple();
@@ -1251,7 +1255,7 @@ static int llvm_codegen_native(CodeGenFileType type, const char *output = nullpt
   llvm::TargetOptions opt;
   auto rm = llvm::Optional<Reloc::Model>();
   Optional<CodeModel::Model> cm = None;
-  CodeGenOpt::Level ol = CodeGenOpt::Default;
+  CodeGenOpt::Level ol = to_llvm_codegenopt(genv.opt_level);
   bool jit = false;
   TargetMachine *target_machine =
     target->createTargetMachine(target_triple, cpu, features, opt, rm, cm, ol, jit);
@@ -1417,7 +1421,7 @@ static void usage() {
 	  "         -native:  compile into native execute file: ELF file on linux, PE file on windows (default value)\n"
 	  "         -c:       compile into native object file: .o\n"
 	  "         -jit:     interpret using jit (llvm)\n"
-	  "         -O:       do optimization\n"
+	  "         -O[123]:  do optimization of level 1 2 3, default is level 2\n"
 	  "         -g:       do not do any optimization (default value)\n"
 	  "         -main:    do generate the default main function\n"
 	  "         -dot <dotfile>:  generate the do not generate the default main function\n"
@@ -1452,7 +1456,13 @@ static int init_config(int argc, char *argv[]) {
       } else if (!strcmp(argv[arg], "-jit")) {
 	genv.llvm_gen_type = LGT_JIT;
       } else if (!strcmp(argv[arg], "-O")) {
+	genv.opt_level = OL_O2;
+      } else if (!strcmp(argv[arg], "-O1")) {
 	genv.opt_level = OL_O1;
+      } else if (!strcmp(argv[arg], "-O2")) {
+	genv.opt_level = OL_O2;
+      } else if (!strcmp(argv[arg], "-O3")) {
+	genv.opt_level = OL_O3;
       } else if (!strcmp(argv[arg], "-g")) {
 	genv.emit_debug = 1;
       } else if (!strcmp(argv[arg], "-main")) {
