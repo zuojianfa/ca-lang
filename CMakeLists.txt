@@ -5,11 +5,12 @@ set(CMAKE_CXX_COMPILER clang++)
 #set(CMAKE_YACC_COMPILER bison)
 #set(CMAKE_LEX_COMPILER flex)
 
-set(CMAKE_RELEASE_POSTFIX r)
-set(CMAKE_DEBUG_POSTFIX d)
+set(CMAKE_RELEASE_POSTFIX _r)
+#set(CMAKE_DEBUG_POSTFIX _d)
+set(CMAKE_RELWITHDEBINFO_POSTFIX _rd)
 
 #find_package(BISON)
-#BISON_TARGET(caparser ca.y ${CMAKE_CURRENT_SOURCE_AADIR}/ca.tab.c COMPILE_FLAGS "-d")
+#BISON_TARGET(caparser ca.y ${CMAKE_CURRENT_SOURCE_DIR}/ca.tab.c COMPILE_FLAGS "-d")
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ca.tab.h ${CMAKE_CURRENT_BINARY_DIR}/ca.tab.c ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c
@@ -53,10 +54,29 @@ add_subdirectory(llvm)
 
 #  ca.h config.h dotgraph.h symtable.h utils.h llvm/IR_generator.h ca.l ca.y
 add_executable(ca ca.tab.c lex.yy.c ca_parser.c dotgraph.cpp symtable_cpp.cpp utils.c llvm/IR_generator.cpp)
-set_target_properties(ca PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+
+# default to debug version without an postfix, when need it just uncomment following one
+#set_target_properties(ca PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
 set_target_properties(ca PROPERTIES RELEASE_POSTFIX ${CMAKE_RELEASE_POSTFIX})
+set_target_properties(ca PROPERTIES RELWITHDEBINFO_POSTFIX ${CMAKE_RELWITHDEBINFO_POSTFIX})
 
 target_include_directories(ca PUBLIC . llvm ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(ca PUBLIC ir1)
+
+
+install(TARGETS ca DESTINATION bin)
+install(FILES README.md LICENSE DESTINATION include)
+
+string(TOUPPER ${CMAKE_BUILD_TYPE} current_build_type)
+string(COMPARE EQUAL ${current_build_type} "DEBUG" current_build_type_debug)
+string(COMPARE EQUAL ${current_build_type} "RELEASE" current_build_type_release)
+if (${current_build_type_debug} EQUAL true)
+#  set(current_target_name ${}
+endif()
+
+add_custom_command(TARGET ca POST_BUILD COMMAND cp ca${OUTPUT_NAME_RELEASE} ${CMAKE_SOURCE_DIR})
+
+# enable testing work
+include("${CMAKE_SOURCE_DIR}/cmake/tests.cmake")
 

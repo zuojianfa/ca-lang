@@ -67,6 +67,8 @@ make -j3
 mkdir rbuild && cd rbuild
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j3
+or 
+cmake --build .
 ```
 
 ## debug & optimization
@@ -78,6 +80,11 @@ Add optimization pass for the llvm (optimization) pass
 
 ### -g -O
 Add debug information into the object file and add llvm optimization pass 
+
+## Install
+```
+cmake --install . --prefix "/home/to/dir"
+```
 
 ## An code example
 ```
