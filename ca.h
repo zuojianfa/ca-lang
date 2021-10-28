@@ -125,7 +125,7 @@ typedef struct RootTree {
 void check_return_type(int fnrettype);
 SymTable *push_new_symtable();
 SymTable *pop_symtable();
-int add_fn_args(SymTable *st, CAVariable *var);
+int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 int add_fn_args_actual(SymTable *st, ActualArg arg);
 const char *label_name(const char *name);
 int determine_expr_type(ASTNode *node, int typetok);
@@ -143,8 +143,7 @@ void make_paragraphs(ASTNode *paragraph);
 ASTNode *make_fn_def(ASTNode *proto, ASTNode *body);
 ASTNode *make_fn_body(ASTNode *blockbody);
 ASTNode *make_fn_decl(ASTNode *proto);
-ASTNode *make_fn_args(ASTNode *args);
-ASTNode *make_fn_args_ps(int varg);
+void add_fn_args_p(ST_ArgList *arglist, int varg);
 void make_fn_args_actual(ActualArg *arg, ASTNode *expr);
 ASTNode *make_stmt_print(ASTNode *expr);
 ASTNode *make_stmt_expr(ASTNode *expr);
@@ -174,7 +173,7 @@ ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
-ASTNode *make_fn_proto(int id, CADataType *rettype);
+ASTNode *make_fn_proto(int id, ST_ArgList *arglist, CADataType *rettype);
 ASTNode *make_fn_call(int fnname, ASTNode *param);
 ASTNode *make_ident_expr(int id);
 

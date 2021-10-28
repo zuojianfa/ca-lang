@@ -59,7 +59,8 @@ extern int gcolno;
 %nonassoc		UMINUS
 %type	<litv>		literal lit_field lit_field_list lit_struct_def
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl
-%type	<astnode>	paragraph fn_proto fn_args fn_args_p fn_args_ps fn_call fn_body fn_args_call fn_args_call_p
+%type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
+%type			fn_args_p fn_args_call_p
 %type	<astnode>	ifstmt stmt_list_star block_body
 %type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
 %type	<var>		iddef iddef_typed
@@ -102,21 +103,20 @@ fn_proto:	FN IDENT
 			/* begin processing a new function, so create new symbol table */
 			curr_fn_symtable = st;
 		    }
+
+		    curr_arglist.argc = 0;
+		    curr_arglist.symtable = curr_symtable;
 		}
-		'(' fn_args ')' ret_type { $$ = make_fn_proto($2, $7); }
+		'(' fn_args ')' ret_type { $$ = make_fn_proto($2, &curr_arglist, $7); }
 		;
 
-fn_args:	{ curr_arglist.argc = 0; curr_arglist.symtable = curr_symtable; }
-		fn_args_ps             { $$ = make_fn_args($2); }
+fn_args:	fn_args_p              { add_fn_args_p(&curr_arglist, 0); }
+	|	fn_args_p ',' VARG     { add_fn_args_p(&curr_arglist, 1); }
+	|                              { }
 		;
 
-fn_args_ps:	fn_args_p              { $$ = make_fn_args_ps(0); }
-	|	fn_args_p ',' VARG     { $$ = make_fn_args_ps(1); }
-	|                              { $$ = make_expr(ARG_LISTS, 0); }
-		;
-
-fn_args_p:	fn_args_p ',' iddef_typed    { add_fn_args(curr_symtable, $3); $$ = NULL; }
-	|	iddef_typed                  { add_fn_args(curr_symtable, $1); $$ = NULL; }
+fn_args_p:	fn_args_p ',' iddef_typed    { add_fn_args(&curr_arglist, curr_symtable, $3); }
+	|	iddef_typed                  { add_fn_args(&curr_arglist, curr_symtable, $1); }
 	;
 
 fn_args_call:	{ actualarglist_new_push(); }
@@ -124,8 +124,8 @@ fn_args_call:	{ actualarglist_new_push(); }
 	|	{ $$ = make_expr(ARG_LISTS_ACTUAL, 0); }
 		;
 
-fn_args_call_p:	fn_args_call_p ',' fn_args_actual { add_fn_args_actual(curr_symtable, $3); $$ = NULL; }
-	|	fn_args_actual { add_fn_args_actual(curr_symtable, $1); $$ = NULL; }
+fn_args_call_p:	fn_args_call_p ',' fn_args_actual { add_fn_args_actual(curr_symtable, $3); }
+	|	fn_args_actual { add_fn_args_actual(curr_symtable, $1); }
 	;
 
 fn_args_actual: expr { make_fn_args_actual(&$$, $1); }

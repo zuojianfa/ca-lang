@@ -126,8 +126,8 @@ typedef struct ActualArg {
   struct STEntry *entry; // when type is AT_Variable it is used
   union {
     /* literal value, only value so not in symbol table */
-    struct CALiteral litv;
-    int symnameid; /* variable value */
+    //struct CALiteral litv;
+    //int symnameid; /* variable value */
     struct ASTNode *exprn; /* for all the expression */
   };
 } ActualArg;

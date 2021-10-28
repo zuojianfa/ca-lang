@@ -53,7 +53,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CLANGPP_LDFLAGS} -O2 -g")
 add_subdirectory(llvm)
 
 #  ca.h config.h dotgraph.h symtable.h utils.h llvm/IR_generator.h ca.l ca.y
-add_executable(ca ca.tab.c lex.yy.c ca_parser.c dotgraph.cpp symtable_cpp.cpp utils.c llvm/IR_generator.cpp)
+add_executable(ca ca.y ca.l ca.tab.c lex.yy.c ca_parser.c dotgraph.cpp symtable_cpp.cpp utils.c llvm/IR_generator.cpp)
 
 # default to debug version without an postfix, when need it just uncomment following one
 #set_target_properties(ca PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})

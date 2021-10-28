@@ -1,4 +1,4 @@
-extern fn putchar(c);
+extern fn putchar(c: i32);
 extern fn print_hello();
 
 let a = 1;

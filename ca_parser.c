@@ -84,19 +84,40 @@ ASTNode *make_fn_decl(ASTNode *proto) {
   return proto;
 }
 
-ASTNode *make_fn_args(ASTNode *args) {
-  dot_emit("fn_args", "fn_args_ps");
-  return args;
+static void check_expr_arglists(ST_ArgList *al) {
+    int noperands = al->argc;
+    ASTNode *p;
+    int i;
+
+    // for checking void type function, can only have void parameter
+    int void_count = 0;
+    for (i = 0; i < noperands; ++i) {
+      int name = al->argnames[i];
+      STEntry *entry = sym_getsym(curr_symtable, name, 0);
+      if (!entry) {
+	yyerror("line: %d, col: %d: cannot get entry for %s\n",
+		glineno, gcolno, symname_get(name));
+	return;
+      }
+
+      if (entry->u.var->datatype->type == VOID)
+	void_count += 1;
+    }
+
+    if (noperands > 1 && void_count > 0) {
+      yyerror("line: %d, col: %d: void function should only have void", glineno, gcolno);
+      return;
+    }
 }
 
-ASTNode *make_fn_args_ps(int varg) {
+void add_fn_args_p(ST_ArgList *arglist, int varg) {
   if (varg)
-    dot_emit("fn_args_ps", "fn_args_p VARG");
+    dot_emit("fn_args", "fn_args_p VARG");
   else
-    dot_emit("fn_args_ps", "fn_args_p");
+    dot_emit("fn_args", "fn_args_p");
 
-  curr_arglist.contain_varg = varg;
-  return make_expr_arglists(&curr_arglist);
+  arglist->contain_varg = varg;
+  check_expr_arglists(arglist);
 }
 
 void make_fn_args_actual(ActualArg *arg, ASTNode *expr) {
@@ -276,14 +297,14 @@ SymTable *pop_symtable() {
   return curr_symtable;
 }
 
-int add_fn_args(SymTable *st, CAVariable *var) {
+int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
   dot_emit("fn_args_p", "fn_args_p ',' iddef_typed");
   // or
   dot_emit("fn_args_p", "iddef_typed"); 
   
     int name = var->name;
     CADataType *datatype = var->datatype;
-    if (curr_arglist.argc >= MAX_ARGS) {
+    if (arglist->argc >= MAX_ARGS) {
 	yyerror("line: %d, col: %d: too many args '%s', max args support is %d",
 		glineno, gcolno, symname_get(name), MAX_ARGS);
 	return -1;
@@ -298,7 +319,7 @@ int add_fn_args(SymTable *st, CAVariable *var) {
 
     entry = sym_insert(st, name, Sym_Variable);
     entry->u.var = cavar_create(name, datatype);
-    curr_arglist.argnames[curr_arglist.argc++] = name;
+    arglist->argnames[arglist->argc++] = name;
     return 0;
 }
 
@@ -306,44 +327,22 @@ int add_fn_args_actual(SymTable *st, ActualArg arg) {
   dot_emit("fn_args_call_p", "fn_args_call_p ',' fn_args_actual");
   // or
   dot_emit("fn_args_call_p", "fn_args_actual");
-
-    if (curr_arglist.argc >= MAX_ARGS) {
-	if (arg.type == AT_Literal)
-	    yyerror("line: %d, col: %d: too many args '%d', max args support is %d",
-		    glineno, gcolno, arg.litv, MAX_ARGS);
-	else
-	    yyerror("line: %d, col: %d: too many args '%s', max args support is %d",
-		    glineno, gcolno, symname_get(arg.symnameid), MAX_ARGS);
+  
+  ST_ArgListActual *aa = actualarglist_current();
+  if (aa->argc >= MAX_ARGS) {
+    // TODO: how to output the expression's value or name (I know the literal and
+    // single variable can get the name) in order to support this, it should use
+    // the full text functionality, such as according to line column number to get
+    // the text from the source file
+    yyerror("line: %d, col: %d: too many args '%s', max args support is %d",
+	    glineno, gcolno, "todo:get the args text :)", MAX_ARGS);
 	    
-	return -1;
-    }
+    return -1;
+  }
 
-    if (arg.type == AT_Expr) {
-      ST_ArgListActual *aa = actualarglist_current();
-      aa->args[aa->argc++] = arg;
-      return 0;
-    }
-
-    // TODO: remove following code
-    if (arg.type == AT_Literal) {
-      ST_ArgListActual *aa = actualarglist_current();
-      aa->args[aa->argc++] = arg;
-      return 0;
-    }
-
-    STEntry *entry = sym_getsym(st, arg.symnameid, 0);
-    if (!entry) {
-	yyerror("line: %d, col: %d: parameter '%s' note defined",
-		glineno, gcolno, symname_get(arg.symnameid));
-	return -1;
-    }
-
-    arg.entry = entry;
-
-    //entry = sym_insert(st, arg.symnameid, Sym_Variable);
-    ST_ArgListActual *aa = actualarglist_current();
-    aa->args[aa->argc++] = arg;
-    return 0;
+  // arg.type must be == AT_Expr
+  aa->args[aa->argc++] = arg;
+  return 0;
 }
 
 const char *label_name(const char *name) {
@@ -957,12 +956,13 @@ ASTNode *make_expr(int op, int noperands, ...) {
     return p;
 }
 
+// TODO: this function should no used, remove it
 ASTNode *make_expr_arglists(ST_ArgList *al) {
     int noperands = al->argc;
-    int op = ARG_LISTS;
     ASTNode *p;
     int i;
 
+    // for checking void type function, can only have void parameter
     int void_count = 0;
     for (i = 0; i < noperands; ++i) {
       int name = al->argnames[i];
@@ -995,7 +995,7 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
     /* copy information */
     p->seq = ++g_node_seqno;
     p->type = TTE_Expr;
-    p->exprn.op = op;
+    p->exprn.op = ARG_LISTS;
     p->exprn.noperand = noperands;
     p->exprn.expr_type = 0;
     for (i = 0; i < noperands; i++)
@@ -1020,7 +1020,6 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
   dot_emit("fn_args_call", "fn_args_call_p");
 
     int noperands = al->argc;
-    int op = ARG_LISTS_ACTUAL;
     ASTNode *p;
     int i;
     /* allocate node */
@@ -1031,20 +1030,23 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     /* copy information */
     p->seq = ++g_node_seqno;
     p->type = TTE_Expr;
-    p->exprn.op = op;
+    p->exprn.op = ARG_LISTS_ACTUAL;
     p->exprn.noperand = noperands;
     p->exprn.expr_type = 0;
     for (i = 0; i < noperands; i++) {
       // TODO: remove AT_Literal AT_Variable statement
       if (al->args[i].type == AT_Expr) {
 	p->exprn.operands[i] = al->args[i].exprn;
-      } else if (al->args[i].type == AT_Literal) {
+      }
+      /* NEXT TODO: remove it only AT_Expr here
+      else if (al->args[i].type == AT_Literal) {
 	p->exprn.operands[i] = make_literal(&al->args[i].litv);
 	p->exprn.operands[i]->entry = NULL;
       } else {
 	p->exprn.operands[i] = make_id(al->args[i].symnameid);
 	p->exprn.operands[i]->entry = al->args[i].entry;
       }
+      */
     }
 
     if (noperands == 1) {
@@ -1237,7 +1239,7 @@ static int check_fn_proto(STEntry *prev, int id, ST_ArgList *currargs, CADataTyp
   return 0;
 }
 
-ASTNode *make_fn_proto(int id, CADataType *rettype) {
+ASTNode *make_fn_proto(int id, ST_ArgList *arglist, CADataType *rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
   curr_fn_rettype = rettype->type;
 
@@ -1247,15 +1249,15 @@ ASTNode *make_fn_proto(int id, CADataType *rettype) {
   STEntry *entry = sym_getsym(&g_root_symtable, id, 0);
   if (extern_flag) {
     if (entry) {
-      check_fn_proto(entry, id, &curr_arglist, rettype);
+      check_fn_proto(entry, id, arglist, rettype);
     } else {
       entry = sym_check_insert(&g_root_symtable, id, Sym_FnDecl);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
-      *entry->u.f.arglists = curr_arglist;
+      *entry->u.f.arglists = *arglist;
     }
     entry->u.f.rettype = rettype;
 
-    return build_fn_decl(id, &curr_arglist, rettype, beg, end);
+    return build_fn_decl(id, arglist, rettype, beg, end);
   } else {
     if (entry) {
       if (entry->sym_type == Sym_FnDef) {
@@ -1274,15 +1276,15 @@ ASTNode *make_fn_proto(int id, CADataType *rettype) {
 	return NULL;
       }
 
-      check_fn_proto(entry, id, &curr_arglist, rettype);
+      check_fn_proto(entry, id, arglist, rettype);
     } else {
       entry = sym_check_insert(&g_root_symtable, id, Sym_FnDef);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
-      *entry->u.f.arglists = curr_arglist;
+      *entry->u.f.arglists = *arglist;
     }
     entry->u.f.rettype = rettype;
 
-    return build_fn_define(id, &curr_arglist, rettype, beg, end);
+    return build_fn_define(id, arglist, rettype, beg, end);
   }
 }
 
