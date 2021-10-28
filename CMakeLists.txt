@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.17.0)
 
+project(ca
+  VERSION 0.1
+  DESCRIPTION "ca: a rust like compiler with jit and compatible with C ABI powered by llvm"
+  HOMEPAGE_URL "https://gitee.com/zuojianfa/ca"
+  LANGUAGES CXX C)
+
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER clang++)
 #set(CMAKE_YACC_COMPILER bison)
@@ -9,20 +15,25 @@ set(CMAKE_RELEASE_POSTFIX _r)
 #set(CMAKE_DEBUG_POSTFIX _d)
 set(CMAKE_RELWITHDEBINFO_POSTFIX _rd)
 
-#find_package(BISON)
-#BISON_TARGET(caparser ca.y ${CMAKE_CURRENT_SOURCE_DIR}/ca.tab.c COMPILE_FLAGS "-d")
+# how to add dependency to the customer command, such as when using customer yacc or lex command
+# answer: can use MAIN_DEPENDENCY or DEPENDS property to do the job
+# add_custom_command(
+#    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ca.tab.h ${CMAKE_CURRENT_BINARY_DIR}/ca.tab.c ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c
+#    COMMAND bison -d ${CMAKE_CURRENT_SOURCE_DIR}/ca.y
+#    COMMAND flex ${CMAKE_CURRENT_SOURCE_DIR}/ca.l
+#    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/ca.y ${CMAKE_CURRENT_SOURCE_DIR}/ca.l
+#    )
+# add_dependency()
 
-add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ca.tab.h ${CMAKE_CURRENT_BINARY_DIR}/ca.tab.c ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c
-  COMMAND bison -d ${CMAKE_CURRENT_SOURCE_DIR}/ca.y
-  COMMAND flex ${CMAKE_CURRENT_SOURCE_DIR}/ca.l
-  )
+find_package(FLEX)
+FLEX_TARGET(ca_lexier ca.l ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c)
 
-project(ca
-  VERSION 0.1
-  DESCRIPTION "ca: a rust like compiler with jit and compatible with C ABI powered by llvm"
-  HOMEPAGE_URL "https://gitee.com/zuojianfa/ca"
-  LANGUAGES CXX C)
+# using following instead of the above, when using regular bison
+find_package(BISON)
+BISON_TARGET(ca_parser ca.y ${CMAKE_CURRENT_BINARY_DIR}/ca.tab.c
+  DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/ca.tab.h)
+
+ADD_FLEX_BISON_DEPENDENCY(ca_lexier ca_parser)
 
 #add_executable(llvm-config IMPORTED)
 # get CFLAGS using llvm-config
@@ -40,6 +51,7 @@ execute_process(COMMAND llvm-config --ldflags --system-libs --libs core orcjit n
 string(REPLACE "\n" " " CLANGPP_LDFLAGS ${CLANGPP_LDFLAGS})
 
 
+# four standard configurations: Debug Release RelWithDebInfo MinSizeRel
 set(CMAKE_CXX_FLAGS "${CLANGPP_CXXFLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CLANGPP_CXXFLAGS} -g")
 set(CMAKE_CXX_FLAGS_RELEASE "${CLANGPP_CXXFLAGS} -O2")
@@ -77,6 +89,9 @@ endif()
 
 add_custom_command(TARGET ca POST_BUILD COMMAND cp ca${OUTPUT_NAME_RELEASE} ${CMAKE_SOURCE_DIR})
 
-# enable testing work
+# testing work
 include("${CMAKE_SOURCE_DIR}/cmake/tests.cmake")
+
+# packages
+include("${CMAKE_SOURCE_DIR}/cmake/packages.cmake")
 

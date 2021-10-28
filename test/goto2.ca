@@ -7,7 +7,7 @@ let count = 0;
 let tmp = 0;
 
 l1:
-if (count >= 10000000) {
+if (count >= 33000000) {
    goto l2;
 }
 

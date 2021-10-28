@@ -804,11 +804,18 @@ static void walk_stmt_call(ASTNode *p) {
     Value *v;
     if (args->exprn.operands[i]->type == TTE_Literal) {
       // match the literal type with function argument type (in second param)
-      ASTNode *fnast = function_map.find(fnname)->second;
+      auto itr = function_map.find(fnname);
+      if (itr == function_map.end()) {
+	yyerror("line: %d, col: %d: cannot find function `%s` ast node",
+		p->begloc.row, p->begloc.col, fnname);
+	return;
+      }
+
+      ASTNode *fnast = itr->second;
       STEntry *entry = sym_getsym(fnast->symtable, fnast->fndecln.args.argnames[i], 0);
       if (!entry) {
-	yyerror("line: %d, col: %d: cannot find argument name: '%s'",
-		p->begloc.row, p->begloc.col, symname_get(fnast->fndecln.args.argnames[i]));
+	yyerror("line: %d, col: %d: cannot find argument name: '%s' of function `%s`",
+		p->begloc.row, p->begloc.col, symname_get(fnast->fndecln.args.argnames[i]), fnname);
 	return;
       }
 
@@ -986,6 +993,7 @@ static void walk_statement(ASTNode *p) {
 static Function *walk_fn_declare(ASTNode *p) {
   const char *fnname = symname_get(p->fndecln.name);
   Function *fn = ir1.module().getFunction(fnname);
+  // NEXT TODO: set astnode map function_map.insert(std::make_pair(fnname, p)); even when found function
   if (!fn) {
     std::vector<const char *> param_names;
     std::vector<Type *> params;
@@ -1084,8 +1092,7 @@ static Function *walk_fn_define(ASTNode *p) {
   init_fn_param_info(fn, p->fndefn.fn_decl->fndecln.args, p->symtable, p->begloc.row);
 
   if (p->fndefn.fn_decl->fndecln.ret->type != VOID) {
-    AllocaInst *retslot = ir1.gen_var(fn->getReturnType(), "retslot");
-    p->fndefn.retslot = (void *)retslot;
+    p->fndefn.retslot = (void *)ir1.gen_var(fn->getReturnType(), "retslot");
   } else {
     p->fndefn.retslot = nullptr;
   }

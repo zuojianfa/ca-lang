@@ -1316,15 +1316,25 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
 
   // check and determine parameter type
   for (int i = 0; i < param->exprn.noperand; ++i) {
-    STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
-    int formaltype = paramentry->u.var->datatype->type;
+    int formaltype = 0;
+    if (i >= formalparam->argc) {
+      // it is a variable parameter ...
+      formaltype = 0;
+    } else {
+      STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
+      formaltype = paramentry->u.var->datatype->type;
+    }
+
     int realtype = formaltype;
     ASTNode *expr = param->exprn.operands[i]; // get one parameter
 
-    // TODO: remove TTE_Literal and TTE_Id case for not used when using TTE_Expr
     switch(expr->type) {
     case TTE_Literal:
-      determine_literal_type(&expr->litn.litv, formaltype);
+      if (formaltype == 0) {
+	inference_literal_type(&expr->litn.litv);
+      } else {
+	determine_literal_type(&expr->litn.litv, formaltype);
+      }
       break;
     case TTE_Id: {
       // get the actual parameter type
@@ -1333,11 +1343,20 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
       break;
     }
     case TTE_Expr:
-      // NEXT TODO: get parameter type here, resolve parameter type & literal value
-      determine_expr_type(expr, formaltype);
+      if (formaltype == 0) {
+	inference_expr_type(expr);
+      } else {
+	determine_expr_type(expr, formaltype);
+      }
+
       realtype = expr->exprn.expr_type;
+      if (formaltype == 0)
+	formaltype = realtype;
+
       break;
     default:
+      yyerror("line: %d, col: %d: the expression type `%d` should not come here",
+	      param->begloc.row, param->begloc.col, expr->type);
       break;
     }
 

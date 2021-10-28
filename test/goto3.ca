@@ -1,7 +1,7 @@
 fn main() {
     let count = 0;
 l1:
-    if (count >= 5000000) {
+    if (count >= 1115000000) {
     	goto l2;
     }
 

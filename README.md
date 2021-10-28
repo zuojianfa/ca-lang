@@ -86,6 +86,20 @@ Add debug information into the object file and add llvm optimization pass
 cmake --install . --prefix "/home/to/dir"
 ```
 
+## make package / installer
+```
+cpack
+# or
+cpack -G ZIP -C Debug
+```
+
+### make source code distribution
+```
+cpack --config CPackSourceConfig.cmake
+# or
+cpack --config CPackSourceConfig.cmake
+```
+
 ## An code example
 ```
 x = 0;
