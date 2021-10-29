@@ -1,16 +1,16 @@
-fn add(v1, v2) {
+fn add(v1: i32, v2: i32) -> i32 {
     return v1 + v2;
 }
 
-fn sub(v1, v2) {
+fn sub(v1: i64, v2: i64) -> i64 {
     return v1 - v2;
 }
 
-fn mul(v1, v2) {
+fn mul(v1: f32, v2: f32) -> f32 {
     return v1 * v2;
 }
 
-fn div(v1, v2) {
+fn div(v1: f64, v2: f64) -> f64 {
     return v1 / v2;
 }
 
@@ -19,8 +19,8 @@ let b = sub(19, 3);
 let m = mul(a, b);
 let d = div(b, a);
 
-print a;
-print b;
-print m;
-print d;
+print a; print '\n';
+print b; print '\n';
+print m; print '\n';
+print d; print '\n';
 

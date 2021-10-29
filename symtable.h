@@ -122,19 +122,13 @@ typedef enum ArgType {
 
 typedef struct ActualArg {
   // TODO: later remove all but only use ASTNode
-  ArgType type;
-  struct STEntry *entry; // when type is AT_Variable it is used
-  union {
-    /* literal value, only value so not in symbol table */
-    //struct CALiteral litv;
-    //int symnameid; /* variable value */
-    struct ASTNode *exprn; /* for all the expression */
-  };
+  //ArgType type;
+  struct ASTNode *exprn; /* for all the expression */
 } ActualArg;
 
 typedef struct ST_ArgListActual {
   int argc;                 // function argument count
-  ActualArg args[MAX_ARGS]; // function argument name
+  struct ASTNode *args[MAX_ARGS];  // function argument name
 } ST_ArgListActual;
 
 // for the labels the symbol name will append a prefix of 'l:' which is

@@ -801,40 +801,10 @@ static void walk_stmt_call(ASTNode *p) {
 
   std::vector<Value *> argv;
   for (int i = 0; i < args->exprn.noperand; ++i) {
-    Value *v;
-    if (args->exprn.operands[i]->type == TTE_Literal) {
-      // match the literal type with function argument type (in second param)
-      auto itr = function_map.find(fnname);
-      if (itr == function_map.end()) {
-	yyerror("line: %d, col: %d: cannot find function `%s` ast node",
-		p->begloc.row, p->begloc.col, fnname);
-	return;
-      }
-
-      ASTNode *fnast = itr->second;
-      STEntry *entry = sym_getsym(fnast->symtable, fnast->fndecln.args.argnames[i], 0);
-      if (!entry) {
-	yyerror("line: %d, col: %d: cannot find argument name: '%s' of function `%s`",
-		p->begloc.row, p->begloc.col, symname_get(fnast->fndecln.args.argnames[i]), fnname);
-	return;
-      }
-
-      if (entry->sym_type != Sym_Variable) {
-	yyerror("line: %d, col: %d: symbol type '%d' not a variable",
-		p->begloc.row, p->begloc.col, entry->sym_type);
-      }
-      
-      v = gen_literal_value(&args->exprn.operands[i]->litn.litv,
-			    entry->u.var->datatype->type,
-			    args->exprn.operands[i]->begloc);
-    } else {
-      const char *argname = symname_get(args->exprn.operands[i]->idn.i);
-      walk_stack(args->exprn.operands[i]);
-      auto pair = pop_right_value(argname);
-      v = pair.first;
-    }
-
-    argv.push_back(v);
+    // how to get the name for an expr? not possible / neccessary to get it
+    walk_stack(args->exprn.operands[i]);
+    auto pair = pop_right_value("exprarg");
+    argv.push_back(pair.first);
   }
 
   bool isvoidty = fn->getReturnType()->isVoidTy();
@@ -992,38 +962,47 @@ static void walk_statement(ASTNode *p) {
 
 static Function *walk_fn_declare(ASTNode *p) {
   const char *fnname = symname_get(p->fndecln.name);
+
   Function *fn = ir1.module().getFunction(fnname);
-  // NEXT TODO: set astnode map function_map.insert(std::make_pair(fnname, p)); even when found function
-  if (!fn) {
-    std::vector<const char *> param_names;
-    std::vector<Type *> params;
-    for (int i = 0; i < p->fndecln.args.argc; ++i) {
-      int argname = p->fndecln.args.argnames[i];
-      param_names.push_back(symname_get(argname));
-
-      STEntry *entry = sym_getsym(p->symtable, argname, 0);
-      if (!entry) {
-	yyerror("cannot get parameter for %s\n", symname_get(argname));
-	return NULL;
-      }
-
-      if (entry->sym_type != SymType::Sym_Variable) {
-	yyerror("parameter is not variable type: %d", entry->sym_type);
-	return nullptr;
-      }
-
-      Type *type = gen_type_from_token(entry->u.var->datatype->type);
-      params.push_back(type);
+  auto itr = function_map.find(fnname);
+  if (itr != function_map.end()) {
+    if (!fn) {
+      // when consider name, the function map set belongs to ir1 module set
+      yyerror("very strange, function must exists in the module");
+      return nullptr;
     }
 
-    Type *rettype = gen_type_from_token(p->fndecln.ret->type);
-    fn = ir1.gen_extern_fn(rettype, fnname, params, &param_names, !!p->fndecln.args.contain_varg);
-    function_map.insert(std::make_pair(fnname, p));
-    fn->setCallingConv(CallingConv::C);
-
-    //AttrListPtr func_printf_PAL;
-    //fn->setAttributes(func_printf_PAL);
+    return fn;
   }
+
+  std::vector<const char *> param_names;
+  std::vector<Type *> params;
+  for (int i = 0; i < p->fndecln.args.argc; ++i) {
+    int argname = p->fndecln.args.argnames[i];
+    param_names.push_back(symname_get(argname));
+
+    STEntry *entry = sym_getsym(p->symtable, argname, 0);
+    if (!entry) {
+      yyerror("cannot get parameter for %s\n", symname_get(argname));
+      return NULL;
+    }
+
+    if (entry->sym_type != SymType::Sym_Variable) {
+      yyerror("parameter is not variable type: %d", entry->sym_type);
+      return nullptr;
+    }
+
+    Type *type = gen_type_from_token(entry->u.var->datatype->type);
+    params.push_back(type);
+  }
+
+  Type *rettype = gen_type_from_token(p->fndecln.ret->type);
+  fn = ir1.gen_extern_fn(rettype, fnname, params, &param_names, !!p->fndecln.args.contain_varg);
+  function_map.insert(std::make_pair(fnname, p));
+  fn->setCallingConv(CallingConv::C);
+
+  //AttrListPtr func_printf_PAL;
+  //fn->setAttributes(func_printf_PAL);
 
   return fn;
 }

@@ -1,4 +1,4 @@
-fn simple(count, times) {
+fn simple(count: i32, times: i32) -> i32 {
     return count * times;
 }
 

@@ -1,5 +1,5 @@
-extern fn ca_add(a, b);
-extern fn ca_mul(a, b);
+extern fn ca_add(a: u32, b: u32) -> u32;
+extern fn fn ca_mul(a: u64, b: u64) -> u64;
 
 let v1 = ca_add(100, 3);
 let v2 = ca_mul(3, 9);

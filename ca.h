@@ -126,7 +126,7 @@ void check_return_type(int fnrettype);
 SymTable *push_new_symtable();
 SymTable *pop_symtable();
 int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var);
-int add_fn_args_actual(SymTable *st, ActualArg arg);
+int add_fn_args_actual(SymTable *st, ASTNode *arg);
 const char *label_name(const char *name);
 int determine_expr_type(ASTNode *node, int typetok);
 void determine_literal_type(CALiteral *lit, int typetok);

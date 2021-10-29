@@ -41,7 +41,6 @@ extern int gcolno;
   IdToken idtok;    /* return type token */
   int symnameid;    /* symbol table index */
   ASTNode *astnode; /* node pointer */
-  ActualArg arg;    /* argument */
 };
 
 %token	<litb>		LITERAL
@@ -64,7 +63,6 @@ extern int gcolno;
 %type	<astnode>	ifstmt stmt_list_star block_body
 %type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
 %type	<var>		iddef iddef_typed
-%type	<arg>		fn_args_actual
 %type	<symnameid>	label_id
 %type	<symnameid>	atomic_type struct_type
 %type	<idtok>		type_postfix
@@ -124,12 +122,9 @@ fn_args_call:	{ actualarglist_new_push(); }
 	|	{ $$ = make_expr(ARG_LISTS_ACTUAL, 0); }
 		;
 
-fn_args_call_p:	fn_args_call_p ',' fn_args_actual { add_fn_args_actual(curr_symtable, $3); }
-	|	fn_args_actual { add_fn_args_actual(curr_symtable, $1); }
+fn_args_call_p:	fn_args_call_p ',' expr { add_fn_args_actual(curr_symtable, $3); }
+	|	expr { add_fn_args_actual(curr_symtable, $1); }
 	;
-
-fn_args_actual: expr { make_fn_args_actual(&$$, $1); }
-		;
 
 stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	expr ';'                { $$ = make_stmt_expr($1); }

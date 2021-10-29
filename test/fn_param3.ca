@@ -1,0 +1,10 @@
+fn func1(a: i64, b: i64) -> i64 {
+    return a + b;
+}
+
+fn main() {
+    let a = 33i64;
+    let c = func1(a + 4, 3);
+    print c; print '\n';
+}
+

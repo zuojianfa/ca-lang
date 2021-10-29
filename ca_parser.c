@@ -122,7 +122,6 @@ void add_fn_args_p(ST_ArgList *arglist, int varg) {
 
 void make_fn_args_actual(ActualArg *arg, ASTNode *expr) {
   dot_emit("fn_args_actual", "expr");
-  arg->type = AT_Expr;
   arg->exprn = expr;
 }
 
@@ -323,7 +322,7 @@ int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
     return 0;
 }
 
-int add_fn_args_actual(SymTable *st, ActualArg arg) {
+int add_fn_args_actual(SymTable *st, ASTNode *arg) {
   dot_emit("fn_args_call_p", "fn_args_call_p ',' fn_args_actual");
   // or
   dot_emit("fn_args_call_p", "fn_args_actual");
@@ -1033,21 +1032,8 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
     p->exprn.op = ARG_LISTS_ACTUAL;
     p->exprn.noperand = noperands;
     p->exprn.expr_type = 0;
-    for (i = 0; i < noperands; i++) {
-      // TODO: remove AT_Literal AT_Variable statement
-      if (al->args[i].type == AT_Expr) {
-	p->exprn.operands[i] = al->args[i].exprn;
-      }
-      /* NEXT TODO: remove it only AT_Expr here
-      else if (al->args[i].type == AT_Literal) {
-	p->exprn.operands[i] = make_literal(&al->args[i].litv);
-	p->exprn.operands[i]->entry = NULL;
-      } else {
-	p->exprn.operands[i] = make_id(al->args[i].symnameid);
-	p->exprn.operands[i]->entry = al->args[i].entry;
-      }
-      */
-    }
+    for (i = 0; i < noperands; i++)
+      p->exprn.operands[i] = al->args[i];
 
     if (noperands == 1) {
 	p->begloc = p->exprn.operands[0]->begloc;
@@ -1220,14 +1206,40 @@ ASTNode *make_if(int isexpr, int argc, ...) {
 
 // compare if the previous defined function proto is the same as the current defining
 static int check_fn_proto(STEntry *prev, int id, ST_ArgList *currargs, CADataType *rettype) {
+  ST_ArgList *prevargs = prev->u.f.arglists;
+
   /* check if function declaration is the same */
-  if (currargs->argc != prev->u.f.arglists->argc) {
-    yyerror("line: %d, col: %d: function '%s' declaration not identical, see: line %d, col %d.",
+  if (currargs->argc != prevargs->argc) {
+    yyerror("line: %d, col: %d: function '%s' parameter number not identical with previous, see: line %d, col %d.",
 	    glineno, gcolno, symname_get(id), prev->sloc.row, prev->sloc.col);
     return -1;
   }
 
-  // NEXT TODO: check parameter type here
+  // check parameter types
+  if (prevargs->contain_varg != currargs->contain_varg) {
+    yyerror("line: %d, col: %d: function '%s' variable parameter not identical, see: line %d, col %d.",
+	    glineno, gcolno, symname_get(id), prev->sloc.row, prev->sloc.col);
+    return -1;
+  }
+
+  for (int i = 0; i < prevargs->argc; ++i) {
+    STEntry *preventry = sym_getsym(prevargs->symtable, prevargs->argnames[i], 0);
+    STEntry *currentry = sym_getsym(currargs->symtable, currargs->argnames[i], 0);
+    if (!preventry || !currentry || preventry->sym_type != Sym_Variable || currentry->sym_type != Sym_Variable) {
+      yyerror("line: %d, col: %d: function '%s' internal error: symbol table entry error",
+	      glineno, gcolno, symname_get(id));
+      return -1;
+    }
+
+    if (preventry->u.var->datatype->type != currentry->u.var->datatype->type) {
+      yyerror("line: %d, col: %d: function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
+	      glineno, gcolno, symname_get(id),
+	      get_type_string(preventry->u.var->datatype->type),
+	      get_type_string(currentry->u.var->datatype->type),
+	      prev->sloc.row, prev->sloc.col);
+      return -1;
+    }
+  }
 
   // check if function return type is the same as declared
   if (prev->u.f.rettype->type != rettype->type) {

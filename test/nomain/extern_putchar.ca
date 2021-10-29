@@ -1,4 +1,4 @@
-extern fn putchar(c);
+extern fn putchar(c: i32) -> i32;
 
 // print 'Hello ca!'
 putchar(72);

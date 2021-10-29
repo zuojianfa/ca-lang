@@ -19,3 +19,6 @@ test/*.ll
 test/*.s
 ca.tab.h
 ca.tab.c
+build
+debug-build
+release-build
