@@ -172,7 +172,7 @@ int check_u64_value_scope(uint64_t lit, int typetok);
 int check_f64_value_scope(double lit, int typetok);
 int check_char_value_scope(char lit, int typetok);
 int check_uchar_value_scope(uint8_t lit, int typetok);
-int type_convertable(int from, int to);
+int literal_type_convertable(int from, int to);
 
 // type finding
 int catype_init();

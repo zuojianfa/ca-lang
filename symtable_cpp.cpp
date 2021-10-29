@@ -74,7 +74,7 @@ static std::unordered_map<int, CADataType *> s_type_map;
 // stand for negative integer value, U64 stand for positive integer value, F64
 // stand for floating point value) right side is real literal value
 // VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
-static int s_type_convertable_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID + 1] = {
+static int s_literal_type_convertable_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID + 1] = {
   {0, }, // VOID -> other-type, means convert from VOID type to other type
   {0, },   // I32 -> other-type
   {0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0}, // I64 ->
@@ -106,13 +106,13 @@ void actualarglist_pop() {
   s_actualarglist_stack.pop();
 }
 
-int type_convertable(int from, int to) {
-  return s_type_convertable_table[from-VOID][to-VOID];
+int literal_type_convertable(int from, int to) {
+  return s_literal_type_convertable_table[from-VOID][to-VOID];
 }
 
 // check if specified type: typetok can accept literal value
 int check_i64_value_scope(int64_t lit, int typetok) {
-  // the match table should match the corrsponding line of array s_type_convertable_table
+  // the match table should match the corrsponding line of array s_literal_type_convertable_table
   switch(typetok) {
   case I32:
     if (lit < std::numeric_limits<int>::min())
@@ -129,7 +129,7 @@ int check_i64_value_scope(int64_t lit, int typetok) {
 }
 
 int check_u64_value_scope(uint64_t lit, int typetok) {
-  // the match table should match the corrsponding line of array s_type_convertable_table
+  // the match table should match the corrsponding line of array s_literal_type_convertable_table
   switch(typetok) {
   case I32:
     if (lit > std::numeric_limits<int>::max())
@@ -162,7 +162,7 @@ int check_u64_value_scope(uint64_t lit, int typetok) {
 }
 
 int check_f64_value_scope(double lit, int typetok) {
-  // the match table should match the corrsponding line of array s_type_convertable_table
+  // the match table should match the corrsponding line of array s_literal_type_convertable_table
   switch(typetok) {
   case F32:
     if (lit < std::numeric_limits<float>::min() || lit > std::numeric_limits<float>::max())

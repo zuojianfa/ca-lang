@@ -196,7 +196,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	'('expr ')'           { dot_emit("expr", "'(' expr ')'"); $$ = $2; }
 	|	fn_call               { dot_emit("expr", "fn_call"); $$ = $1; }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
-	|	expr AS datatype      { dot_emit("expr", "expr AS datatype"); $$ = $1; /* TODO: handle AS expression */ }
+	|	expr AS datatype      { $$ = make_as($1, $3); }
 		;
 
 datatype:	instance_type         { dot_emit("datatype", "instance_type"); $$ = $1; }

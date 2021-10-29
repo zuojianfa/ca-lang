@@ -567,6 +567,8 @@ int get_expr_type_from_tree(ASTNode *node, int ispost) {
     }
 
     return node->entry->u.var->datatype ? node->entry->u.var->datatype->type : 0;
+  case TTE_As:
+    return node->exprasn.type->type;
   case TTE_Expr:
     return node->exprn.expr_type;
   default:
@@ -678,6 +680,13 @@ int inference_expr_type(ASTNode *p) {
     type1 = inference_literal_type(&p->litn.litv);
     p->litn.litv.fixed_type = 1;
     return type1;
+  case TTE_Id:
+    return p->entry->u.var->datatype ? p->entry->u.var->datatype->type : 0;
+  case TTE_As:
+    // NEXT TODO: implemnent as here
+    type1 = inference_expr_type(p->exprasn.expr);
+    
+    break;
   case TTE_Expr:
     if (p->exprn.expr_type)
       return p->exprn.expr_type;
@@ -696,8 +705,6 @@ int inference_expr_type(ASTNode *p) {
 
     p->exprn.expr_type = type1;
     return type1;
-  case TTE_Id:
-    return p->entry->u.var->datatype ? p->entry->u.var->datatype->type : 0;
   default:
     yyerror("line: %d, col: %d: the expression already typed, no need to do inference",
 	    glineno, gcolno);
@@ -715,7 +722,7 @@ void determine_literal_type(CALiteral *lit, int typetok) {
   int littypetok = lit->littypetok;
 
   // check convertable
-  if (!type_convertable(littypetok, typetok)) {
+  if (!literal_type_convertable(littypetok, typetok)) {
     yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
 	    glineno, gcolno,
 	    get_type_string(littypetok), get_type_string(typetok));
@@ -780,6 +787,13 @@ int determine_expr_type(ASTNode *node, int typetok) {
     // here determine the literal type in this place compare to when create literal node
     determine_literal_type(&node->litn.litv, typetok);
     break;
+  case TTE_Id:
+    if (!node->entry->u.var->datatype) {
+      const char *name = get_type_string(typetok);
+      node->entry->u.var->datatype = catype_get_by_name(symname_check(name));
+    }
+    break;
+    // NEXT TODO: implemnent as here
   case TTE_Expr:
     if (node->exprn.expr_type)
       return node->exprn.expr_type;
@@ -787,12 +801,6 @@ int determine_expr_type(ASTNode *node, int typetok) {
     for (int i = 0; i < node->exprn.noperand; ++i) {
       determine_expr_type(node->exprn.operands[i], typetok);
       node->exprn.expr_type = typetok;
-    }
-    break;
-  case TTE_Id:
-    if (!node->entry->u.var->datatype) {
-      const char *name = get_type_string(typetok);
-      node->entry->u.var->datatype = catype_get_by_name(symname_check(name));
     }
     break;
   default:
@@ -1354,6 +1362,7 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
       realtype = identry->u.var->datatype->type;
       break;
     }
+      // NEXT TODO: implemnent as here
     case TTE_Expr:
       if (formaltype == 0) {
 	inference_expr_type(expr);
@@ -1397,6 +1406,24 @@ ASTNode *make_ident_expr(int id) {
   return node;
 }
 
+ASTNode *make_as(ASTNode *expr, CADataType *type) {
+  dot_emit("expr", "expr AS datatype");
+
+  ASTNode *p;
+  /* allocate node */
+  if ((p = malloc(sizeof(ASTNode))) == NULL)
+    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
+  /* copy information */
+  p->seq = ++g_node_seqno;
+  p->type = TTE_As;
+  p->exprasn.type = type;
+  p->exprasn.expr = expr;
+
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  return p;
+}
+
 void freeNode(ASTNode *p) {
     int i;
     if (!p) return;
@@ -1413,6 +1440,7 @@ NodeChain *node_chain(RootTree *tree, ASTNode *p) {
   switch (p->type) {
   case TTE_Literal:
   case TTE_LabelGoto:
+    // NEXT TODO: implemnent as here
   case TTE_Expr:
       if (!is_main_start_set) {
 	  gtree->begloc_main = p->begloc;

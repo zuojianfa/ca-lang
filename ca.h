@@ -26,6 +26,7 @@ typedef enum {
   TTE_FnDef,       // function definition
   TTE_While,
   TTE_If,
+  TTE_As,
   TTE_Num,
 } ASTNodeType;
 
@@ -88,6 +89,11 @@ typedef struct TIfNode {
   struct ASTNode *remain;
 } TIfNode;
 
+typedef struct TExprAsNode {
+  struct ASTNode *expr;
+  CADataType *type;
+} TExprAsNode;
+
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   SymTable *symtable;    /* the scoped symbol table */
@@ -103,6 +109,7 @@ typedef struct ASTNode {
     TFnDefNode fndefn;   /* function definition */
     TWhileNode whilen;   /* while statement */
     TIfNode ifn;         /* if statement */
+    TExprAsNode exprasn;  /* as statement */
   };
 } ASTNode;
 
@@ -176,6 +183,7 @@ ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int id, ST_ArgList *arglist, CADataType *rettype);
 ASTNode *make_fn_call(int fnname, ASTNode *param);
 ASTNode *make_ident_expr(int id);
+ASTNode *make_as(ASTNode *expr, CADataType *type);
 
 void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);
