@@ -802,13 +802,12 @@ int determine_expr_type(ASTNode *node, int typetok) {
     //if (!as_type_convertable(typetok, node->exprasn.type->type)) {
     if (typetok != node->exprasn.type->type) {
       yyerror("line: %d, column: %d, type `%s` cannot convert (as) to type `%s`",
-		p->begloc.row, p->begloc.col,
+		node->begloc.row, node->begloc.col,
 		get_type_string(typetok), get_type_string(node->exprasn.type->type));
       return -1;
     }
 
     determine_expr_type(node->exprasn.expr, typetok);
-
     break;
   case TTE_Expr:
     if (node->exprn.expr_type)
@@ -1364,6 +1363,17 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
     int realtype = formaltype;
     ASTNode *expr = param->exprn.operands[i]; // get one parameter
 
+    if (formaltype == 0)
+      inference_expr_type(expr);
+    else
+      determine_expr_type(expr, formaltype);
+
+    realtype = get_expr_type_from_tree(expr, 0);
+    if (formaltype == 0)
+      formaltype = realtype;
+    
+    ////////////////////
+#if 0
     switch(expr->type) {
     case TTE_Literal:
       if (formaltype == 0) {
@@ -1378,7 +1388,6 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
       realtype = identry->u.var->datatype->type;
       break;
     }
-      // NEXT TODO: implemnent as here
     case TTE_Expr:
       if (formaltype == 0) {
 	inference_expr_type(expr);
@@ -1396,6 +1405,7 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
 	      param->begloc.row, param->begloc.col, expr->type);
       break;
     }
+#endif
 
     // check the formal parameter and actual parameter type
     if (realtype != formaltype) {
@@ -1456,7 +1466,7 @@ NodeChain *node_chain(RootTree *tree, ASTNode *p) {
   switch (p->type) {
   case TTE_Literal:
   case TTE_LabelGoto:
-    // NEXT TODO: implemnent as here
+  case TTE_As:
   case TTE_Expr:
       if (!is_main_start_set) {
 	  gtree->begloc_main = p->begloc;

@@ -112,6 +112,20 @@ static std::map<Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
 
 static int walk_stack(ASTNode *p);
 
+static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load") {
+  std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
+  oprand_stack.pop_back();
+
+  Value *v;
+  if (o->type == OT_Alloc) {
+    v = ir1.builder().CreateLoad(o->operand, name);
+    o->type = OT_Load;
+    o->operand = v;
+  }
+
+  return std::move(o);
+}
+
 static std::pair<Value *, int> pop_right_value(const char *name = "load") {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
   oprand_stack.pop_back();
@@ -1117,6 +1131,48 @@ static Function *walk_fn_define(ASTNode *p) {
   return fn;
 }
 
+using ICO = Instruction::CastOps;
+
+// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
+// Trunc ZExt SExt FPToUI FPToSI UIToFP SIToFP FPTrunc FPExt PtrToInt IntToPtr BitCast AddrSpaceCast
+static Instruction::CastOps llvmtype_cast_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID + 1] = {
+  {ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin}, // VOID to others is disabled
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+  {ICO::CastOpsBegin, },
+};
+
+static Instruction::CastOps gen_cast_ops(int fromtok, int totok) {
+  return llvmtype_cast_table[fromtok-VOID][totok-VOID];
+}
+
+static void walk_as(ASTNode *node) {
+  CADataType *type = node->exprasn.type;
+  ASTNode *exprn = node->exprasn.expr;
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col);
+
+  walk_stack(exprn);
+  auto calco = pop_right_operand("tmpexpr");
+
+  int stypetok = get_expr_type_from_tree(exprn, 0);
+  Instruction::CastOps castopt = gen_cast_ops(stypetok, type->type);
+  Type *stype = gen_type_from_token(type->type);
+  Value *v = ir1.gen_cast(castopt, calco->operand, stype);
+ 
+  auto u = std::make_unique<CalcOperand>(calco->type, v, type->type);
+  oprand_stack.push_back(std::move(u));
+}
+
 typedef void (*walk_fn_t)(ASTNode *p);
 static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_empty,
@@ -1129,6 +1185,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_fn_define,
   (walk_fn_t)walk_while,
   (walk_fn_t)walk_if,
+  (walk_fn_t)walk_as,
 };
 
 static int walk_stack(ASTNode *p) {
