@@ -33,6 +33,7 @@ function(do_test prefix result cmd args)
 endfunction()
 
 # batch of test cases
+# when exists main function
 do_test(t "define void @timestamp()" ca -ll ../test/extern_call1.ca)
 do_test(t "from line 3, to line 5: function verify failed: Call parameter type does not match function signature!" ca -ll ../test/extern_printf.ca)
 do_test(t "line: 2, col: 40: function 'putchar' parameter number not identical with previous, see: line 0, col 0." ca ../test/extern_multi.ca)
@@ -64,3 +65,7 @@ do_test(t "10.000000.*79.800000.*57.830000.*2.170000.*50.530000.*12.340000.*.*re
 do_test(t "6.200000\n13.500000" ca ../test/type6.ca)
 do_test(t "32.*344.343231.*3.123000.*A.*1.*323.122300.*.*return value:.*" ca ../test/typed_var1.ca)
 
+# when not exist main function
+set(test_case_seq 1)
+do_test(nomain " " ca ../test/nomain/0.ca)
+do_test(nomain " " ca ../test/nomain/1.ca)

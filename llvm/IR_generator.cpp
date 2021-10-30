@@ -1159,7 +1159,7 @@ static void walk_as(ASTNode *node) {
   ASTNode *exprn = node->exprasn.expr;
 
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(node->endloc.row, node->endloc.col);
 
   walk_stack(exprn);
   auto calco = pop_right_operand("tmpexpr");
@@ -1167,7 +1167,7 @@ static void walk_as(ASTNode *node) {
   int stypetok = get_expr_type_from_tree(exprn, 0);
   Instruction::CastOps castopt = gen_cast_ops(stypetok, type->type);
   Type *stype = gen_type_from_token(type->type);
-  Value *v = ir1.gen_cast(castopt, calco->operand, stype);
+  Value *v = ir1.gen_cast_value(castopt, calco->operand, stype);
  
   auto u = std::make_unique<CalcOperand>(calco->type, v, type->type);
   oprand_stack.push_back(std::move(u));
