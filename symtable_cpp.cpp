@@ -110,6 +110,23 @@ int literal_type_convertable(int from, int to) {
   return s_literal_type_convertable_table[from-VOID][to-VOID];
 }
 
+// for rust the `as` cannot convert others to bool and
+// int/float to any primitive type, to pointer * but cannot to reference &, bool
+// bool can to int type, but cannot float type, char type
+// only u8 can cast to char, but char can to int
+// 
+int as_type_convertable(int from, int to) {
+  if (to == BOOL)
+    return from == BOOL;
+
+  switch (from) {
+  case BOOL:
+    return (to != F32 && to != F64);
+  default:
+    return true;
+  }
+}
+
 // check if specified type: typetok can accept literal value
 int check_i64_value_scope(int64_t lit, int typetok) {
   // the match table should match the corrsponding line of array s_literal_type_convertable_table

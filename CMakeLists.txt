@@ -56,19 +56,28 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
 
-set(CMAKE_EXE_LINKER_FLAGS "${CLANGPP_LDFLAGS}")
-set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CLANGPP_LDFLAGS} -g")
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CLANGPP_LDFLAGS} -O2")
-set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CLANGPP_LDFLAGS} -O2 -g")
+#set(CMAKE_EXE_LINKER_FLAGS "")
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-g")
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O2")
+set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "-O2 -g")
 
 add_subdirectory(llvm)
 
+# ${CLANGPP_CXXFLAGS} = -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
+# ${CLANGPP_LDFLAGS} = -L/usr/lib/llvm/12/lib64  -lLLVM-12
+set(llvm_cxxflags -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
+set(llvm_ldflags -L/usr/lib/llvm/12/lib64  -lLLVM-12)
+
 # handle special target for IR_generator.cpp
-add_library(irgen OBJECT llvm/IR_generator.cpp)
-target_compile_options(irgen PUBLIC ${CLANGPP_CXXFLAGS})
+add_library(irgen OBJECT llvm/IR_generator.cpp ca.tab.h)
+target_compile_options(irgen PRIVATE ${llvm_cxxflags})
+target_include_directories(irgen PRIVATE . ${CMAKE_CURRENT_BINARY_DIR})
+
+#add_dependencies(irgen ca.tab.h)
 
 #  ca.h config.h dotgraph.h symtable.h utils.h llvm/IR_generator.h ca.l ca.y
 add_executable(ca ca.y ca.l ca.tab.c lex.yy.c ca_parser.c dotgraph.cpp symtable_cpp.cpp utils.c $<TARGET_OBJECTS:irgen>)
+target_link_options(ca PRIVATE ${llvm_ldflags})
 
 # default to debug version without an postfix, when need it just uncomment following one
 #set_target_properties(ca PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})

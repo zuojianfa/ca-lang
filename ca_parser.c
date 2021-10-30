@@ -683,10 +683,15 @@ int inference_expr_type(ASTNode *p) {
   case TTE_Id:
     return p->entry->u.var->datatype ? p->entry->u.var->datatype->type : 0;
   case TTE_As:
-    // NEXT TODO: implemnent as here
     type1 = inference_expr_type(p->exprasn.expr);
+    if (!as_type_convertable(type1, p->exprasn.type->type)) {
+      yyerror("line: %d, column: %d, type `%s` cannot convert (as) to type `%s`",
+		p->begloc.row, p->begloc.col,
+		get_type_string(type1), get_type_string(p->exprasn.type->type));
+      return -1;
+    }
     
-    break;
+    return p->exprasn.type->type;
   case TTE_Expr:
     if (p->exprn.expr_type)
       return p->exprn.expr_type;
@@ -793,7 +798,18 @@ int determine_expr_type(ASTNode *node, int typetok) {
       node->entry->u.var->datatype = catype_get_by_name(symname_check(name));
     }
     break;
-    // NEXT TODO: implemnent as here
+  case TTE_As:
+    //if (!as_type_convertable(typetok, node->exprasn.type->type)) {
+    if (typetok != node->exprasn.type->type) {
+      yyerror("line: %d, column: %d, type `%s` cannot convert (as) to type `%s`",
+		p->begloc.row, p->begloc.col,
+		get_type_string(typetok), get_type_string(node->exprasn.type->type));
+      return -1;
+    }
+
+    determine_expr_type(node->exprasn.expr, typetok);
+
+    break;
   case TTE_Expr:
     if (node->exprn.expr_type)
       return node->exprn.expr_type;
