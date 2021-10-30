@@ -1135,19 +1135,152 @@ using ICO = Instruction::CastOps;
 
 // VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
 // Trunc ZExt SExt FPToUI FPToSI UIToFP SIToFP FPTrunc FPExt PtrToInt IntToPtr BitCast AddrSpaceCast
-static Instruction::CastOps llvmtype_cast_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID + 1] = {
-  {ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin, ICO::CastOpsBegin}, // VOID to others is disabled
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
-  {ICO::CastOpsBegin, },
+// CastOpsBegin stand for no need convert, CastOpsEnd stand for cannot convert
+static Instruction::CastOps
+llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
+  { // Begin VOID
+    ICO::CastOpsBegin, /* VOID */
+    ICO::CastOpsEnd,   /* I32 */
+    ICO::CastOpsEnd,   /* I64 */
+    ICO::CastOpsEnd,   /* U32 */
+    ICO::CastOpsEnd,   /* U64 */
+    ICO::CastOpsEnd,   /* F32 */
+    ICO::CastOpsEnd,   /* F64 */
+    ICO::CastOpsEnd,   /* BOOL */
+    ICO::CastOpsEnd,   /* CHAR */
+    ICO::CastOpsEnd,   /* UCHAR */
+    ICO::CastOpsEnd    /* STRUCT */
+  },                   // VOID -> ?
+  { // Begin I32
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::CastOpsBegin, /* I32 */
+    ICO::SExt,         /* I64 */
+    ICO::BitCast,      /* U32 */
+    ICO::SExt,         /* U64 */
+    ICO::SIToFP,       /* F32 */
+    ICO::SIToFP,       /* F64 */
+    ICO::CastOpsEnd,   /* BOOL */
+    ICO::Trunc,        /* CHAR */
+    ICO::Trunc,        /* UCHAR */
+    ICO::CastOpsEnd,   /* STRUCT */
+  },                   // I32 ->
+  { // Begin I64
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::Trunc,	       /* I32 */
+    ICO::CastOpsBegin, /* I64 */
+    ICO::Trunc,	       /* U32 */
+    ICO::BitCast,      /* U64 */
+    ICO::SIToFP,       /* F32 */
+    ICO::SIToFP,       /* F64 */
+    ICO::CastOpsEnd,   /* BOOL */
+    ICO::Trunc,	       /* CHAR */
+    ICO::Trunc,	       /* UCHAR */
+    ICO::CastOpsEnd,   /* STRUCT */
+  },                   // I64 ->
+  { // Begin U32
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::BitCast,      /* I32 */
+    ICO::ZExt,	       /* I64 */
+    ICO::CastOpsBegin, /* U32 */
+    ICO::ZExt,	       /* U64 */
+    ICO::UIToFP,       /* F32 */
+    ICO::UIToFP,       /* F64 */
+    ICO::CastOpsEnd,   /* BOOL */
+    ICO::Trunc,	       /* CHAR */
+    ICO::Trunc,	       /* UCHAR */
+    ICO::CastOpsEnd    /* STRUCT */
+  },                   // U32 ->
+  { // Begin U64
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::Trunc,	       /* I32 */
+    ICO::BitCast,      /* I64 */
+    ICO::Trunc,	       /* U32 */
+    ICO::CastOpsBegin, /* U64 */
+    ICO::UIToFP,       /* F32 */
+    ICO::UIToFP,       /* F64 */
+    ICO::CastOpsEnd,   /* BOOL */
+    ICO::Trunc,	       /* CHAR */
+    ICO::Trunc,	       /* UCHAR */
+    ICO::CastOpsEnd    /* STRUCT */
+  },                   // U64 ->
+  { // Begin F32
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::FPToSI,       /* I32 */
+    ICO::FPToSI,       /* I64 */
+    ICO::FPToUI,       /* U32 */
+    ICO::FPToUI,       /* U64 */
+    ICO::CastOpsBegin, /* F32 */
+    ICO::FPExt,	       /* F64 */
+    ICO::CastOpsEnd,   /* BOOL */
+    ICO::FPToSI,       /* CHAR */
+    ICO::FPToUI,       /* UCHAR */
+    ICO::CastOpsEnd    /* STRUCT */
+  },                   // F32 ->
+  { // Begin F64
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::FPToSI,       /* I32 */
+    ICO::FPToSI,       /* I64 */
+    ICO::FPToUI,       /* U32 */
+    ICO::FPToUI,       /* U64 */
+    ICO::FPTrunc,      /* F32 */
+    ICO::CastOpsBegin, /* F64 */
+    ICO::CastOpsEnd,   /* BOOL */
+    ICO::FPToSI,       /* CHAR */
+    ICO::FPToUI,       /* UCHAR */
+    ICO::CastOpsEnd    /* STRUCT */
+  },                   // F64 ->
+  { // Begin BOOL
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::ZExt,	       /* I32 */
+    ICO::ZExt,	       /* I64 */
+    ICO::ZExt,	       /* U32 */
+    ICO::ZExt,	       /* U64 */
+    ICO::CastOpsEnd,   /* F32 */
+    ICO::CastOpsEnd,   /* F64 */
+    ICO::CastOpsBegin, /* BOOL */
+    ICO::ZExt,	       /* CHAR */
+    ICO::ZExt,	       /* UCHAR */
+    ICO::CastOpsEnd    /* STRUCT */
+  },                   // BOOL ->
+  { // Begin CHAR
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::SExt,	       /* I32 */
+    ICO::SExt,	       /* I64 */
+    ICO::SExt,	       /* U32 */
+    ICO::SExt,	       /* U64 */
+    ICO::SIToFP,       /* F32 */
+    ICO::SIToFP,       /* F64 */
+    ICO::CastOpsEnd ,  /* BOOL */
+    ICO::CastOpsBegin, /* CHAR */
+    ICO::BitCast,      /* UCHAR */
+    ICO::CastOpsEnd    /* STRUCT */
+  },                   // CHAR ->
+  { // Begin UCHAR
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::ZExt,	       /* I32 */
+    ICO::ZExt,	       /* I64 */
+    ICO::ZExt,	       /* U32 */
+    ICO::ZExt,	       /* U64 */
+    ICO::UIToFP,       /* F32 */
+    ICO::UIToFP,       /* F64 */
+    ICO::CastOpsEnd,   /* BOOL */
+    ICO::BitCast,      /* CHAR */
+    ICO::CastOpsBegin, /* UCHAR */
+    ICO::CastOpsEnd    /* STRUCT */
+  },                   // UCHAR ->
+  { // Begin STRUCT
+    ICO::CastOpsEnd,   /* VOID */
+    ICO::CastOpsEnd,   /* I32 */
+    ICO::CastOpsEnd,   /* I64 */
+    ICO::CastOpsEnd,   /* U32 */
+    ICO::CastOpsEnd,   /* U64 */
+    ICO::CastOpsEnd,   /* F32 */
+    ICO::CastOpsEnd,   /* F64 */
+    ICO::CastOpsEnd,   /* BOOL */
+    ICO::CastOpsEnd,   /* CHAR */
+    ICO::CastOpsEnd,   /* UCHAR */
+    ICO::CastOpsEnd,   /* STRUCT */
+  },                   // STRUCT ->
 };
 
 static Instruction::CastOps gen_cast_ops(int fromtok, int totok) {
