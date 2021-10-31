@@ -16,8 +16,8 @@ fn div(v1: f64, v2: f64) -> f64 {
 
 let a = add(3, 4);
 let b = sub(19, 3);
-let m = mul(a, b);
-let d = div(b, a);
+let m = mul(a as f32, b as f32);
+let d = div(b as f64, a as f64);
 
 print a; print '\n';
 print b; print '\n';

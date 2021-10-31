@@ -1,17 +1,17 @@
 fn main() {
-let a = 1;
-print a; print '\n';
-let b = 1;
-print b; print '\n';
-let c = 0;
-let t = 0;
-while (c < 100000000) {
+    let a = 1;
+    print a; print '\n';
+    let b = 1;
+    print b; print '\n';
+    let c = 0;
+    let t = 0;
+    while (c < 100000000) {
 	t = a;
 	a = b;
 	b = t + a;
 	c = c + 1;
-}
+    }
 
-print b;
+    print b;
 
 }

@@ -2,5 +2,5 @@ fn simple(a: i64) -> i64 {
     return a;
 }
 
-simple(1);
+return simple(101) as i32;
 

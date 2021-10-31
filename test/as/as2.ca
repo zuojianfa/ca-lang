@@ -17,6 +17,17 @@ fn test_i32_as(v: i32) {
     let h = a as f32;
     let i = a as f64;
     //let j = a as bool;
+
+    print a; print ' ';
+    print b; print ' ';
+    print c; print ' ';
+    print d; print ' ';
+    print e; print ' ';
+    print f; print ' ';
+    print g; print ' ';
+    print h; print ' ';
+    print i; print ' ';
+    print '\n';
 }
 
 fn test_i64_as(v: i64) {
@@ -30,6 +41,17 @@ fn test_i64_as(v: i64) {
     let h = a as f32;
     let i = a as f64;
     //let j = a as bool;
+
+    print a; print ' ';
+    print b; print ' ';
+    print c; print ' ';
+    print d; print ' ';
+    print e; print ' ';
+    print f; print ' ';
+    print g; print ' ';
+    print h; print ' ';
+    print i; print ' ';
+    print '\n';
 }
 
 fn test_u32_as(v: u32) {
@@ -43,6 +65,17 @@ fn test_u32_as(v: u32) {
     let h = a as f32;
     let i = a as f64;
     //let j = a as bool;
+
+    print a; print ' ';
+    print b; print ' ';
+    print c; print ' ';
+    print d; print ' ';
+    print e; print ' ';
+    print f; print ' ';
+    print g; print ' ';
+    print h; print ' ';
+    print i; print ' ';
+    print '\n';
 }
 
 fn test_u64_as(v: u64) {
@@ -56,6 +89,17 @@ fn test_u64_as(v: u64) {
     let h = a as f32;
     let i = a as f64;
     //let j = a as bool;
+
+    print a; print ' ';
+    print b; print ' ';
+    print c; print ' ';
+    print d; print ' ';
+    print e; print ' ';
+    print f; print ' ';
+    print g; print ' ';
+    print h; print ' ';
+    print i; print ' ';
+    print '\n';
 }
 
 fn test_f32_as(v: f32) {
@@ -69,6 +113,17 @@ fn test_f32_as(v: f32) {
     let h = a as f32;
     let i = a as f64;
     //let j = a as bool;
+
+    print a; print ' ';
+    print b; print ' ';
+    print c; print ' ';
+    print d; print ' ';
+    print e; print ' ';
+    print f; print ' ';
+    print g; print ' ';
+    print h; print ' ';
+    print i; print ' ';
+    print '\n';
 }
 
 fn test_f64_as(v: f64) {
@@ -82,6 +137,17 @@ fn test_f64_as(v: f64) {
     let h = a as f32;
     let i = a as f64;
     //let j = a as bool;
+
+    print a; print ' ';
+    print b; print ' ';
+    print c; print ' ';
+    print d; print ' ';
+    print e; print ' ';
+    print f; print ' ';
+    print g; print ' ';
+    print h; print ' ';
+    print i; print ' ';
+    print '\n';
 }
 
 fn test_bool_as(v: bool) {
@@ -95,6 +161,17 @@ fn test_bool_as(v: bool) {
     //let h = a as f32;
     //let i = a as f64;
     let j = a as bool;
+
+    print a; print ' ';
+    print b; print ' ';
+    print c; print ' ';
+    print d; print ' ';
+    print e; print ' ';
+    print f; print ' ';
+    print g; print ' ';
+    //print h; print ' ';
+    //print i; print ' ';
+    print '\n';
 }
 
 fn test_char_as(v: char) {
@@ -108,6 +185,17 @@ fn test_char_as(v: char) {
     let h = a as f32;
     let i = a as f64;
     //let j = a as bool;
+
+    print a; print ' ';
+    print b; print ' ';
+    print c; print ' ';
+    print d; print ' ';
+    print e; print ' ';
+    print f; print ' ';
+    print g; print ' ';
+    print h; print ' ';
+    print i; print ' ';
+    print '\n';
 }
 
 fn test_uchar_as(v: uchar) {
@@ -121,12 +209,29 @@ fn test_uchar_as(v: uchar) {
     let h = a as f32;
     let i = a as f64;
     //let j = a as bool;
+
+    print a; print ' ';
+    print b; print ' ';
+    print c; print ' ';
+    print d; print ' ';
+    print e; print ' ';
+    print f; print ' ';
+    print g; print ' ';
+    print h; print ' ';
+    print i; print ' ';
+    print '\n';
 }
 
 fn main() {
     test_i32_as(100);
-    test_i64_as(10000000000);
+    test_i64_as(10000000066);
     test_u32_as(100);
-    test_u64_as(10000000000);
+    test_u64_as(10000000077);
+    test_f32_as(100.32);
+    test_f64_as(10000000000.322);
+    test_bool_as(true);
+    test_bool_as(false);
+    test_char_as('a');
+    test_uchar_as(33);
 }
 

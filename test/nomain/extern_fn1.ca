@@ -20,10 +20,10 @@ extern fn func80(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool, h: cha
 extern fn func90(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool, h: char, i: uchar) -> uchar;
 extern fn func_a0(a: i32, b: i64, c: u32, d: u64, e: f32, f: f64, g: bool, h: char, i: uchar, hha: i64) -> i32;
 
-fn main() {
-let a = 1;
+#fn main() {
+ddlet a = 0;
 let b = 2;
 let c = a + b;
 
 print c;
-}
+#}
