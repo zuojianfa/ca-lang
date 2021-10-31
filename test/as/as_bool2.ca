@@ -1,0 +1,4 @@
+fn main() {
+    let a = 3f32;
+    let b = a as bool; 
+}

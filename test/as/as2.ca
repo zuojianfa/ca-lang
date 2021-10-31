@@ -1,0 +1,132 @@
+fn func1(a: i32, b: i64) -> i64 {
+    return a as i64 + b;
+}
+
+fn func2(a: f32, b: f64) -> f32 {
+    return a + b as f32;
+}
+
+fn test_i32_as(v: i32) {
+    let a: i32 = v;
+    let b = a as i32;
+    let c = a as i64;
+    let d = a as u32;
+    let e = a as u64;
+    let f = a as char;
+    let g = a as uchar;
+    let h = a as f32;
+    let i = a as f64;
+    //let j = a as bool;
+}
+
+fn test_i64_as(v: i64) {
+    let a = v;
+    let b = a as i32;
+    let c = a as i64;
+    let d = a as u32;
+    let e = a as u64;
+    let f = a as char;
+    let g = a as uchar;
+    let h = a as f32;
+    let i = a as f64;
+    //let j = a as bool;
+}
+
+fn test_u32_as(v: u32) {
+    let a = v;
+    let b = a as i32;
+    let c = a as i64;
+    let d = a as u32;
+    let e = a as u64;
+    let f = a as char;
+    let g = a as uchar;
+    let h = a as f32;
+    let i = a as f64;
+    //let j = a as bool;
+}
+
+fn test_u64_as(v: u64) {
+    let a = v;
+    let b = a as i32;
+    let c = a as i64;
+    let d = a as u32;
+    let e = a as u64;
+    let f = a as char;
+    let g = a as uchar;
+    let h = a as f32;
+    let i = a as f64;
+    //let j = a as bool;
+}
+
+fn test_f32_as(v: f32) {
+    let a = v;
+    let b = a as i32;
+    let c = a as i64;
+    let d = a as u32;
+    let e = a as u64;
+    let f = a as char;
+    let g = a as uchar;
+    let h = a as f32;
+    let i = a as f64;
+    //let j = a as bool;
+}
+
+fn test_f64_as(v: f64) {
+    let a = v;
+    let b = a as i32;
+    let c = a as i64;
+    let d = a as u32;
+    let e = a as u64;
+    let f = a as char;
+    let g = a as uchar;
+    let h = a as f32;
+    let i = a as f64;
+    //let j = a as bool;
+}
+
+fn test_bool_as(v: bool) {
+    let a = v;
+    let b = a as i32;
+    let c = a as i64;
+    let d = a as u32;
+    let e = a as u64;
+    let f = a as char;
+    let g = a as uchar;
+    //let h = a as f32;
+    //let i = a as f64;
+    let j = a as bool;
+}
+
+fn test_char_as(v: char) {
+    let a = v;
+    let b = a as i32;
+    let c = a as i64;
+    let d = a as u32;
+    let e = a as u64;
+    let f = a as char;
+    let g = a as uchar;
+    let h = a as f32;
+    let i = a as f64;
+    //let j = a as bool;
+}
+
+fn test_uchar_as(v: uchar) {
+    let a = v;
+    let b = a as i32;
+    let c = a as i64;
+    let d = a as u32;
+    let e = a as u64;
+    let f = a as char;
+    let g = a as uchar;
+    let h = a as f32;
+    let i = a as f64;
+    //let j = a as bool;
+}
+
+fn main() {
+    test_i32_as(100);
+    test_i64_as(10000000000);
+    test_u32_as(100);
+    test_u64_as(10000000000);
+}
+

@@ -1139,147 +1139,147 @@ using ICO = Instruction::CastOps;
 static Instruction::CastOps
 llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
   { // Begin VOID
-    ICO::CastOpsBegin, /* VOID */
-    ICO::CastOpsEnd,   /* I32 */
-    ICO::CastOpsEnd,   /* I64 */
-    ICO::CastOpsEnd,   /* U32 */
-    ICO::CastOpsEnd,   /* U64 */
-    ICO::CastOpsEnd,   /* F32 */
-    ICO::CastOpsEnd,   /* F64 */
-    ICO::CastOpsEnd,   /* BOOL */
-    ICO::CastOpsEnd,   /* CHAR */
-    ICO::CastOpsEnd,   /* UCHAR */
-    ICO::CastOpsEnd    /* STRUCT */
+    (ICO)0,            /* VOID */
+    (ICO)-1,           /* I32 */
+    (ICO)-1,           /* I64 */
+    (ICO)-1,           /* U32 */
+    (ICO)-1,           /* U64 */
+    (ICO)-1,           /* F32 */
+    (ICO)-1,           /* F64 */
+    (ICO)-1,           /* BOOL */
+    (ICO)-1,           /* CHAR */
+    (ICO)-1,           /* UCHAR */
+    (ICO)-1            /* STRUCT */
   },                   // VOID -> ?
   { // Begin I32
-    ICO::CastOpsEnd,   /* VOID */
-    ICO::CastOpsBegin, /* I32 */
+    (ICO)-1,           /* VOID */
+    (ICO)0,            /* I32 */
     ICO::SExt,         /* I64 */
     ICO::BitCast,      /* U32 */
     ICO::SExt,         /* U64 */
     ICO::SIToFP,       /* F32 */
     ICO::SIToFP,       /* F64 */
-    ICO::CastOpsEnd,   /* BOOL */
+    (ICO)-1,           /* BOOL */
     ICO::Trunc,        /* CHAR */
     ICO::Trunc,        /* UCHAR */
-    ICO::CastOpsEnd,   /* STRUCT */
+    (ICO)-1,           /* STRUCT */
   },                   // I32 ->
   { // Begin I64
-    ICO::CastOpsEnd,   /* VOID */
+    (ICO)-1,           /* VOID */
     ICO::Trunc,	       /* I32 */
-    ICO::CastOpsBegin, /* I64 */
+    (ICO)0,            /* I64 */
     ICO::Trunc,	       /* U32 */
     ICO::BitCast,      /* U64 */
     ICO::SIToFP,       /* F32 */
     ICO::SIToFP,       /* F64 */
-    ICO::CastOpsEnd,   /* BOOL */
+    (ICO)-1,           /* BOOL */
     ICO::Trunc,	       /* CHAR */
     ICO::Trunc,	       /* UCHAR */
-    ICO::CastOpsEnd,   /* STRUCT */
+    (ICO)-1,           /* STRUCT */
   },                   // I64 ->
   { // Begin U32
-    ICO::CastOpsEnd,   /* VOID */
+    (ICO)-1,           /* VOID */
     ICO::BitCast,      /* I32 */
     ICO::ZExt,	       /* I64 */
-    ICO::CastOpsBegin, /* U32 */
+    (ICO)0,            /* U32 */
     ICO::ZExt,	       /* U64 */
     ICO::UIToFP,       /* F32 */
     ICO::UIToFP,       /* F64 */
-    ICO::CastOpsEnd,   /* BOOL */
+    (ICO)-1,           /* BOOL */
     ICO::Trunc,	       /* CHAR */
     ICO::Trunc,	       /* UCHAR */
-    ICO::CastOpsEnd    /* STRUCT */
+    (ICO)-1            /* STRUCT */
   },                   // U32 ->
   { // Begin U64
-    ICO::CastOpsEnd,   /* VOID */
+    (ICO)-1,           /* VOID */
     ICO::Trunc,	       /* I32 */
     ICO::BitCast,      /* I64 */
     ICO::Trunc,	       /* U32 */
-    ICO::CastOpsBegin, /* U64 */
+    (ICO)0,            /* U64 */
     ICO::UIToFP,       /* F32 */
     ICO::UIToFP,       /* F64 */
-    ICO::CastOpsEnd,   /* BOOL */
+    (ICO)-1,           /* BOOL */
     ICO::Trunc,	       /* CHAR */
     ICO::Trunc,	       /* UCHAR */
-    ICO::CastOpsEnd    /* STRUCT */
+    (ICO)-1            /* STRUCT */
   },                   // U64 ->
   { // Begin F32
-    ICO::CastOpsEnd,   /* VOID */
+    (ICO)-1,           /* VOID */
     ICO::FPToSI,       /* I32 */
     ICO::FPToSI,       /* I64 */
     ICO::FPToUI,       /* U32 */
     ICO::FPToUI,       /* U64 */
-    ICO::CastOpsBegin, /* F32 */
+    (ICO)0,            /* F32 */
     ICO::FPExt,	       /* F64 */
-    ICO::CastOpsEnd,   /* BOOL */
+    (ICO)-1,           /* BOOL */
     ICO::FPToSI,       /* CHAR */
     ICO::FPToUI,       /* UCHAR */
-    ICO::CastOpsEnd    /* STRUCT */
+    (ICO)-1            /* STRUCT */
   },                   // F32 ->
   { // Begin F64
-    ICO::CastOpsEnd,   /* VOID */
+    (ICO)-1,           /* VOID */
     ICO::FPToSI,       /* I32 */
     ICO::FPToSI,       /* I64 */
     ICO::FPToUI,       /* U32 */
     ICO::FPToUI,       /* U64 */
     ICO::FPTrunc,      /* F32 */
-    ICO::CastOpsBegin, /* F64 */
-    ICO::CastOpsEnd,   /* BOOL */
+    (ICO)0,            /* F64 */
+    (ICO)-1,           /* BOOL */
     ICO::FPToSI,       /* CHAR */
     ICO::FPToUI,       /* UCHAR */
-    ICO::CastOpsEnd    /* STRUCT */
+    (ICO)-1            /* STRUCT */
   },                   // F64 ->
   { // Begin BOOL
-    ICO::CastOpsEnd,   /* VOID */
+    (ICO)-1,           /* VOID */
     ICO::ZExt,	       /* I32 */
     ICO::ZExt,	       /* I64 */
     ICO::ZExt,	       /* U32 */
     ICO::ZExt,	       /* U64 */
-    ICO::CastOpsEnd,   /* F32 */
-    ICO::CastOpsEnd,   /* F64 */
-    ICO::CastOpsBegin, /* BOOL */
+    (ICO)-1,           /* F32 */
+    (ICO)-1,           /* F64 */
+    (ICO)0,            /* BOOL */
     ICO::ZExt,	       /* CHAR */
     ICO::ZExt,	       /* UCHAR */
-    ICO::CastOpsEnd    /* STRUCT */
+    (ICO)-1            /* STRUCT */
   },                   // BOOL ->
   { // Begin CHAR
-    ICO::CastOpsEnd,   /* VOID */
+    (ICO)-1,           /* VOID */
     ICO::SExt,	       /* I32 */
     ICO::SExt,	       /* I64 */
     ICO::SExt,	       /* U32 */
     ICO::SExt,	       /* U64 */
     ICO::SIToFP,       /* F32 */
     ICO::SIToFP,       /* F64 */
-    ICO::CastOpsEnd ,  /* BOOL */
-    ICO::CastOpsBegin, /* CHAR */
+    (ICO)-1 ,          /* BOOL */
+    (ICO)0,            /* CHAR */
     ICO::BitCast,      /* UCHAR */
-    ICO::CastOpsEnd    /* STRUCT */
+    (ICO)-1            /* STRUCT */
   },                   // CHAR ->
   { // Begin UCHAR
-    ICO::CastOpsEnd,   /* VOID */
+    (ICO)-1,           /* VOID */
     ICO::ZExt,	       /* I32 */
     ICO::ZExt,	       /* I64 */
     ICO::ZExt,	       /* U32 */
     ICO::ZExt,	       /* U64 */
     ICO::UIToFP,       /* F32 */
     ICO::UIToFP,       /* F64 */
-    ICO::CastOpsEnd,   /* BOOL */
+    (ICO)-1,           /* BOOL */
     ICO::BitCast,      /* CHAR */
-    ICO::CastOpsBegin, /* UCHAR */
-    ICO::CastOpsEnd    /* STRUCT */
+    (ICO)0,            /* UCHAR */
+    (ICO)-1            /* STRUCT */
   },                   // UCHAR ->
   { // Begin STRUCT
-    ICO::CastOpsEnd,   /* VOID */
-    ICO::CastOpsEnd,   /* I32 */
-    ICO::CastOpsEnd,   /* I64 */
-    ICO::CastOpsEnd,   /* U32 */
-    ICO::CastOpsEnd,   /* U64 */
-    ICO::CastOpsEnd,   /* F32 */
-    ICO::CastOpsEnd,   /* F64 */
-    ICO::CastOpsEnd,   /* BOOL */
-    ICO::CastOpsEnd,   /* CHAR */
-    ICO::CastOpsEnd,   /* UCHAR */
-    ICO::CastOpsEnd,   /* STRUCT */
+    (ICO)-1,           /* VOID */
+    (ICO)-1,           /* I32 */
+    (ICO)-1,           /* I64 */
+    (ICO)-1,           /* U32 */
+    (ICO)-1,           /* U64 */
+    (ICO)-1,           /* F32 */
+    (ICO)-1,           /* F64 */
+    (ICO)-1,           /* BOOL */
+    (ICO)-1,           /* CHAR */
+    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* STRUCT */
   },                   // STRUCT ->
 };
 
@@ -1295,12 +1295,22 @@ static void walk_as(ASTNode *node) {
     diinfo->emit_location(node->endloc.row, node->endloc.col);
 
   walk_stack(exprn);
-  auto calco = pop_right_operand("tmpexpr");
 
   int stypetok = get_expr_type_from_tree(exprn, 0);
   Instruction::CastOps castopt = gen_cast_ops(stypetok, type->type);
-  Type *stype = gen_type_from_token(type->type);
-  Value *v = ir1.gen_cast_value(castopt, calco->operand, stype);
+  if (castopt == (ICO)-1) {
+    yyerror("line: %d, column: %d, cannot convert `%s` into `%s`",
+	    node->begloc.row, node->begloc.col,
+	    get_type_string(stypetok), get_type_string(type->type));
+    return;
+  }
+
+  auto calco = pop_right_operand("tmpexpr");
+  Value *v = calco->operand;
+  if (castopt != (ICO)0) {
+    Type *stype = gen_type_from_token(type->type);
+    v = ir1.gen_cast_value(castopt, v, stype);
+  }
  
   auto u = std::make_unique<CalcOperand>(calco->type, v, type->type);
   oprand_stack.push_back(std::move(u));

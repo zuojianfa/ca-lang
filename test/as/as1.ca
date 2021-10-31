@@ -1,0 +1,7 @@
+fn main() {
+    let a = 32i32;
+    let b: i64 = 23;
+    let c = (a as i64 + b) as i32;
+    print c; print '\n';
+}
+

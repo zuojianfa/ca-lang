@@ -69,3 +69,14 @@ do_test(t "32.*344.343231.*3.123000.*A.*1.*323.122300.*.*return value:.*" ca ../
 set(test_case_seq 1)
 do_test(nomain " " ca ../test/nomain/0.ca)
 do_test(nomain " " ca ../test/nomain/1.ca)
+
+
+set(test_case_seq 1)
+do_test(ca "55" ca ../test/as/as1.ca)
+do_test(ca "line: 3, column: 17, cannot convert `i64` into `bool`" ca ../test/as/as_bool.ca)
+do_test(ca "line: 3, column: 17, cannot convert `f32` into `bool`" ca ../test/as/as_bool2.ca)
+do_test(ca " " ca ../test/as/as_bool3.ca)
+
+do_test(ca "55" ca ../test/as/as_bool3.ca)
+do_test(ca "55" ca ../test/as/as_bool3.ca)
+
