@@ -10,6 +10,22 @@
 TODO: symbol table also stores the semantic information such as symbol type, width, default value, etc. But the syntax tree (ST) stores syntax information. For error recovery processing, you can construct ST without considering the semantic meanings even when existing semantic errors, so in this time the compiler can report semantic error or even modification suggestions, while continuary construct ST. the procedure becomes: Construct syntax tree NOT STOP, do semantic checking, report error.
 */
 
+/*
+about main function insertion:
+when not use `-main` option: then all should no changed
+when use `-main` option: do following things
+  1. here will insert main function, and all global statement will be in main function body
+  2. the global variable will use `#[scope(global)]` property to specified
+  3. initialize a symbol table for main function
+  4. create a ASTNode structure for main function
+  5. the symbol table layer will be g_root_symtable -> ((user) defined | main) function -> inner scope symbol table
+  6. with `-main`, when out of defined function grammar scope will switch to main function scope
+  7. without `-main`, when out of defined function grammar scope, will switch to g_root_symtable scope
+  8. with `-main`, all defined variable have a function scope, either belongs defined or main function or when
+     `#[scope(global)]` specified, the variable will belongs global
+  9. without `-main`, function variable belong to function, global function belongs to global
+*/
+
 int yylex(void);
 void yyerror(const char *s, ...);
 
@@ -21,6 +37,7 @@ extern SymTable *curr_symtable;
 
 /* mainly for label processing, because label is function scope symbol */
 extern SymTable *curr_fn_symtable;
+extern SymTable *g_main_symtable;
 
 extern int borning_var_type;
 extern int extern_flag;
@@ -96,10 +113,17 @@ fn_call:	IDENT '(' fn_args_call ')' { $$ = make_fn_call($1, $3); }
 
 fn_proto:	FN IDENT
 		{
+		    if (enable_emit_main()) {
+			// popup generated main function, current will be global symbol table
+		        pop_symtable();
+		    }
+
 		    SymTable *st = push_new_symtable();
 		    if (!extern_flag) {
 			/* begin processing a new function, so create new symbol table */
 			curr_fn_symtable = st;
+		    } else {
+			curr_fn_symtable = NULL;
 		    }
 
 		    curr_arglist.argc = 0;

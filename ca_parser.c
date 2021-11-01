@@ -13,6 +13,12 @@ RootTree *gtree = NULL;
 
 /* the root symbol table for global symbols and layer 0 statement running */
 SymTable g_root_symtable;
+
+ASTNode *main_fn_node = NULL;
+
+// the generated (when use `-main` option) main function symbol table
+SymTable *g_main_symtable = NULL;
+
 SymTable *curr_symtable = NULL;
 
 /* mainly for label processing, because label is function scope symbol */
@@ -47,6 +53,8 @@ extern int gcolno;
 void yyerror(const char *s, ...);
 int walk(RootTree *tree);
 
+int enable_emit_main() { return genv.emit_main; }
+
 int make_program() {
   dot_emit("program", "paragraphs");
   gtree->root_symtable = &g_root_symtable;
@@ -67,7 +75,14 @@ ASTNode *make_fn_def(ASTNode *proto, ASTNode *body) {
   pop_symtable();
 
   curr_fn_rettype = 0;
-  curr_fn_symtable = &g_root_symtable;
+  curr_fn_symtable = NULL;
+
+  if (enable_emit_main()) {
+    // push generated main function, current will be the main symbol table
+    push_symtable(g_main_symtable);
+    curr_fn_symtable = g_main_symtable;
+  }
+
   return proto;
 }
 
@@ -81,6 +96,13 @@ ASTNode *make_fn_decl(ASTNode *proto) {
   pop_symtable();
   extern_flag = 0;
   curr_fn_rettype = 0;
+
+  if (enable_emit_main()) {
+    // push generated main function, current will be the main symbol table
+    push_symtable(g_main_symtable);
+    curr_fn_symtable = g_main_symtable;
+  }
+
   return proto;
 }
 
@@ -289,6 +311,12 @@ SymTable *push_new_symtable() {
     return st;
 }
 
+SymTable *push_symtable(SymTable *st) {
+    st->parent = curr_symtable;
+    curr_symtable = st;
+    return st;
+}
+
 SymTable *pop_symtable() {
   if (curr_symtable != &g_root_symtable)
     curr_symtable = curr_symtable->parent;
@@ -411,8 +439,20 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
   dot_emit("stmt", "vardef");
 
   /* TODO: in the future realize multiple let statement in one scope */
+
+  SymTable *symtable = curr_symtable;
+
+  if (enable_emit_main() /* `curr_symtable == g_main_symtable` already include the judgement */) {
+    // it is in generated main function scope, in this time
+    if (curr_symtable == g_main_symtable && 0 /* TODO: check `#[scope(global)]` is set */) {
+      // generate a global variable, use global symbol table here
+      symtable = &g_root_symtable;
+    }
+    // all else generate local variable against main or defined function
+  }
+
   int id = var->name;
-  STEntry *entry = sym_getsym(curr_symtable, id, 0);
+  STEntry *entry = sym_getsym(symtable, id, 0);
   if (entry) {
     yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
 	    glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
@@ -465,13 +505,15 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
   }
 #endif
 
-  entry = sym_insert(curr_symtable, id, Sym_Variable);
+  entry = sym_insert(symtable, id, Sym_Variable);
   entry->u.var = var;
 
   ASTNode *idn = make_id(id);
   idn->entry = entry;
+  idn->symtable = symtable;
 
   ASTNode *node = make_expr('=', 2, idn, exprn);
+  node->symtable = symtable;
   borning_var_type = 0;
   return node;
 }
@@ -1519,9 +1561,13 @@ int yyparser_init() {
     }
 
     curr_symtable = &g_root_symtable;
-    curr_fn_symtable = &g_root_symtable;
+    curr_fn_symtable = NULL;
+    if (enable_emit_main()) {
+      main_fn_node = build_mock_main_fn_node();
+      g_main_symtable = push_new_symtable();
+      curr_fn_symtable = g_main_symtable;
+    }
 
-    
     return 0;
 }
 

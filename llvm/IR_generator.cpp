@@ -97,7 +97,7 @@ static llvm::Function *main_fn = nullptr;
 static llvm::Function *curr_fn = nullptr;
 static ASTNode *curr_fn_node = nullptr;
 static llvm::BasicBlock *main_bb = nullptr;
-static ASTNode *main_fn_node = nullptr;
+extern ASTNode *main_fn_node;
 static llvm::DIFile *diunit = nullptr;
 static std::vector<std::unique_ptr<CalcOperand>> oprand_stack;
 
@@ -141,7 +141,6 @@ static std::pair<Value *, int> pop_right_value(const char *name = "load") {
 }
 
 static int enable_debug_info() { return genv.emit_debug; }
-static int enable_emit_main() { return genv.emit_main; }
 
 static Type *gen_type_from_token(int tok) {
   switch (tok) {
@@ -378,7 +377,9 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
     Type *type = gen_type_from_token(p->entry->u.var->datatype->type);
     const char *typestr = get_type_string(p->entry->u.var->datatype->type);
-    if (curr_fn == main_fn) {
+
+    // TODO: here determine if `#[scope(global)]` is specified
+    if (curr_fn == main_fn && (!main_fn || 0 /* scope_global ? 1 : 0 */)) {
       var = ir1.gen_global_var(type, name, defval);
       if (enable_debug_info())
 	emit_global_var_dbginfo(name, typestr, p->endloc.row);
@@ -1372,7 +1373,6 @@ static int llvm_codegen_begin(RootTree *tree) {
   if (enable_emit_main()) {
     main_fn = ir1.gen_function(ir1.int_type<int>(), "main", std::vector<Type *>());
     main_bb = ir1.gen_bb("entry", main_fn);
-    main_fn_node = build_mock_main_fn_node();
     main_fn_node->fndefn.retbb = (void *)ir1.gen_bb("ret");
 
     curr_fn_node = main_fn_node;

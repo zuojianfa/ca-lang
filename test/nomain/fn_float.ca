@@ -1,0 +1,8 @@
+fn func1() {
+	let a = 43.21f32;
+	let b = 33.1f32;
+	let c = a * b;
+	print c;
+}
+
+func1();

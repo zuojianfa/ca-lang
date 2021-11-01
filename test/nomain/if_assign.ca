@@ -1,7 +1,7 @@
 let a = 2;
 
 fn func() {
-    let b = if (a == 1) {
+    let b = ife (a == 1) {
         1 
     } else {
         2

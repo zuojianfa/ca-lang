@@ -1,9 +1,10 @@
 // let c = input();
 let ab = 2;
-if (ab == 1)
+if (ab == 1) {
 	goto l1;
-else
+} else {
 	goto l2;
+}
 
 l1:
 	print 1;

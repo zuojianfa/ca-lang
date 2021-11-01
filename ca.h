@@ -129,8 +129,10 @@ typedef struct RootTree {
   int count;
 } RootTree;
 
+int enable_emit_main();
 void check_return_type(int fnrettype);
 SymTable *push_new_symtable();
+SymTable *push_symtable(SymTable *st);
 SymTable *pop_symtable();
 int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 int add_fn_args_actual(SymTable *st, ASTNode *arg);

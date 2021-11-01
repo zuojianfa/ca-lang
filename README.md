@@ -153,7 +153,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [ ] add other atomic type
 - [ ] add record (struct) type
 - [ ] add pointer type
-- [ ] add type convertion `as` keyword
+- [x] add type convertion `as` keyword
 - [ ] support multiple compile unit and link them together
 - [ ] support rust grammar
   - [ ] loop
@@ -170,6 +170,19 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support comment
 - [ ] support `0xxxxxxxx` literal
 - [ ] when `-main` provided the global variable should use `#[scope(global)]` grammar to specifiy if it is a global variable
+  - [x] try default global variable as local variable in generated `main` function
+  - [ ] add `#[scope(global)]` grammar
+
+  after adding global grammars the semantic will be:
+  - `#[scope(global)]` can only used to describe the declare variables in non-function
+  - when compiling with `-main`
+	- the variable declare in non-function will be local variable in generated main function
+	- use `#[scope(global)]` ahead of global variable declare will be the global variable
+  - when no `-main` option
+	- the variable declare in non-function will be global variable
+	- `#[scope(global)]` have the same effect as with `-main` option, so it's no affect to non-function variables
+- [ ] how to cope with: when use `-main` but the source file already defined a main function?
+  detect the conflicting
 
 ## Makefile
 - [ ] use cmake to build the system
@@ -211,7 +224,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
-- [ ] TODO: implement as expression
+- [ ] handle logical operation type convert, in function `IR1::gen_sub` ..., and case '<', etc
+- [ ] implement `#[scope(global)]` directive
 - [ ] fix cmake file, let ca.y ca.l into dependency list, when they changed should make related source code
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] support other atomic type
