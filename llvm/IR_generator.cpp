@@ -111,6 +111,7 @@ static std::map<std::string, ASTNode *> function_map;
 static std::map<Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
 
 static int walk_stack(ASTNode *p);
+extern RootTree *gtree;
 
 static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load") {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
@@ -253,14 +254,14 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname,
 static void walk_empty(ASTNode *p) {}
 
 static int64_t parse_to_int64(CALiteral *value) {
-  if (catype_is_float(value->datatype->type))
+  if (catype_is_float(value->littypetok))
     return (int64_t)value->u.f64value;
   else
     return value->u.i64value;
 }
 
 static double parse_to_double(CALiteral *value) {
-  if (catype_is_float(value->datatype->type))
+  if (catype_is_float(value->littypetok))
     return value->u.f64value;
   else
     return (double)value->u.i64value;
@@ -344,7 +345,7 @@ static Value *walk_literal(ASTNode *p) {
 
   Value *v = gen_literal_value(&p->litn.litv, typetok, p->begloc);
 
-  auto operands = std::make_unique<CalcOperand>(OT_Const, v, p->litn.litv.intent_type);
+  auto operands = std::make_unique<CalcOperand>(OT_Const, v, typetok);
   oprand_stack.push_back(std::move(operands));
 
   return v;
@@ -1733,6 +1734,8 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "program `%s` :\n", genv.src_path);
 
   yyparse();
+  
+  walk(gtree);
 
   dot_finalize();
 

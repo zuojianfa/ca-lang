@@ -46,6 +46,8 @@ extern ST_ArgList curr_arglist;
 extern int glineno;
 extern int gcolno;
 
+extern int yychar, yylineno;
+
 %}/* symbol table */
 
 %define parse.error detailed
@@ -85,13 +87,17 @@ extern int gcolno;
 %type	<idtok>		type_postfix
 %type	<datatype>	datatype instance_type ret_type
 
+%start program
+
 %%
 
-program:	paragraphs { return make_program(); }
+program:	paragraphs { make_program(); }
+		/* TODO: this should added in other place that need error recovery and syntax advince */
+	|	error { yyerror("%d: error occur, on `%d`", yylineno, yychar); }
 		;
 
 paragraphs:	paragraphs paragraph { make_paragraphs($2); }
-	|       {dot_emit("paragraphs", ""); /*empty */ }
+	|       {dot_emit("paragraphs", ""); /*empty */ } /* when not allow empty source file */
 		;
 
 paragraph:     	stmt     { dot_emit("paragraph", "stmt"); }

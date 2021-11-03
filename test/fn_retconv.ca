@@ -1,0 +1,8 @@
+fn func1() -> i64 {
+	return 4;
+}
+
+fn main() {
+	let a = func1();
+}
+

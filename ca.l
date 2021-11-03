@@ -23,6 +23,8 @@ int gcolno = 0;
 	} while(0)
 %}
 
+%option yylineno
+
 %%
 
 0	        { ULL(); set_litbuf(&yylval.litb, yytext, yyleng, U64); return LITERAL; }

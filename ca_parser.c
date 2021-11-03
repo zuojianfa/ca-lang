@@ -49,6 +49,7 @@ extern int glineno_prev;
 extern int gcolno_prev;
 extern int glineno;
 extern int gcolno;
+extern int yychar, yylineno;
 
 void yyerror(const char *s, ...);
 int walk(RootTree *tree);
@@ -58,7 +59,6 @@ int enable_emit_main() { return genv.emit_main; }
 int make_program() {
   dot_emit("program", "paragraphs");
   gtree->root_symtable = &g_root_symtable;
-  walk(gtree);
   return 0;
 }
 
@@ -659,35 +659,36 @@ int inference_literal_type(CALiteral *lit) {
   const char *text = symname_get(lit->textid);
   int littypetok = lit->littypetok;
   int badscope = 0;
+  int intentdeftype = 0;
 
   // handle non-fixed type literal value
   switch (littypetok) {
   case I64:
-    lit->intent_type = I32;
+    intentdeftype = I32;
     lit->u.i64value = atoll(text);
     badscope = check_i64_value_scope(lit->u.i64value, I32);
     break;
   case U64:
-    lit->intent_type = I32;
+    intentdeftype = I32;
     sscanf(text, "%lu", &lit->u.i64value);
     badscope = check_u64_value_scope((uint64_t)lit->u.i64value, I32);
     break;
   case F64:
-    lit->intent_type = F64;
+    intentdeftype = F64;
     badscope = check_f64_value_scope(lit->u.f64value, F64);
     lit->u.f64value = atof(text);
     break;
   case BOOL:
-    lit->intent_type = BOOL;
+    intentdeftype = BOOL;
     lit->u.i64value = atoll(text) ? 1 : 0;
     break;
   case CHAR:
-    lit->intent_type = CHAR;
+    intentdeftype = CHAR;
     lit->u.i64value = (char)parse_lexical_char(text);
     badscope = check_char_value_scope(lit->u.i64value, CHAR);
     break;
   case UCHAR:
-    lit->intent_type = UCHAR;
+    intentdeftype = UCHAR;
     lit->u.i64value = (uint8_t)parse_lexical_char(text);
     badscope = check_uchar_value_scope(lit->u.i64value, UCHAR);
     break;
@@ -698,15 +699,15 @@ int inference_literal_type(CALiteral *lit) {
 
   if (badscope) {
     yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	    glineno, gcolno, get_type_string(littypetok), get_type_string(lit->intent_type));
+	    glineno, gcolno, get_type_string(littypetok), get_type_string(intentdeftype));
     return 0;
   }
 
-  const char *name = get_type_string(lit->intent_type);
+  const char *name = get_type_string(intentdeftype);
   lit->datatype = catype_get_by_name(symname_check(name));
   lit->fixed_type = 1;
 
-  return lit->intent_type;
+  return intentdeftype;
 }
 
 // inference and set the expr type for the expr, when the expr have no a
@@ -1477,6 +1478,8 @@ ASTNode *make_ident_expr(int id) {
 ASTNode *make_as(ASTNode *expr, CADataType *type) {
   dot_emit("expr", "expr AS datatype");
 
+  inference_expr_type(expr);
+
   ASTNode *p;
   /* allocate node */
   if ((p = malloc(sizeof(ASTNode))) == NULL)
@@ -1536,6 +1539,8 @@ NodeChain *node_chain(RootTree *tree, ASTNode *p) {
 }
 
 void yyerror(const char *s, ...) {
+  fprintf(stderr, "[line: %d, token: %d] ", yylineno, yychar);
+
   va_list ap;
   va_start(ap, s);
   int n = vfprintf(stderr, s, ap);

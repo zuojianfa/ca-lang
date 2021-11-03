@@ -1,0 +1,12 @@
+-> u32
+fdsafd
+fdsafds
+fds afds 
+dlet a = 0;
+let2 b = 2;
+let c = a + b;
+
+print c;
+
+fn main() {
+}
