@@ -6,6 +6,17 @@ project(ca
   HOMEPAGE_URL "https://gitee.com/zuojianfa/ca"
   LANGUAGES CXX C)
 
+message("OS: " ${CMAKE_SYSTEM})
+message("OS name: " ${CMAKE_SYSTEM_NAME})
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  set(LINUX 1)
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+  set(WINDOWS 1)
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL "AIX")
+  set(AIX 1)
+endif()
+
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER clang++)
 #set(CMAKE_YACC_COMPILER bison)
@@ -61,12 +72,12 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-g")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O2")
 set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "-O2 -g")
 
-add_subdirectory(llvm)
-
 # ${CLANGPP_CXXFLAGS} = -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
 # ${CLANGPP_LDFLAGS} = -L/usr/lib/llvm/12/lib64  -lLLVM-12
 set(llvm_cxxflags -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 set(llvm_ldflags -L/usr/lib/llvm/12/lib64  -lLLVM-12)
+
+add_subdirectory(llvm)
 
 # handle special target for IR_generator.cpp
 add_library(irgen OBJECT llvm/IR_generator.cpp ca.tab.h)

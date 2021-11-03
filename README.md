@@ -169,9 +169,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support c variant parameter function
 - [x] support comment
 - [ ] support `0xxxxxxxx` literal
-- [ ] when `-main` provided the global variable should use `#[scope(global)]` grammar to specifiy if it is a global variable
+- [x] when `-main` provided the global variable should use `#[scope(global)]` grammar to specifiy if it is a global variable
   - [x] try default global variable as local variable in generated `main` function
-  - [ ] add `#[scope(global)]` grammar
+  - [x] add `#[scope(global)]` grammar
 
   after adding global grammars the semantic will be:
   - `#[scope(global)]` can only used to describe the declare variables in non-function
@@ -225,12 +225,10 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
 - [ ] handle logical operation type convert, in function `IR1::gen_sub` ..., and case '<', etc
-- [ ] implement `#[scope(global)]` directive
-- [ ] fix cmake file, let ca.y ca.l into dependency list, when they changed should make related source code
-- [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] support other atomic type
 - [ ] support point type
 - [ ] support array type
+- [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] debug support inner field scope, 
 
 detailed TODO LIST:

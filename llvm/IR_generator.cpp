@@ -379,8 +379,8 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
     Type *type = gen_type_from_token(p->entry->u.var->datatype->type);
     const char *typestr = get_type_string(p->entry->u.var->datatype->type);
 
-    // TODO: here determine if `#[scope(global)]` is specified
-    if (curr_fn == main_fn && (!main_fn || 0 /* scope_global ? 1 : 0 */)) {
+    // here determine if `#[scope(global)]` is specified
+    if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
       var = ir1.gen_global_var(type, name, defval);
       if (enable_debug_info())
 	emit_global_var_dbginfo(name, typestr, p->endloc.row);

@@ -39,6 +39,7 @@ int gcolno = 0;
 
 \/\/.*$         { ULL(); /* return COMMENT; */ }
 [-()<>=+*/;{}.:,]	{ ULL(); return *yytext; }
+\#|\[|\]        { ULL(); return *yytext; }
 ">="		{ ULL(); return GE; }
 "<="		{ ULL(); return LE; }
 "=="		{ ULL(); return EQ; }

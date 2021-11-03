@@ -1,6 +1,7 @@
-let x = 32;
-let y = 53;
-let z = 0;
+#[scope(global)] let x = 32;
+#[scope(global)] let y = 53;
+#[scope(global)] let z = 0;
+
 let a = 0;
 
 fn tmpf() -> i32 {

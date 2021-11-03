@@ -175,7 +175,7 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
 //ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
 //ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
 ASTNode *make_id(int id);
-ASTNode *make_vardef(CAVariable *var, ASTNode *exprn);
+ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global);
 ASTNode *make_assign(int id, ASTNode *exprn);
 ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);

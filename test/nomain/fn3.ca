@@ -1,3 +1,4 @@
+#[scope(global)]
 let count = 0;
 
 fn fn1() -> f64{

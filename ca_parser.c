@@ -1,5 +1,6 @@
 
 #include <alloca.h>
+#include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
 
@@ -435,16 +436,39 @@ ASTNode *make_id(int i) {
     return p;
 }
 
-ASTNode *make_vardef(CAVariable *var, ASTNode *exprn) {
+int make_attrib_scope(int attrfn, int attrparam) {
+  const char *scope = symname_get(attrfn);
+  const char *global = symname_get(attrparam);
+  if (strcmp(scope, "scope")) {
+    yyerror("line: %d, col: %d: attribute function here only support `scope`",
+	    glineno, gcolno);
+    return -1;
+  }
+
+  if (strcmp(global, "global") && strcmp(global, "local")) {
+    yyerror("line: %d, col: %d: attribute function only support `scope`",
+	    glineno, gcolno);
+    return -1;
+  }
+
+  return attrparam;
+}
+
+ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global) {
   dot_emit("stmt", "vardef");
 
   /* TODO: in the future realize multiple let statement in one scope */
 
   SymTable *symtable = curr_symtable;
+  var->global = 0;
 
-  if (enable_emit_main() /* `curr_symtable == g_main_symtable` already include the judgement */) {
-    // it is in generated main function scope, in this time
-    if (curr_symtable == g_main_symtable && 0 /* TODO: check `#[scope(global)]` is set */) {
+  // curr_symtable == g_main_symtable` already include the judgement
+  if (enable_emit_main()) {
+    // only take effect when `-main` used to generate main function
+    var->global = global;
+
+    // it is in generated main function scope, and `#[scope(global)]` is provided
+    if (curr_symtable == g_main_symtable && var->global) {
       // generate a global variable, use global symbol table here
       symtable = &g_root_symtable;
     }
@@ -753,6 +777,12 @@ int inference_expr_type(ASTNode *p) {
 
     p->exprn.expr_type = type1;
     return type1;
+  case TTE_If:
+    if (p->ifn.isexpr) {
+      // TODO: here return the if expression's type
+      return 0;
+    }
+    // else failed
   default:
     yyerror("line: %d, col: %d: the expression already typed, no need to do inference",
 	    glineno, gcolno);

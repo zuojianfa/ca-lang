@@ -102,6 +102,7 @@ typedef struct IdToken {
 typedef struct CAVariable {
   CADataType *datatype;
   int name;
+  int global; // is global variable
 
   // opaque memory, for storing llvm Value * type, used here for code generation, in code generation it will be filled and used, when type is Variable
   void *llvm_value;

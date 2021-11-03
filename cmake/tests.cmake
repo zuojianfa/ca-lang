@@ -65,12 +65,14 @@ do_test(t "13.500000.*57.830000.*13.500000.*57.830000.*1.*2.*3.*4.*5.*6.200000.*
 do_test(t "10.000000.*79.800000.*57.830000.*2.170000.*50.530000.*12.340000.*.*return value: 0" ca ../test/type5.ca)
 do_test(t "6.200000\n13.500000" ca ../test/type6.ca)
 do_test(t "32.*344.343231.*3.123000.*A.*1.*323.122300.*.*return value:.*" ca ../test/typed_var1.ca)
+do_test(t "return value: 4" ca ../test/fn_retconv.ca)
 
 # when not exist main function
 set(test_case_seq 1)
 do_test(nomain " " ca -main ../test/nomain/0.ca)
 do_test(nomain " " ca -main ../test/nomain/1.ca)
-do_test(nomain " " ca -c ../test/nomain/extern_call2_assist.ca ../test/extern_call2_assist.o)
+do_test(nomain .* ca -c ../test/nomain/extern_call2_assist.ca ../test/extern_call2_assist.o)
+do_test(nomain "T ca_add" nm ../test/extern_call2_assist.o)
 do_test(nomain " " ca -main ../test/nomain/extern_call2.ca)
 do_test(nomain "3" ca -main ../test/nomain/extern_fn1.ca)
 do_test(nomain "Hello ca!" ca -main ../test/nomain/extern_putchar.ca)

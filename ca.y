@@ -79,10 +79,10 @@ extern int yychar, yylineno;
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
-%type	<astnode>	ifstmt stmt_list_star block_body
+%type	<astnode>	ifstmt stmt_list_star block_body let_stmt
 %type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
 %type	<var>		iddef iddef_typed
-%type	<symnameid>	label_id
+%type	<symnameid>	label_id attrib_scope
 %type	<symnameid>	atomic_type struct_type
 %type	<idtok>		type_postfix
 %type	<datatype>	datatype instance_type ret_type
@@ -161,7 +161,7 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	PRINT expr ';'          { $$ = make_stmt_print($2); }
 	|	RET expr ';'            { $$ = make_stmt_ret_expr($2); }
 	|	RET ';'		        { $$ = make_stmt_ret(); }
-	|	LET iddef '=' expr ';'  { $$ = make_vardef($2, $4); }
+	|	let_stmt                { $$ = $1; }
 	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
@@ -170,6 +170,13 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	label_def               { dot_emit("stmt", "label_def"); $$ = $1; }
 	|	GOTO label_id ';'       { $$ = make_goto($2); }
 		;
+
+attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
+	;
+
+let_stmt:	attrib_scope LET iddef '=' expr ';'  { $$ = make_vardef($3, $5, 1); }
+	|	LET iddef '=' expr ';'               { $$ = make_vardef($2, $4, 0); }
+	;
 
 ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
 		;
