@@ -108,3 +108,7 @@ do_test(as " " ca ../test/as/as_bool3.ca)
 #do_test(ca "55" ca ../test/as/as_bool3.ca)
 #do_test(ca "55" ca ../test/as/as_bool3.ca)
 
+
+set(test_case_seq 1)
+do_test(cmp "211232223232232" ca ../test/cmp/cmp1.ca)
+

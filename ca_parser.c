@@ -1569,7 +1569,7 @@ NodeChain *node_chain(RootTree *tree, ASTNode *p) {
 }
 
 void yyerror(const char *s, ...) {
-  fprintf(stderr, "[line: %d, token: %d] ", yylineno, yychar);
+  fprintf(stderr, "[grammar line: %d, token: %d] ", yylineno, yychar);
 
   va_list ap;
   va_start(ap, s);

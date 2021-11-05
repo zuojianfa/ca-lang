@@ -1,5 +1,5 @@
 fn main() {
-    if (1) {
+    if (true) {
         print 1; print 'H'; print 'L'; print '\n';
         3;
     } else {

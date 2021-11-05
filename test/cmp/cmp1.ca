@@ -1,0 +1,101 @@
+fn main() {
+    if (1 > 2) {
+        print '1';
+    } else {
+        print '2';
+    }
+
+    if (true) {
+        print true;
+    } else {
+        print false;
+    }
+
+    if (false) {
+        print false;
+    } else {
+        print true;
+    }
+
+    let a = 2;
+    let b = 3;
+    if (a < b) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    if (a > b) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    a = 3;
+    b = 3;
+    if (a <= b) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    if (a >= b) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    if (a == b) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    if (a != b) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    let c = 2.2;
+    let d = 3.3;
+    if (c < d) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    if (c > d) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    c = 2.2;
+    d = 2.2;
+    if (c <= d) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    if (c >= d) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    if (c != d) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+    if (c == d) {
+        print 2;
+    } else {
+        print 3;
+    }
+
+}
+

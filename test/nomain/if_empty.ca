@@ -1,4 +1,4 @@
-print ife (1) {
+print ife (true) {
 	101
 } else {
 	102

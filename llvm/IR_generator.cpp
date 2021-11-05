@@ -462,7 +462,16 @@ static void walk_while(ASTNode *p) {
   walk_stack(p->whilen.cond);
   auto pair = pop_right_value("cond");
   Value *cond = pair.first;
-  cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "while_cond_cmp");
+  if (pair.second != BOOL) {
+    // when grammar also support other type compare, here should convert the other
+    // type into bool type, like following, but need generate compare with right
+    // type not hardcoded `int` type
+    //cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
+    yyerror("line: %d, col: %d: condition only accept `bool` type, but find `%s`",
+	    p->begloc.row, p->begloc.col, get_type_string(pair.second));
+    return;
+  }
+
   ir1.builder().CreateCondBr(cond, whilebb, endwhilebb);
 
   curr_fn->getBasicBlockList().push_back(whilebb);
@@ -498,7 +507,15 @@ static void walk_if(ASTNode *p) {
   walk_stack(p->ifn.conds[0]);
   auto pair = pop_right_value("cond");
   Value *cond = pair.first;
-  cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
+  if (pair.second != BOOL) {
+    // when grammar also support other type compare, here should convert the other
+    // type into bool type, like following, but need generate compare with right
+    // type not hardcoded `int` type
+    //cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
+    yyerror("line: %d, col: %d: condition only accept `bool` type, but find `%s`",
+	    p->begloc.row, p->begloc.col, get_type_string(pair.second));
+    return;
+  }
 
   int tt1 = 0, tt2 = 0;
 
@@ -824,9 +841,16 @@ static void walk_stmt_call(ASTNode *p) {
   }
 
   bool isvoidty = fn->getReturnType()->isVoidTy();
+
+  auto itr = function_map.find(fnname);
+  if (itr == function_map.end()) {
+    yyerror("line: %d, col: %d: cannot find function '%s' node",
+	    p->begloc.row, p->begloc.col, fnname);
+    return;
+  }
  
   CallInst *callret = ir1.builder().CreateCall(fn, argv, isvoidty ? "" : fnname);
-  auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, -1);
+  auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, itr->second->fndecln.ret->type);
   oprand_stack.push_back(std::move(operands));
 }
 
@@ -878,6 +902,40 @@ static void walk_stmt_ret(ASTNode *p) {
   g_with_ret_value = true;
 }
 
+static std::pair<int, const char *> cmp_op_index(int op) {
+  switch(op) {
+  case '<': return std::make_pair(0, "lt");
+  case '>': return std::make_pair(1, "gt");
+  case GE: return std::make_pair(2, "ge");
+  case LE: return std::make_pair(3, "le");
+  case NE: return std::make_pair(4, "ne");
+  case EQ: return std::make_pair(5, "eq");
+  default: return std::make_pair(0x7fffffff, "unknown");
+  }
+}
+
+// row: VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
+// col: < > GE LE NE EQ
+static CmpInst::Predicate s_cmp_predicate[ATOMTYPE_END-VOID][6] = {
+  {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // VOID
+  {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // I32
+  {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // I64
+  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // U32
+  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // U64
+  {CmpInst::FCMP_OLT, CmpInst::FCMP_OGT, CmpInst::FCMP_OGE, CmpInst::FCMP_OLE, CmpInst::FCMP_ONE, CmpInst::FCMP_OEQ}, // F32
+  {CmpInst::FCMP_OLT, CmpInst::FCMP_OGT, CmpInst::FCMP_OGE, CmpInst::FCMP_OLE, CmpInst::FCMP_ONE, CmpInst::FCMP_OEQ}, // F64
+  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // BOOL
+  {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // CHAR
+  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // UCHAR
+  {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // STRUCT
+};
+
+static Value *generate_cmp_op(int typetok, Value *v1, Value *v2, int op) {
+  auto pair = cmp_op_index(op);
+  CmpInst::Predicate pred = s_cmp_predicate[typetok - VOID][pair.first];
+  return ir1.builder().CreateCmp(pred, v1, v2, pair.second);
+}
+
 static void walk_stmt_expr(ASTNode *p) {
   walk_stack(p->exprn.operands[0]);
   auto pair1 = pop_right_value("v1");
@@ -886,6 +944,8 @@ static void walk_stmt_expr(ASTNode *p) {
   Value *v1 = pair1.first;
   Value *v2 = pair2.first;
   Value *v3 = nullptr;
+
+  // TODO: here should can use pair1.second pair2.second
   int type1 = get_expr_type_from_tree(p->exprn.operands[0], 0);
   int type2 = get_expr_type_from_tree(p->exprn.operands[1], 0);
 
@@ -912,28 +972,13 @@ static void walk_stmt_expr(ASTNode *p) {
     v3 = ir1.gen_div(v1, v2);
     break;
   case '<':
-    v3 = ir1.builder().CreateICmpSLT(v1, v2, "lt");
-    v3 = ir1.builder().CreateSExt(v3, ir1.int_type<int>());
-    break;
   case '>':
-    v3 = ir1.builder().CreateICmpSGT(v1, v2, "gt");
-    v3 = ir1.builder().CreateSExt(v3, ir1.int_type<int>());
-    break;
   case GE:
-    v3 = ir1.builder().CreateICmpSGE(v1, v2, "ge");
-    v3 = ir1.builder().CreateSExt(v3, ir1.int_type<int>());
-    break;
   case LE:
-    v3 = ir1.builder().CreateICmpSGE(v1, v2, "le");
-    v3 = ir1.builder().CreateSExt(v3, ir1.int_type<int>());
-    break;
   case NE:
-    v3 = ir1.builder().CreateICmpNE(v1, v2, "ne");
-    v3 = ir1.builder().CreateSExt(v3, ir1.int_type<int>());
-    break;
   case EQ:
-    v3 = ir1.builder().CreateICmpEQ(v1, v2, "eq");
-    v3 = ir1.builder().CreateSExt(v3, ir1.int_type<int>());
+    v3 = generate_cmp_op(type1, v1, v2, p->exprn.op);
+    type1 = BOOL; // BOOL for 1 bit of bool type
     break;
   default:
     yyerror("unknown expression operands: %d", p->exprn.op);

@@ -18,7 +18,7 @@ fn fib(count: i32) -> i32 {
 
 fn main() {
     let cond = 0;
-    if (cond) {
+    if (cond != 0) {
         print 101;
     } else {
         print 201;

@@ -13,15 +13,15 @@ fn func1() {
 fn func2() {
     print a;
     print_hello();
-    if (1) {
+    if (true) {
         let a = 3;
         print a;
         print_hello();
-        if (1) {
+        if (true) {
             let a = 4;
             print a;
             print_hello();
-            if (0) {
+            if (false) {
                 let a = 5;
                 print a;
                 print_hello();
