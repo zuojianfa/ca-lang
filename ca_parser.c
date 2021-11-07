@@ -9,6 +9,7 @@
 #include "dotgraph.h"
 #include "symtable.h"
 #include "config.h"
+#include "type_system.h"
 
 RootTree *gtree = NULL;
 
@@ -230,7 +231,7 @@ CADataType *make_ret_type_void() {
 }
 
 void make_type_postfix(IdToken *idt, int id, int typetok) {
-  dot_emit("type_postfix", "I32");
+  dot_emit("type_postfix", get_type_string(typetok));
   idt->symnameid = id;
   idt->typetok = typetok;
 }
@@ -246,7 +247,6 @@ void check_return_type(int fnrettype) {
 // true, false means boolean, it cannot apply any postfix
 // if postfixtypetok == -1, means only get type from littypetok or both typetok will be considered to check the error messages
 
-// def_lit_type
 // U64 stand for positive integer value in lexical
 // I64 stand for positive integer value in lexical
 // F64 stand for floating point number in lexical
@@ -655,7 +655,7 @@ const char *get_node_name_or_value(ASTNode *node) {
   }
 }
 
-static int parse_lexical_char(const char *text) {
+int parse_lexical_char(const char *text) {
   if (text[0] != '\\')
     return text[0];
 
@@ -670,68 +670,6 @@ static int parse_lexical_char(const char *text) {
     yyerror("line: %d, col: %d: unimplemented special character", glineno, gcolno);
     return -1;
   }
-}
-
-// inference and set the literal type for the literal, when the literal have no
-// a determined type, different from `determine_literal_type`, the later is used by passing a defined type  
-int inference_literal_type(CALiteral *lit) {
-  if (lit->fixed_type) {
-    // no need inference, should report an error
-    return lit->datatype->type;
-  }
-
-  const char *text = symname_get(lit->textid);
-  int littypetok = lit->littypetok;
-  int badscope = 0;
-  int intentdeftype = 0;
-
-  // handle non-fixed type literal value
-  switch (littypetok) {
-  case I64:
-    intentdeftype = I32;
-    lit->u.i64value = atoll(text);
-    badscope = check_i64_value_scope(lit->u.i64value, I32);
-    break;
-  case U64:
-    intentdeftype = I32;
-    sscanf(text, "%lu", &lit->u.i64value);
-    badscope = check_u64_value_scope((uint64_t)lit->u.i64value, I32);
-    break;
-  case F64:
-    intentdeftype = F64;
-    badscope = check_f64_value_scope(lit->u.f64value, F64);
-    lit->u.f64value = atof(text);
-    break;
-  case BOOL:
-    intentdeftype = BOOL;
-    lit->u.i64value = atoll(text) ? 1 : 0;
-    break;
-  case CHAR:
-    intentdeftype = CHAR;
-    lit->u.i64value = (char)parse_lexical_char(text);
-    badscope = check_char_value_scope(lit->u.i64value, CHAR);
-    break;
-  case UCHAR:
-    intentdeftype = UCHAR;
-    lit->u.i64value = (uint8_t)parse_lexical_char(text);
-    badscope = check_uchar_value_scope(lit->u.i64value, UCHAR);
-    break;
-  default:
-    yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
-    return 0;
-  }
-
-  if (badscope) {
-    yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	    glineno, gcolno, get_type_string(littypetok), get_type_string(intentdeftype));
-    return 0;
-  }
-
-  const char *name = get_type_string(intentdeftype);
-  lit->datatype = catype_get_by_name(symname_check(name));
-  lit->fixed_type = 1;
-
-  return intentdeftype;
 }
 
 // inference and set the expr type for the expr, when the expr have no a
@@ -788,70 +726,6 @@ int inference_expr_type(ASTNode *p) {
 	    glineno, gcolno);
     return 0;
   }
-}
-
-// determine and set the literal type for the literal for a specified type,
-// different from `inference_literal_type` which have no a defined type
-// parameter
-void determine_literal_type(CALiteral *lit, int typetok) {
-  if (!typetok || typetok == VOID)
-    return;
-
-  int littypetok = lit->littypetok;
-
-  // check convertable
-  if (!literal_type_convertable(littypetok, typetok)) {
-    yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	    glineno, gcolno,
-	    get_type_string(littypetok), get_type_string(typetok));
-    return;
-  }
-
-  const char *text = symname_get(lit->textid);
-
-  int badscope = 0;
-
-  // check literal value scope
-  switch (littypetok) {
-  case I64: // I64 stand for positive integer value in lexical
-    lit->u.i64value = atoll(text);
-    badscope = check_i64_value_scope(lit->u.i64value, typetok);
-    break;
-  case U64:
-    sscanf(text, "%lu", &lit->u.i64value);
-    badscope = check_u64_value_scope((uint64_t)lit->u.i64value, typetok);
-    break;
-  case F64:
-    lit->u.f64value = atof(text);
-    badscope = check_f64_value_scope(lit->u.f64value, typetok);
-    break;
-  case BOOL:
-    lit->u.i64value = atoll(text) ? 1 : 0;
-    badscope = (typetok != BOOL);
-    break;
-  case CHAR:
-    lit->u.i64value = (char)parse_lexical_char(text);
-    badscope = check_char_value_scope(lit->u.i64value, typetok);
-    break;
-  case UCHAR:
-    lit->u.i64value = (uint8_t)parse_lexical_char(text);
-    badscope = check_uchar_value_scope(lit->u.i64value, typetok);
-    break;
-  default:
-    yyerror("line: %d, col: %d: %s type have no lexical value",
-	    glineno, gcolno, get_type_string(littypetok));
-    break;
-  }
-
-  if (badscope) {
-    yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	    glineno, gcolno, get_type_string(littypetok), get_type_string(typetok));
-    return;
-  }
-
-  const char *name = get_type_string(typetok);
-  lit->datatype = catype_get_by_name(symname_check(name));
-  lit->fixed_type = 1;
 }
 
 // determine and set the expr type for the expr for a specified type, different

@@ -29,6 +29,9 @@
 #include <vector>
 #include "ca.h"
 
+#include "type_system.h"
+#include "type_system_llvm.h"
+
 #ifdef __cplusplus
 BEGIN_EXTERN_C
 #endif
@@ -143,33 +146,6 @@ static std::pair<Value *, int> pop_right_value(const char *name = "load") {
 
 static int enable_debug_info() { return genv.emit_debug; }
 
-static Type *gen_type_from_token(int tok) {
-  switch (tok) {
-  case VOID:
-    return ir1.void_type();
-  case I32:
-    return ir1.int_type<int>();
-  case I64:
-    return ir1.int_type<int64_t>();
-  case U32:
-    return ir1.int_type<uint32_t>();
-  case U64:
-    return ir1.int_type<uint64_t>();
-  case F32:
-    return ir1.float_type<float>();
-  case F64:
-    return ir1.float_type<double>();
-  case BOOL:
-    return ir1.bool_type();
-  case CHAR:
-    return ir1.int_type<int8_t>();
-  case UCHAR:
-    return ir1.int_type<uint8_t>();
-  default:
-    return nullptr;
-  }
-}
-
 static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, int startrow) {
   int row = startrow;
   int scope_row = row;
@@ -252,81 +228,6 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname,
 }
 
 static void walk_empty(ASTNode *p) {}
-
-static int64_t parse_to_int64(CALiteral *value) {
-  if (catype_is_float(value->littypetok))
-    return (int64_t)value->u.f64value;
-  else
-    return value->u.i64value;
-}
-
-static double parse_to_double(CALiteral *value) {
-  if (catype_is_float(value->littypetok))
-    return value->u.f64value;
-  else
-    return (double)value->u.i64value;
-}
-
-static int can_type_binding(CALiteral *lit, int typetok) {
-  switch (lit->datatype->type) {
-  case I64:
-    return !check_i64_value_scope(lit->u.i64value, typetok);
-  case U64:
-    return !check_u64_value_scope((uint64_t)lit->u.i64value, typetok);
-  case F64:
-    return !check_f64_value_scope(lit->u.f64value, typetok);
-  case BOOL:
-    return (typetok == BOOL);
-  case CHAR:
-    return !check_char_value_scope(lit->u.i64value, typetok);
-  case UCHAR:
-    return !check_uchar_value_scope(lit->u.i64value, typetok);
-  default:
-    yyerror("bad lexical literal type: '%s'", get_type_string(lit->datatype->type));
-    return 0;
-  }
-}
-
-static Value *gen_literal_value(CALiteral *value, int typetok, SLoc loc) {
-  // check if literal value type matches the given typetok, if not match, report error
-  if (value->fixed_type && value->datatype->type != typetok) {
-    yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
-	    loc.row, loc.col, get_type_string(value->datatype->type), get_type_string(typetok));
-    return nullptr;
-  }
-
-  if (!value->fixed_type && !can_type_binding(value, typetok)) {
-    yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
-	    loc.row, loc.col, get_type_string(value->datatype->type), get_type_string(typetok));
-    return nullptr;
-  }
-
-  switch (typetok) {
-  case VOID:
-    yyerror("line: %d, col: %d: void type have no literal value", loc.row, loc.col);
-    return nullptr;
-  case I32:
-    return ir1.gen_int((int)parse_to_int64(value));
-  case I64:
-    return ir1.gen_int(parse_to_int64(value));
-  case U32:
-    return ir1.gen_int((uint32_t)parse_to_int64(value));
-  case U64:
-    return ir1.gen_int((uint64_t)parse_to_int64(value));
-  case F32:
-    return ir1.gen_float((float)parse_to_double(value));
-  case F64:
-    return ir1.gen_float(parse_to_double(value));
-  case BOOL:
-    return ir1.gen_bool(!!parse_to_int64(value));
-  case CHAR:
-    return ir1.gen_int((char)parse_to_int64(value));
-  case UCHAR:
-    return ir1.gen_int((uint8_t)parse_to_int64(value));
-  default:
-    return nullptr;
-  }
-}
 
 static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
@@ -569,34 +470,6 @@ static void walk_if(ASTNode *p) {
   }
 }
 
-static const char *get_printf_format(int type) {
-  switch (type) {
-  case VOID:
-    yyerror("void type have no format value");
-    return "\n";
-  case I32:
-    return "%d";
-  case I64:
-    return "%ld";
-  case U32:
-    return "%u";
-  case U64:
-    return "%lu";
-  case F32:
-    return "%f";
-  case F64:
-    return "%lf";
-  case CHAR:
-    return "%c";
-  case UCHAR:
-    return "%c";
-  case BOOL:
-    return "%1d";
-  default:
-    return "\n";
-  }
-}
-
 static void walk_stmt_print(ASTNode *p) {
   walk_stack(p->exprn.operands[0]);
   auto pair = pop_right_value();
@@ -606,20 +479,10 @@ static void walk_stmt_print(ASTNode *p) {
     yyerror("cannot find declared extern printf function");
 
   const char *format = "%d\n";
+
   // handle expression value transfer
   format = get_printf_format(pair.second);
-  if (pair.second == F32)
-    v = ir1.builder().CreateFPExt(v, ir1.float_type<double>());
-
-#if 0
-  if (p->exprn.operands[0]->type == ASTNodeType::TTE_Literal)
-    format = get_printf_format(p->exprn.operands[0]->litn.litv.datatype->type);
-  else {
-    format = get_printf_format(p->exprn.operands[0]->entry->u.var->datatype->type);
-    if (p->exprn.operands[0]->entry->u.var->datatype->type == F32)
-      v = ir1.builder().CreateFPExt(v, ir1.float_type<double>());
-  }
-#endif
+  v = tidy_value_with_arith(v, pair.second);
 
   Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
   std::vector<Value *> printf_args(1, format_str);
@@ -773,10 +636,6 @@ static void walk_stmt_assign(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
-static bool is_unsigned_type(int type) {
-  return type == U32 || type == U64 || type == UCHAR;
-}
-
 static void walk_stmt_minus(ASTNode *p) {
   int type = get_expr_type_from_tree(p->exprn.operands[0], 0);
   if (is_unsigned_type(type)) {
@@ -873,7 +732,7 @@ static void walk_stmt_ret(ASTNode *p) {
 
     // match the function return value and the literal return value
     if (rettype != v->getType()) {
-      int rettypetok = curr_fn_node ? curr_fn_node->fndefn.fn_decl->fndecln.ret->type : I32;
+      int rettypetok = curr_fn_node->fndefn.fn_decl->fndecln.ret->type;
       int exprtypetok = get_expr_type_from_tree(retn, 0);
       yyerror("line: %d, column: %d, return value `%s` type '%s' not match function type '%s'",
 	      retn->begloc.row, retn->begloc.col, get_node_name_or_value(retn),
@@ -900,40 +759,6 @@ static void walk_stmt_ret(ASTNode *p) {
   ir1.builder().SetInsertPoint(bb);
 
   g_with_ret_value = true;
-}
-
-static std::pair<int, const char *> cmp_op_index(int op) {
-  switch(op) {
-  case '<': return std::make_pair(0, "lt");
-  case '>': return std::make_pair(1, "gt");
-  case GE: return std::make_pair(2, "ge");
-  case LE: return std::make_pair(3, "le");
-  case NE: return std::make_pair(4, "ne");
-  case EQ: return std::make_pair(5, "eq");
-  default: return std::make_pair(0x7fffffff, "unknown");
-  }
-}
-
-// row: VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
-// col: < > GE LE NE EQ
-static CmpInst::Predicate s_cmp_predicate[ATOMTYPE_END-VOID][6] = {
-  {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // VOID
-  {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // I32
-  {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // I64
-  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // U32
-  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // U64
-  {CmpInst::FCMP_OLT, CmpInst::FCMP_OGT, CmpInst::FCMP_OGE, CmpInst::FCMP_OLE, CmpInst::FCMP_ONE, CmpInst::FCMP_OEQ}, // F32
-  {CmpInst::FCMP_OLT, CmpInst::FCMP_OGT, CmpInst::FCMP_OGE, CmpInst::FCMP_OLE, CmpInst::FCMP_ONE, CmpInst::FCMP_OEQ}, // F64
-  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // BOOL
-  {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // CHAR
-  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // UCHAR
-  {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // STRUCT
-};
-
-static Value *generate_cmp_op(int typetok, Value *v1, Value *v2, int op) {
-  auto pair = cmp_op_index(op);
-  CmpInst::Predicate pred = s_cmp_predicate[typetok - VOID][pair.first];
-  return ir1.builder().CreateCmp(pred, v1, v2, pair.second);
 }
 
 static void walk_stmt_expr(ASTNode *p) {
@@ -1080,36 +905,11 @@ static void generate_final_return(ASTNode *p) {
     return;
   }
 
-  switch(p->fndefn.fn_decl->fndecln.ret->type) {
-  case I32:
-    ir1.builder().CreateRet(ir1.gen_int<int>(0));
-    break;
-  case I64:
-    ir1.builder().CreateRet(ir1.gen_int<int64_t>(0));
-    break;
-  case U32:
-    ir1.builder().CreateRet(ir1.gen_int<uint32_t>(0));
-    break;
-  case U64:
-    ir1.builder().CreateRet(ir1.gen_int<uint64_t>(0));
-    break;
-  case CHAR:
-    ir1.builder().CreateRet(ir1.gen_int<int8_t>(0));
-    break;
-  case UCHAR:
-    ir1.builder().CreateRet(ir1.gen_int<uint8_t>(0));
-    break;
-  case BOOL:
-    ir1.builder().CreateRet(ir1.gen_bool(true));
-    break;
-  case VOID:
+  Value *retv = create_def_value(p->fndefn.fn_decl->fndecln.ret->type);
+  if (retv)
+    ir1.builder().CreateRet(retv);
+  else
     ir1.builder().CreateRetVoid();
-    break;
-  default:
-    yyerror("return type `%s` not implemented",
-	    get_type_string(p->fndefn.fn_decl->fndecln.ret->type));
-    break;
- }
 }
 
 static Function *walk_fn_define(ASTNode *p) {
@@ -1176,162 +976,6 @@ static Function *walk_fn_define(ASTNode *p) {
   }
 
   return fn;
-}
-
-using ICO = Instruction::CastOps;
-
-// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
-// Trunc ZExt SExt FPToUI FPToSI UIToFP SIToFP FPTrunc FPExt PtrToInt IntToPtr BitCast AddrSpaceCast
-// CastOpsBegin stand for no need convert, CastOpsEnd stand for cannot convert
-static Instruction::CastOps
-llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
-  { // Begin VOID
-    (ICO)0,            /* VOID */
-    (ICO)-1,           /* I32 */
-    (ICO)-1,           /* I64 */
-    (ICO)-1,           /* U32 */
-    (ICO)-1,           /* U64 */
-    (ICO)-1,           /* F32 */
-    (ICO)-1,           /* F64 */
-    (ICO)-1,           /* BOOL */
-    (ICO)-1,           /* CHAR */
-    (ICO)-1,           /* UCHAR */
-    (ICO)-1            /* STRUCT */
-  },                   // VOID -> ?
-  { // Begin I32
-    (ICO)-1,           /* VOID */
-    (ICO)0,            /* I32 */
-    ICO::SExt,         /* I64 */
-    ICO::BitCast,      /* U32 */
-    ICO::SExt,         /* U64 */
-    ICO::SIToFP,       /* F32 */
-    ICO::SIToFP,       /* F64 */
-    (ICO)-1,           /* BOOL */
-    ICO::Trunc,        /* CHAR */
-    ICO::Trunc,        /* UCHAR */
-    (ICO)-1,           /* STRUCT */
-  },                   // I32 ->
-  { // Begin I64
-    (ICO)-1,           /* VOID */
-    ICO::Trunc,	       /* I32 */
-    (ICO)0,            /* I64 */
-    ICO::Trunc,	       /* U32 */
-    ICO::BitCast,      /* U64 */
-    ICO::SIToFP,       /* F32 */
-    ICO::SIToFP,       /* F64 */
-    (ICO)-1,           /* BOOL */
-    ICO::Trunc,	       /* CHAR */
-    ICO::Trunc,	       /* UCHAR */
-    (ICO)-1,           /* STRUCT */
-  },                   // I64 ->
-  { // Begin U32
-    (ICO)-1,           /* VOID */
-    ICO::BitCast,      /* I32 */
-    ICO::ZExt,	       /* I64 */
-    (ICO)0,            /* U32 */
-    ICO::ZExt,	       /* U64 */
-    ICO::UIToFP,       /* F32 */
-    ICO::UIToFP,       /* F64 */
-    (ICO)-1,           /* BOOL */
-    ICO::Trunc,	       /* CHAR */
-    ICO::Trunc,	       /* UCHAR */
-    (ICO)-1            /* STRUCT */
-  },                   // U32 ->
-  { // Begin U64
-    (ICO)-1,           /* VOID */
-    ICO::Trunc,	       /* I32 */
-    ICO::BitCast,      /* I64 */
-    ICO::Trunc,	       /* U32 */
-    (ICO)0,            /* U64 */
-    ICO::UIToFP,       /* F32 */
-    ICO::UIToFP,       /* F64 */
-    (ICO)-1,           /* BOOL */
-    ICO::Trunc,	       /* CHAR */
-    ICO::Trunc,	       /* UCHAR */
-    (ICO)-1            /* STRUCT */
-  },                   // U64 ->
-  { // Begin F32
-    (ICO)-1,           /* VOID */
-    ICO::FPToSI,       /* I32 */
-    ICO::FPToSI,       /* I64 */
-    ICO::FPToUI,       /* U32 */
-    ICO::FPToUI,       /* U64 */
-    (ICO)0,            /* F32 */
-    ICO::FPExt,	       /* F64 */
-    (ICO)-1,           /* BOOL */
-    ICO::FPToSI,       /* CHAR */
-    ICO::FPToUI,       /* UCHAR */
-    (ICO)-1            /* STRUCT */
-  },                   // F32 ->
-  { // Begin F64
-    (ICO)-1,           /* VOID */
-    ICO::FPToSI,       /* I32 */
-    ICO::FPToSI,       /* I64 */
-    ICO::FPToUI,       /* U32 */
-    ICO::FPToUI,       /* U64 */
-    ICO::FPTrunc,      /* F32 */
-    (ICO)0,            /* F64 */
-    (ICO)-1,           /* BOOL */
-    ICO::FPToSI,       /* CHAR */
-    ICO::FPToUI,       /* UCHAR */
-    (ICO)-1            /* STRUCT */
-  },                   // F64 ->
-  { // Begin BOOL
-    (ICO)-1,           /* VOID */
-    ICO::ZExt,	       /* I32 */
-    ICO::ZExt,	       /* I64 */
-    ICO::ZExt,	       /* U32 */
-    ICO::ZExt,	       /* U64 */
-    (ICO)-1,           /* F32 */
-    (ICO)-1,           /* F64 */
-    (ICO)0,            /* BOOL */
-    ICO::ZExt,	       /* CHAR */
-    ICO::ZExt,	       /* UCHAR */
-    (ICO)-1            /* STRUCT */
-  },                   // BOOL ->
-  { // Begin CHAR
-    (ICO)-1,           /* VOID */
-    ICO::SExt,	       /* I32 */
-    ICO::SExt,	       /* I64 */
-    ICO::SExt,	       /* U32 */
-    ICO::SExt,	       /* U64 */
-    ICO::SIToFP,       /* F32 */
-    ICO::SIToFP,       /* F64 */
-    (ICO)-1 ,          /* BOOL */
-    (ICO)0,            /* CHAR */
-    ICO::BitCast,      /* UCHAR */
-    (ICO)-1            /* STRUCT */
-  },                   // CHAR ->
-  { // Begin UCHAR
-    (ICO)-1,           /* VOID */
-    ICO::ZExt,	       /* I32 */
-    ICO::ZExt,	       /* I64 */
-    ICO::ZExt,	       /* U32 */
-    ICO::ZExt,	       /* U64 */
-    ICO::UIToFP,       /* F32 */
-    ICO::UIToFP,       /* F64 */
-    (ICO)-1,           /* BOOL */
-    ICO::BitCast,      /* CHAR */
-    (ICO)0,            /* UCHAR */
-    (ICO)-1            /* STRUCT */
-  },                   // UCHAR ->
-  { // Begin STRUCT
-    (ICO)-1,           /* VOID */
-    (ICO)-1,           /* I32 */
-    (ICO)-1,           /* I64 */
-    (ICO)-1,           /* U32 */
-    (ICO)-1,           /* U64 */
-    (ICO)-1,           /* F32 */
-    (ICO)-1,           /* F64 */
-    (ICO)-1,           /* BOOL */
-    (ICO)-1,           /* CHAR */
-    (ICO)-1,           /* UCHAR */
-    (ICO)-1,           /* STRUCT */
-  },                   // STRUCT ->
-};
-
-static Instruction::CastOps gen_cast_ops(int fromtok, int totok) {
-  return llvmtype_cast_table[fromtok-VOID][totok-VOID];
 }
 
 static void walk_as(ASTNode *node) {

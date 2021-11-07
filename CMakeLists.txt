@@ -80,7 +80,7 @@ set(llvm_ldflags -L/usr/lib/llvm/12/lib64  -lLLVM-12)
 add_subdirectory(llvm)
 
 # handle special target for IR_generator.cpp
-add_library(irgen OBJECT llvm/IR_generator.cpp ca.tab.h)
+add_library(irgen OBJECT llvm/IR_generator.cpp type_system.cpp type_system_llvm.h ca.tab.h)
 target_compile_options(irgen PRIVATE ${llvm_cxxflags})
 target_include_directories(irgen PRIVATE . ${CMAKE_CURRENT_BINARY_DIR})
 

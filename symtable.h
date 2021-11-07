@@ -34,6 +34,7 @@ typedef struct CADataType {
   union {
     struct CAStruct *struct_layout;  // when type is STRUCT
     struct CAArray *array_layout;    // when type is ARRAY
+    struct CAPointer *pointer_layout;
   };
 } CADataType;
 
@@ -47,9 +48,29 @@ struct CAStruct {
   struct CAStructField *fields;
 };
 
+// the c language treat mutiple dimension array or typedef-ed array as the same
+// array, e.g. typedef int aint[3][4]; typedef aint aaint[3]; aaint ca[6];
+// (gdb) ptype ca:
+// type = int [6][3][3][4]
+// 
+// for pointer it is similar with array:
+// typedef int *pint; typedef pint *ppint; typedef ppint *pppint; pppint *a;
+// (gdb) ptype a
+// type = int ****
+// 
+// for pointer plus array type: aaint *pca[4]; aaint *pc;
+// (gdb) ptype pca
+// type = int (*[4])[3][3][4]
+// (gdb) ptype pc
+// type = int (*)[3][3][4]
 struct CAArray {
   int size;           // array size
   CADataType *type;   // array type
+};
+
+struct CAPointer {
+  int type;
+  int dim;
 };
 
 typedef struct CALiteral {
@@ -186,7 +207,6 @@ int catype_is_float(int typetok);
 
 const char *get_type_string(int tok);
 void set_litbuf(LitBuffer *litb, char *text, int len, int typetok);
-int def_lit_type(int typetok);
 
 CAVariable *cavar_create(int name, CADataType *datatype);
 void cavar_destroy(CAVariable **var);

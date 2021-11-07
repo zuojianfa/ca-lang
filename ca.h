@@ -129,6 +129,7 @@ typedef struct RootTree {
   int count;
 } RootTree;
 
+int parse_lexical_char(const char *text);
 int enable_emit_main();
 void check_return_type(int fnrettype);
 SymTable *push_new_symtable();
@@ -147,6 +148,7 @@ const char *get_node_name_or_value(ASTNode *node);
 
 ASTNode *build_mock_main_fn_node();
 
+int make_attrib_scope(int attrfn, int attrparam);
 int make_program();
 void make_paragraphs(ASTNode *paragraph);
 ASTNode *make_fn_def(ASTNode *proto, ASTNode *body);
