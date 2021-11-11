@@ -63,7 +63,7 @@ extern int yychar, yylineno;
 };
 
 %token	<litb>		LITERAL
-%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
+%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
 %token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
@@ -79,13 +79,13 @@ extern int yychar, yylineno;
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
-%type	<astnode>	ifstmt stmt_list_star block_body let_stmt
+%type	<astnode>	ifstmt stmt_list_star block_body let_stmt struct_type_def type_def
 %type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
 %type	<var>		iddef iddef_typed
 %type	<symnameid>	label_id attrib_scope
-%type	<symnameid>	atomic_type struct_type
+%type	<symnameid>	atomic_type
 %type	<idtok>		type_postfix
-%type	<datatype>	datatype instance_type ret_type
+%type	<datatype>	data_type ret_type pointer_type array_type
 
 %start program
 
@@ -169,6 +169,8 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	stmt_list_block         { dot_emit("stmt", "stmt_list_block"); $$ = $1; }
 	|	label_def               { dot_emit("stmt", "label_def"); $$ = $1; }
 	|	GOTO label_id ';'       { $$ = make_goto($2); }
+	|	struct_type_def
+	|	type_def
 		;
 
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
@@ -233,36 +235,52 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	'('expr ')'           { dot_emit("expr", "'(' expr ')'"); $$ = $2; }
 	|	fn_call               { dot_emit("expr", "fn_call"); $$ = $1; }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
-	|	expr AS datatype      { $$ = make_as($1, $3); }
+	|	expr AS data_type     { $$ = make_as($1, $3); }
 		;
 
-datatype:	instance_type         { dot_emit("datatype", "instance_type"); $$ = $1; }
-	|	pointer_type          { dot_emit("datatype", "pointer_type"); }
+data_type:	atomic_type           { $$ = make_instance_type_atomic($1); }
+	|	pointer_type          { $$ = $1; }
+	|	array_type            { $$ = $1; }
+	|	IDENT                 { $$ = NULL; /* here need alloc new CADataType object, other place need can reuse the CADataType object */ }
 	;
-
-instance_type:	atomic_type { $$ = make_instance_type_atomic($1); }
-	|	struct_type { $$ = make_instance_type_struct($1); }
-		;
 
 atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
 		    // { /* TODO: handle user defined type */ }
 		;
 
-struct_type:	IDENT { dot_emit("struct_type", "IDENT"); $$ = $1; }
+struct_type_def: STRUCT { printf("begin structure define"); }
+		'{' struct_members '}'
+		{
+		dot_emit("struct_type_def", "IDENT"); $$ = NULL; /*make_instance_type_struct($1);*/
+		printf("end structure define");
+		}
 	;
 
-pointer_type:	'*' instance_type { dot_emit("", ""); }
-	|	'*' pointer_type  { dot_emit("", ""); }
+struct_members:	iddef_typed ',' struct_members
+	|	iddef_typed
+	|	
+	;
+
+type_def:	TYPE IDENT '=' data_type ';' {  }
+	;
+
+pointer_type:	'*' data_type   { $$ = make_pointer_type($2); }
+	;
+
+array_type:	'[' data_type ';' LITERAL ']'
+		{
+		// the LITERAL must be u64 or usize type that which is 8bytes length
+		}
 	;
 
 iddef:		iddef_typed  { dot_emit("iddef", "iddef_typed"); $$ = $1; borning_var_type = $1->datatype->type; }
 	|	IDENT        { dot_emit("iddef", "IDENT"); $$ = cavar_create($1, NULL); }
 	;
 
-iddef_typed:	IDENT ':' datatype { dot_emit("iddef_typed", "IDENT ':' datatype"); $$ = cavar_create($1, $3); }
+iddef_typed:	IDENT ':' data_type { dot_emit("iddef_typed", "IDENT ':' data_type"); $$ = cavar_create($1, $3); }
 	;
 
-ret_type:	ARROW datatype   { dot_emit("ret_type", "ARROW datatype"); $$ = $2; }
+ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; }
 	|	{ $$ = make_ret_type_void(); }
 		;
 

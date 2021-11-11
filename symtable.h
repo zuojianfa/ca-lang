@@ -31,6 +31,7 @@ typedef struct CADataType {
   int type;       // type type: I32 I64 ... STRUCT ARRAY
   int formalname; // type name symname_xxx
   int size;       // type size
+  int signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table
   union {
     struct CAStruct *struct_layout;  // when type is STRUCT
     struct CAArray *array_layout;    // when type is ARRAY
@@ -52,26 +53,35 @@ struct CAStruct {
 // array, e.g. typedef int aint[3][4]; typedef aint aaint[3]; aaint ca[6];
 // (gdb) ptype ca:
 // type = int [6][3][3][4]
-// 
+//
 // for pointer it is similar with array:
 // typedef int *pint; typedef pint *ppint; typedef ppint *pppint; pppint *a;
 // (gdb) ptype a
 // type = int ****
-// 
+//
 // for pointer plus array type: aaint *pca[4]; aaint *pc;
 // (gdb) ptype pca
 // type = int (*[4])[3][3][4]
 // (gdb) ptype pc
 // type = int (*)[3][3][4]
-struct CAArray {
-  int size;           // array size
+// the dimension may need compact, ((int [3])[4])[5], after compact, int
+// [3][4][5] complex condition combine array and pointer:
+// typedef pppint apppint[5]; typedef apppint *papppint; papppint *ppap;
+// (gdb) ptype ppap
+// type = int ***(**)[5]
+// 
+typedef struct CAArray {
   CADataType *type;   // array type
-};
+  int dimension;      // array size
+  int *dimarray;      // dimension array 3, 5, 9
+} CAArray;
 
-struct CAPointer {
-  int type;
-  int dim;
-};
+// the dimension need compact when constructing type, because
+// e.g. ((int *) *) *a; after compact, it should be int ***a;
+typedef struct CAPointer {
+  CADataType *type;
+  int dimension;
+} CAPointer;
 
 typedef struct CALiteral {
   // specify if literal type is defined (fixed) with postfix (u32,f64, ...)

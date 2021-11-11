@@ -212,6 +212,42 @@ CADataType *make_instance_type_atomic(int atomictype) {
   return dt;
 }
 
+static int form_datatype_signature(CADataType *type, int plus) {
+  switch (plus) {
+  case '*':
+    // TODO: 
+  default:
+    return 0;
+  }
+}
+
+CADataType *make_pointer_type(CADataType *datatype) {
+  if(datatype->type == POINTER) {
+    int signature = form_datatype_signature(datatype, '*');
+    CADataType *type = catype_get_by_name(signature);
+    if (!type) {
+      // TODO: create new CADataType object here and put it into datatype table
+    }
+    ++datatype->pointer_layout->dimension;
+    return datatype;
+  }
+
+  CADataType *ca = (CADataType *)malloc(sizeof(CADataType));
+  //int formalname = symname_check_insert(name);
+  //ca->formalname = formalname;
+  ca->type = POINTER;
+  ca->size = 0;
+  //ca->signature = formalname;
+  CAPointer *cap = (CAPointer *)malloc(sizeof(CAPointer));
+  //catype_put_by_name(formalname, datatype);
+  cap->dimension = 1;
+  cap->type = datatype;
+
+  ca->pointer_layout = cap;
+
+  return ca;
+}
+
 CADataType *make_instance_type_struct(int structtype) {
   dot_emit("instance_type", "struct_type");
   yyerror("line: %d, col: %d: cannot find type: %s",

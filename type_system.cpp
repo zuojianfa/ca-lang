@@ -441,7 +441,7 @@ int is_unsigned_type(int type) {
   return type == U32 || type == U64 || type == UCHAR;
 }
 
-// row: VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
+// row: VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER
 // col: < > GE LE NE EQ
 CmpInst::Predicate s_cmp_predicate[ATOMTYPE_END-VOID][6] = {
   {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // VOID
@@ -454,7 +454,7 @@ CmpInst::Predicate s_cmp_predicate[ATOMTYPE_END-VOID][6] = {
   {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // BOOL
   {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // CHAR
   {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // UCHAR
-  {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // STRUCT
+  //  {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // STRUCT
 };
 
 static std::pair<int, const char *> cmp_op_index(int op) {
@@ -511,7 +511,7 @@ Value *create_def_value(int typetok) {
   }
 }
 
-// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
+// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER
 // Trunc ZExt SExt FPToUI FPToSI UIToFP SIToFP FPTrunc FPExt PtrToInt IntToPtr BitCast AddrSpaceCast
 // CastOpsBegin stand for no need convert, CastOpsEnd stand for cannot convert
 static Instruction::CastOps
@@ -527,7 +527,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     (ICO)-1,           /* CHAR */
     (ICO)-1,           /* UCHAR */
-    (ICO)-1            /* STRUCT */
+    //    (ICO)-1            /* STRUCT */
   },                   // VOID -> ?
   { // Begin I32
     (ICO)-1,           /* VOID */
@@ -540,7 +540,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::Trunc,        /* CHAR */
     ICO::Trunc,        /* UCHAR */
-    (ICO)-1,           /* STRUCT */
+    //    (ICO)-1,           /* STRUCT */
   },                   // I32 ->
   { // Begin I64
     (ICO)-1,           /* VOID */
@@ -553,7 +553,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::Trunc,	       /* CHAR */
     ICO::Trunc,	       /* UCHAR */
-    (ICO)-1,           /* STRUCT */
+    //    (ICO)-1,           /* STRUCT */
   },                   // I64 ->
   { // Begin U32
     (ICO)-1,           /* VOID */
@@ -566,7 +566,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::Trunc,	       /* CHAR */
     ICO::Trunc,	       /* UCHAR */
-    (ICO)-1            /* STRUCT */
+    //    (ICO)-1            /* STRUCT */
   },                   // U32 ->
   { // Begin U64
     (ICO)-1,           /* VOID */
@@ -579,7 +579,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::Trunc,	       /* CHAR */
     ICO::Trunc,	       /* UCHAR */
-    (ICO)-1            /* STRUCT */
+    //    (ICO)-1            /* STRUCT */
   },                   // U64 ->
   { // Begin F32
     (ICO)-1,           /* VOID */
@@ -592,7 +592,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::FPToSI,       /* CHAR */
     ICO::FPToUI,       /* UCHAR */
-    (ICO)-1            /* STRUCT */
+    //    (ICO)-1            /* STRUCT */
   },                   // F32 ->
   { // Begin F64
     (ICO)-1,           /* VOID */
@@ -605,7 +605,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::FPToSI,       /* CHAR */
     ICO::FPToUI,       /* UCHAR */
-    (ICO)-1            /* STRUCT */
+    //    (ICO)-1            /* STRUCT */
   },                   // F64 ->
   { // Begin BOOL
     (ICO)-1,           /* VOID */
@@ -618,7 +618,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)0,            /* BOOL */
     ICO::ZExt,	       /* CHAR */
     ICO::ZExt,	       /* UCHAR */
-    (ICO)-1            /* STRUCT */
+    //    (ICO)-1            /* STRUCT */
   },                   // BOOL ->
   { // Begin CHAR
     (ICO)-1,           /* VOID */
@@ -631,7 +631,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1 ,          /* BOOL */
     (ICO)0,            /* CHAR */
     ICO::BitCast,      /* UCHAR */
-    (ICO)-1            /* STRUCT */
+    //    (ICO)-1            /* STRUCT */
   },                   // CHAR ->
   { // Begin UCHAR
     (ICO)-1,           /* VOID */
@@ -644,8 +644,9 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::BitCast,      /* CHAR */
     (ICO)0,            /* UCHAR */
-    (ICO)-1            /* STRUCT */
+    //    (ICO)-1            /* STRUCT */
   },                   // UCHAR ->
+#if 0
   { // Begin STRUCT
     (ICO)-1,           /* VOID */
     (ICO)-1,           /* I32 */
@@ -659,6 +660,7 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* UCHAR */
     (ICO)-1,           /* STRUCT */
   },                   // STRUCT ->
+#endif
 };
 
 Instruction::CastOps gen_cast_ops(int fromtok, int totok) {
@@ -671,19 +673,19 @@ std::unordered_map<int, CADataType *> s_type_map;
 // used for literal value convertion, left side is lexical literal value (I64
 // stand for negative integer value, U64 stand for positive integer value, F64
 // stand for floating point value) right side is real literal value
-// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR STRUCT ATOMTYPE_END
+// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER
 static int s_literal_type_convertable_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID + 1] = {
   {0, }, // VOID -> other-type, means convert from VOID type to other type
   {0, },   // I32 -> other-type
-  {0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0}, // I64 ->
+  {0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0}, // I64 ->
   {0, }, // U32 ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0}, // U64 ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0}, // U64 ->
   {0, }, // F32 ->
-  {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0}, // F64 ->
-  {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, // BOOL ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0}, // CHAR ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0}, // UCHAR ->
-  {0, }, // STRUCT
+  {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0}, // F64 ->
+  {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, // BOOL ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0}, // CHAR ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0}, // UCHAR ->
+  //  {0, }, // STRUCT
   {0, }, // ATOMTYPE_END
 };
 
@@ -798,6 +800,7 @@ static CADataType *catype_make_type(const char *name, int type, int size) {
   datatype->formalname = formalname;
   datatype->type = type;
   datatype->size = size;
+  datatype->signature = formalname;
   datatype->struct_layout = nullptr;
   catype_put_by_name(formalname, datatype);
   return datatype;

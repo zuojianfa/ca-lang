@@ -164,6 +164,7 @@ ASTNode *make_stmtexpr_list_block(ASTNode *exprblockbody);
 ASTNode *make_exprblock_body(ASTNode *stmtexprlist);
 ASTNode *make_stmtexpr_list(ASTNode *expr);
 CADataType *make_instance_type_atomic(int atomictype);
+CADataType *make_pointer_type(CADataType *datatype);
 CADataType *make_instance_type_struct(int structtype);
 CADataType *make_ret_type_void();
 void make_type_postfix(IdToken *idt, int id, int typetok);
