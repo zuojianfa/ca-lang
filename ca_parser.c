@@ -212,26 +212,55 @@ CADataType *make_instance_type_atomic(int atomictype) {
   return dt;
 }
 
-static int form_datatype_signature(CADataType *type, int plus) {
+// type + '*'
+// i32 + '*' => *i32, *type + '*' => **type, [type;n] + '*' => *[type;n]
+// [[[type1;n1];n2];n3] + '*' => *[[[type1;n1];n2];n3]
+// [*i32;n], [**i32;n], *[*i32;n], [*[*i32;n1];n2], *[[*i32;n1];n2]
+static int form_datatype_signature(CADataType *type, int plus, int size) {
+  char buf[1024];
+  const char *name = symname_get(type->signature);
   switch (plus) {
   case '*':
-    // TODO: 
+    // pointer
+    buf[0] = '*';
+    strcpy(buf + 1, name);
+  case '[':
+    // array
+    sprintf(buf, "[%s;%d]", name, size);
   default:
+    yyerror("bad signature input");
     return 0;
   }
+
+  return symname_check_insert(buf);
 }
 
+// NEXT TODO: test pointer type parsing, realize array type, struct type
 CADataType *make_pointer_type(CADataType *datatype) {
-  if(datatype->type == POINTER) {
-    int signature = form_datatype_signature(datatype, '*');
-    CADataType *type = catype_get_by_name(signature);
-    if (!type) {
-      // TODO: create new CADataType object here and put it into datatype table
-    }
-    ++datatype->pointer_layout->dimension;
-    return datatype;
+  int signature = form_datatype_signature(datatype, '*', 0);
+  CADataType *type = catype_get_by_name(signature);
+  if (type)
+    return type;
+
+  // TODO: create new CADataType object here and put it into datatype table
+  //type = catype_make_type_symname(signature, POINTER, 8);
+  switch (datatype->type) {
+  case POINTER: {
+    type = catype_clone(datatype);
+    type->formalname = signature;
+    type->signature = signature;
+    type->pointer_layout->dimension++;
+    //name = symname_check_insert("int");
+    catype_put_by_name(signature, type);
+    return type;
+  }
+  case ARRAY:
+  case STRUCT:
+  default:
+    break;
   }
 
+#if 0
   CADataType *ca = (CADataType *)malloc(sizeof(CADataType));
   //int formalname = symname_check_insert(name);
   //ca->formalname = formalname;
@@ -244,8 +273,9 @@ CADataType *make_pointer_type(CADataType *datatype) {
   cap->type = datatype;
 
   ca->pointer_layout = cap;
+#endif
 
-  return ca;
+  return NULL;
 }
 
 CADataType *make_instance_type_struct(int structtype) {

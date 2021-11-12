@@ -298,6 +298,30 @@ void determine_literal_type(CALiteral *lit, int typetok) {
   lit->fixed_type = 1;
 }
 
+CADataType *catype_clone(const CADataType *type) {
+  auto datatype = new CADataType;
+  datatype->formalname = type->formalname;
+  datatype->type = type->type;
+  datatype->size = type->size;
+  datatype->signature = type->formalname;
+  switch (type->type) {
+  case POINTER:
+    datatype->pointer_layout = new CAPointer;
+    datatype->pointer_layout->dimension = type->pointer_layout->dimension;
+    datatype->pointer_layout->type = catype_clone(type->pointer_layout->type);
+    break;
+  case STRUCT:
+    // TODO: 
+    datatype->struct_layout = type->struct_layout;
+    break;
+  case ARRAY:
+    // TODO: 
+    datatype->array_layout = type->array_layout;
+    break;
+  }
+
+  return datatype;
+}
 END_EXTERN_C
 
 Value *tidy_value_with_arith(Value *v, int typetok) {
@@ -805,5 +829,18 @@ static CADataType *catype_make_type(const char *name, int type, int size) {
   catype_put_by_name(formalname, datatype);
   return datatype;
 }
+
+#if 0
+CADataType *catype_make_pointer_type(int formalname, CADataType *type, int size) {
+  auto datatype = new CADataType;
+  datatype->formalname = formalname;
+  datatype->type = type;
+  datatype->size = size;
+  datatype->signature = formalname;
+  datatype->struct_layout = nullptr;
+  catype_put_by_name(formalname, datatype);
+  return datatype;
+}
+#endif
 
 

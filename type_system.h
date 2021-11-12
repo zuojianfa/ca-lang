@@ -14,6 +14,8 @@ int inference_literal_type(CALiteral *lit);
 void determine_literal_type(CALiteral *lit, int typetok);
 const char *get_type_string(int tok);
 int inference_literal_type(CALiteral *lit);
+CADataType *catype_make_type_symname(int formalname, int type, int size);
+CADataType *catype_clone(const CADataType *type);
 
 #ifdef __cplusplus
 END_EXTERN_C
