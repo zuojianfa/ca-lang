@@ -1,0 +1,11 @@
+
+fn main() {
+    type aa = i32;
+    {
+	let aa: aa = 3;
+	print aa;
+    }
+
+    print '\n';
+}
+

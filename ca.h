@@ -27,6 +27,7 @@ typedef enum {
   TTE_While,
   TTE_If,
   TTE_As,
+  TTE_Struct,      // struct definition
   TTE_Num,
 } ASTNodeType;
 
@@ -137,7 +138,9 @@ SymTable *push_symtable(SymTable *st);
 SymTable *pop_symtable();
 int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 int add_fn_args_actual(SymTable *st, ASTNode *arg);
-const char *label_name(const char *name);
+const char *sym_form_label_name(const char *name);
+const char *sym_form_type_name(const char *name);
+const char *sym_form_struct_signature(const char *name, SymTable *st);
 int determine_expr_type(ASTNode *node, int typetok);
 void determine_literal_type(CALiteral *lit, int typetok);
 int get_expr_type_from_tree(ASTNode *node, int ispost);
@@ -145,8 +148,8 @@ int inference_expr_type(ASTNode *p);
 void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok);
 const char *get_node_name_or_value(ASTNode *node);
 
-
 ASTNode *build_mock_main_fn_node();
+void check_backtrace_datatype_info();
 
 int make_attrib_scope(int attrfn, int attrparam);
 int make_program();
@@ -165,6 +168,9 @@ ASTNode *make_exprblock_body(ASTNode *stmtexprlist);
 ASTNode *make_stmtexpr_list(ASTNode *expr);
 CADataType *make_instance_type_atomic(int atomictype);
 CADataType *make_pointer_type(CADataType *datatype);
+CADataType *make_array_type(CADataType *type, LitBuffer *size);
+CADataType *get_datatype_by_ident(int name);
+ASTNode *make_type_def(int name, CADataType *type);
 CADataType *make_instance_type_struct(int structtype);
 CADataType *make_ret_type_void();
 void make_type_postfix(IdToken *idt, int id, int typetok);
@@ -189,6 +195,9 @@ ASTNode *make_fn_proto(int id, ST_ArgList *arglist, CADataType *rettype);
 ASTNode *make_fn_call(int fnname, ASTNode *param);
 ASTNode *make_ident_expr(int id);
 ASTNode *make_as(ASTNode *expr, CADataType *type);
+
+int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var);
+ASTNode *make_struct_type(int id, ST_ArgList *arglist);
 
 void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);

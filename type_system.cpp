@@ -1,9 +1,11 @@
 #include "ca.h"
 
+#include "symtable.h"
 #include "type_system.h"
 #include "type_system_llvm.h"
 
 #include "llvm/ir1.h"
+#include <cstdint>
 
 #ifdef __cplusplus
 BEGIN_EXTERN_C
@@ -298,30 +300,169 @@ void determine_literal_type(CALiteral *lit, int typetok) {
   lit->fixed_type = 1;
 }
 
-CADataType *catype_clone(const CADataType *type) {
-  auto datatype = new CADataType;
-  datatype->formalname = type->formalname;
-  datatype->type = type->type;
-  datatype->size = type->size;
-  datatype->signature = type->formalname;
+CADataType *catype_clone_thin(const CADataType *type) {
+  auto dt = new CADataType;
+  dt->formalname = type->formalname;
+  dt->type = type->type;
+  dt->size = type->size;
+  dt->signature = type->signature;
   switch (type->type) {
   case POINTER:
-    datatype->pointer_layout = new CAPointer;
-    datatype->pointer_layout->dimension = type->pointer_layout->dimension;
-    datatype->pointer_layout->type = catype_clone(type->pointer_layout->type);
+    dt->pointer_layout = new CAPointer;
+    dt->pointer_layout->type = type->pointer_layout->type;
+    dt->pointer_layout->dimension = type->pointer_layout->dimension;
     break;
   case STRUCT:
     // TODO: 
-    datatype->struct_layout = type->struct_layout;
+    dt->struct_layout = type->struct_layout;
     break;
   case ARRAY:
-    // TODO: 
-    datatype->array_layout = type->array_layout;
+    dt->array_layout = new CAArray;
+    dt->array_layout->type = type->array_layout->type;
+    dt->array_layout->dimension = type->array_layout->dimension;
+    for (int i = 0; i < dt->array_layout->dimension; ++i)
+      dt->array_layout->dimarray[i] = type->array_layout->dimarray[i];
+
+    break;
+  default:
+    dt->array_layout = nullptr;
     break;
   }
 
-  return datatype;
+  return dt;
 }
+
+CADataType *catype_make_type_symname(int name, int type, int size) {
+  auto dt = new CADataType;
+  dt->formalname = name;
+  dt->type = type;
+  dt->size = size;
+  dt->signature = name;
+  dt->struct_layout = nullptr;
+  catype_put_by_name(name, dt);
+  return dt;
+}
+
+// type + '*'
+// i32 + '*' => *i32, *type + '*' => **type, [type;n] + '*' => *[type;n]
+// [[[type1;n1];n2];n3] + '*' => *[[[type1;n1];n2];n3]
+// [*i32;n], [**i32;n], *[*i32;n], [*[*i32;n1];n2], *[[*i32;n1];n2]
+static int form_datatype_signature(CADataType *type, int plus, uint64_t len) {
+  char buf[1024];
+  const char *name = symname_get(type->signature);
+  switch (plus) {
+  case '*':
+    // pointer
+    buf[0] = '*';
+    strcpy(buf + 1, name);
+    break;
+  case '[':
+    // array
+    sprintf(buf, "[%s;%lu]", name, len);
+    break;
+  case 's':
+    // structure signature
+  default:
+    yyerror("bad signature input");
+    return 0;
+  }
+
+  return symname_check_insert(buf);
+}
+
+CADataType *catype_make_pointer_type(CADataType *datatype) {
+  int signature = form_datatype_signature(datatype, '*', 0);
+  CADataType *type = catype_get_by_name(signature);
+  if (type)
+    return type;
+
+  // create new CADataType object here and put it into datatype table
+  switch (datatype->type) {
+  case POINTER:
+    // make pointer's pointer
+    type = catype_clone_thin(datatype);
+    type->formalname = signature;
+    type->signature = signature;
+    type->pointer_layout->dimension++;
+    catype_put_by_name(signature, type);
+    break;
+  case ARRAY:
+    // array's pointer
+  case STRUCT:
+    // structure's pointer
+  default:
+    // array and struct type can directly append the signature
+    type = catype_make_type_symname(signature, POINTER, sizeof(void *));
+    type->pointer_layout = new CAPointer;
+    type->pointer_layout->type = datatype;
+    type->pointer_layout->dimension = 1;
+    break;
+  }
+
+  return type;
+}
+
+// NEXT TODO: handle signature for structure, can use current symbol table
+// address + structure name as the signature
+ 
+// NEXT TODO: test pointer type parsing, realize array type, struct type
+// [[[i32;2];3];4] <==> [i32;2;3;4], [[*[i32;2];3];4] <==> [*[i32;2];3;4]
+// the array representation using the later which is the compact one
+CADataType *catype_make_array_type(CADataType *datatype, uint64_t len) {
+  int signature = form_datatype_signature(datatype, '[', len);
+  CADataType *dt = catype_get_by_name(signature);
+  if (dt)
+    return dt;
+
+  // create new CADataType object here and put it into datatype table
+  switch (datatype->type) {
+  case ARRAY:
+    // array and struct type can directly append the signature
+    dt = catype_clone_thin(datatype);
+    dt->size = len * datatype->size;
+    dt->formalname = signature;
+    dt->signature = signature;
+    dt->array_layout->dimarray[dt->array_layout->dimension++] = len;
+    catype_put_by_name(signature, dt);
+    break;
+  case POINTER:
+  case STRUCT:
+  default:
+    dt = catype_make_type_symname(signature, ARRAY, len * datatype->size);
+    dt->array_layout = new CAArray;
+    dt->array_layout->type = datatype;
+    dt->array_layout->dimension = 1;
+    dt->array_layout->dimarray[0] = len;
+    break;
+  }
+
+  return dt;
+}
+
+CADataType *catype_make_struct_type(int symname, ST_ArgList *arglist) {
+  CADataType *dt = catype_make_type_symname(symname, STRUCT, 0);
+  dt->struct_layout = new CAStruct;
+  dt->struct_layout->fieldnum = arglist->argc;
+  dt->struct_layout->fields = new CAStructField[arglist->argc];
+
+  for (int i = 0; i < arglist->argc; ++i) {
+    STEntry *entry = sym_getsym(arglist->symtable, arglist->argnames[i], 0);
+    if (!entry) {
+      yyerror("line: %d, col: %d: can not find entry for args `%s`",
+	      glineno, gcolno, symname_get(arglist->argnames[i]));
+      return NULL;
+    }
+
+    CAVariable *cav = entry->u.var;
+
+    dt->size += cav->datatype->size;
+    dt->struct_layout->fields[i].name = cav->name;
+    dt->struct_layout->fields[i].type = cav->datatype;
+  }
+
+  return dt;
+}
+
 END_EXTERN_C
 
 Value *tidy_value_with_arith(Value *v, int typetok) {
@@ -523,8 +664,8 @@ Value *create_def_value(int typetok) {
     return ir1.gen_bool(true);
     break;
   case VOID: {
-    Type *voidty = Type::getVoidTy(ir1.ctx());
-    return Constant::getNullValue(voidty);
+    //Type *voidty = Type::getVoidTy(ir1.ctx());
+    //return Constant::getNullValue(voidty);
     return nullptr;
     break;
   }
@@ -829,18 +970,4 @@ static CADataType *catype_make_type(const char *name, int type, int size) {
   catype_put_by_name(formalname, datatype);
   return datatype;
 }
-
-#if 0
-CADataType *catype_make_pointer_type(int formalname, CADataType *type, int size) {
-  auto datatype = new CADataType;
-  datatype->formalname = formalname;
-  datatype->type = type;
-  datatype->size = size;
-  datatype->signature = formalname;
-  datatype->struct_layout = nullptr;
-  catype_put_by_name(formalname, datatype);
-  return datatype;
-}
-#endif
-
 

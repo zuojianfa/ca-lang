@@ -123,6 +123,7 @@ void set_litbuf(LitBuffer *litb, char *text, int len, int typetok) {
 CAVariable *cavar_create(int name, CADataType *datatype) {
   CAVariable *var = new CAVariable;
   var->datatype = datatype;
+  var->loc = (SLoc){glineno, gcolno};
   var->name = name;
   var->llvm_value = nullptr;
   return var;

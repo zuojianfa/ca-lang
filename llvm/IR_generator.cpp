@@ -1007,6 +1007,13 @@ static void walk_as(ASTNode *node) {
   oprand_stack.push_back(std::move(u));
 }
 
+static void walk_struct(ASTNode *node) {
+  STEntry *entry = node->entry;
+  CADataType *dt = entry->u.datatype;
+
+  // TODO: may need generate struct llvm code here
+}
+
 typedef void (*walk_fn_t)(ASTNode *p);
 static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_empty,
@@ -1020,6 +1027,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_while,
   (walk_fn_t)walk_if,
   (walk_fn_t)walk_as,
+  (walk_fn_t)walk_struct,
 };
 
 static int walk_stack(ASTNode *p) {

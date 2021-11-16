@@ -1,0 +1,45 @@
+type ta = i32;
+type pta1 = *i32;
+type pta2 = **i32;
+type pta3 = ***i32;
+type pta4 = ****i32;
+type pta5 = *****i32;
+type pta6 = ******i32;
+type ta1 = *****i32;
+type ta2 = ****i32;
+
+type tb = i64;
+type ptb1 = *i64;
+type ptb2 = **i64;
+type ptb3 = ***i64;
+type ptb4 = ****i64;
+type ptb5 = *****i64;
+type ptb6 = ******i64;
+
+
+fn main() {
+    type ta = i32;
+    type pta1 = *i32;
+    type pta2 = **i32;
+    type pta3 = ***i32;
+    type pta4 = ****i32;
+    type pta5 = *****i32;
+    type pta6 = ******i32;
+    {
+	type ta = *****i32;
+	{
+	    type ta = ****i32;
+	}
+    }
+
+    type tb = i64;
+    type ptb1 = *i64;
+    type ptb2 = **i64;
+    type ptb3 = ***i64;
+    type ptb4 = ****i64;
+    type ptb5 = *****i64;
+    type ptb6 = ******i64;
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

@@ -169,8 +169,8 @@ stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
 	|	stmt_list_block         { dot_emit("stmt", "stmt_list_block"); $$ = $1; }
 	|	label_def               { dot_emit("stmt", "label_def"); $$ = $1; }
 	|	GOTO label_id ';'       { $$ = make_goto($2); }
-	|	struct_type_def
-	|	type_def
+	|	struct_type_def         { $$ = $1; }
+	|	type_def                { $$ = $1; }
 		;
 
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
@@ -241,27 +241,31 @@ expr:     	literal               { $$ = make_literal(&$1); }
 data_type:	atomic_type           { $$ = make_instance_type_atomic($1); }
 	|	pointer_type          { $$ = $1; }
 	|	array_type            { $$ = $1; }
-	|	IDENT                 { $$ = NULL; /* here need alloc new CADataType object, other place need can reuse the CADataType object */ }
+	|	IDENT                 { $$ = get_datatype_by_ident($1); }
 	;
 
 atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
-		    // { /* TODO: handle user defined type */ }
 		;
 
-struct_type_def: STRUCT { printf("begin structure define"); }
-		'{' struct_members '}'
+struct_type_def: STRUCT IDENT
 		{
-		dot_emit("struct_type_def", "IDENT"); $$ = NULL; /*make_instance_type_struct($1);*/
-		printf("end structure define");
+		SymTable *st = push_new_symtable();
+		curr_arglist.argc = 0;
+		curr_arglist.symtable = curr_symtable;
 		}
+		'{' struct_members_dot '}'       { $$ = make_struct_type($2, &curr_arglist); }
 	;
 
-struct_members:	iddef_typed ',' struct_members
-	|	iddef_typed
+struct_members_dot: struct_members | struct_members ','
+
+// "struct_members: iddef_typed ',' struct_members" support last ',' expression
+// but "struct_members: struct_members ',' iddef_typed" not support last ','
+struct_members: struct_members ',' iddef_typed   { add_struct_member(&curr_arglist, curr_symtable, $3); }
+	|	iddef_typed                      { add_struct_member(&curr_arglist, curr_symtable, $1); }
 	|	
 	;
 
-type_def:	TYPE IDENT '=' data_type ';' {  }
+type_def:	TYPE IDENT '=' data_type ';' { $$ = make_type_def($2, $4); }
 	;
 
 pointer_type:	'*' data_type   { $$ = make_pointer_type($2); }
@@ -270,6 +274,7 @@ pointer_type:	'*' data_type   { $$ = make_pointer_type($2); }
 array_type:	'[' data_type ';' LITERAL ']'
 		{
 		// the LITERAL must be u64 or usize type that which is 8bytes length
+		$$ = make_array_type($2, &$4);
 		}
 	;
 

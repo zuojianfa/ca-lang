@@ -1,0 +1,9 @@
+fn main() {
+    struct AA {
+	a: *AA
+    }
+
+    type TT = AA;
+    type pTT = *AA;
+}
+

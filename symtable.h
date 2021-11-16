@@ -23,6 +23,8 @@ typedef enum SymType {
   Sym_ArgList,
   Sym_FnDecl,
   Sym_FnDef,
+  Sym_DataType,
+  Sym_Member,
 } SymType;
 
 #define MAX_ARGS 16
@@ -39,15 +41,15 @@ typedef struct CADataType {
   };
 } CADataType;
 
-struct CAStructField {
+typedef struct CAStructField {
   int name;           // field name
   CADataType *type;   // field type
-};
+} CAStructField;
 
-struct CAStruct {
+typedef struct CAStruct {
   int fieldnum;
   struct CAStructField *fields;
-};
+} CAStruct;
 
 // the c language treat mutiple dimension array or typedef-ed array as the same
 // array, e.g. typedef int aint[3][4]; typedef aint aaint[3]; aaint ca[6];
@@ -69,11 +71,12 @@ struct CAStruct {
 // typedef pppint apppint[5]; typedef apppint *papppint; papppint *ppap;
 // (gdb) ptype ppap
 // type = int ***(**)[5]
-// 
+//
+#define MAX_DIM 16
 typedef struct CAArray {
   CADataType *type;   // array type
   int dimension;      // array size
-  int *dimarray;      // dimension array 3, 5, 9
+  int dimarray[MAX_DIM];      // dimension array 3, 5, 9
 } CAArray;
 
 // the dimension need compact when constructing type, because
@@ -132,6 +135,7 @@ typedef struct IdToken {
 
 typedef struct CAVariable {
   CADataType *datatype;
+  SLoc loc;
   int name;
   int global; // is global variable
 
@@ -145,6 +149,11 @@ typedef struct ST_ArgList {
   int argnames[MAX_ARGS];   // function argument name
   struct SymTable *symtable;
 } ST_ArgList;
+
+typedef struct ST_MemberList { // TODO: will use later
+  struct ST_ArgList member;
+  int visibility[MAX_ARGS];   // member visibilities
+} ST_MemberList;
 
 typedef enum ArgType {
   AT_Literal,
@@ -174,8 +183,9 @@ typedef struct STEntry {
     struct {
       ST_ArgList *arglists; // when type is Sym_ArgList
       CADataType *rettype;
-    } f;
-    CAVariable *var;
+    } f;                // when type is Sym_ArgList and contains return type
+    CAVariable *var;    // when sym_type are Sym_Variable Sym_Member
+    CADataType *datatype; // when sym_type is Sym_DataType
   } u;
 } STEntry;
 

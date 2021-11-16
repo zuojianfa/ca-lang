@@ -112,3 +112,10 @@ do_test(as " " ca ../test/as/as_bool3.ca)
 set(test_case_seq 1)
 do_test(cmp "211232223232232" ca ../test/cmp/cmp1.ca)
 
+set(test_case_seq 1)
+do_test(type "good" ca ../test/type/pointer1.ca)
+do_test(type "good" ca ../test/type/array1.ca)
+do_test(type "line: 44, col: 22: type `A5` defined multiple times" ca ../test/type/array2.ca)
+do_test(type "good" ca ../test/type/struct1.ca)
+
+

@@ -1,5 +1,6 @@
 
 #include <alloca.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -57,6 +58,44 @@ void yyerror(const char *s, ...);
 int walk(RootTree *tree);
 
 int enable_emit_main() { return genv.emit_main; }
+
+typedef enum OverloadType {
+  OLT_Label,
+  OLT_Type,
+  OLT_Struct,
+} OverloadType;
+
+const char *sym_form_label_name(const char *name) {
+  static char label_buf[1024];
+  sprintf(label_buf, "l:%s", name);
+  return label_buf;
+}
+
+const char *sym_form_type_name(const char *name) {
+  static char type_buf[1024];
+  sprintf(type_buf, "t:%s", name);
+  return type_buf;
+}
+
+int sym_form_type_id(int id, int islabel) {
+  const char *name = symname_get(id);
+  const char *typename = islabel ?
+    sym_form_label_name(name) : sym_form_type_name(name);
+  int typeid = symname_check_insert(typename);
+  return typeid;
+}
+
+const char *sym_form_struct_signature(const char *name, SymTable *st) {
+  static char name_buf[1024];
+  sprintf(name_buf, "%s@%p", name, st);
+  return name_buf;
+}
+
+void set_address(ASTNode *node, const SLoc *first, const SLoc *last) {
+    node->begloc = *first;
+    node->endloc = *last;
+    node->symtable = curr_symtable;
+}
 
 int make_program() {
   dot_emit("program", "paragraphs");
@@ -191,6 +230,8 @@ ASTNode *make_exprblock_body(ASTNode *stmtexprlist) {
   // or
   dot_emit("block_body", "stmt_list_star");
 
+  check_backtrace_datatype_info();
+
   return stmtexprlist;
 }
 
@@ -212,70 +253,80 @@ CADataType *make_instance_type_atomic(int atomictype) {
   return dt;
 }
 
-// type + '*'
-// i32 + '*' => *i32, *type + '*' => **type, [type;n] + '*' => *[type;n]
-// [[[type1;n1];n2];n3] + '*' => *[[[type1;n1];n2];n3]
-// [*i32;n], [**i32;n], *[*i32;n], [*[*i32;n1];n2], *[[*i32;n1];n2]
-static int form_datatype_signature(CADataType *type, int plus, int size) {
-  char buf[1024];
-  const char *name = symname_get(type->signature);
-  switch (plus) {
-  case '*':
-    // pointer
-    buf[0] = '*';
-    strcpy(buf + 1, name);
-  case '[':
-    // array
-    sprintf(buf, "[%s;%d]", name, size);
-  default:
-    yyerror("bad signature input");
-    return 0;
-  }
-
-  return symname_check_insert(buf);
+CADataType *make_pointer_type(CADataType *type) {
+  return catype_make_pointer_type(type);
 }
 
-// NEXT TODO: test pointer type parsing, realize array type, struct type
-CADataType *make_pointer_type(CADataType *datatype) {
-  int signature = form_datatype_signature(datatype, '*', 0);
-  CADataType *type = catype_get_by_name(signature);
-  if (type)
-    return type;
-
-  // TODO: create new CADataType object here and put it into datatype table
-  //type = catype_make_type_symname(signature, POINTER, 8);
-  switch (datatype->type) {
-  case POINTER: {
-    type = catype_clone(datatype);
-    type->formalname = signature;
-    type->signature = signature;
-    type->pointer_layout->dimension++;
-    //name = symname_check_insert("int");
-    catype_put_by_name(signature, type);
-    return type;
-  }
-  case ARRAY:
-  case STRUCT:
-  default:
-    break;
+CADataType *make_array_type(CADataType *type, LitBuffer *size) {
+  if (size->typetok != U64) {
+    yyerror("line: %d, col: %d: array size not usize (u64) type, but `%s` type",
+	    glineno, gcolno, get_type_string(size->typetok));
+    return NULL;
   }
 
-#if 0
-  CADataType *ca = (CADataType *)malloc(sizeof(CADataType));
-  //int formalname = symname_check_insert(name);
-  //ca->formalname = formalname;
-  ca->type = POINTER;
-  ca->size = 0;
-  //ca->signature = formalname;
-  CAPointer *cap = (CAPointer *)malloc(sizeof(CAPointer));
-  //catype_put_by_name(formalname, datatype);
-  cap->dimension = 1;
-  cap->type = datatype;
+  const char *text = symname_get(size->text);
+  if (!text) {
+    yyerror("line: %d, col: %d: get literal size failed", glineno, gcolno);
+    return NULL;
+  }
 
-  ca->pointer_layout = cap;
-#endif
+  uint64_t len;
+  sscanf(text, "%lu", &len);
+  return catype_make_array_type(type, len);
+}
 
-  return NULL;
+CADataType *get_datatype_by_ident(int id) {
+  // NEXT TODO: when id is not defined yet, it may can reference the later when it is pointer type. How to do?
+  // answer: in the end of "block_body: '{'stmt_list_star '}'" determine or backfill the type information, when in previous just register the CADataType sketlon
+  int typesym = sym_form_type_id(id, 0);
+  STEntry *entry = sym_getsym(curr_symtable, typesym, 1);
+  if (!entry) {
+    yyerror("line: %d, col: %d: cannot find symbol for id `%s`",
+	    glineno, gcolno, symname_get(id));
+    return NULL;
+  }
+
+  if (entry->sym_type != Sym_DataType) {
+    yyerror("line: %d, col: %d: not a type name `%s`",
+	    glineno, gcolno, symname_get(typesym));
+    return NULL;
+  }
+
+  return entry->u.datatype;
+}
+
+void check_backtrace_datatype_info() {
+  // NEXT TODO: fillback datatype info
+}
+
+ASTNode *make_type_def(int id, CADataType *type) {
+  ASTNode *p;
+
+  // make it can have the same name for the type name and variable name
+  // implemented just like the label type: add a prefix before the type name
+  int symname = sym_form_type_id(id, 0);
+  STEntry *entry = sym_getsym(curr_symtable, symname, 0);
+  if (entry) {
+    yyerror("line: %d, col: %d: type `%s` defined multiple times",
+	    glineno, gcolno, symname_get(id));
+    return NULL;
+  }
+
+  entry = sym_insert(curr_symtable, symname, Sym_DataType);
+  entry->u.datatype = type;
+  SLoc loc = {glineno, gcolno};
+  entry->sloc = loc;
+
+  /* allocate node */
+  if ((p = malloc(sizeof(ASTNode))) == NULL)
+    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
+  /* copy information */
+  p->seq = ++g_node_seqno;
+  p->type = TTE_Empty;
+
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  return p;
 }
 
 CADataType *make_instance_type_struct(int structtype) {
@@ -437,18 +488,6 @@ int add_fn_args_actual(SymTable *st, ASTNode *arg) {
   // arg.type must be == AT_Expr
   aa->args[aa->argc++] = arg;
   return 0;
-}
-
-const char *label_name(const char *name) {
-    static char label_buf[1024];
-    sprintf(label_buf, "l:%s", name);
-    return label_buf;
-}
-
-void set_address(ASTNode *node, const SLoc *first, const SLoc *last) {
-    node->begloc = *first;
-    node->endloc = *last;
-    node->symtable = curr_symtable;
 }
 
 ASTNode *make_empty() {
@@ -624,12 +663,9 @@ ASTNode *make_assign(int id, ASTNode *exprn) {
 
 ASTNode *make_goto(int labelid) {
   dot_emit("stmt", "GOTO label_id");
-
-  const char *name = symname_get(labelid);
   /* because the label name can using the same name as other names (variable, function, etc)
      so innerly represent the label name as "l:<name>", in order to distinguish them */
-  const char *l = label_name(name);
-  int lpos = symname_check_insert(l);
+  int lpos = sym_form_type_id(labelid, 1);
   STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
   if (entry) {
     switch(entry->sym_type) {
@@ -638,7 +674,7 @@ ASTNode *make_goto(int labelid) {
       break;
     default:
       yyerror("line: %d, col: %d: label name '%s' appear but not aim to be a label",
-	      glineno, gcolno, name);
+	      glineno, gcolno, symname_get(labelid));
       return NULL;
     }
   } else {
@@ -654,10 +690,10 @@ ASTNode *make_label_def(int labelid) {
   dot_emit("label_def", "label_id");
 
   const char *name = symname_get(labelid);
+
   /* because the label name can using the same name as other names (variable, function, etc)
      so innerly represent the label name as "l:<name>", in order to distinguish them */
-  const char *l = label_name(name);
-  int lpos = symname_check_insert(l);
+  int lpos = sym_form_type_id(labelid, 1);
   STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
   if (entry) {
     switch(entry->sym_type) {
@@ -912,9 +948,6 @@ ASTNode *make_expr(int op, int noperands, ...) {
     ASTNode *p;
     int i;
 
-    int check_type = is_valued_expr(op);
-    int *expr_types = check_type ? (int *)alloca(noperands * sizeof(int)) : NULL;
-
     /* allocate node */
     if ((p = malloc(sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
@@ -933,10 +966,15 @@ ASTNode *make_expr(int op, int noperands, ...) {
     for (i = 0; i < noperands; i++) {
       p->exprn.operands[i] = va_arg(ap, ASTNode*);
     }
+    va_end(ap);
 
-    int expr_len = noperands;
-    int rettype = 0;
+    p->exprn.expr_type = 0;
+
+    int check_type = is_valued_expr(op);
     if (check_type) {
+      int expr_len = noperands;
+      int *expr_types = (int *)alloca(noperands * sizeof(int));
+
       switch(op) {
       case FN_CALL: {
 	ASTNode *idn = p->exprn.operands[0];
@@ -960,10 +998,8 @@ ASTNode *make_expr(int op, int noperands, ...) {
         break;
       }
 
-      rettype = reduce_node_and_type(p, expr_types, expr_len);
+      p->exprn.expr_type = reduce_node_and_type(p, expr_types, expr_len);
     }
-
-    p->exprn.expr_type = rettype;
 
     const SLoc *beg = &(SLoc){glineno, gcolno};
     const SLoc *end = &(SLoc){glineno, gcolno};
@@ -986,7 +1022,6 @@ ASTNode *make_expr(int op, int noperands, ...) {
     p->begloc = *beg;
     p->endloc = *end;
 
-    va_end(ap);
     p->symtable = curr_symtable;
     return p;
 }
@@ -1443,6 +1478,82 @@ ASTNode *make_ident_expr(int id) {
   ASTNode *node = make_id(id);
   node->entry = entry;
   return node;
+}
+
+int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
+  // just similar as add_fn_args,
+  // TODO: combine with add_fn_args into one function
+  int name = var->name;
+  CADataType *datatype = var->datatype;
+  if (arglist->argc >= MAX_ARGS) {
+    yyerror("line: %d, col: %d: too many struct members '%s', max member supports are %d",
+	    glineno, gcolno, symname_get(name), MAX_ARGS);
+    return -1;
+  }
+
+  STEntry *entry = sym_getsym(st, name, 0);
+  if (entry) {
+    yyerror("line: %d, col: %d: member '%s' already defined on line %d, col %d.",
+	    var->loc.row, var->loc.col, symname_get(name), entry->sloc.row, entry->sloc.col);
+    return -1;
+  }
+
+  entry = sym_insert(st, name, Sym_Member);
+  entry->u.var = cavar_create(name, datatype);
+  arglist->argnames[arglist->argc++] = name;
+  return 0;
+}
+
+ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
+  dot_emit("struct_type_def", "IDENT");
+
+  // see make_fn_proto
+  SymTable *membertable = curr_symtable;
+  arglist->symtable = membertable;
+
+  // popup the structure member symbol table
+  // after that will define type name in it
+  curr_symtable = pop_symtable();
+
+  // 0. check if current scope already exists such type and report error when already exists
+  const char *structname = symname_get(id);
+  int stypeid = sym_form_type_id(id, 0);
+  STEntry *entry = sym_getsym(curr_symtable, stypeid, 0);
+  if (entry) {
+    yyerror("line: %d, col: %d: type '%s' already defined",
+	    glineno, gcolno, symname_get(id));
+    return NULL;
+  }
+
+  // 1. get the struct signature and check if it already exists in catype caches
+  // when already exists then just use the type and skip step 2.
+  const char *signature = sym_form_struct_signature(structname, curr_symtable);
+  int symname = symname_check_insert(signature);
+  CADataType *dt = catype_get_by_name(symname);
+  if (!dt) {
+    // 2. form a struct CADataType object when have no such cache
+    // 2.a. put the CADataType into catype cache
+    dt = catype_make_struct_type(symname, arglist);
+  }
+
+  // 3. put the struct CADataType into current scope Symbol table for later use
+  entry = sym_insert(curr_symtable, stypeid, Sym_DataType);
+  entry->sloc = (SLoc){glineno, gcolno};
+  entry->u.datatype = dt;
+  
+  // 4. create ASTNode object and set the object type as the datatype type
+  // and set the CADatatype object
+  ASTNode *p;
+  if ((p = malloc(sizeof(ASTNode))) == NULL)
+    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
+  /* copy information */
+  p->seq = ++g_node_seqno;
+  p->type = TTE_Struct;
+  p->entry = entry;
+
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &entry->sloc);
+  return p;
 }
 
 ASTNode *make_as(ASTNode *expr, CADataType *type) {
