@@ -343,6 +343,11 @@ CADataType *catype_make_type_symname(int name, int type, int size) {
   return dt;
 }
 
+CADataType *catype_make_unknown_type(int name, int size) {
+  CADataType *dt = catype_make_type_symname(name, TYPE_UNKNOWN, size);
+  
+}
+
 // type + '*'
 // i32 + '*' => *i32, *type + '*' => **type, [type;n] + '*' => *[type;n]
 // [[[type1;n1];n2];n3] + '*' => *[[[type1;n1];n2];n3]
@@ -402,10 +407,8 @@ CADataType *catype_make_pointer_type(CADataType *datatype) {
   return type;
 }
 
-// NEXT TODO: handle signature for structure, can use current symbol table
-// address + structure name as the signature
- 
-// NEXT TODO: test pointer type parsing, realize array type, struct type
+// handle signature for structure, use current symbol table name@address as the
+// signature test pointer type parsing, realize array type, struct type:
 // [[[i32;2];3];4] <==> [i32;2;3;4], [[*[i32;2];3];4] <==> [*[i32;2];3;4]
 // the array representation using the later which is the compact one
 CADataType *catype_make_array_type(CADataType *datatype, uint64_t len) {

@@ -1,6 +1,8 @@
 #ifndef __CA_H__
 #define __CA_H__
 
+#define __SUPPORT_BACK_TYPE__
+
 #define BEGIN_EXTERN_C extern "C" {
 #define END_EXTERN_C }
 

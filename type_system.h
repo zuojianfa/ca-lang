@@ -19,6 +19,7 @@ CADataType *catype_make_type_symname(int formalname, int type, int size);
 CADataType *catype_make_pointer_type(CADataType *datatype);
 CADataType *catype_make_array_type(CADataType *type, uint64_t len);
 CADataType *catype_make_struct_type(int symname, ST_ArgList *arglist);
+CADataType *catype_make_unknown_type(int formalname, int size);
 
 #ifdef __cplusplus
 END_EXTERN_C

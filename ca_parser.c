@@ -12,6 +12,31 @@
 #include "config.h"
 #include "type_system.h"
 
+/* how to handle the type backward definition, means can use the type before
+   defining it:
+   1. define an unknown type table
+   2. when use the type
+     a) when found in symbol table
+        just get and use the type
+     b) when not found the type in symbol table
+       1) when found in unknown type table
+          get and use it, but it is undefined
+       2) when not found in unknown type table
+          create an unknown type, put it into unknown type table and use it
+   3. when defining the type
+     a) when found in symbol table
+        report error
+     b) when not found in symbol table
+       1) when found in unknown type table
+          get the type object and define it using the object memory and remove
+	  it from the unknown type table
+       2) when not found in unknown type table
+          create the object and define it
+       3) put the new type object into symbol table
+   4. when walk the tree
+      check the variable type inference and determine the type
+*/
+
 RootTree *gtree = NULL;
 
 /* the root symbol table for global symbols and layer 0 statement running */
@@ -277,13 +302,19 @@ CADataType *make_array_type(CADataType *type, LitBuffer *size) {
 
 CADataType *get_datatype_by_ident(int id) {
   // NEXT TODO: when id is not defined yet, it may can reference the later when it is pointer type. How to do?
+  // how to resolve expression type inference when type is not determined yet
   // answer: in the end of "block_body: '{'stmt_list_star '}'" determine or backfill the type information, when in previous just register the CADataType sketlon
   int typesym = sym_form_type_id(id, 0);
   STEntry *entry = sym_getsym(curr_symtable, typesym, 1);
   if (!entry) {
+#ifdef __SUPPORT_BACK_TYPE__
+    CADataType *type = catype_make_unknown_type(typesym, 0);
+    return type;
+#else
     yyerror("line: %d, col: %d: cannot find symbol for id `%s`",
 	    glineno, gcolno, symname_get(id));
     return NULL;
+#endif
   }
 
   if (entry->sym_type != Sym_DataType) {
