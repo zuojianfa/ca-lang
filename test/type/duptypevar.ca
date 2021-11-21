@@ -1,0 +1,5 @@
+fn main() {
+	let i32: i32 = 101;
+	print i32;
+}
+

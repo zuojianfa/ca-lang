@@ -224,6 +224,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
+- [ ] treat function id with "f:ident"
+- [ ] implement get_datatype_by_ident
 - [ ] handle logical operation type convert, in function `IR1::gen_sub` ..., and case '<', etc
 - [ ] support other atomic type
 - [ ] support point type

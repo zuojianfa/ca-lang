@@ -6,6 +6,7 @@
 
 #include "llvm/ir1.h"
 #include <cstdint>
+#include <cstdio>
 
 #ifdef __cplusplus
 BEGIN_EXTERN_C
@@ -29,6 +30,24 @@ extern int gcolno;
 extern ir_codegen::IR1 ir1;
 
 using namespace llvm;
+std::unordered_map<std::string, int> s_token_primitive_map {
+  {"void",   VOID},
+  {"int",    I32},
+  {"i32",    I32},
+  {"i64",    I64},
+  {"uint",   U32},
+  {"u32",    U32},
+  {"u64",    U64},
+  {"float",  F32},
+  {"f32",    F32},
+  {"double", F64},
+  {"f64",    F64},
+  {"bool",   BOOL},
+  {"i8",     CHAR},
+  {"char",   CHAR},
+  {"u8",     UCHAR},
+  {"uchar",  UCHAR},
+};
 
 BEGIN_EXTERN_C
 
@@ -99,9 +118,28 @@ const char *get_type_string(int tok) {
     return nullptr;
   }
 }
+
+int sym_form_type_id_from_token(int tok) {
+  char namebuf[16];
+  const char *name = get_type_string(tok);
+  sprintf(namebuf, "t:%s", name);
+  return symname_check(namebuf);
+}
+
+int sym_primitive_token_from_id(int id) {
+  const char *name = symname_get(id);
+  auto itr = s_token_primitive_map.find(name);
+  if (itr != s_token_primitive_map.end())
+    return itr->second;
+
+  yyerror("line: %d, col: %d: get primitive type token failed", glineno, gcolno);
+  return -1;
+}
+
 END_EXTERN_C
 
 std::unordered_map<std::string, int> s_token_map = {
+#if 0
   {"void",   VOID},
   {"int",    I32},
   {"i32",    I32},
@@ -118,6 +156,7 @@ std::unordered_map<std::string, int> s_token_map = {
   {"char",   CHAR},
   {"u8",     UCHAR},
   {"uchar",  UCHAR},
+#endif
 
   {">=",     GE},
   {"<=",     LE},
@@ -143,32 +182,32 @@ static CADataType *catype_make_type(const char *name, int type, int size);
 int catype_init() {
   CADataType *datatype;
   int name;
-  datatype = catype_make_type("void", VOID, 0); // void
-  datatype = catype_make_type("i32", I32, 4); // i32
+  datatype = catype_make_type("t:void", VOID, 0); // void
+  datatype = catype_make_type("t:i32", I32, 4); // i32
 
-  name = symname_check_insert("int");
+  name = symname_check_insert("t:int");
   catype_put_by_name(name, datatype);         // int
 
-  catype_make_type("i64", I64, 8);            // i64
+  catype_make_type("t:i64", I64, 8);            // i64
 
-  datatype = catype_make_type("u32", U32, 4); // u32
+  datatype = catype_make_type("t:u32", U32, 4); // u32
 
-  name = symname_check_insert("uint");
+  name = symname_check_insert("t:uint");
   catype_put_by_name(name, datatype);         // uint
 
-  catype_make_type("u64", U64, 8);            // u64
+  catype_make_type("t:u64", U64, 8);            // u64
 
-  datatype = catype_make_type("f32", F32, 4); // f32
-  name = symname_check_insert("float");
+  datatype = catype_make_type("t:f32", F32, 4); // f32
+  name = symname_check_insert("t:float");
   catype_put_by_name(name, datatype);         // float
 
-  datatype = catype_make_type("f64", F64, 8); // f64
-  name = symname_check_insert("double");
+  datatype = catype_make_type("t:f64", F64, 8); // f64
+  name = symname_check_insert("t:double");
   catype_put_by_name(name, datatype);         // double
 
-  catype_make_type("bool", BOOL, 1);          // bool
-  catype_make_type("char", CHAR, 1);          // char
-  catype_make_type("uchar", UCHAR, 1);        // uchar
+  catype_make_type("t:bool", BOOL, 1);          // bool
+  catype_make_type("t:char", CHAR, 1);          // char
+  catype_make_type("t:uchar", UCHAR, 1);        // uchar
 
   return 0;
 }
@@ -229,8 +268,10 @@ int inference_literal_type(CALiteral *lit) {
     return 0;
   }
 
-  const char *name = get_type_string(intentdeftype);
-  lit->datatype = catype_get_by_name(symname_check(name));
+  //const char *name = get_type_string(intentdeftype);
+  int typesym = sym_form_type_id_from_token(intentdeftype);
+  lit->datatype = catype_get_by_name(typesym // symname_check(name)
+				     );
   lit->fixed_type = 1;
 
   return intentdeftype;
@@ -295,8 +336,10 @@ void determine_literal_type(CALiteral *lit, int typetok) {
     return;
   }
 
-  const char *name = get_type_string(typetok);
-  lit->datatype = catype_get_by_name(symname_check(name));
+  //const char *name = get_type_string(typetok);
+  int typesym = sym_form_type_id_from_token(typetok);
+  lit->datatype = catype_get_by_name(typesym // symname_check(name)
+				     );
   lit->fixed_type = 1;
 }
 

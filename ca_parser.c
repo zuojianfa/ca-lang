@@ -269,6 +269,7 @@ ASTNode *make_stmtexpr_list(ASTNode *expr) {
   return expr;
 }
 
+#if 0
 CADataType *make_instance_type_atomic(int atomictype) {
   dot_emit("instance_type", "atomic_type");
   CADataType *dt = catype_get_by_name(atomictype);
@@ -277,6 +278,7 @@ CADataType *make_instance_type_atomic(int atomictype) {
 	    glineno, gcolno, symname_get(atomictype));
   return dt;
 }
+#endif
 
 CADataType *make_pointer_type(CADataType *type) {
   return catype_make_pointer_type(type);
@@ -301,14 +303,29 @@ CADataType *make_array_type(CADataType *type, LitBuffer *size) {
 }
 
 CADataType *get_datatype_by_ident(int id) {
+  //const char *name = symname_get(id);
+  int typeid = sym_form_type_id(id, 0);
+  CADataType *type = catype_get_by_name(typeid);
+
+  if (type)
+    return type;
+  
+  //return make_instance_type_atomic(id);
+
+
   // NEXT TODO: when id is not defined yet, it may can reference the later when it is pointer type. How to do?
   // how to resolve expression type inference when type is not determined yet
-  // answer: in the end of "block_body: '{'stmt_list_star '}'" determine or backfill the type information, when in previous just register the CADataType sketlon
+  // answer: in the end of "block_body: '{'stmt_list_star '}'" determine or backfill the type information
+  // when in previous just register the CADataType sketlon
+  // TODO: make it can use the primitive type name as the variable name
+  // TODO: make the function name can also be the researved word
   int typesym = sym_form_type_id(id, 0);
   STEntry *entry = sym_getsym(curr_symtable, typesym, 1);
   if (!entry) {
 #ifdef __SUPPORT_BACK_TYPE__
-    CADataType *type = catype_make_unknown_type(typesym, 0);
+    CADataType *type = catype_make_unknown_type(
+						//curr_symtable,
+						typesym, 0);
     return type;
 #else
     yyerror("line: %d, col: %d: cannot find symbol for id `%s`",
@@ -370,8 +387,8 @@ CADataType *make_instance_type_struct(int structtype) {
 
 CADataType *make_ret_type_void() {
   dot_emit("ret_type", "");
-  int name = symname_check_insert("void");
-  CADataType *dt = catype_get_by_name(name);
+  int typesym = sym_form_type_id_from_token(VOID);
+  CADataType *dt = catype_get_by_name(typesym);
   if (!dt)
     yyerror("line: %d, col: cannot get void datatype", glineno, gcolno);
 
@@ -874,8 +891,9 @@ int determine_expr_type(ASTNode *node, int typetok) {
     break;
   case TTE_Id:
     if (!node->entry->u.var->datatype) {
-      const char *name = get_type_string(typetok);
-      node->entry->u.var->datatype = catype_get_by_name(symname_check(name));
+      //const char *name = get_type_string(typetok);
+      int typesym = sym_form_type_id_from_token(typetok);
+      node->entry->u.var->datatype = catype_get_by_name(typesym /* symname_check(name) */);
     }
     break;
   case TTE_As:
@@ -1184,7 +1202,8 @@ ASTNode *build_mock_main_fn_node() {
   /* copy information */
   decl->seq = ++g_node_seqno;
   decl->type = TTE_FnDecl;
-  decl->fndecln.ret = catype_get_by_name(symname_check("i32"));
+  int typesym = sym_form_type_id_from_token(I32);
+  decl->fndecln.ret = catype_get_by_name(typesym);
   decl->fndecln.name = symname_check("main");
   //decl->fndecln.args = *al;
   decl->fndecln.is_extern = 0;

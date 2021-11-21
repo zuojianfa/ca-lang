@@ -57,7 +57,7 @@ extern int yychar, yylineno;
   CAVariable *var;
   CALiteral litv;   /* literal value */
   LitBuffer litb;   /* literal buffer */
-  IdToken idtok;    /* return type token */
+    //IdToken idtok;    /* return type token */
   int symnameid;    /* symbol table index */
   ASTNode *astnode; /* node pointer */
 };
@@ -83,9 +83,9 @@ extern int yychar, yylineno;
 %type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
 %type	<var>		iddef iddef_typed
 %type	<symnameid>	label_id attrib_scope
-%type	<symnameid>	atomic_type
-%type	<idtok>		type_postfix
-%type	<datatype>	data_type ret_type pointer_type array_type
+//			%type	<symnameid>	atomic_type
+//			%type	<idtok>		type_postfix
+%type	<datatype>	data_type ret_type pointer_type array_type ident_type
 
 %start program
 
@@ -238,13 +238,14 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	expr AS data_type     { $$ = make_as($1, $3); }
 		;
 
-data_type:	atomic_type           { $$ = make_instance_type_atomic($1); }
+data_type:	ident_type            { $$ = $1; }
 	|	pointer_type          { $$ = $1; }
 	|	array_type            { $$ = $1; }
-	|	IDENT                 { $$ = get_datatype_by_ident($1); }
+//	|	IDENT                 { $$ = get_datatype_by_ident($1); }
 	;
 
-atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
+//atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
+ident_type: 	IDENT { $$ = get_datatype_by_ident($1); }
 		;
 
 struct_type_def: STRUCT IDENT
@@ -290,16 +291,8 @@ ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; 
 		;
 
 literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, $1.typetok, -1); }
-	|	LITERAL type_postfix { dot_emit("literal", "LITERAL type_postfix"); create_literal(&$$, $1.text, $1.typetok, $2.typetok); }
+	|	LITERAL IDENT    { create_literal(&$$, $1.text, $1.typetok, sym_primitive_token_from_id($2)); }
 	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
-	;
-
-type_postfix:	I32 { make_type_postfix(&$$, $1, I32); }
-	| 	I64 { make_type_postfix(&$$, $1, I64); }
-	| 	U32 { make_type_postfix(&$$, $1, U32); }
-	| 	U64 { make_type_postfix(&$$, $1, U64); }
-	| 	F32 { make_type_postfix(&$$, $1, F32); }
-	| 	F64 { make_type_postfix(&$$, $1, F64); }
 	;
 
 lit_struct_def:	IDENT '{' lit_field_list  '}'
