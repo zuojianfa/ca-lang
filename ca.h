@@ -1,6 +1,8 @@
 #ifndef __CA_H__
 #define __CA_H__
 
+#include "ca_types.h"
+
 #define __SUPPORT_BACK_TYPE__
 
 #define BEGIN_EXTERN_C extern "C" {
@@ -40,7 +42,6 @@ struct ASTNode;
 /* literals */
 typedef struct {
   CALiteral litv; /* value of literal */
-  int bg_type;    /* for inference the literal's type */
 } TLiteralNode;
 
 /* identifiers */
@@ -58,13 +59,14 @@ typedef struct {
      `0` value, or it is the intention type value may be used inference in later
      use
    */
-  int expr_type;
+  typeid_t expr_type;
   struct ASTNode **operands; /* operands */
 } TExprNode;
 
 typedef struct TFnDeclNode {
   int is_extern;   // is extern function
-  CADataType *ret; // specify if have return value, can extend into return different type
+  typeid_t ret;    // specify the return type of the function, typeid_novalue stand for no return value
+  //CADataType *ret; 
   int name;        // function name subscript to sym array
   ST_ArgList args;
 } TFnDeclNode;
@@ -94,7 +96,8 @@ typedef struct TIfNode {
 
 typedef struct TExprAsNode {
   struct ASTNode *expr;
-  CADataType *type;
+  //CADataType *type;
+  typeid_t type;
 } TExprAsNode;
 
 typedef struct ASTNode {
@@ -132,9 +135,10 @@ typedef struct RootTree {
   int count;
 } RootTree;
 
+int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands);
 int parse_lexical_char(const char *text);
 int enable_emit_main();
-void check_return_type(int fnrettype);
+void check_return_type(typeid_t fnrettype);
 SymTable *push_new_symtable();
 SymTable *push_symtable(SymTable *st);
 SymTable *pop_symtable();
@@ -143,15 +147,15 @@ int add_fn_args_actual(SymTable *st, ASTNode *arg);
 const char *sym_form_label_name(const char *name);
 const char *sym_form_type_name(const char *name);
 const char *sym_form_struct_signature(const char *name, SymTable *st);
-int sym_form_type_id(int id, int islabel);
-int sym_form_type_id_from_token(int tok);
-int sym_primitive_token_from_id(int id);
+typeid_t sym_form_type_id(int id, int islabel);
+typeid_t sym_form_type_id_from_token(tokenid_t tok);
+tokenid_t sym_primitive_token_from_id(typeid_t id);
 
-int determine_expr_type(ASTNode *node, int typetok);
-void determine_literal_type(CALiteral *lit, int typetok);
+int determine_expr_type(ASTNode *node, typeid_t type);
+void determine_literal_type(CALiteral *lit, tokenid_t typetok);
 int get_expr_type_from_tree(ASTNode *node, int ispost);
-int inference_expr_type(ASTNode *p);
-void create_literal(CALiteral *lit, int textid, int littypetok, int postfixtypetok);
+typeid_t inference_expr_type(ASTNode *p);
+void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t postfixtypetok);
 const char *get_node_name_or_value(ASTNode *node);
 
 ASTNode *build_mock_main_fn_node();
@@ -178,7 +182,7 @@ CADataType *make_array_type(CADataType *type, LitBuffer *size);
 CADataType *get_datatype_by_ident(int name);
 ASTNode *make_type_def(int name, CADataType *type);
 CADataType *make_instance_type_struct(int structtype);
-CADataType *make_ret_type_void();
+typeid_t make_ret_type_void();
 void make_type_postfix(IdToken *idt, int id, int typetok);
 
 ASTNode *make_label_node(int value);
@@ -197,10 +201,12 @@ ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
-ASTNode *make_fn_proto(int id, ST_ArgList *arglist, CADataType *rettype);
+ASTNode *make_fn_proto(int id, ST_ArgList *arglist, typeid_t type);
 ASTNode *make_fn_call(int fnname, ASTNode *param);
 ASTNode *make_ident_expr(int id);
-ASTNode *make_as(ASTNode *expr, CADataType *type);
+ASTNode *make_as(ASTNode *expr, typeid_t type);
+ASTNode *make_stmt_list_zip();
+void put_astnode_into_list(ASTNode *stmt);
 
 int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 ASTNode *make_struct_type(int id, ST_ArgList *arglist);
@@ -211,6 +217,15 @@ NodeChain *node_chain(RootTree *tree, ASTNode *p);
 #ifdef __cplusplus
 END_EXTERN_C
 #endif
+
+#define CHECK_GET_TYPE_VALUE(p, value, id)			\
+  do {								\
+    if (!(value)) {						\
+      const char *name = symname_get(id);			\
+      yyerror("line: %d, col: %d: cannot find data type '%s'",	\
+	      (p)->begloc.row, (p)->begloc.col, name);		\
+    }								\
+  } while(0)
 
 #endif
 

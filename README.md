@@ -224,7 +224,10 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
+- [ ] search `tok` and check the if it transfered the right id not typeid_t
+- [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
 - [ ] treat function id with "f:ident"
+- [ ] typedef a type for different type of meaning, such as define ident_t as int, type_t as int etc.
 - [ ] implement get_datatype_by_ident
 - [ ] handle logical operation type convert, in function `IR1::gen_sub` ..., and case '<', etc
 - [ ] support other atomic type
@@ -239,3 +242,8 @@ detailed TODO LIST:
 # License
 See `LICENSE` file in this directory, for license in directory `cruntime` see cruntime/README.md
 
+
+# searches
+```
+reduce_node_and_type
+```

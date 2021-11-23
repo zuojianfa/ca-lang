@@ -39,7 +39,6 @@ extern SymTable *curr_symtable;
 extern SymTable *curr_fn_symtable;
 extern SymTable *g_main_symtable;
 
-extern int borning_var_type;
 extern int extern_flag;
 extern ST_ArgList curr_arglist;
 
@@ -82,10 +81,10 @@ extern int yychar, yylineno;
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt struct_type_def type_def
 %type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
 %type	<var>		iddef iddef_typed
-%type	<symnameid>	label_id attrib_scope
+%type	<symnameid>	label_id attrib_scope ret_type
 //			%type	<symnameid>	atomic_type
 //			%type	<idtok>		type_postfix
-%type	<datatype>	data_type ret_type pointer_type array_type ident_type
+%type	<datatype>	data_type pointer_type array_type ident_type
 
 %start program
 
@@ -193,7 +192,7 @@ stmtexpr_list_block: { SymTable *st = push_new_symtable(); }
 exprblock_body: '{' stmtexpr_list '}'               { $$ = make_exprblock_body($2); }
 		;
 
-stmtexpr_list: 	stmt_list expr { $$ = make_stmtexpr_list($2); /* TODO: put stmt_list into list */ }
+stmtexpr_list: 	stmt_list expr { make_stmt_list_zip(); $$ = make_stmtexpr_list($2); }
 	|	expr { $$ = make_stmtexpr_list($1); }
 		;
 /**/
@@ -205,12 +204,12 @@ stmt_list_block: { SymTable *st = push_new_symtable(); }
 block_body: 	'{'stmt_list_star '}'               { $$ = make_exprblock_body($2); }
 		;
 
-stmt_list_star:	stmt_list                           { dot_emit("stmt_list_star", "stmt_list"); $$ = $1; }
-	|	                                    { $$ = make_empty(); /* empty */}
+stmt_list_star:	stmt_list             { $$ = make_stmt_list_zip(); }
+	|                             { $$ = make_empty(); /* empty */}
 		;
-
-stmt_list:     	stmt                  { dot_emit("stmt_list", "stmt"); $$ = $1; }
-	|	stmt_list stmt        { $$ = make_expr(';', 2, $1, $2); }
+// TODO: the stmt_list and stmt may have recursive tree, so here cannot directly put following into a list simply
+stmt_list:     	stmt                  { put_astnode_into_list($1); }
+	|	stmt_list stmt        { put_astnode_into_list($2); /* $$ = make_expr(';', 2, $1, $2); */ }
 		;
 
 label_def:	label_id ':'          { $$ = make_label_def($1); }
@@ -235,7 +234,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	'('expr ')'           { dot_emit("expr", "'(' expr ')'"); $$ = $2; }
 	|	fn_call               { dot_emit("expr", "fn_call"); $$ = $1; }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
-	|	expr AS data_type     { $$ = make_as($1, $3); }
+	|	expr AS data_type     { $$ = make_as($1, $3->signature); }
 		;
 
 data_type:	ident_type            { $$ = $1; }
@@ -279,14 +278,14 @@ array_type:	'[' data_type ';' LITERAL ']'
 		}
 	;
 
-iddef:		iddef_typed  { dot_emit("iddef", "iddef_typed"); $$ = $1; borning_var_type = $1->datatype->type; }
-	|	IDENT        { dot_emit("iddef", "IDENT"); $$ = cavar_create($1, NULL); }
+iddef:		iddef_typed  { dot_emit("iddef", "iddef_typed"); $$ = $1; }
+	|	IDENT        { dot_emit("iddef", "IDENT"); $$ = cavar_create($1, typeid_novalue); }
 	;
 
-iddef_typed:	IDENT ':' data_type { dot_emit("iddef_typed", "IDENT ':' data_type"); $$ = cavar_create($1, $3); }
+iddef_typed:	IDENT ':' data_type { dot_emit("iddef_typed", "IDENT ':' data_type"); $$ = cavar_create($1, $3->signature); }
 	;
 
-ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; }
+ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2->signature; }
 	|	{ $$ = make_ret_type_void(); }
 		;
 

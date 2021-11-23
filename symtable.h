@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "ca_types.h"
+
 #ifdef __cplusplus
 BEGIN_EXTERN_C
 #endif
@@ -30,10 +32,10 @@ typedef enum SymType {
 #define MAX_ARGS 16
 
 typedef struct CADataType {
-  int type;       // type type: I32 I64 ... STRUCT ARRAY
-  int formalname; // type name symname_xxx
+  tokenid_t type;       // type type: I32 I64 ... STRUCT ARRAY
+  typeid_t formalname; // type name symname_xxx
   int size;       // type size
-  int signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table
+  typeid_t signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table
   union {
     struct CAStruct *struct_layout;  // when type is STRUCT
     struct CAArray *array_layout;    // when type is ARRAY
@@ -43,7 +45,8 @@ typedef struct CADataType {
 
 typedef struct CAStructField {
   int name;           // field name
-  CADataType *type;   // field type
+  //CADataType *type;   // field type
+  typeid_t type;
 } CAStructField;
 
 typedef struct CAStruct {
@@ -102,18 +105,17 @@ typedef struct CALiteral {
   // the literal I64 for negative integer value, U64 for positive integer value,
   // F64 for floating point value, BOOL is true false value, CHAR is 'x' value,
   // UCHAR is '\x' value
-  int littypetok;
-
-  // the just being creating variable's type, used to guide the literal type
-  int borning_var_type;
+  tokenid_t littypetok;
 
   int postfixtypetok;      // the postfix type when postfix is set
+  //typeid_t *postfixtypetok; // TODO: remove *, add * for make compile error and notice it
 
   // text id in symname table, text is used for latering literal type inference
   int textid;
 
   // when the literal type already determined then datatype is not NULL 
-  CADataType *datatype;
+  //CADataType *datatype;
+  typeid_t datatype;
   union {
     int64_t  i64value;      // store either integer type value include unsigned
     double   f64value;      // store floating value
@@ -123,7 +125,7 @@ typedef struct CALiteral {
 } CALiteral;
 
 typedef struct LitBuffer {
-  int typetok;
+  tokenid_t typetok;
   int len;
   int text;
 } LitBuffer;
@@ -134,7 +136,8 @@ typedef struct IdToken {
 } IdToken;
 
 typedef struct CAVariable {
-  CADataType *datatype;
+  //CADataType *datatype;
+  typeid_t datatype;
   SLoc loc;
   int name;
   int global; // is global variable
@@ -182,7 +185,8 @@ typedef struct STEntry {
   union {
     struct {
       ST_ArgList *arglists; // when type is Sym_ArgList
-      CADataType *rettype;
+      //CADataType *rettype;
+      typeid_t rettype;
     } f;                // when type is Sym_ArgList and contains return type
     CAVariable *var;    // when sym_type are Sym_Variable Sym_Member
     CADataType *datatype; // when sym_type is Sym_DataType
@@ -209,26 +213,26 @@ ST_ArgListActual *actualarglist_new_push();
 void actualarglist_pop();
 
 // type checking
-int check_i64_value_scope(int64_t lit, int typetok);
-int check_u64_value_scope(uint64_t lit, int typetok);
-int check_f64_value_scope(double lit, int typetok);
-int check_char_value_scope(char lit, int typetok);
-int check_uchar_value_scope(uint8_t lit, int typetok);
-int literal_type_convertable(int from, int to);
-int as_type_convertable(int from, int to);
+int check_i64_value_scope(int64_t lit, tokenid_t typetok);
+int check_u64_value_scope(uint64_t lit, tokenid_t typetok);
+int check_f64_value_scope(double lit, tokenid_t typetok);
+int check_char_value_scope(char lit, tokenid_t typetok);
+int check_uchar_value_scope(uint8_t lit, tokenid_t typetok);
+int literal_type_convertable(tokenid_t from, tokenid_t to);
+int as_type_convertable(tokenid_t from, tokenid_t to);
 
 // type finding
 int catype_init();
-int catype_put_by_name(int name, CADataType *datatype);
-CADataType *catype_get_by_name(int name);
+int catype_put_by_name(typeid_t name, CADataType *datatype);
+CADataType *catype_get_by_name(typeid_t name);
 int catype_put_by_token(int token, CADataType *datatype);
 CADataType *catype_get_by_token(int token);
-int catype_is_float(int typetok);
+int catype_is_float(tokenid_t typetok);
 
 const char *get_type_string(int tok);
 void set_litbuf(LitBuffer *litb, char *text, int len, int typetok);
 
-CAVariable *cavar_create(int name, CADataType *datatype);
+CAVariable *cavar_create(int name, typeid_t datatype);
 void cavar_destroy(CAVariable **var);
 
 // the globally symbol name table, it store names and it's index

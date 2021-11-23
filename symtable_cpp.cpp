@@ -21,20 +21,13 @@
 #include <unordered_map>
 
 extern std::unordered_map<std::string, int> s_token_map;
-extern std::unordered_map<int, CADataType *> s_type_map;
+extern std::unordered_map<typeid_t, CADataType *> s_type_map;
 
-#ifdef __cplusplus
 BEGIN_EXTERN_C
-#endif
-
 void yyerror(const char *s, ...);
 extern int glineno;
 extern int gcolno;
-extern int borning_var_type;
-
-#ifdef __cplusplus
 END_EXTERN_C
-#endif
 
 // static char *s_symname_buffer = NULL;
 static std::vector<char> s_symname_buffer;
@@ -73,10 +66,7 @@ static int symname_insert(const std::string &s) {
 
 using SymTableInner = std::unordered_map<int, std::unique_ptr<STEntry>>;
 
-#ifdef __cplusplus
 BEGIN_EXTERN_C
-#endif
-
 int lexical_init() {
   return 0;
 }
@@ -89,12 +79,12 @@ int find_lexical_keyword(const char *name) {
   return -1;
 }
 
-int catype_put_by_name(int name, CADataType *datatype) {
+int catype_put_by_name(typeid_t name, CADataType *datatype) {
   s_type_map.insert(std::move(std::make_pair(name, datatype)));
   return 0;
 }
 
-CADataType *catype_get_by_name(int name) {
+CADataType *catype_get_by_name(typeid_t name) {
   auto itr = s_type_map.find(name);
   if (itr == s_type_map.end())
     return nullptr;
@@ -120,7 +110,7 @@ void set_litbuf(LitBuffer *litb, char *text, int len, int typetok) {
   litb->text = name;
 }
 
-CAVariable *cavar_create(int name, CADataType *datatype) {
+CAVariable *cavar_create(int name, typeid_t datatype) {
   CAVariable *var = new CAVariable;
   var->datatype = datatype;
   var->loc = (SLoc){glineno, gcolno};
@@ -267,9 +257,5 @@ void sym_destroy(SymTable *st) {
   delete table;
 }
 
-#ifdef __cplusplus
 END_EXTERN_C
-#endif
-
-
 

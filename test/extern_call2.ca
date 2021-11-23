@@ -1,0 +1,5 @@
+extern fn getchar() -> i32;
+fn main() {
+    let a = getchar();
+}
+

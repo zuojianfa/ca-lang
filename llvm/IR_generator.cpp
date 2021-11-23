@@ -32,9 +32,7 @@
 #include "type_system.h"
 #include "type_system_llvm.h"
 
-#ifdef __cplusplus
 BEGIN_EXTERN_C
-#endif
 
 #include "ca.tab.h"
 #include "config.h"
@@ -49,10 +47,7 @@ CompileEnv genv;
 
 extern int glineno;
 extern int gcolno;
-
-#ifdef __cplusplus
 END_EXTERN_C
-#endif
 
 extern FILE *yyin;
 
@@ -69,6 +64,7 @@ std::unique_ptr<jit_codegen::JIT1> jit1;
 
 static ExitOnError exit_on_error;
 static bool g_with_ret_value = false;
+extern SymTable g_root_symtable;
 
 // llvm section
 
@@ -186,11 +182,14 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     if (entry->sym_type != Sym_Variable)
       yyerror("symbol type is not variable: (%d != %d)", entry->sym_type, Sym_Variable);
 
-    Type *type = gen_type_from_token(entry->u.var->datatype->type);
+    CADataType *dt = catype_get_by_name(entry->u.var->datatype);
+    CHECK_GET_TYPE_VALUE(curr_fn_node, dt, entry->u.var->datatype);
+
+    Type *type = gen_type_from_token(dt->type);
     AllocaInst *slot = ir1.gen_var(type, name, &arg);
 
     if (enable_debug_info()) {
-      DIType *ditype = diinfo->get_ditype(get_type_string(entry->u.var->datatype->type));
+      DIType *ditype = diinfo->get_ditype(get_type_string(dt->type));
       DILocalVariable *divar = diinfo->dibuilder->createParameterVariable(disp, arg.getName(), i, diunit, row, ditype, true);
 
       const DILocation *diloc = DILocation::get(disp->getContext(), row, 0, disp);
@@ -235,10 +234,12 @@ static Value *walk_literal(ASTNode *p) {
 
   // the intent_type is for determining the binding type of literal value
   // when fixed_type is set use it else use intent_type
-  int typetok = 0;
-  if (p->litn.litv.fixed_type)
-    typetok = p->litn.litv.datatype->type;
-  else {
+  tokenid_t typetok = 0;
+  if (p->litn.litv.fixed_type) {
+    CADataType *dt = catype_get_by_name(p->litn.litv.datatype);
+    CHECK_GET_TYPE_VALUE(p, dt, p->litn.litv.datatype);
+    typetok = dt->type;
+  } else {
     yyerror("line: %d, col: %d: should never used the intent type",
 	    p->begloc.col, p->begloc.row);
     typetok = p->litn.litv.intent_type;
@@ -249,14 +250,6 @@ static Value *walk_literal(ASTNode *p) {
   auto operands = std::make_unique<CalcOperand>(OT_Const, v, typetok);
   oprand_stack.push_back(std::move(operands));
 
-  return v;
-}
-
-static Value *walk_typed_literal(ASTNode *p, CADataType *datatype) {
-  if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
-
-  Value *v = gen_literal_value(&p->litn.litv, datatype->type, p->begloc);
   return v;
 }
 
@@ -277,8 +270,11 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
       ir1.builder().CreateStore(defval, var, name);
   } else {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
-    Type *type = gen_type_from_token(p->entry->u.var->datatype->type);
-    const char *typestr = get_type_string(p->entry->u.var->datatype->type);
+    CADataType *dt = catype_get_by_name(p->entry->u.var->datatype);
+    CHECK_GET_TYPE_VALUE(p, dt, p->entry->u.var->datatype);
+
+    Type *type = gen_type_from_token(dt->type);
+    const char *typestr = get_type_string(dt->type);
 
     // here determine if `#[scope(global)]` is specified
     if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
@@ -298,8 +294,11 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
 
 static Value *walk_id(ASTNode *p) {
   Value *var = walk_id_defv(p);
-  
-  auto operands = std::make_unique<CalcOperand>(OT_Alloc, var, p->entry->u.var->datatype->type);
+
+  CADataType *dt = catype_get_by_name(p->entry->u.var->datatype);
+  CHECK_GET_TYPE_VALUE(p, dt, p->entry->u.var->datatype);
+
+  auto operands = std::make_unique<CalcOperand>(OT_Alloc, var, dt->type);
   oprand_stack.push_back(std::move(operands));
   return var;
 }
@@ -342,8 +341,8 @@ static BasicBlock *walk_label(ASTNode *p) {
 static void walk_label_goto(ASTNode *p) {}
 
 static void walk_stmt_semicolon(ASTNode *p) {
-  walk_stack(p->exprn.operands[0]);
-  walk_stack(p->exprn.operands[1]);
+  for (int i = 0; i < p->exprn.noperand; ++i)
+    walk_stack(p->exprn.operands[i]);
 }
 
 static void walk_while(ASTNode *p) {
@@ -360,6 +359,8 @@ static void walk_while(ASTNode *p) {
   ir1.builder().CreateBr(condbb);
   curr_fn->getBasicBlockList().push_back(condbb);
   ir1.builder().SetInsertPoint(condbb);
+
+  inference_expr_type(p->whilen.cond);
   walk_stack(p->whilen.cond);
   auto pair = pop_right_value("cond");
   Value *cond = pair.first;
@@ -405,6 +406,7 @@ static void walk_if(ASTNode *p) {
   BasicBlock *outbb = ir1.gen_bb("outbb");
   BasicBlock *elsebb = nullptr;
 
+  inference_expr_type(p->ifn.conds[0]);
   walk_stack(p->ifn.conds[0]);
   auto pair = pop_right_value("cond");
   Value *cond = pair.first;
@@ -471,6 +473,7 @@ static void walk_if(ASTNode *p) {
 }
 
 static void walk_stmt_print(ASTNode *p) {
+  inference_expr_type(p->exprn.operands[0]);
   walk_stack(p->exprn.operands[0]);
   auto pair = pop_right_value();
   Value *v = pair.first;
@@ -577,8 +580,8 @@ static void walk_stmt_assign(ASTNode *p) {
   ASTNode *exprn = p->exprn.operands[1];
 
 #if 0
-  int exprntypetok = get_expr_type_from_tree(exprn, 0);
-  if (idn->entry->u.var->datatype) {
+  int exprntypetok = get_expr_type_from_ tree(exprn, 0);
+  if (idn->entry->u.var->datatype != typeid_novalue) {
     // when the variable has a specified type: `let a: i32 = ?`
     if (exprntypetok) {
       // both side have specified type: `let a: i32 = (33 + (33i32 + 4323))`
@@ -592,7 +595,7 @@ static void walk_stmt_assign(ASTNode *p) {
 
     } else {
       // right side have no determined a type: `let a: i32 = 4343`
-      determine_expr_type(exprn, idn->entry->u.var->datatype->type);
+      determine_expr_ type(exprn, idn->entry->u.var->datatype->type);
     }
   } else {
     // when variable type not determined yet, it means:
@@ -601,7 +604,7 @@ static void walk_stmt_assign(ASTNode *p) {
     // it should inferenced by the right value: right expression
     if (!exprntypetok) {
       // when both side have no a determined type, then determine the right side type
-      exprntypetok = inference_expr_type(exprn);
+      exprntypetok = inference_expr_ type(exprn);
     }
 
     if (!exprntypetok) {
@@ -632,14 +635,19 @@ static void walk_stmt_assign(ASTNode *p) {
  
   Value *vp = walk_id_defv(idn, v);
 
-  auto u = std::make_unique<CalcOperand>(OT_Store, vp, idn->entry->u.var->datatype->type);
+  CADataType *dt = catype_get_by_name(idn->entry->u.var->datatype);
+  CHECK_GET_TYPE_VALUE(p, dt, idn->entry->u.var->datatype);
+
+  auto u = std::make_unique<CalcOperand>(OT_Store, vp, dt->type);
   oprand_stack.push_back(std::move(u));
 }
 
 static void walk_stmt_minus(ASTNode *p) {
-  int type = get_expr_type_from_tree(p->exprn.operands[0], 0);
-  if (is_unsigned_type(type)) {
-    yyerror("unsigned type `%s` cannot apply `-` operator", get_type_string(type));
+  typeid_t type = get_expr_type_from_tree(p->exprn.operands[0], 0);
+  CADataType *dt = catype_get_by_name(type);
+  CHECK_GET_TYPE_VALUE(p, dt, type);
+  if (is_unsigned_type(dt->type)) {
+    yyerror("unsigned type `%s` cannot apply `-` operator", symname_get(type));
     return;
   }
 
@@ -674,9 +682,87 @@ static void walk_stmt_goto(ASTNode *p) {
   ir1.builder().SetInsertPoint(extrabb);
 }
 
+static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
+  int fnname = name->idn.i;
+  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
+  ST_ArgList *formalparam = entry->u.f.arglists;
+
+  // check and determine parameter type
+  for (int i = 0; i < param->exprn.noperand; ++i) {
+    typeid_t formaltype = typeid_novalue;
+    if (i >= formalparam->argc) {
+      // it is a variable parameter ...
+      formaltype = typeid_novalue;
+    } else {
+      STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
+      CADataType *dt = catype_get_by_name(paramentry->u.var->datatype);
+      CHECK_GET_TYPE_VALUE(param, dt, paramentry->u.var->datatype);
+      formaltype = paramentry->u.var->datatype;
+    }
+
+    typeid_t realtype = formaltype;
+    ASTNode *expr = param->exprn.operands[i]; // get one parameter
+
+    // TODO: put the check into IR time
+    if (formaltype == typeid_novalue)
+      inference_expr_type(expr);
+    else
+      determine_expr_type(expr, formaltype);
+
+    realtype = get_expr_type_from_tree(expr, 0);
+    if (formaltype == typeid_novalue)
+      formaltype = realtype;
+    
+    ////////////////////
+#if 0
+    switch(expr->type) {
+    case TTE_Literal:
+      if (formaltype == 0) {
+	inference_literal_type(&expr->litn.litv);
+      } else {
+	determine_literal_ type(&expr->litn.litv, formaltype);
+      }
+      break;
+    case TTE_Id: {
+      // get the actual parameter type
+      STEntry *identry = sym_getsym(param->symtable, expr->idn.i, 1);
+      realtype = identry->u.var->datatype->type;
+      break;
+    }
+    case TTE_Expr:
+      if (formaltype == 0) {
+	inference_expr_type(expr);
+      } else {
+	determine_expr_ type(expr, formaltype);
+      }
+
+      realtype = expr->exprn.expr_type;
+      if (formaltype == 0)
+	formaltype = realtype;
+
+      break;
+    default:
+      yyerror("line: %d, col: %d: the expression type `%d` should not come here",
+	      param->begloc.row, param->begloc.col, expr->type);
+      break;
+    }
+#endif
+
+    // TODO: put the check into IR time
+    // check the formal parameter and actual parameter type
+    if (realtype != formaltype) {
+      yyerror("line: %d, col: %d: the %d parameter type '%s' not match the parameter declared type '%s'",
+	      param->begloc.row, param->begloc.col, i, symname_get(realtype)+2, symname_get(formaltype)+2);
+      return;
+    }
+  }
+}
+
 static void walk_stmt_call(ASTNode *p) {
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
+  check_and_determine_param_type(name, args);
+
   const char *fnname = symname_get(name->idn.i);
 
   Function *fn = ir1.module().getFunction(fnname);
@@ -709,7 +795,10 @@ static void walk_stmt_call(ASTNode *p) {
   }
  
   CallInst *callret = ir1.builder().CreateCall(fn, argv, isvoidty ? "" : fnname);
-  auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, itr->second->fndecln.ret->type);
+  CADataType *retdt = catype_get_by_name(itr->second->fndecln.ret);
+  CHECK_GET_TYPE_VALUE(p, retdt, itr->second->fndecln.ret);
+
+  auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, retdt->type);
   oprand_stack.push_back(std::move(operands));
 }
 
@@ -719,9 +808,16 @@ static void walk_stmt_ret(ASTNode *p) {
 
   if (p->exprn.noperand) {
     ASTNode *retn = p->exprn.operands[0];
+    typeid_t retid = curr_fn_node->fndefn.fn_decl->fndecln.ret;
+    //CADataType *retdt = catype_get_by_name(retid);
+    //CHECK_GET_TYPE_VALUE(p, retdt, retid);
+
+    determine_expr_type(retn, retid);
     if (retn->type == TTE_Literal && !retn->litn.litv.fixed_type) {
       auto itr = function_map.find(curr_fn->getName().str());
-      retn->litn.litv.intent_type = itr->second->fndecln.ret->type;
+      CADataType *retdt = catype_get_by_name(itr->second->fndecln.ret);
+      CHECK_GET_TYPE_VALUE(p, retdt, itr->second->fndecln.ret);
+      retn->litn.litv.intent_type = retdt->type;
     }
 
     walk_stack(retn);
@@ -732,11 +828,13 @@ static void walk_stmt_ret(ASTNode *p) {
 
     // match the function return value and the literal return value
     if (rettype != v->getType()) {
-      int rettypetok = curr_fn_node->fndefn.fn_decl->fndecln.ret->type;
-      int exprtypetok = get_expr_type_from_tree(retn, 0);
+      typeid_t retty = curr_fn_node->fndefn.fn_decl->fndecln.ret;
+      CADataType *retdt = catype_get_by_name(retty);
+      CHECK_GET_TYPE_VALUE(retn, retdt, retty);
+      typeid_t exprtype = get_expr_type_from_tree(retn, 0);
       yyerror("line: %d, column: %d, return value `%s` type '%s' not match function type '%s'",
 	      retn->begloc.row, retn->begloc.col, get_node_name_or_value(retn),
-	      get_type_string(exprtypetok), get_type_string(rettypetok));
+	      symname_get(exprtype), symname_get(retty));
       return;
     }
 
@@ -771,14 +869,18 @@ static void walk_stmt_expr(ASTNode *p) {
   Value *v3 = nullptr;
 
   // TODO: here should can use pair1.second pair2.second
-  int type1 = get_expr_type_from_tree(p->exprn.operands[0], 0);
-  int type2 = get_expr_type_from_tree(p->exprn.operands[1], 0);
+  typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0], 0);
+  typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1], 0);
 
-  if (type1 != type2) {
+  if (typeid1 != typeid2) {
     yyerror("operation have 2 different types: '%s', '%s'",
-	    get_type_string(type1), get_type_string(type2));
+	    symname_get(typeid1), symname_get(typeid2));
     return;
   }
+
+  CADataType *dt = catype_get_by_name(typeid1);
+  CHECK_GET_TYPE_VALUE(p, dt, typeid1);
+  tokenid_t type1 = dt->type;
 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -813,7 +915,58 @@ static void walk_stmt_expr(ASTNode *p) {
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v3, type1));
 }
 
+static int is_valued_expr(int op) {
+  return (op != ARG_LISTS && op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET);
+}
+
+static void post_make_expr(ASTNode *p) {
+  int i = 0;
+  int op = p->exprn.op;
+  int check_type = is_valued_expr(op);
+  int noperands = p->exprn.noperand;
+  if (!check_type)
+    return;
+
+  int expr_len = noperands;
+  typeid_t *expr_types = (int *)alloca(noperands * sizeof(typeid_t));
+
+  switch(op) {
+  case FN_CALL: {
+    ASTNode *idn = p->exprn.operands[0];
+    STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
+    //CADataType *retdt = catype_get_by_name(entry->u.f.rettype);
+    //CHECK_GET_TYPE_VALUE(p, retdt, entry->u.f.rettype);
+    //retdt->type
+
+    expr_types[0] = entry->u.f.rettype;
+    expr_len = 1;
+    break;
+  }
+    /*
+      case '=': {
+      expr_types[0] = p->exprn.operands[1]->entry->u.var->datatype ?
+      p->exprn.operands[1]->entry->u.var->datatype->type : 0;
+      expr_types[1] = get_expr_type_from_ tree(p->exprn.operands[1], 1);
+      break;
+      }
+    */
+  default:
+    for (i = 0; i < noperands; i++) {
+      if (p->exprn.operands[i]->type == TTE_Expr &&
+	  p->exprn.operands[i]->exprn.expr_type == typeid_novalue)
+	post_make_expr(p->exprn.operands[i]);
+
+      expr_types[i] = get_expr_type_from_tree(p->exprn.operands[i], 0);
+    }
+    break;
+  }
+
+  p->exprn.expr_type = reduce_node_and_type(p, expr_types, expr_len);
+}
+
 static void walk_statement(ASTNode *p) {
+  post_make_expr(p);
+  
   // not allow global assign value, global variable definition is not assign
   if (!curr_fn && p->exprn.op != '=' && p->exprn.op != ';')
     return;
@@ -878,11 +1031,16 @@ static Function *walk_fn_declare(ASTNode *p) {
       return nullptr;
     }
 
-    Type *type = gen_type_from_token(entry->u.var->datatype->type);
+    CADataType *dt = catype_get_by_name(entry->u.var->datatype);
+    CHECK_GET_TYPE_VALUE(p, dt, entry->u.var->datatype);
+
+    Type *type = gen_type_from_token(dt->type);
     params.push_back(type);
   }
 
-  Type *rettype = gen_type_from_token(p->fndecln.ret->type);
+  CADataType *retdt = catype_get_by_name(p->fndecln.ret);
+  CHECK_GET_TYPE_VALUE(p, retdt, p->fndecln.ret);
+  Type *rettype = gen_type_from_token(retdt->type);
   fn = ir1.gen_extern_fn(rettype, fnname, params, &param_names, !!p->fndecln.args.contain_varg);
   function_map.insert(std::make_pair(fnname, p));
   fn->setCallingConv(CallingConv::C);
@@ -895,8 +1053,11 @@ static Function *walk_fn_declare(ASTNode *p) {
 
 static void generate_final_return(ASTNode *p) {
   // should check if the function returned a value instead of append a return value always
+  CADataType *retdt = catype_get_by_name(p->fndefn.fn_decl->fndecln.ret);
+  CHECK_GET_TYPE_VALUE(p, retdt, p->fndefn.fn_decl->fndecln.ret);
+
   if (g_with_ret_value) {
-    if (p->fndefn.fn_decl->fndecln.ret->type == VOID) {
+    if (retdt->type == VOID) {
       ir1.builder().CreateRetVoid();
     } else {
       Value *v = ir1.builder().CreateLoad((Value *)p->fndefn.retslot, "retret");
@@ -905,7 +1066,7 @@ static void generate_final_return(ASTNode *p) {
     return;
   }
 
-  Value *retv = create_def_value(p->fndefn.fn_decl->fndecln.ret->type);
+  Value *retv = create_def_value(retdt->type);
   if (retv)
     ir1.builder().CreateRet(retv);
   else
@@ -931,7 +1092,9 @@ static Function *walk_fn_define(ASTNode *p) {
   // insert here debugging information
   init_fn_param_info(fn, p->fndefn.fn_decl->fndecln.args, p->symtable, p->begloc.row);
 
-  if (p->fndefn.fn_decl->fndecln.ret->type != VOID) {
+  CADataType *retdt = catype_get_by_name(p->fndefn.fn_decl->fndecln.ret);
+  CHECK_GET_TYPE_VALUE(p, retdt, p->fndefn.fn_decl->fndecln.ret);
+  if (retdt->type != VOID) {
     p->fndefn.retslot = (void *)ir1.gen_var(fn->getReturnType(), "retslot");
   } else {
     p->fndefn.retslot = nullptr;
@@ -979,15 +1142,23 @@ static Function *walk_fn_define(ASTNode *p) {
 }
 
 static void walk_as(ASTNode *node) {
-  CADataType *type = node->exprasn.type;
+  //CADataType *type = node->exprasn.type;
+  CADataType *type = catype_get_by_name(node->exprasn.type);
+  CHECK_GET_TYPE_VALUE(node, type, node->exprasn.type);
+
   ASTNode *exprn = node->exprasn.expr;
 
   if (enable_debug_info())
     diinfo->emit_location(node->endloc.row, node->endloc.col);
 
+  inference_expr_type(exprn);
   walk_stack(exprn);
 
-  int stypetok = get_expr_type_from_tree(exprn, 0);
+  typeid_t stype = get_expr_type_from_tree(exprn, 0);
+  CADataType *dt = catype_get_by_name(stype);
+  CHECK_GET_TYPE_VALUE(node, dt, stype);
+  tokenid_t stypetok = dt->type;
+  
   Instruction::CastOps castopt = gen_cast_ops(stypetok, type->type);
   if (castopt == (ICO)-1) {
     yyerror("line: %d, column: %d, cannot convert `%s` into `%s`",

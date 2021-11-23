@@ -1,5 +1,31 @@
+/* Type system design:
+   string representation:
+   internal primitive types: t:i8, t:i32, t:u8, t:u32, t:f32, t:bool, ...,
+   user defined types: t:<typename>, t:abcd
+   pointer types: t:*void, t:*i8, t:*i32, t:**[*i32; 100], t:*[**[*i32; 100];2], t:*atomic_t, t:*rect_t, t:**abc
+   array types: t:[u64;12], t:[*i32; 100], t:[*[**[*i32; 100];2];3], t:[atomic_t,3], t:[*rect_t,6], t:[**abc, 8]
+   struct & type defined types: t:atomic_t, t:rect_t, t:abc
+
+   typeid_t representation:
+   u8 id: xxx where "t:u8" == symname_get(xxx), ...
+
+   the string and typeid_t representation is scope related, so it should associate with symbol table
+
+   CADataType object:
+   this is the unique object that stand for an datatype
+   primitive type stored in catype map
+   other type stored in symbol table, because they have scope
+
+   about fillback of type:
+   because exists type definition based on unknown type (undefined yet type), so need get a fillback list from
+   unknown type, e.g. unknowntype, *unknowntype, **unknowntype, [unknowntype;3], *[unknowntype;4], etc. these
+   type should form a list, and when unknown type determined, then should fill all the element in the lists
+   put (unknowntype, CADataType(unknowntype)), ((*unknowntype, CADataType(*unknowntype))), ...
+*/
+
 #include "ca.h"
 
+#include "ca_types.h"
 #include "symtable.h"
 #include "type_system.h"
 #include "type_system_llvm.h"
@@ -48,6 +74,8 @@ std::unordered_map<std::string, int> s_token_primitive_map {
   {"u8",     UCHAR},
   {"uchar",  UCHAR},
 };
+
+//std::unordered_map<typeid_t, CADataTypeList>()
 
 BEGIN_EXTERN_C
 
@@ -119,14 +147,14 @@ const char *get_type_string(int tok) {
   }
 }
 
-int sym_form_type_id_from_token(int tok) {
+typeid_t sym_form_type_id_from_token(tokenid_t tok) {
   char namebuf[16];
   const char *name = get_type_string(tok);
   sprintf(namebuf, "t:%s", name);
   return symname_check(namebuf);
 }
 
-int sym_primitive_token_from_id(int id) {
+tokenid_t sym_primitive_token_from_id(typeid_t id) {
   const char *name = symname_get(id);
   auto itr = s_token_primitive_map.find(name);
   if (itr != s_token_primitive_map.end())
@@ -215,16 +243,16 @@ int catype_init() {
 BEGIN_EXTERN_C
 // inference and set the literal type for the literal, when the literal have no
 // a determined type, different from `determine_literal_type`, the later is used by passing a defined type  
-int inference_literal_type(CALiteral *lit) {
+typeid_t inference_literal_type(CALiteral *lit) {
   if (lit->fixed_type) {
     // no need inference, should report an error
-    return lit->datatype->type;
+    return lit->datatype;
   }
 
   const char *text = symname_get(lit->textid);
-  int littypetok = lit->littypetok;
+  tokenid_t littypetok = lit->littypetok;
   int badscope = 0;
-  int intentdeftype = 0;
+  tokenid_t intentdeftype = 0;
 
   // handle non-fixed type literal value
   switch (littypetok) {
@@ -259,32 +287,29 @@ int inference_literal_type(CALiteral *lit) {
     break;
   default:
     yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
-    return 0;
+    return typeid_novalue;
   }
 
   if (badscope) {
     yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
 	    glineno, gcolno, get_type_string(littypetok), get_type_string(intentdeftype));
-    return 0;
+    return typeid_novalue;
   }
 
   //const char *name = get_type_string(intentdeftype);
-  int typesym = sym_form_type_id_from_token(intentdeftype);
-  lit->datatype = catype_get_by_name(typesym // symname_check(name)
-				     );
+  lit->datatype = sym_form_type_id_from_token(intentdeftype);
   lit->fixed_type = 1;
-
-  return intentdeftype;
+  return lit->datatype;
 }
 
 // determine and set the literal type for the literal for a specified type,
 // different from `inference_literal_type` which have no a defined type
 // parameter
-void determine_literal_type(CALiteral *lit, int typetok) {
+void determine_literal_type(CALiteral *lit, tokenid_t typetok) {
   if (!typetok || typetok == VOID)
     return;
 
-  int littypetok = lit->littypetok;
+  tokenid_t littypetok = lit->littypetok;
 
   // check convertable
   if (!literal_type_convertable(littypetok, typetok)) {
@@ -337,9 +362,8 @@ void determine_literal_type(CALiteral *lit, int typetok) {
   }
 
   //const char *name = get_type_string(typetok);
-  int typesym = sym_form_type_id_from_token(typetok);
-  lit->datatype = catype_get_by_name(typesym // symname_check(name)
-				     );
+  lit->datatype = sym_form_type_id_from_token(typetok);
+
   lit->fixed_type = 1;
 }
 
@@ -375,20 +399,20 @@ CADataType *catype_clone_thin(const CADataType *type) {
   return dt;
 }
 
-CADataType *catype_make_type_symname(int name, int type, int size) {
+CADataType *catype_make_type_symname(typeid_t name, int type, int size) {
   auto dt = new CADataType;
   dt->formalname = name;
   dt->type = type;
   dt->size = size;
   dt->signature = name;
   dt->struct_layout = nullptr;
-  catype_put_by_name(name, dt);
+  //catype_put_by_name(name, dt);
   return dt;
 }
 
-CADataType *catype_make_unknown_type(int name, int size) {
-  CADataType *dt = catype_make_type_symname(name, TYPE_UNKNOWN, size);
-  
+CADataType *catype_make_unknown_type(SymTable *scope, typeid_t id, int size) {
+  CADataType *dt = catype_make_type_symname(id, TYPE_UNKNOWN, size);
+  //return dt;
 }
 
 // type + '*'
@@ -419,7 +443,7 @@ static int form_datatype_signature(CADataType *type, int plus, uint64_t len) {
 }
 
 CADataType *catype_make_pointer_type(CADataType *datatype) {
-  int signature = form_datatype_signature(datatype, '*', 0);
+  typeid_t signature = form_datatype_signature(datatype, '*', 0);
   CADataType *type = catype_get_by_name(signature);
   if (type)
     return type;
@@ -501,7 +525,7 @@ CADataType *catype_make_struct_type(int symname, ST_ArgList *arglist) {
 
     CAVariable *cav = entry->u.var;
 
-    dt->size += cav->datatype->size;
+    //dt->size += cav->datatype->size;
     dt->struct_layout->fields[i].name = cav->name;
     dt->struct_layout->fields[i].type = cav->datatype;
   }
@@ -559,8 +583,9 @@ static double parse_to_double(CALiteral *value) {
     return (double)value->u.i64value;
 }
 
-static int can_type_binding(CALiteral *lit, int typetok) {
-  switch (lit->datatype->type) {
+static int can_type_binding(CALiteral *lit, tokenid_t typetok) {
+  CADataType *dt = catype_get_by_name(lit->datatype);
+  switch (dt->type) {
   case I64:
     return !check_i64_value_scope(lit->u.i64value, typetok);
   case U64:
@@ -574,22 +599,23 @@ static int can_type_binding(CALiteral *lit, int typetok) {
   case UCHAR:
     return !check_uchar_value_scope(lit->u.i64value, typetok);
   default:
-    yyerror("bad lexical literal type: '%s'", get_type_string(lit->datatype->type));
+    yyerror("bad lexical literal type: '%s'", get_type_string(dt->type));
     return 0;
   }
 }
 
-Value *gen_literal_value(CALiteral *value, int typetok, SLoc loc) {
+Value *gen_literal_value(CALiteral *value, tokenid_t typetok, SLoc loc) {
   // check if literal value type matches the given typetok, if not match, report error
-  if (value->fixed_type && value->datatype->type != typetok) {
+  CADataType *dt = catype_get_by_name(value->datatype);
+  if (value->fixed_type && dt->type != typetok) {
     yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
-	    loc.row, loc.col, get_type_string(value->datatype->type), get_type_string(typetok));
+	    loc.row, loc.col, get_type_string(dt->type), get_type_string(typetok));
     return nullptr;
   }
 
   if (!value->fixed_type && !can_type_binding(value, typetok)) {
     yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
-	    loc.row, loc.col, get_type_string(value->datatype->type), get_type_string(typetok));
+	    loc.row, loc.col, get_type_string(dt->type), get_type_string(typetok));
     return nullptr;
   }
 
@@ -648,7 +674,8 @@ const char *get_printf_format(int type) {
   }
 }
 
-int is_unsigned_type(int type) {
+int is_unsigned_type(tokenid_t type) {
+  
   return type == U32 || type == U64 || type == UCHAR;
 }
 
@@ -879,7 +906,7 @@ Instruction::CastOps gen_cast_ops(int fromtok, int totok) {
 }
 
 // name to CADatatype map
-std::unordered_map<int, CADataType *> s_type_map;
+std::unordered_map<typeid_t, CADataType *> s_type_map;
 
 // used for literal value convertion, left side is lexical literal value (I64
 // stand for negative integer value, U64 stand for positive integer value, F64
@@ -900,7 +927,7 @@ static int s_literal_type_convertable_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_EN
   {0, }, // ATOMTYPE_END
 };
 
-int literal_type_convertable(int from, int to) {
+int literal_type_convertable(tokenid_t from, tokenid_t to) {
   return s_literal_type_convertable_table[from-VOID][to-VOID];
 }
 
@@ -909,7 +936,8 @@ int literal_type_convertable(int from, int to) {
 // bool can to int type, but cannot float type, char type
 // only u8 can cast to char, but char can to int
 // 
-int as_type_convertable(int from, int to) {
+int as_type_convertable(tokenid_t from, tokenid_t to) {
+  // TODO: use typeid_t
   if (to == BOOL)
     return from == BOOL;
 
@@ -922,7 +950,7 @@ int as_type_convertable(int from, int to) {
 }
 
 // check if specified type: typetok can accept literal value
-int check_i64_value_scope(int64_t lit, int typetok) {
+int check_i64_value_scope(int64_t lit, tokenid_t typetok) {
   // the match table should match the corrsponding line of array s_literal_type_convertable_table
   switch(typetok) {
   case I32:
@@ -939,7 +967,7 @@ int check_i64_value_scope(int64_t lit, int typetok) {
   }
 }
 
-int check_u64_value_scope(uint64_t lit, int typetok) {
+int check_u64_value_scope(uint64_t lit, tokenid_t typetok) {
   // the match table should match the corrsponding line of array s_literal_type_convertable_table
   switch(typetok) {
   case I32:
@@ -972,7 +1000,7 @@ int check_u64_value_scope(uint64_t lit, int typetok) {
   }
 }
 
-int check_f64_value_scope(double lit, int typetok) {
+int check_f64_value_scope(double lit, tokenid_t typetok) {
   // the match table should match the corrsponding line of array s_literal_type_convertable_table
   switch(typetok) {
   case F32:
@@ -987,21 +1015,21 @@ int check_f64_value_scope(double lit, int typetok) {
   }
 }
 
-int check_char_value_scope(char lit, int typetok) {
+int check_char_value_scope(char lit, tokenid_t typetok) {
   if (typetok == UCHAR && lit < 0)
     return 1;
 
   return 0;
 }
 
-int check_uchar_value_scope(uint8_t lit, int typetok) {
+int check_uchar_value_scope(uint8_t lit, tokenid_t typetok) {
   if (typetok == CHAR && lit > 127)
     return -1;
 
   return 0;
 }
 
-int catype_is_float(int typetok) {
+int catype_is_float(tokenid_t typetok) {
   return (typetok == F32 || typetok == F64);
 }
 
