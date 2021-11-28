@@ -1,0 +1,7 @@
+fn simple(a: i64) -> i64 {
+    return a;
+}
+
+fn main() -> i32 {
+    return simple(101) as i32;
+}

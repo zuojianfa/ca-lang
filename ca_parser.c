@@ -1,5 +1,6 @@
 
 #include <alloca.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
@@ -235,6 +236,7 @@ ASTNode *make_stmt_print(ASTNode *expr) {
 ASTNode *make_stmt_expr(ASTNode *expr) {
   dot_emit("stmt", "expr");
   //inference_expr_type(expr);
+  expr->grammartype = NGT_stmt_expr;
   return expr;
 }
 
@@ -539,14 +541,7 @@ int add_fn_args_actual(SymTable *st, ASTNode *arg) {
 ASTNode *make_empty() {
     dot_emit("stmt_list_star", "");
 
-    ASTNode *p;
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    /* copy information */
-    p->seq = ++g_node_seqno;
-    p->type = TTE_Empty;
-
+    ASTNode *p = new_ASTNode(TTE_Empty);
     set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
     return p;
 }
@@ -554,14 +549,7 @@ ASTNode *make_empty() {
 ASTNode *make_literal(CALiteral *litv) {
     dot_emit("expr", "literal");
 
-    ASTNode *p;
-    /* allocate node */
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    /* copy information */
-    p->seq = ++g_node_seqno;
-    p->type = TTE_Literal;
+    ASTNode *p = new_ASTNode(TTE_Literal);
     p->litn.litv = *litv;
     p->begloc.row = glineno_prev;
     p->begloc.col = gcolno_prev;
@@ -572,14 +560,7 @@ ASTNode *make_literal(CALiteral *litv) {
 }
 
 ASTNode *make_id(int i) {
-    ASTNode *p;
-    /* allocate node */
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    /* copy information */
-    p->seq = ++g_node_seqno;
-    p->type = TTE_Id;
+    ASTNode *p = new_ASTNode(TTE_Id);
     p->idn.i = i;
 
     set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
@@ -906,13 +887,33 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     determine_literal_type(&node->litn.litv, typetok);
     break;
   case TTE_Id:
+    if (!node->entry) {
+      STEntry *entry = sym_getsym(node->symtable, node->idn.i, 1);
+      if (!entry) {
+	yyerror("line: %d, col: %d: cannot find symbol for id: `%d` in symbol table\n",
+		node->begloc.row, node->begloc.col, node->idn.i);
+	return -1;
+      }
+
+      if (entry->sym_type == Sym_Variable) {
+	yyerror("line: %d, col: %d: variable not filled the entry yet: `%s`\n",
+		node->begloc.row, node->begloc.col, symname_get(entry->sym_name));
+	return -1;
+      } else {
+	// no need to determine type
+	return 0;
+      }
+    }
+
     if (node->entry->u.var->datatype == typeid_novalue)
       node->entry->u.var->datatype = type;
     else if (node->entry->u.var->datatype != type) {
-      yyerror("line: %d, col: %d: determine different type `%s` != `%s`",
-	      node->begloc.row, node->begloc.col, symname_get(type),
-	      symname_get(node->entry->u.var->datatype));
-      return -1;
+      // yyerror
+      // return -1;
+      fprintf(stderr, "line: %d, col: %d: determine different type `%s` != `%s`\n",
+	     node->begloc.row, node->begloc.col, symname_get(type),
+	     symname_get(node->entry->u.var->datatype));
+      return 0;
     }
 
     break;
@@ -1022,20 +1023,14 @@ ASTNode *make_expr(int op, int noperands, ...) {
     dot_emit_expr("from", "to", op);
 
     va_list ap;
-    ASTNode *p;
     int i;
 
-    /* allocate node */
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-    if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    /* copy information */
-    p->seq = ++g_node_seqno;
-    p->type = TTE_Expr;
+    ASTNode *p = new_ASTNode(TTE_Expr);
     p->exprn.op = op;
     p->exprn.noperand = noperands;
+
+    if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
+      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
     // try to inference the expression type here
     va_start(ap, noperands);
@@ -1107,7 +1102,6 @@ ASTNode *make_expr(int op, int noperands, ...) {
 // TODO: this function should no used, remove it
 ASTNode *make_expr_arglists(ST_ArgList *al) {
     int noperands = al->argc;
-    ASTNode *p;
     int i;
 
     // for checking void type function, can only have void parameter
@@ -1133,19 +1127,14 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
     if (void_count == 1)
       return make_expr(ARG_LISTS, 0);
 
-    /* allocate node */
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+    ASTNode *p = new_ASTNode(TTE_Expr);
+    p->exprn.op = ARG_LISTS;
+    p->exprn.noperand = noperands;
+    p->exprn.expr_type = typeid_novalue;
 
     if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
-    /* copy information */
-    p->seq = ++g_node_seqno;
-    p->type = TTE_Expr;
-    p->exprn.op = ARG_LISTS;
-    p->exprn.noperand = noperands;
-    p->exprn.expr_type = typeid_novalue;
     for (i = 0; i < noperands; i++)
 	p->exprn.operands[i] = make_id(al->argnames[i]);
 
@@ -1167,38 +1156,36 @@ ASTNode *make_expr_arglists(ST_ArgList *al) {
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
   dot_emit("fn_args_call", "fn_args_call_p");
 
-    int noperands = al->argc;
-    ASTNode *p;
-    int i;
-    /* allocate node */
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-    if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-    /* copy information */
-    p->seq = ++g_node_seqno;
-    p->type = TTE_Expr;
-    p->exprn.op = ARG_LISTS_ACTUAL;
-    p->exprn.noperand = noperands;
-    p->exprn.expr_type = typeid_novalue;
-    for (i = 0; i < noperands; i++)
-      p->exprn.operands[i] = al->args[i];
+  int noperands = al->argc;
+  int i;
+    
+  ASTNode *p = new_ASTNode(TTE_Expr);
+  p->exprn.op = ARG_LISTS_ACTUAL;
+  p->exprn.noperand = noperands;
+  p->exprn.expr_type = typeid_novalue;
 
-    if (noperands == 1) {
-	p->begloc = p->exprn.operands[0]->begloc;
-	p->endloc = p->exprn.operands[0]->endloc;
-    } else if (noperands > 1) {
-	p->begloc = p->exprn.operands[0]->begloc;
-	p->endloc = p->exprn.operands[noperands-1]->endloc;
-    } else {
-	p->begloc = (SLoc){glineno, gcolno};
-	p->endloc = (SLoc){glineno, gcolno};
-    }
+  if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
+    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
-    p->symtable = curr_symtable;
-    actualarglist_pop();
+  /* copy information */
+  for (i = 0; i < noperands; i++)
+    p->exprn.operands[i] = al->args[i];
 
-    return p;
+  if (noperands == 1) {
+    p->begloc = p->exprn.operands[0]->begloc;
+    p->endloc = p->exprn.operands[0]->endloc;
+  } else if (noperands > 1) {
+    p->begloc = p->exprn.operands[0]->begloc;
+    p->endloc = p->exprn.operands[noperands-1]->endloc;
+  } else {
+    p->begloc = (SLoc){glineno, gcolno};
+    p->endloc = (SLoc){glineno, gcolno};
+  }
+
+  p->symtable = curr_symtable;
+  actualarglist_pop();
+
+  return p;
 }
 
 ASTNode *make_label_node(int i) {
@@ -1222,29 +1209,14 @@ ASTNode *make_goto_node(int i) {
 }
 
 ASTNode *build_mock_main_fn_node() {
-  ASTNode *decl;
+  ASTNode *decl = new_ASTNode(TTE_FnDecl);
 
-  /* allocate node */
-  if ((decl = malloc(sizeof(ASTNode))) == NULL)
-    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-  /* copy information */
-  decl->seq = ++g_node_seqno;
-  decl->type = TTE_FnDecl;
   typeid_t typesym = sym_form_type_id_from_token(I32);
   decl->fndecln.ret = typesym;
   decl->fndecln.name = symname_check("main");
-  //decl->fndecln.args = *al;
   decl->fndecln.is_extern = 0;
 
-  ASTNode *p;
-  /* allocate node */
-  if ((p = malloc(sizeof(ASTNode))) == NULL)
-    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-  /* copy information */
-  p->seq = ++g_node_seqno;
-  p->type = TTE_FnDef;
+  ASTNode *p = new_ASTNode(TTE_FnDef);
   p->fndefn.fn_decl = decl;
   p->fndefn.stmts = NULL;
 
@@ -1252,15 +1224,7 @@ ASTNode *build_mock_main_fn_node() {
 }
 
 static ASTNode *build_fn_decl(int name, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
-    ASTNode *p;
-
-    /* allocate node */
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    /* copy information */
-    p->seq = ++g_node_seqno;
-    p->type = TTE_FnDecl;
+    ASTNode *p = new_ASTNode(TTE_FnDecl);
     p->fndecln.ret = rettype;
     p->fndecln.name = name;
     p->fndecln.args = *al;
@@ -1272,15 +1236,7 @@ static ASTNode *build_fn_decl(int name, ST_ArgList *al, typeid_t rettype, SLoc b
 
 static ASTNode *build_fn_define(int name, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
     ASTNode *decl = build_fn_decl(name, al, rettype, beg, end);
-    ASTNode *p;
-
-    /* allocate node */
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    /* copy information */
-    p->seq = ++g_node_seqno;
-    p->type = TTE_FnDef;
+    ASTNode *p = new_ASTNode(TTE_FnDef);
     p->fndefn.fn_decl = decl;
     p->fndefn.stmts = NULL;
 
@@ -1292,15 +1248,7 @@ ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
     dot_emit("stmt", "whileloop");
     //inference_expr_type(cond);
 
-    ASTNode *p;
-
-    /* allocate node */
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    /* copy information */
-    p->seq = ++g_node_seqno;
-    p->type = TTE_While;
+    ASTNode *p = new_ASTNode(TTE_While);
     p->whilen.cond = cond;
     p->whilen.body = whilebody;
 
@@ -1317,16 +1265,11 @@ ASTNode *make_if(int isexpr, int argc, ...) {
     
     // TODO: implement multiple if else nodes
     va_list ap;
-    ASTNode *p;
 
     int ncond = argc / 2;
     int remainder = argc % 2;
 
-    /* allocate node */
-    if ((p = malloc(sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    p->seq = ++g_node_seqno;
+    ASTNode *p = new_ASTNode(TTE_If);
     p->ifn.ncond = ncond;
     p->ifn.isexpr = isexpr;
     if ((p->ifn.conds = malloc(ncond * sizeof(ASTNode))) == NULL)
@@ -1334,9 +1277,6 @@ ASTNode *make_if(int isexpr, int argc, ...) {
 
     if ((p->ifn.bodies = malloc(ncond * sizeof(ASTNode))) == NULL)
       yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    /* copy information */
-    p->type = TTE_If;
 
     va_start(ap, argc);
     for (int i = 0; i < ncond; i++) {
@@ -1628,13 +1568,7 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
   
   // 4. create ASTNode object and set the object type as the datatype type
   // and set the CADatatype object
-  ASTNode *p;
-  if ((p = malloc(sizeof(ASTNode))) == NULL)
-    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-  /* copy information */
-  p->seq = ++g_node_seqno;
-  p->type = TTE_Struct;
+  ASTNode *p = new_ASTNode(TTE_Struct);
   p->entry = entry;
 
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &entry->sloc);
@@ -1645,15 +1579,7 @@ ASTNode *make_as(ASTNode *expr, typeid_t type) {
   dot_emit("expr", "expr AS datatype");
 
   //inference_expr_type(expr);
-
-  ASTNode *p;
-  /* allocate node */
-  if ((p = malloc(sizeof(ASTNode))) == NULL)
-    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-  /* copy information */
-  p->seq = ++g_node_seqno;
-  p->type = TTE_As;
+  ASTNode *p = new_ASTNode(TTE_As);
   p->exprasn.type = type;
   p->exprasn.expr = expr;
 
@@ -1705,11 +1631,12 @@ ASTNode *make_stmt_list_zip() {
     return p;
   }
 
-  ASTNode *p;
   int noperands = oldlist->len;
+  ASTNode *p = new_ASTNode(TTE_Expr);
+  p->exprn.op = ';';
+  p->exprn.noperand = noperands;
+  p->exprn.expr_type = typeid_novalue;
 
-  if ((p = malloc(sizeof(ASTNode))) == NULL)
-    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
   if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
     yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
@@ -1718,12 +1645,6 @@ ASTNode *make_stmt_list_zip() {
 
   free(oldlist->stmtlist);
   free(oldlist);
-
-  p->seq = ++g_node_seqno;
-  p->type = TTE_Expr;
-  p->exprn.op = ';';
-  p->exprn.noperand = noperands;
-  p->exprn.expr_type = typeid_novalue;
 
   const SLoc *beg = &(SLoc){glineno, gcolno};
   const SLoc *end = &(SLoc){glineno, gcolno};

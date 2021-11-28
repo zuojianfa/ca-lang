@@ -232,6 +232,9 @@ static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
+  if (!p->litn.litv.fixed_type /* && p->grammartype == NGT_stmt_expr */)
+    inference_expr_type(p);
+
   // the intent_type is for determining the binding type of literal value
   // when fixed_type is set use it else use intent_type
   tokenid_t typetok = 0;
