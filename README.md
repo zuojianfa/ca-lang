@@ -224,6 +224,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
+- [ ] search malloc ASTNode and replace with a function, it's good to initialize it in a unique way
 - [ ] search `tok` and check the if it transfered the right id not typeid_t
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
 - [ ] treat function id with "f:ident"

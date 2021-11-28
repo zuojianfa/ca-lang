@@ -1,5 +1,10 @@
 extern fn getchar() -> i32;
+extern fn putchar(c: i32) -> i32;
 fn main() {
-    let a = getchar();
+    putchar(53);
+    putchar(54);
+    putchar('e');
+    putchar('\n');
+    //let a = getchar();
 }
 

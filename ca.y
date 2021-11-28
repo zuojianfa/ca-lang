@@ -192,7 +192,7 @@ stmtexpr_list_block: { SymTable *st = push_new_symtable(); }
 exprblock_body: '{' stmtexpr_list '}'               { $$ = make_exprblock_body($2); }
 		;
 
-stmtexpr_list: 	stmt_list expr { make_stmt_list_zip(); $$ = make_stmtexpr_list($2); }
+stmtexpr_list:  stmt_list expr { make_stmt_list_zip(); $$ = make_stmtexpr_list($2); }
 	|	expr { $$ = make_stmtexpr_list($1); }
 		;
 /**/
@@ -201,15 +201,15 @@ stmt_list_block: { SymTable *st = push_new_symtable(); }
 		block_body { $$ = make_stmtexpr_list_block($2); }
 		;
 
-block_body: 	'{'stmt_list_star '}'               { $$ = make_exprblock_body($2); }
+block_body: 	'{'stmt_list_star '}' { $$ = make_exprblock_body($2); }
 		;
 
 stmt_list_star:	stmt_list             { $$ = make_stmt_list_zip(); }
 	|                             { $$ = make_empty(); /* empty */}
 		;
 // TODO: the stmt_list and stmt may have recursive tree, so here cannot directly put following into a list simply
-stmt_list:     	stmt                  { put_astnode_into_list($1); }
-	|	stmt_list stmt        { put_astnode_into_list($2); /* $$ = make_expr(';', 2, $1, $2); */ }
+stmt_list:     	stmt                  { put_astnode_into_list($1, 1); }
+	|	stmt_list stmt        { put_astnode_into_list($2, 0); /* $$ = make_expr(';', 2, $1, $2); */ }
 		;
 
 label_def:	label_id ':'          { $$ = make_label_def($1); }

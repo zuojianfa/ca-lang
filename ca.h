@@ -35,6 +35,17 @@ typedef enum {
   TTE_Num,
 } ASTNodeType;
 
+// this type is used for transferring grammar info (type) into later pass such
+// as into walk_* routine to transfer information directly when needed, to let
+// the walk routine know what it walking for. when needed add new type into this
+// enum to tell walk routine it walking for and do special action according to
+// the grammar information (type)
+typedef enum {
+  NGT_None,
+  NGT_stmt_expr,
+  NGT_Num,
+} ASTNodeGrammartype;
+
 /* following used to define the statement tree related structure */
 
 struct ASTNode;
@@ -102,6 +113,7 @@ typedef struct TExprAsNode {
 
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
+  ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
   SymTable *symtable;    /* the scoped symbol table */
   STEntry *entry;
   SLoc begloc;           /* the source code begin location of code unit */
@@ -206,7 +218,8 @@ ASTNode *make_fn_call(int fnname, ASTNode *param);
 ASTNode *make_ident_expr(int id);
 ASTNode *make_as(ASTNode *expr, typeid_t type);
 ASTNode *make_stmt_list_zip();
-void put_astnode_into_list(ASTNode *stmt);
+// for tree node compress deep into wide, begin for stmt list beginning
+void put_astnode_into_list(ASTNode *stmt, int begin);
 
 int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 ASTNode *make_struct_type(int id, ST_ArgList *arglist);

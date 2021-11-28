@@ -306,7 +306,7 @@ typeid_t inference_literal_type(CALiteral *lit) {
 // different from `inference_literal_type` which have no a defined type
 // parameter
 void determine_literal_type(CALiteral *lit, tokenid_t typetok) {
-  if (!typetok || typetok == VOID)
+  if (typetok == tokenid_novalue || typetok == VOID)
     return;
 
   tokenid_t littypetok = lit->littypetok;

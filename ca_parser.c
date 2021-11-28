@@ -90,6 +90,20 @@ typedef enum OverloadType {
   OLT_Struct,
 } OverloadType;
 
+ASTNode *new_ASTNode(ASTNodeType nodetype) {
+  ASTNode *p;
+
+  /* allocate node */
+  if ((p = malloc(sizeof(ASTNode))) == NULL)
+    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
+  p->seq = ++g_node_seqno;
+  p->type = nodetype;
+  p->grammartype = NGT_None;
+
+  return p;
+}
+
 const char *sym_form_label_name(const char *name) {
   static char label_buf[1024];
   sprintf(label_buf, "l:%s", name);
@@ -346,8 +360,6 @@ void check_backtrace_datatype_info() {
 }
 
 ASTNode *make_type_def(int id, CADataType *type) {
-  ASTNode *p;
-
   // make it can have the same name for the type name and variable name
   // implemented just like the label type: add a prefix before the type name
   typeid_t symname = sym_form_type_id(id, 0);
@@ -363,14 +375,7 @@ ASTNode *make_type_def(int id, CADataType *type) {
   SLoc loc = {glineno, gcolno};
   entry->sloc = loc;
 
-  /* allocate node */
-  if ((p = malloc(sizeof(ASTNode))) == NULL)
-    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-  /* copy information */
-  p->seq = ++g_node_seqno;
-  p->type = TTE_Empty;
-
+  ASTNode *p = new_ASTNode(TTE_Empty);
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   return p;
 }
@@ -889,8 +894,8 @@ typeid_t inference_expr_type(ASTNode *p) {
 // TODO: check if these should return typeid_t or tokenid_t
 int determine_expr_type(ASTNode *node, typeid_t type) {
   CADataType *typeid = catype_get_by_name(type);
-  CHECK_GET_TYPE_VALUE(node, typeid, type);
-  tokenid_t typetok = typeid->type;
+  //CHECK_GET_TYPE_VALUE(node, typeid, type);
+  tokenid_t typetok = typeid ? typeid->type : tokenid_novalue;
   CADataType *dt;
   switch(node->type) {
   case TTE_Literal:
@@ -1656,30 +1661,52 @@ ASTNode *make_as(ASTNode *expr, typeid_t type) {
   return p;
 }
 
-struct ASTNodeList {
+typedef struct ASTNodeList {
   ASTNode **stmtlist;
   int capacity;
   int len;
-} g_stmt_list = {
-  NULL, 0, 0
-};
+  struct ASTNodeList *next;
+} ASTNodeList;
 
-void put_astnode_into_list(ASTNode *stmt) {
+ASTNodeList *nodelisthead = NULL;
+void put_astnode_into_list(ASTNode *stmt, int begin) {
   dot_emit("stmt_list", "stmt");
-  if (g_stmt_list.len == g_stmt_list.capacity) {
-    g_stmt_list.capacity += 5;
-    g_stmt_list.capacity *= 2;
-    g_stmt_list.stmtlist = (ASTNode **)realloc(g_stmt_list.stmtlist, sizeof(ASTNode *) * g_stmt_list.capacity);
+
+  if (begin) {
+    // push a new list handle here when first encounter the list
+    ASTNodeList *newlist = (ASTNodeList *)malloc(sizeof(ASTNodeList));
+    newlist->len = 0;
+    newlist->capacity = 10;
+    newlist->stmtlist = (ASTNode **)malloc(sizeof(ASTNode *) * newlist->capacity);
+    newlist->next = nodelisthead;
+    nodelisthead = newlist;
   }
 
-  g_stmt_list.stmtlist[g_stmt_list.len++] = stmt;
+  // enhance capacity when needed
+  if (nodelisthead->len == nodelisthead->capacity) {
+    nodelisthead->capacity *= 2;
+    nodelisthead->stmtlist = (ASTNode **)realloc(nodelisthead->stmtlist, sizeof(ASTNode *) * nodelisthead->capacity);
+  }
+
+  nodelisthead->stmtlist[nodelisthead->len++] = stmt;
 }
 
 ASTNode *make_stmt_list_zip() {
   dot_emit("stmt_list_star", "stmt_list_zip");
 
+  // pop the previous list handle when reducing a handler
+  ASTNodeList *oldlist = nodelisthead;
+  nodelisthead = nodelisthead->next;
+
+  if (oldlist->len == 1) {
+    ASTNode *p = oldlist->stmtlist[0];
+    free(oldlist->stmtlist);
+    free(oldlist);
+    return p;
+  }
+
   ASTNode *p;
-  int noperands = g_stmt_list.len;
+  int noperands = oldlist->len;
 
   if ((p = malloc(sizeof(ASTNode))) == NULL)
     yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
@@ -1687,9 +1714,10 @@ ASTNode *make_stmt_list_zip() {
     yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
 
   for (int i = 0; i < noperands; ++i)
-    p->exprn.operands[i] = g_stmt_list.stmtlist[i];
+    p->exprn.operands[i] = oldlist->stmtlist[i];
 
-  g_stmt_list.len = 0;
+  free(oldlist->stmtlist);
+  free(oldlist);
 
   p->seq = ++g_node_seqno;
   p->type = TTE_Expr;
@@ -1719,6 +1747,7 @@ ASTNode *make_stmt_list_zip() {
   p->endloc = *end;
 
   p->symtable = curr_symtable;
+
   return p;
 }
 
