@@ -224,12 +224,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
-- [ ] search malloc ASTNode and replace with a function, it's good to initialize it in a unique way
-- [ ] search `tok` and check the if it transfered the right id not typeid_t
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
 - [ ] treat function id with "f:ident"
-- [ ] typedef a type for different type of meaning, such as define ident_t as int, type_t as int etc.
-- [ ] implement get_datatype_by_ident
 - [ ] handle logical operation type convert, in function `IR1::gen_sub` ..., and case '<', etc
 - [ ] support other atomic type
 - [ ] support point type
@@ -239,6 +235,25 @@ NEXT TODO:
 
 detailed TODO LIST:
 
+```
+*0	        make_expr			        ARG_LISTS_ACTUAL
+*al->argc 	make_expr_arglists_actual	ARG_LISTS_ACTUAL
+*1 	 	    make_goto 			        GOTO
+*2 	 	    make_assign 			    '='
+*2 	 	    make_vardef 			    '='
+*1 	 	    make_stmt_ret 			    RET
+*1 	 	    make_stmt_ret_expr 		    RET
+*1 	 	    make_stmt_print 		    PRINT
+*listlen  	make_stmt_list_zip 		    stmt_list ';'
+2	 	    make_expr  			        ';'
+
+* make_id separate into different type: VarDef, VarAssign, FnName, Var (make_ident_expr), 
+* handle case TTE_Id
+make stmt type and move upper into TTE_Stmt type
+
+`as` is a expression 
+
+```
 
 # License
 See `LICENSE` file in this directory, for license in directory `cruntime` see cruntime/README.md

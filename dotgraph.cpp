@@ -65,11 +65,6 @@ void dot_emit(const char *from, const char *to) {
 
 void dot_emit_expr(const char *from, const char *to, int op) {
   switch(op) {
-  case ARG_LISTS:
-    dot_emit("fn_args_p", "");
-    // or must be
-    dot_emit("fn_args", "");
-    break;
   case ARG_LISTS_ACTUAL:
     dot_emit("fn_args_call", "");
     break;

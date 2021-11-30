@@ -65,7 +65,7 @@ extern int yychar, yylineno;
 %token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER TYPE_UNKNOWN
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
-%token			ARG_LISTS ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
+%token			ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
 %token			ARROW INFER TYPE
 %nonassoc		IFX
 %nonassoc		ELSE
@@ -148,14 +148,14 @@ fn_args_p:	fn_args_p ',' iddef_typed    { add_fn_args(&curr_arglist, curr_symtab
 
 fn_args_call:	{ actualarglist_new_push(); }
 		fn_args_call_p { $$ = make_expr_arglists_actual(actualarglist_current()); }
-	|	{ $$ = make_expr(ARG_LISTS_ACTUAL, 0); }
+	|	{ $$ = make_expr_arglists_actual(NULL); }
 		;
 
 fn_args_call_p:	fn_args_call_p ',' expr { add_fn_args_actual(curr_symtable, $3); }
 	|	expr { add_fn_args_actual(curr_symtable, $1); }
 	;
 
-stmt:		';'			{ $$ = make_expr(';', 2, NULL, NULL); }
+stmt:		';'			{ $$ = make_empty(); }
 	|	expr ';'                { $$ = make_stmt_expr($1); }
 	|	PRINT expr ';'          { $$ = make_stmt_print($2); }
 	|	RET expr ';'            { $$ = make_stmt_ret_expr($2); }
@@ -209,7 +209,7 @@ stmt_list_star:	stmt_list             { $$ = make_stmt_list_zip(); }
 		;
 // TODO: the stmt_list and stmt may have recursive tree, so here cannot directly put following into a list simply
 stmt_list:     	stmt                  { put_astnode_into_list($1, 1); }
-	|	stmt_list stmt        { put_astnode_into_list($2, 0); /* $$ = make_expr(';', 2, $1, $2); */ }
+	|	stmt_list stmt        { put_astnode_into_list($2, 0); }
 		;
 
 label_def:	label_id ':'          { $$ = make_label_def($1); }

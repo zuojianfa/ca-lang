@@ -32,8 +32,24 @@ typedef enum {
   TTE_If,
   TTE_As,
   TTE_Struct,      // struct definition
+  TTE_Print,
+  TTE_Ret,
+  TTE_Assign,
+  TTE_ArgList,
+  TTE_StmtList,
   TTE_Num,
 } ASTNodeType;
+
+typedef enum {
+  TTEId_Empty,
+  TTEId_VarDef,    // when TTE_Id
+  TTEId_VarAssign, // when TTE_Id
+  TTEId_VarUse,    // when TTE_Id
+  TTEId_FnName,    // when TTE_Id
+  TTEId_Label,     // when TTE_Label
+  TTEId_LabelGoto, // when TTE_LabelGoto
+  TTEId_Num,
+} IdType;
 
 // this type is used for transferring grammar info (type) into later pass such
 // as into walk_* routine to transfer information directly when needed, to let
@@ -57,6 +73,7 @@ typedef struct {
 
 /* identifiers */
 typedef struct {
+  IdType idtype;
   int i; /* subscript to sym array */
 } TIdNode;
 
@@ -111,6 +128,29 @@ typedef struct TExprAsNode {
   typeid_t type;
 } TExprAsNode;
 
+typedef struct TPrintNode {
+  struct ASTNode *expr;
+} TPrintNode;
+
+typedef struct TRet {
+  struct ASTNode *expr;
+} TRet;
+
+typedef struct TAssign {
+  struct ASTNode *id;
+  struct ASTNode *expr;
+} TAssign;
+
+typedef struct TArgList {
+  int argc; /* number of arguments */
+  struct ASTNode **exprs; /* operands */
+} TArgList;
+
+typedef struct TStmtList {
+  int nstmt;
+  struct ASTNode **stmts;
+} TStmtList;
+
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
@@ -127,7 +167,12 @@ typedef struct ASTNode {
     TFnDefNode fndefn;   /* function definition */
     TWhileNode whilen;   /* while statement */
     TIfNode ifn;         /* if statement */
-    TExprAsNode exprasn;  /* as statement */
+    TExprAsNode exprasn; /* as statement */
+    TPrintNode printn;   /* print statement */
+    TRet retn;           /* return statement */
+    TAssign assignn;     /* assigment value */
+    TArgList arglistn;   /* actual argument list */
+    TStmtList stmtlistn; /* statement list */
   };
 } ASTNode;
 
@@ -148,6 +193,7 @@ typedef struct RootTree {
 } RootTree;
 
 int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands);
+int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum);
 int parse_lexical_char(const char *text);
 int enable_emit_main();
 void check_return_type(typeid_t fnrettype);
@@ -201,11 +247,10 @@ ASTNode *make_label_node(int value);
 ASTNode *make_goto_node(int i);
 ASTNode *make_empty();
 ASTNode *make_expr(int op, int noperands, ...);
-ASTNode *make_expr_arglists(ST_ArgList *al);
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
 //ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
 //ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
-ASTNode *make_id(int id);
+ASTNode *make_id(int id, IdType idtype);
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global);
 ASTNode *make_assign(int id, ASTNode *exprn);
 ASTNode *make_goto(int labelid);

@@ -226,6 +226,55 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname,
 				   diloc, ir1.builder().GetInsertBlock());
 }
 
+static int is_valued_expr(int op) {
+  return (op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET);
+}
+
+static void post_make_expr(ASTNode *p) {
+  int i = 0;
+  int op = p->exprn.op;
+  int check_type = is_valued_expr(op);
+  int noperands = p->exprn.noperand;
+  if (!check_type)
+    return;
+
+  int expr_len = noperands;
+  typeid_t *expr_types = (int *)alloca(noperands * sizeof(typeid_t));
+
+  switch(op) {
+  case FN_CALL: {
+    ASTNode *idn = p->exprn.operands[0];
+    STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
+    //CADataType *retdt = catype_get_by_name(entry->u.f.rettype);
+    //CHECK_GET_TYPE_VALUE(p, retdt, entry->u.f.rettype);
+    //retdt->type
+
+    expr_types[0] = entry->u.f.rettype;
+    expr_len = 1;
+    break;
+  }
+    /*
+      case '=': {
+      expr_types[0] = p->exprn.operands[1]->entry->u.var->datatype ?
+      p->exprn.operands[1]->entry->u.var->datatype->type : 0;
+      expr_types[1] = get_expr_type_from_ tree(p->exprn.operands[1], 1);
+      break;
+      }
+    */
+  default:
+    for (i = 0; i < noperands; i++) {
+      if (p->exprn.operands[i]->type == TTE_Expr &&
+	  p->exprn.operands[i]->exprn.expr_type == typeid_novalue)
+	post_make_expr(p->exprn.operands[i]);
+
+      expr_types[i] = get_expr_type_from_tree(p->exprn.operands[i], 0);
+    }
+    break;
+  }
+
+  p->exprn.expr_type = reduce_node_and_type(p, expr_types, expr_len);
+}
+
 static void walk_empty(ASTNode *p) {}
 
 static Value *walk_literal(ASTNode *p) {
@@ -341,11 +390,30 @@ static BasicBlock *walk_label(ASTNode *p) {
   return bb;
 }
 
-static void walk_label_goto(ASTNode *p) {}
+static void walk_label_goto(ASTNode *label) {
+  int i = label->idn.i;
+  BasicBlock *bb;
+  const char *label_name = symname_get(i) + 2;
+  auto itr = label_map.find(label_name);
+  if (itr != label_map.end()) {
+    bb = itr->second;
+  } else {
+    bb = ir1.gen_bb(label_name);
+    label_map.insert(std::make_pair(label_name, bb));
+  }
 
-static void walk_stmt_semicolon(ASTNode *p) {
-  for (int i = 0; i < p->exprn.noperand; ++i)
-    walk_stack(p->exprn.operands[i]);
+  if (enable_debug_info())
+    diinfo->emit_location(label->endloc.row, label->endloc.col);
+  ir1.builder().CreateBr(bb);
+
+  // to avoid verify error of 'Terminator found in the middle of a basic block!'
+  BasicBlock *extrabb = ir1.gen_bb("extra", curr_fn);
+  ir1.builder().SetInsertPoint(extrabb);  
+}
+
+static void walk_stmtlist(ASTNode *p) {
+  for (int i = 0; i < p->stmtlistn.nstmt; ++i)
+    walk_stack(p->stmtlistn.stmts[i]);
 }
 
 static void walk_while(ASTNode *p) {
@@ -475,9 +543,9 @@ static void walk_if(ASTNode *p) {
   }
 }
 
-static void walk_stmt_print(ASTNode *p) {
-  inference_expr_type(p->exprn.operands[0]);
-  walk_stack(p->exprn.operands[0]);
+static void walk_print(ASTNode *p) {
+  inference_expr_type(p->printn.expr);
+  walk_stack(p->printn.expr);
   auto pair = pop_right_value();
   Value *v = pair.first;
   Function *printf_fn = ir1.module().getFunction("printf");
@@ -578,56 +646,27 @@ static void walk_stmt_print(ASTNode *p) {
 // default one and apply it into the left side variable
 
 // TODO: check the walk_stack procedure for right side expression
-static void walk_stmt_assign(ASTNode *p) {
-  ASTNode *idn = p->exprn.operands[0];
-  ASTNode *exprn = p->exprn.operands[1];
+static void walk_assign(ASTNode *p) {
+  ASTNode *idn = p->assignn.id;
+  ASTNode *exprn = p->assignn.expr;
 
-#if 0
-  int exprntypetok = get_expr_type_from_ tree(exprn, 0);
-  if (idn->entry->u.var->datatype != typeid_novalue) {
-    // when the variable has a specified type: `let a: i32 = ?`
-    if (exprntypetok) {
-      // both side have specified type: `let a: i32 = (33 + (33i32 + 4323))`
-      if (idn->entry->u.var->datatype->type != exprntypetok) {
-	yyerror("line: %d, column: %d, expected `%s`, found `%s`",
-		p->begloc.row, p->begloc.col,
-		get_type_string(idn->entry->u.var->datatype->type),
-		get_type_string(exprntypetok));
-	return;
-      }
+  typeid_t expr_types[2];
+  expr_types[0] = get_expr_type_from_tree(idn, 0);
+  if (exprn->exprn.expr_type == typeid_novalue)
+    post_make_expr(exprn);
 
-    } else {
-      // right side have no determined a type: `let a: i32 = 4343`
-      determine_expr_ type(exprn, idn->entry->u.var->datatype->type);
-    }
-  } else {
-    // when variable type not determined yet, it means:
-    // 1) the variable is in definition stage, not just assigment 
-    // 2) the variable type is not specified by identifier itself
-    // it should inferenced by the right value: right expression
-    if (!exprntypetok) {
-      // when both side have no a determined type, then determine the right side type
-      exprntypetok = inference_expr_ type(exprn);
-    }
+  ASTNode *group[2] = {idn, exprn};
+  expr_types[1] = get_expr_type_from_tree(exprn, 0);
 
-    if (!exprntypetok) {
-      yyerror("line: %d, column: %d, inference literal type failed",
+  if (expr_types[0] == typeid_novalue && expr_types[1] == typeid_novalue) {
+    expr_types[1] = inference_expr_type(exprn);
+    if (expr_types[1] == typeid_novalue) {
+      yyerror("line: %d, column: %d, inference expression type failed",
 	      p->begloc.row, p->begloc.col);
-      return;
     }
-
-    // when right side have a determined type
-    const char *namestr = get_type_string(exprntypetok);
-    int name = symname_check(namestr);
-    if (name == -1) {
-      yyerror("line: %d, column: %d, cannot find name for '%s'",
-	      p->begloc.row, p->begloc.col, namestr);
-      return;
-    }
-
-    idn->entry->u.var->datatype = catype_get_by_name(name);
   }
-#endif
+  
+  reduce_node_and_type_group(group, expr_types, 2);
 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -645,7 +684,7 @@ static void walk_stmt_assign(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
-static void walk_stmt_minus(ASTNode *p) {
+static void walk_expr_minus(ASTNode *p) {
   typeid_t type = get_expr_type_from_tree(p->exprn.operands[0], 0);
   CADataType *dt = catype_get_by_name(type);
   CHECK_GET_TYPE_VALUE(p, dt, type);
@@ -663,35 +702,13 @@ static void walk_stmt_minus(ASTNode *p) {
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v, type));
 }
 
-static void walk_stmt_goto(ASTNode *p) {
-  ASTNode *label = p->exprn.operands[0];
-  int i = label->idn.i;
-  BasicBlock *bb;
-  const char *label_name = symname_get(i) + 2;
-  auto itr = label_map.find(label_name);
-  if (itr != label_map.end()) {
-    bb = itr->second;
-  } else {
-    bb = ir1.gen_bb(label_name);
-    label_map.insert(std::make_pair(label_name, bb));
-  }
-
-  if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
-  ir1.builder().CreateBr(bb);
-
-  // to avoid verify error of 'Terminator found in the middle of a basic block!'
-  BasicBlock *extrabb = ir1.gen_bb("extra", curr_fn);
-  ir1.builder().SetInsertPoint(extrabb);
-}
-
 static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
   int fnname = name->idn.i;
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   ST_ArgList *formalparam = entry->u.f.arglists;
 
   // check and determine parameter type
-  for (int i = 0; i < param->exprn.noperand; ++i) {
+  for (int i = 0; i < param->arglistn.argc; ++i) {
     typeid_t formaltype = typeid_novalue;
     if (i >= formalparam->argc) {
       // it is a variable parameter ...
@@ -704,7 +721,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
     }
 
     typeid_t realtype = formaltype;
-    ASTNode *expr = param->exprn.operands[i]; // get one parameter
+    ASTNode *expr = param->arglistn.exprs[i]; // get one parameter
 
     // TODO: put the check into IR time
     if (formaltype == typeid_novalue)
@@ -714,42 +731,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
 
     realtype = get_expr_type_from_tree(expr, 0);
     if (formaltype == typeid_novalue)
-      formaltype = realtype;
-    
-    ////////////////////
-#if 0
-    switch(expr->type) {
-    case TTE_Literal:
-      if (formaltype == 0) {
-	inference_literal_type(&expr->litn.litv);
-      } else {
-	determine_literal_ type(&expr->litn.litv, formaltype);
-      }
-      break;
-    case TTE_Id: {
-      // get the actual parameter type
-      STEntry *identry = sym_getsym(param->symtable, expr->idn.i, 1);
-      realtype = identry->u.var->datatype->type;
-      break;
-    }
-    case TTE_Expr:
-      if (formaltype == 0) {
-	inference_expr_type(expr);
-      } else {
-	determine_expr_ type(expr, formaltype);
-      }
-
-      realtype = expr->exprn.expr_type;
-      if (formaltype == 0)
-	formaltype = realtype;
-
-      break;
-    default:
-      yyerror("line: %d, col: %d: the expression type `%d` should not come here",
-	      param->begloc.row, param->begloc.col, expr->type);
-      break;
-    }
-#endif
+      formaltype = realtype;    
 
     // TODO: put the check into IR time
     // check the formal parameter and actual parameter type
@@ -761,7 +743,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
   }
 }
 
-static void walk_stmt_call(ASTNode *p) {
+static void walk_expr_call(ASTNode *p) {
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
   check_and_determine_param_type(name, args);
@@ -773,7 +755,7 @@ static void walk_stmt_call(ASTNode *p) {
     yyerror("line: %d, col: %d: cannot find declared function: '%s'",
 	    p->begloc.row, p->begloc.col, fnname);
 
-  if (args->exprn.op != ARG_LISTS_ACTUAL)
+  if (args->type != TTE_ArgList)
     yyerror("line: %d, col: %d: not a argument list: '%s'",
 	    p->begloc.row, p->begloc.col, fnname);
 
@@ -781,9 +763,9 @@ static void walk_stmt_call(ASTNode *p) {
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
   std::vector<Value *> argv;
-  for (int i = 0; i < args->exprn.noperand; ++i) {
+  for (int i = 0; i < args->arglistn.argc; ++i) {
     // how to get the name for an expr? not possible / neccessary to get it
-    walk_stack(args->exprn.operands[i]);
+    walk_stack(args->arglistn.exprs[i]);
     auto pair = pop_right_value("exprarg");
     argv.push_back(pair.first);
   }
@@ -805,12 +787,12 @@ static void walk_stmt_call(ASTNode *p) {
   oprand_stack.push_back(std::move(operands));
 }
 
-static void walk_stmt_ret(ASTNode *p) {
+static void walk_ret(ASTNode *p) {
   Type *rettype = curr_fn->getReturnType();
   BasicBlock *retbb = (BasicBlock *)curr_fn_node->fndefn.retbb;
 
-  if (p->exprn.noperand) {
-    ASTNode *retn = p->exprn.operands[0];
+  if (p->retn.expr) {
+    ASTNode *retn = p->retn.expr;
     typeid_t retid = curr_fn_node->fndefn.fn_decl->fndecln.ret;
     //CADataType *retdt = catype_get_by_name(retid);
     //CHECK_GET_TYPE_VALUE(p, retdt, retid);
@@ -862,7 +844,7 @@ static void walk_stmt_ret(ASTNode *p) {
   g_with_ret_value = true;
 }
 
-static void walk_stmt_expr(ASTNode *p) {
+static void walk_expr_op2(ASTNode *p) {
   walk_stack(p->exprn.operands[0]);
   auto pair1 = pop_right_value("v1");
   walk_stack(p->exprn.operands[1]);
@@ -918,56 +900,44 @@ static void walk_stmt_expr(ASTNode *p) {
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v3, type1));
 }
 
-static int is_valued_expr(int op) {
-  return (op != ARG_LISTS && op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET);
-}
+static void walk_expr_as(ASTNode *node) {
+  //CADataType *type = node->exprasn.type;
+  CADataType *type = catype_get_by_name(node->exprasn.type);
+  CHECK_GET_TYPE_VALUE(node, type, node->exprasn.type);
 
-static void post_make_expr(ASTNode *p) {
-  int i = 0;
-  int op = p->exprn.op;
-  int check_type = is_valued_expr(op);
-  int noperands = p->exprn.noperand;
-  if (!check_type)
+  ASTNode *exprn = node->exprasn.expr;
+
+  if (enable_debug_info())
+    diinfo->emit_location(node->endloc.row, node->endloc.col);
+
+  inference_expr_type(exprn);
+  walk_stack(exprn);
+
+  typeid_t stype = get_expr_type_from_tree(exprn, 0);
+  CADataType *dt = catype_get_by_name(stype);
+  CHECK_GET_TYPE_VALUE(node, dt, stype);
+  tokenid_t stypetok = dt->type;
+  
+  Instruction::CastOps castopt = gen_cast_ops(stypetok, type->type);
+  if (castopt == (ICO)-1) {
+    yyerror("line: %d, column: %d, cannot convert `%s` into `%s`",
+	    node->begloc.row, node->begloc.col,
+	    get_type_string(stypetok), get_type_string(type->type));
     return;
-
-  int expr_len = noperands;
-  typeid_t *expr_types = (int *)alloca(noperands * sizeof(typeid_t));
-
-  switch(op) {
-  case FN_CALL: {
-    ASTNode *idn = p->exprn.operands[0];
-    STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-    //CADataType *retdt = catype_get_by_name(entry->u.f.rettype);
-    //CHECK_GET_TYPE_VALUE(p, retdt, entry->u.f.rettype);
-    //retdt->type
-
-    expr_types[0] = entry->u.f.rettype;
-    expr_len = 1;
-    break;
-  }
-    /*
-      case '=': {
-      expr_types[0] = p->exprn.operands[1]->entry->u.var->datatype ?
-      p->exprn.operands[1]->entry->u.var->datatype->type : 0;
-      expr_types[1] = get_expr_type_from_ tree(p->exprn.operands[1], 1);
-      break;
-      }
-    */
-  default:
-    for (i = 0; i < noperands; i++) {
-      if (p->exprn.operands[i]->type == TTE_Expr &&
-	  p->exprn.operands[i]->exprn.expr_type == typeid_novalue)
-	post_make_expr(p->exprn.operands[i]);
-
-      expr_types[i] = get_expr_type_from_tree(p->exprn.operands[i], 0);
-    }
-    break;
   }
 
-  p->exprn.expr_type = reduce_node_and_type(p, expr_types, expr_len);
+  auto calco = pop_right_operand("tmpexpr");
+  Value *v = calco->operand;
+  if (castopt != (ICO)0) {
+    Type *stype = gen_type_from_token(type->type);
+    v = ir1.gen_cast_value(castopt, v, stype);
+  }
+ 
+  auto u = std::make_unique<CalcOperand>(calco->type, v, type->type);
+  oprand_stack.push_back(std::move(u));
 }
 
-static void walk_statement(ASTNode *p) {
+static void walk_expr(ASTNode *p) {
   post_make_expr(p);
   
   // not allow global assign value, global variable definition is not assign
@@ -975,29 +945,17 @@ static void walk_statement(ASTNode *p) {
     return;
 
   switch (p->exprn.op) {
-  case ';':
-    walk_stmt_semicolon(p);
-    break;
-  case PRINT:
-    walk_stmt_print(p);
-    break;
-  case '=':
-    walk_stmt_assign(p);
+  case AS:
+    walk_expr_as(p->exprn.operands[0]);
     break;
   case UMINUS:
-    walk_stmt_minus(p);
-    break;
-  case GOTO:
-    walk_stmt_goto(p);
+    walk_expr_minus(p);
     break;
   case FN_CALL:
-    walk_stmt_call(p);
-    break;
-  case RET:
-    walk_stmt_ret(p);
+    walk_expr_call(p);
     break;
   default:
-    walk_stmt_expr(p);
+    walk_expr_op2(p);
     break;
   }
 }
@@ -1144,43 +1102,6 @@ static Function *walk_fn_define(ASTNode *p) {
   return fn;
 }
 
-static void walk_as(ASTNode *node) {
-  //CADataType *type = node->exprasn.type;
-  CADataType *type = catype_get_by_name(node->exprasn.type);
-  CHECK_GET_TYPE_VALUE(node, type, node->exprasn.type);
-
-  ASTNode *exprn = node->exprasn.expr;
-
-  if (enable_debug_info())
-    diinfo->emit_location(node->endloc.row, node->endloc.col);
-
-  inference_expr_type(exprn);
-  walk_stack(exprn);
-
-  typeid_t stype = get_expr_type_from_tree(exprn, 0);
-  CADataType *dt = catype_get_by_name(stype);
-  CHECK_GET_TYPE_VALUE(node, dt, stype);
-  tokenid_t stypetok = dt->type;
-  
-  Instruction::CastOps castopt = gen_cast_ops(stypetok, type->type);
-  if (castopt == (ICO)-1) {
-    yyerror("line: %d, column: %d, cannot convert `%s` into `%s`",
-	    node->begloc.row, node->begloc.col,
-	    get_type_string(stypetok), get_type_string(type->type));
-    return;
-  }
-
-  auto calco = pop_right_operand("tmpexpr");
-  Value *v = calco->operand;
-  if (castopt != (ICO)0) {
-    Type *stype = gen_type_from_token(type->type);
-    v = ir1.gen_cast_value(castopt, v, stype);
-  }
- 
-  auto u = std::make_unique<CalcOperand>(calco->type, v, type->type);
-  oprand_stack.push_back(std::move(u));
-}
-
 static void walk_struct(ASTNode *node) {
   STEntry *entry = node->entry;
   CADataType *dt = entry->u.datatype;
@@ -1195,13 +1116,18 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_id,
   (walk_fn_t)walk_label,
   (walk_fn_t)walk_label_goto,
-  (walk_fn_t)walk_statement,
+  (walk_fn_t)walk_expr,
   (walk_fn_t)walk_fn_declare,
   (walk_fn_t)walk_fn_define,
   (walk_fn_t)walk_while,
   (walk_fn_t)walk_if,
-  (walk_fn_t)walk_as,
+  (walk_fn_t)walk_expr_as,
   (walk_fn_t)walk_struct,
+  (walk_fn_t)walk_print,
+  (walk_fn_t)walk_ret,
+  (walk_fn_t)walk_assign,
+  (walk_fn_t)walk_empty,
+  (walk_fn_t)walk_stmtlist,
 };
 
 static int walk_stack(ASTNode *p) {

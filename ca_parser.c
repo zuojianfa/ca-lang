@@ -230,7 +230,13 @@ void make_fn_args_actual(ActualArg *arg, ASTNode *expr) {
 
 ASTNode *make_stmt_print(ASTNode *expr) {
   //inference_expr_type(expr);
-  return make_expr(PRINT, 1, expr);
+
+  ASTNode *p = new_ASTNode(TTE_Print);
+  p->printn.expr = expr;
+  p->begloc = expr->begloc;
+  p->endloc = expr->endloc;
+  p->symtable = curr_symtable;
+  return p;
 }
 
 ASTNode *make_stmt_expr(ASTNode *expr) {
@@ -249,15 +255,20 @@ ASTNode *make_stmt_ret_expr(ASTNode *expr) {
   check_return_type(curr_fn_rettype);
 
   // TODO: remove following one and use `curr_fn_rettype` directly in the function `determine_expr_type`
-  CADataType *cadt = catype_get_by_name(curr_fn_rettype);
+  //CADataType *cadt = catype_get_by_name(curr_fn_rettype);
   //determine_expr_type(expr, cadt->type);
-  return make_expr(RET, 1, expr);
+  ASTNode *p = new_ASTNode(TTE_Ret);
+  p->retn.expr = expr;
+  return p;
 }
 
 ASTNode *make_stmt_ret() {
   if (curr_fn_rettype != sym_form_type_id_from_token(VOID))
     yyerror("line: %d, col: %d: function have no return type", glineno, gcolno);
-  return make_expr(RET, 0);
+
+  ASTNode *p = new_ASTNode(TTE_Ret);
+  p->retn.expr = NULL;
+  return p;
 }
 
 ASTNode *make_stmtexpr_list_block(ASTNode *exprblockbody) {
@@ -559,9 +570,10 @@ ASTNode *make_literal(CALiteral *litv) {
     return p;
 }
 
-ASTNode *make_id(int i) {
+ASTNode *make_id(int i, IdType idtype) {
     ASTNode *p = new_ASTNode(TTE_Id);
     p->idn.i = i;
+    p->idn.idtype = idtype;
 
     set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
     return p;
@@ -663,13 +675,23 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global) {
   entry = sym_insert(symtable, id, Sym_Variable);
   entry->u.var = var;
 
-  ASTNode *idn = make_id(id);
+  ASTNode *idn = make_id(id, TTEId_VarDef);
   idn->entry = entry;
   idn->symtable = symtable;
 
+  ASTNode *p = new_ASTNode(TTE_Assign);
+  p->assignn.id = idn;
+  p->assignn.expr = exprn;
+  p->begloc = idn->begloc;
+  p->endloc = exprn->endloc;
+  p->symtable = symtable;
+  return p;
+
+  /*
   ASTNode *node = make_expr('=', 2, idn, exprn);
   node->symtable = symtable;
   return node;
+  */
 }
 
 ASTNode *make_assign(int id, ASTNode *exprn) {
@@ -681,9 +703,18 @@ ASTNode *make_assign(int id, ASTNode *exprn) {
     return NULL;
   }
 
-  ASTNode *idn = make_id(id);
+  ASTNode *idn = make_id(id, TTEId_VarAssign);
   idn->entry = entry;
-  return make_expr('=', 2, idn, exprn);
+
+  ASTNode *p = new_ASTNode(TTE_Assign);
+  p->assignn.id = idn;
+  p->assignn.expr = exprn;
+  p->begloc = idn->begloc;
+  p->endloc = exprn->endloc;
+  p->symtable = curr_symtable;
+  return p;
+
+  //return make_expr('=', 2, idn, exprn);
 }
 
 ASTNode *make_goto(int labelid) {
@@ -708,7 +739,7 @@ ASTNode *make_goto(int labelid) {
     entry->sloc = loc;
   }
 
-  return make_expr(GOTO, 1, make_goto_node(lpos));
+  return make_goto_node(lpos);
 }
 
 ASTNode *make_label_def(int labelid) {
@@ -756,6 +787,15 @@ typeid_t get_expr_type_from_tree(ASTNode *node, int ispost) {
 
     return node->litn.litv.datatype;
   case TTE_Id:
+#if 0
+    if (node->idn.idtype != TTEId_VarUse && node->idn.idtype != TTEId_VarAssign &&
+	node->idn.idtype != TTEId_VarDef) {
+      yyerror("line: %d, col: %d: the name '%s' is not a right type (inner error)",
+	      node->begloc.col, node->begloc.row, symname_get(node->idn.i));
+      return typeid_novalue;
+    }
+#endif
+
     //STEntry *entry = sym_getsym(node->symtable, node->idn.i, 1);
     if (!node->entry || node->entry->sym_type != Sym_Variable) {
       yyerror("line: %d, col: %d: the name '%s' is not a variable",
@@ -821,6 +861,15 @@ typeid_t inference_expr_type(ASTNode *p) {
     p->litn.litv.fixed_type = 1;
     return type1;
   case TTE_Id:
+#if 0
+    if (p->idn.idtype != TTEId_VarUse && p->idn.idtype != TTEId_VarAssign &&
+	p->idn.idtype != TTEId_VarDef) {
+      yyerror("line: %d, col: %d: the name '%s' is not a right type (inner error)",
+	      p->begloc.col, p->begloc.row, symname_get(p->idn.i));
+      return typeid_novalue;
+    }
+#endif
+
     //return p->entry->u.var->datatype ? p->entry->u.var->datatype : 0;
     return p->entry->u.var->datatype;
   case TTE_As:
@@ -887,6 +936,15 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     determine_literal_type(&node->litn.litv, typetok);
     break;
   case TTE_Id:
+#if 0
+    if (node->idn.idtype != TTEId_VarUse && node->idn.idtype != TTEId_VarAssign &&
+	node->idn.idtype != TTEId_VarDef) {
+      yyerror("line: %d, col: %d: the name '%s' is not a right type (inner error)",
+	      node->begloc.col, node->begloc.row, symname_get(node->idn.i));
+      return -1;
+    }
+#endif
+
     if (!node->entry) {
       STEntry *entry = sym_getsym(node->symtable, node->idn.i, 1);
       if (!entry) {
@@ -1008,10 +1066,43 @@ int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands) {
   return type1;
 }
 
-static int is_valued_expr(int op) {
-  return (op != ARG_LISTS && op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET);
-}
+int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum) {
+  // check if exist type in the each node and type is conflicting for each node
+  // but here cannot create literal value when the value not determined a type
+  // because it may be a tree, or can make the type by tranverlling the tree?
+  // The answer is yes, here can determine the literal type when the expression
+  // exists an fixed type part
+  typeid_t type1 = typeid_novalue;
+  int typei = 0;
+  int notypeid = 0;
+  int *nonfixed_node = (int *)alloca(nodenum * sizeof(int));
+  for (int i = 0; i < nodenum; ++i) {
+    if (expr_types[i] != typeid_novalue) {
+      nonfixed_node[i] = 0;
+      if (type1 == typeid_novalue) {
+	type1 = expr_types[i];
+	typei = i;
+      } else if (type1 != expr_types[i]) {
+	yyerror("line: %d, col: %d: type name conflicting: '%s' of type '%s', '%s' of type '%s'",
+		nodes[0]->begloc.col, nodes[0]->begloc.row,
+		get_node_name_or_value(nodes[0]->exprn.operands[typei]), symname_get(type1),
+		get_node_name_or_value(nodes[0]->exprn.operands[i]), symname_get(expr_types[i]));
+	return 0;
+      }
+    } else {
+      nonfixed_node[i] = 1;
+    }
+  }
 
+  // when the expression have any fixed type node
+  for (int i = 0; i < nodenum; ++i) {
+    if (nonfixed_node[i]) {
+      determine_expr_type(nodes[i], type1);
+    }
+  }
+
+  return type1;
+}
 
 // UMINUS + - * / < > GE LE NE EQ
 // the left type and right type seperately calculation and interface, if the
@@ -1040,39 +1131,6 @@ ASTNode *make_expr(int op, int noperands, ...) {
     va_end(ap);
 
     p->exprn.expr_type = typeid_novalue;
-#if 0
-    int check_type = is_valued_expr(op);
-    if (check_type) {
-      int expr_len = noperands;
-      int *expr_types = (int *)alloca(noperands * sizeof(int));
-
-      switch(op) {
-      case FN_CALL: {
-	ASTNode *idn = p->exprn.operands[0];
-	STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-	CADataType *retdt = catype_get_by_name(entry->u.f.rettype);
-	expr_types[0] = retdt->type;
-	expr_len = 1;
-	break;
-      }
-	/*
-      case '=': {
-	expr_types[0] = p->exprn.operands[1]->entry->u.var->datatype ?
-	  p->exprn.operands[1]->entry->u.var->datatype->type : 0;
-	expr_types[1] = get_expr_type_from_ tree(p->exprn.operands[1], 1);
-	break;
-      }
-	*/
-      default:
-	for (i = 0; i < noperands; i++) {
-	  expr_types[i] = get_expr_type_from_ tree(p->exprn.operands[i], 1);
-	}
-        break;
-      }
-
-      p->exprn.expr_type = reduce_node_and_type(p, expr_types, expr_len);
-    }
-#endif
 
     const SLoc *beg = &(SLoc){glineno, gcolno};
     const SLoc *end = &(SLoc){glineno, gcolno};
@@ -1099,67 +1157,21 @@ ASTNode *make_expr(int op, int noperands, ...) {
     return p;
 }
 
-// TODO: this function should no used, remove it
-ASTNode *make_expr_arglists(ST_ArgList *al) {
-    int noperands = al->argc;
-    int i;
-
-    // for checking void type function, can only have void parameter
-    int void_count = 0;
-    for (i = 0; i < noperands; ++i) {
-      int name = al->argnames[i];
-      STEntry *entry = sym_getsym(curr_symtable, name, 0);
-      if (!entry) {
-	yyerror("line: %d, col: %d: cannot get entry for %s\n",
-		glineno, gcolno, symname_get(name));
-	return NULL;
-      }
-
-      if (entry->u.var->datatype == sym_form_type_id_from_token(VOID))
-	void_count += 1;
-    }
-
-    if (noperands > 1 && void_count > 0) {
-      yyerror("line: %d, col: %d: void function should only have void", glineno, gcolno);
-      return NULL;
-    }
-
-    if (void_count == 1)
-      return make_expr(ARG_LISTS, 0);
-
-    ASTNode *p = new_ASTNode(TTE_Expr);
-    p->exprn.op = ARG_LISTS;
-    p->exprn.noperand = noperands;
-    p->exprn.expr_type = typeid_novalue;
-
-    if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
-      yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
-
-    for (i = 0; i < noperands; i++)
-	p->exprn.operands[i] = make_id(al->argnames[i]);
-
-    if (noperands == 1) {
-	p->begloc = p->exprn.operands[0]->begloc;
-	p->endloc = p->exprn.operands[0]->endloc;
-    } else if (noperands > 1) {
-	p->begloc = p->exprn.operands[0]->begloc;
-	p->endloc = p->exprn.operands[noperands-1]->endloc;
-    } else {
-	p->begloc = (SLoc){glineno, gcolno};
-	p->endloc = (SLoc){glineno, gcolno};
-    }
-
-    p->symtable = curr_symtable;
-    return p;
-}
-
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
   dot_emit("fn_args_call", "fn_args_call_p");
 
-  int noperands = al->argc;
-  int i;
+  int argc = al ? al->argc : 0;
     
-  ASTNode *p = new_ASTNode(TTE_Expr);
+  ASTNode *p = new_ASTNode(TTE_ArgList);
+  p->arglistn.argc = argc;
+
+  if (al && (p->arglistn.exprs = (ASTNode **)malloc(argc * sizeof(ASTNode))) == NULL)
+    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
+  for (int i = 0; i < argc; i++)
+    p->arglistn.exprs[i] = al->args[i];
+
+#if 0
   p->exprn.op = ARG_LISTS_ACTUAL;
   p->exprn.noperand = noperands;
   p->exprn.expr_type = typeid_novalue;
@@ -1170,42 +1182,44 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
   /* copy information */
   for (i = 0; i < noperands; i++)
     p->exprn.operands[i] = al->args[i];
+#endif
 
-  if (noperands == 1) {
-    p->begloc = p->exprn.operands[0]->begloc;
-    p->endloc = p->exprn.operands[0]->endloc;
-  } else if (noperands > 1) {
-    p->begloc = p->exprn.operands[0]->begloc;
-    p->endloc = p->exprn.operands[noperands-1]->endloc;
+  if (argc == 1) {
+    p->begloc = p->arglistn.exprs[0]->begloc;
+    p->endloc = p->arglistn.exprs[0]->endloc;
+  } else if (argc > 1) {
+    p->begloc = p->arglistn.exprs[0]->begloc;
+    p->endloc = p->arglistn.exprs[argc - 1]->endloc;
   } else {
     p->begloc = (SLoc){glineno, gcolno};
     p->endloc = (SLoc){glineno, gcolno};
   }
 
   p->symtable = curr_symtable;
-  actualarglist_pop();
+  if (al)
+    actualarglist_pop();
 
   return p;
 }
 
 ASTNode *make_label_node(int i) {
-    ASTNode *p = make_id(i);
-    if (p) {
-	p->type = TTE_Label;
-	return p;
-    }
+  ASTNode *p = make_id(i, TTEId_Label);
+  if (p) {
+    p->type = TTE_Label;
+    return p;
+  }
 
-    return NULL;
+  return NULL;
 }
 
 ASTNode *make_goto_node(int i) {
-    ASTNode *p = make_id(i);
-    if (p) {
-	p->type = TTE_LabelGoto;
-	return p;
-    }
+  ASTNode *p = make_id(i, TTEId_LabelGoto);
+  if (p) {
+    p->type = TTE_LabelGoto;
+    return p;
+  }
 
-    return NULL;
+  return NULL;
 }
 
 ASTNode *build_mock_main_fn_node() {
@@ -1411,85 +1425,15 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
   ST_ArgList *formalparam = entry->u.f.arglists;
 
   // check parameter number
-  if(formalparam->contain_varg && formalparam->argc > param->exprn.noperand
+  if(formalparam->contain_varg && formalparam->argc > param->arglistn.argc
      ||
-     !formalparam->contain_varg && formalparam->argc != param->exprn.noperand) {
+     !formalparam->contain_varg && formalparam->argc != param->arglistn.argc) {
     yyerror("line: %d, col: %d: actual parameter number `%d` not match formal parameter number `%d`",
-	    glineno, gcolno, param->exprn.noperand, formalparam->argc);
+	    glineno, gcolno, param->arglistn.argc, formalparam->argc);
     return NULL;
   }
 
-#ifndef __SUPPORT_BACK_TYPE__
-  // check and determine parameter type
-  for (int i = 0; i < param->exprn.noperand; ++i) {
-    int formaltype = 0;
-    if (i >= formalparam->argc) {
-      // it is a variable parameter ...
-      formaltype = 0;
-    } else {
-      STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
-      formaltype = paramentry->u.var->datatype->type;
-    }
-
-    int realtype = formaltype;
-    ASTNode *expr = param->exprn.operands[i]; // get one parameter
-
-    // TODO: put the check into IR time
-    if (formaltype == 0)
-      inference_expr_ type(expr);
-    else
-      determine_expr_ type(expr, formaltype);
-
-    realtype = get_expr_type_from_ tree(expr, 0);
-    if (formaltype == 0)
-      formaltype = realtype;
-    
-    ////////////////////
-#if 0
-    switch(expr->type) {
-    case TTE_Literal:
-      if (formaltype == 0) {
-	inference_literal_type(&expr->litn.litv);
-      } else {
-	determine_literal_ type(&expr->litn.litv, formaltype);
-      }
-      break;
-    case TTE_Id: {
-      // get the actual parameter type
-      STEntry *identry = sym_getsym(param->symtable, expr->idn.i, 1);
-      realtype = identry->u.var->datatype->type;
-      break;
-    }
-    case TTE_Expr:
-      if (formaltype == 0) {
-	inference_expr_ type(expr);
-      } else {
-	determine_expr_ type(expr, formaltype);
-      }
-
-      realtype = expr->exprn.expr_type;
-      if (formaltype == 0)
-	formaltype = realtype;
-
-      break;
-    default:
-      yyerror("line: %d, col: %d: the expression type `%d` should not come here",
-	      param->begloc.row, param->begloc.col, expr->type);
-      break;
-    }
-#endif
-
-    // TODO: put the check into IR time
-    // check the formal parameter and actual parameter type
-    if (realtype != formaltype) {
-      yyerror("line: %d, col: %d: the %d parameter type '%s' not match the parameter declared type '%s'",
-	      param->begloc.row, param->begloc.col, i, get_type_string(realtype), get_type_string(formaltype));
-      return NULL;
-    }
-  }
-#endif
-
-  return make_expr(FN_CALL, 2, make_id(fnname), param);
+  return make_expr(FN_CALL, 2, make_id(fnname, TTEId_FnName), param);
 }
 
 ASTNode *make_ident_expr(int id) {
@@ -1501,7 +1445,7 @@ ASTNode *make_ident_expr(int id) {
     return NULL;
   }
 
-  ASTNode *node = make_id(id);
+  ASTNode *node = make_id(id, TTEId_VarUse);
   node->entry = entry;
   return node;
 }
@@ -1582,9 +1526,10 @@ ASTNode *make_as(ASTNode *expr, typeid_t type) {
   ASTNode *p = new_ASTNode(TTE_As);
   p->exprasn.type = type;
   p->exprasn.expr = expr;
-
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
-  return p;
+
+  ASTNode *node = make_expr(AS, 1, p);
+  return node;
 }
 
 typedef struct ASTNodeList {
@@ -1631,8 +1576,17 @@ ASTNode *make_stmt_list_zip() {
     return p;
   }
 
-  int noperands = oldlist->len;
-  ASTNode *p = new_ASTNode(TTE_Expr);
+  int len = oldlist->len;
+  ASTNode *p = new_ASTNode(TTE_StmtList);
+  p->stmtlistn.nstmt = len;
+  if ((p->stmtlistn.stmts = (ASTNode **)malloc(len * sizeof(ASTNode))) == NULL)
+    yyerror("line: %d, col: %d: out of memory", glineno, gcolno);
+
+  for (int i = 0; i < len; ++i)
+    p->stmtlistn.stmts[i] = oldlist->stmtlist[i];
+
+  /*
+  int noperands = len;
   p->exprn.op = ';';
   p->exprn.noperand = noperands;
   p->exprn.expr_type = typeid_novalue;
@@ -1642,25 +1596,25 @@ ASTNode *make_stmt_list_zip() {
 
   for (int i = 0; i < noperands; ++i)
     p->exprn.operands[i] = oldlist->stmtlist[i];
-
+  */
   free(oldlist->stmtlist);
   free(oldlist);
 
   const SLoc *beg = &(SLoc){glineno, gcolno};
   const SLoc *end = &(SLoc){glineno, gcolno};
 
-  if (noperands == 1) {
-    if (p->exprn.operands[0]) {
-      beg = &p->exprn.operands[0]->begloc;
-      end = &p->exprn.operands[0]->endloc;
+  if (len == 1) {
+    if (p->stmtlistn.stmts[0]) {
+      beg = &p->stmtlistn.stmts[0]->begloc;
+      end = &p->stmtlistn.stmts[0]->endloc;
     }
-  } else if (noperands > 1){
-    if (p->exprn.operands[0]) {
-      beg = &p->exprn.operands[0]->begloc;
+  } else if (len > 1){
+    if (p->stmtlistn.stmts[0]) {
+      beg = &p->stmtlistn.stmts[0]->begloc;
     }
 
-    if (p->exprn.operands[noperands-1]) {
-      end = &p->exprn.operands[noperands-1]->endloc;
+    if (p->stmtlistn.stmts[len-1]) {
+      end = &p->stmtlistn.stmts[len-1]->endloc;
     }
   }
 
