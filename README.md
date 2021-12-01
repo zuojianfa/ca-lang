@@ -224,6 +224,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
+- [ ] try to refactor or remove `post_make_expr`, `reduce_node_and_type_group`, `reduce_node_and_type`,
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
 - [ ] treat function id with "f:ident"
 - [ ] handle logical operation type convert, in function `IR1::gen_sub` ..., and case '<', etc
@@ -251,7 +252,7 @@ detailed TODO LIST:
 * handle case TTE_Id
 make stmt type and move upper into TTE_Stmt type
 
-`as` is a expression 
+*`as` is a expression 
 
 ```
 

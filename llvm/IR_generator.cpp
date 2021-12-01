@@ -126,7 +126,7 @@ static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load")
   return std::move(o);
 }
 
-static std::pair<Value *, int> pop_right_value(const char *name = "load") {
+static std::pair<Value *, tokenid_t> pop_right_value(const char *name = "load") {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
   oprand_stack.pop_back();
 
@@ -227,9 +227,10 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname,
 }
 
 static int is_valued_expr(int op) {
-  return (op != ARG_LISTS_ACTUAL && op != ';' && op != PRINT && op != RET);
+  return (op != PRINT && op != RET);
 }
 
+#if 0
 static void post_make_expr(ASTNode *p) {
   int i = 0;
   int op = p->exprn.op;
@@ -245,22 +246,10 @@ static void post_make_expr(ASTNode *p) {
   case FN_CALL: {
     ASTNode *idn = p->exprn.operands[0];
     STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-    //CADataType *retdt = catype_get_by_name(entry->u.f.rettype);
-    //CHECK_GET_TYPE_VALUE(p, retdt, entry->u.f.rettype);
-    //retdt->type
-
     expr_types[0] = entry->u.f.rettype;
     expr_len = 1;
     break;
   }
-    /*
-      case '=': {
-      expr_types[0] = p->exprn.operands[1]->entry->u.var->datatype ?
-      p->exprn.operands[1]->entry->u.var->datatype->type : 0;
-      expr_types[1] = get_expr_type_from_ tree(p->exprn.operands[1], 1);
-      break;
-      }
-    */
   default:
     for (i = 0; i < noperands; i++) {
       if (p->exprn.operands[i]->type == TTE_Expr &&
@@ -274,6 +263,7 @@ static void post_make_expr(ASTNode *p) {
 
   p->exprn.expr_type = reduce_node_and_type(p, expr_types, expr_len);
 }
+#endif
 
 static void walk_empty(ASTNode *p) {}
 
@@ -451,26 +441,28 @@ static void walk_while(ASTNode *p) {
   ir1.builder().SetInsertPoint(whilebb);
 
   walk_stack(p->whilen.body);
-  // TODO: how to remove the stack element that never used?
+  // TBD: how to remove the stack element that never used?
   ir1.builder().CreateBr(condbb);
 
   curr_fn->getBasicBlockList().push_back(endwhilebb);
   ir1.builder().SetInsertPoint(endwhilebb);
 }
 
-static void walk_if(ASTNode *p) {
+static void walk_if_common(ASTNode *p) {
   if (!curr_fn)
     return;
+
+  int isexpr = p->ifn.isexpr;
 
   if (enable_debug_info())
     diinfo->emit_location(p->begloc.row, p->begloc.col);
 
   Value *tmpv1 = nullptr;
   Value *tmpv2 = nullptr;
-  // TODO: the clang always alloca in the header of the function, it may error
-  // occurs when alloca in other blocks, how to do that?
+  // the clang always alloca in the header of the function, it may error
+  // occurs when alloca in other blocks. Answer: not exactly
   Value *tmpc = nullptr; // for storing if expression temporary value
-  if (p->ifn.isexpr)
+  if (isexpr)
     tmpc = ir1.gen_var(ir1.int_type<int>(), "tmpc");
 
   BasicBlock *thenbb = ir1.gen_bb("thenbb");
@@ -491,7 +483,7 @@ static void walk_if(ASTNode *p) {
     return;
   }
 
-  int tt1 = 0, tt2 = 0;
+  tokenid_t tt1 = 0, tt2 = 0;
 
   if (p->ifn.remain) { /* if else */
     elsebb = ir1.gen_bb("elsebb");
@@ -499,7 +491,7 @@ static void walk_if(ASTNode *p) {
     curr_fn->getBasicBlockList().push_back(thenbb);
     ir1.builder().SetInsertPoint(thenbb);
     walk_stack(p->ifn.bodies[0]);
-    if (p->ifn.isexpr) {
+    if (isexpr) {
       auto tmpv1 = pop_right_value("tmpv");
       ir1.store_var(tmpc, tmpv1.first);
       tt1 = tmpv1.second;
@@ -510,7 +502,7 @@ static void walk_if(ASTNode *p) {
     curr_fn->getBasicBlockList().push_back(elsebb);
     ir1.builder().SetInsertPoint(elsebb);
     walk_stack(p->ifn.remain);
-    if (p->ifn.isexpr) {
+    if (isexpr) {
       auto tmpv2 = pop_right_value("tmpv");
       ir1.store_var(tmpc, tmpv2.first);
       tt2 = tmpv2.second;
@@ -526,7 +518,7 @@ static void walk_if(ASTNode *p) {
   curr_fn->getBasicBlockList().push_back(outbb);
   ir1.builder().SetInsertPoint(outbb);
   
-  if (p->ifn.isexpr) {
+  if (isexpr) {
     if (tt1 != tt2) {
       yyerror("expression type not equal in if ... else ... expression");
       return;
@@ -541,6 +533,14 @@ static void walk_if(ASTNode *p) {
 
     oprand_stack.push_back(std::move(pnv));
   }
+}
+
+static void walk_if(ASTNode *p) {
+  walk_if_common(p);
+}
+
+static void walk_expr_ife(ASTNode *p) {
+  walk_if_common(p);
 }
 
 static void walk_print(ASTNode *p) {
@@ -606,7 +606,7 @@ static void walk_print(ASTNode *p) {
 //   type recursively (because the children may also have it's children, so it's
 //   recursive), the recursive finally case is the above condition (final
 //   expression).
-//   TODO: how to spread one determined type in the deep tree structure
+//   TBD: how to spread one determined type in the deep tree structure
 //   e.g. let a = (3243 + (432432 + (3432 * 43243 + 43i64 * (433 + 232)))) +
 //   333;
 //               +
@@ -644,16 +644,17 @@ static void walk_print(ASTNode *p) {
 // (variable)'s type
 // 4) both have no type, then inference the right side expression type with
 // default one and apply it into the left side variable
-
-// TODO: check the walk_stack procedure for right side expression
 static void walk_assign(ASTNode *p) {
   ASTNode *idn = p->assignn.id;
   ASTNode *exprn = p->assignn.expr;
 
   typeid_t expr_types[2];
   expr_types[0] = get_expr_type_from_tree(idn, 0);
+#if 0
   if (exprn->exprn.expr_type == typeid_novalue)
-    post_make_expr(exprn);
+    inference_expr_type(exprn);
+  post_make_expr(exprn);
+#endif
 
   ASTNode *group[2] = {idn, exprn};
   expr_types[1] = get_expr_type_from_tree(exprn, 0);
@@ -723,7 +724,6 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
     typeid_t realtype = formaltype;
     ASTNode *expr = param->arglistn.exprs[i]; // get one parameter
 
-    // TODO: put the check into IR time
     if (formaltype == typeid_novalue)
       inference_expr_type(expr);
     else
@@ -733,7 +733,6 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
     if (formaltype == typeid_novalue)
       formaltype = realtype;    
 
-    // TODO: put the check into IR time
     // check the formal parameter and actual parameter type
     if (realtype != formaltype) {
       yyerror("line: %d, col: %d: the %d parameter type '%s' not match the parameter declared type '%s'",
@@ -794,8 +793,6 @@ static void walk_ret(ASTNode *p) {
   if (p->retn.expr) {
     ASTNode *retn = p->retn.expr;
     typeid_t retid = curr_fn_node->fndefn.fn_decl->fndecln.ret;
-    //CADataType *retdt = catype_get_by_name(retid);
-    //CHECK_GET_TYPE_VALUE(p, retdt, retid);
 
     determine_expr_type(retn, retid);
     if (retn->type == TTE_Literal && !retn->litn.litv.fixed_type) {
@@ -938,21 +935,38 @@ static void walk_expr_as(ASTNode *node) {
 }
 
 static void walk_expr(ASTNode *p) {
-  post_make_expr(p);
+  //post_make_expr(p);
   
   // not allow global assign value, global variable definition is not assign
-  if (!curr_fn && p->exprn.op != '=' && p->exprn.op != ';')
+  if (!curr_fn)
     return;
 
   switch (p->exprn.op) {
   case AS:
-    walk_expr_as(p->exprn.operands[0]);
+    walk_stack(p->exprn.operands[0]);
     break;
   case UMINUS:
     walk_expr_minus(p);
     break;
   case FN_CALL:
     walk_expr_call(p);
+    break;
+  case STMT_EXPR:
+    // walk the statement part
+    walk_stack(p->exprn.operands[0]);
+
+    // walk the expression part
+    walk_stack(p->exprn.operands[1]);
+    {
+      std::unique_ptr<CalcOperand> &o = oprand_stack.back();
+
+      // NEXT TODO: here and 
+      //p->expr_type = o.type;
+    }
+    break;
+  case IF_EXPR:
+    // TODO: how to assign value of p->expr_type
+    walk_expr_ife(p->exprn.operands[0]);
     break;
   default:
     walk_expr_op2(p);

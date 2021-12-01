@@ -65,15 +65,6 @@ void dot_emit(const char *from, const char *to) {
 
 void dot_emit_expr(const char *from, const char *to, int op) {
   switch(op) {
-  case ARG_LISTS_ACTUAL:
-    dot_emit("fn_args_call", "");
-    break;
-  case ';':
-    // when left = right = NULL
-    dot_emit("stmt", ";");
-    // or when left, right != NULL
-    dot_emit("stmt_list", "stmt_list stmt");
-    break;
   case PRINT:
     dot_emit("stmt", "PRINT expr");
     break;

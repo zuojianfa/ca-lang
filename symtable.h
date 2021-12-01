@@ -108,7 +108,6 @@ typedef struct CALiteral {
   tokenid_t littypetok;
 
   int postfixtypetok;      // the postfix type when postfix is set
-  //typeid_t *postfixtypetok; // TODO: remove *, add * for make compile error and notice it
 
   // text id in symname table, text is used for latering literal type inference
   int textid;
@@ -163,12 +162,6 @@ typedef enum ArgType {
   AT_Variable,
   AT_Expr,
 } ArgType;
-
-typedef struct ActualArg {
-  // TODO: later remove all but only use ASTNode
-  //ArgType type;
-  struct ASTNode *exprn; /* for all the expression */
-} ActualArg;
 
 typedef struct ST_ArgListActual {
   int argc;                 // function argument count

@@ -65,7 +65,7 @@ extern int yychar, yylineno;
 %token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER TYPE_UNKNOWN
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
-%token			ARG_LISTS_ACTUAL FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK
+%token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR
 %token			ARROW INFER TYPE
 %nonassoc		IFX
 %nonassoc		ELSE
@@ -79,7 +79,7 @@ extern int yychar, yylineno;
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt struct_type_def type_def
-%type	<astnode>	ifexpr stmtexpr_list_block exprblock_body stmtexpr_list
+%type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list
 %type	<var>		iddef iddef_typed
 %type	<symnameid>	label_id attrib_scope ret_type
 //			%type	<symnameid>	atomic_type
@@ -187,13 +187,11 @@ ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { $$ = ma
 		;
 
 stmtexpr_list_block: { SymTable *st = push_new_symtable(); }
-		exprblock_body { $$ = make_stmtexpr_list_block($2); }
-		;
-exprblock_body: '{' stmtexpr_list '}'               { $$ = make_exprblock_body($2); }
+		'{' stmtexpr_list '}' { $$ = make_stmtexpr_list_block($3); }
 		;
 
-stmtexpr_list:  stmt_list expr { make_stmt_list_zip(); $$ = make_stmtexpr_list($2); }
-	|	expr { $$ = make_stmtexpr_list($1); }
+stmtexpr_list:  stmt_list expr { $$ = make_stmtexpr_list(make_stmt_list_zip(), $2); }
+	|	expr { $$ = $1; }
 		;
 /**/
 //////////////////////////////////////////////////////////////
@@ -201,7 +199,7 @@ stmt_list_block: { SymTable *st = push_new_symtable(); }
 		block_body { $$ = make_stmtexpr_list_block($2); }
 		;
 
-block_body: 	'{'stmt_list_star '}' { $$ = make_exprblock_body($2); }
+block_body: 	'{'stmt_list_star '}' { $$ = $2; }
 		;
 
 stmt_list_star:	stmt_list             { $$ = make_stmt_list_zip(); }

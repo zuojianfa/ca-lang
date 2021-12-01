@@ -210,14 +210,12 @@ typeid_t sym_form_type_id_from_token(tokenid_t tok);
 tokenid_t sym_primitive_token_from_id(typeid_t id);
 
 int determine_expr_type(ASTNode *node, typeid_t type);
-void determine_literal_type(CALiteral *lit, tokenid_t typetok);
 int get_expr_type_from_tree(ASTNode *node, int ispost);
 typeid_t inference_expr_type(ASTNode *p);
 void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t postfixtypetok);
 const char *get_node_name_or_value(ASTNode *node);
 
 ASTNode *build_mock_main_fn_node();
-void check_backtrace_datatype_info();
 
 int make_attrib_scope(int attrfn, int attrparam);
 int make_program();
@@ -226,14 +224,12 @@ ASTNode *make_fn_def(ASTNode *proto, ASTNode *body);
 ASTNode *make_fn_body(ASTNode *blockbody);
 ASTNode *make_fn_decl(ASTNode *proto);
 void add_fn_args_p(ST_ArgList *arglist, int varg);
-void make_fn_args_actual(ActualArg *arg, ASTNode *expr);
 ASTNode *make_stmt_print(ASTNode *expr);
 ASTNode *make_stmt_expr(ASTNode *expr);
 ASTNode *make_stmt_ret_expr(ASTNode *expr);
 ASTNode *make_stmt_ret();
 ASTNode *make_stmtexpr_list_block(ASTNode *exprblockbody);
-ASTNode *make_exprblock_body(ASTNode *stmtexprlist);
-ASTNode *make_stmtexpr_list(ASTNode *expr);
+ASTNode *make_stmtexpr_list(ASTNode *stmts, ASTNode *expr);
 //CADataType *make_instance_type_atomic(int atomictype);
 CADataType *make_pointer_type(CADataType *datatype);
 CADataType *make_array_type(CADataType *type, LitBuffer *size);

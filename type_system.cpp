@@ -935,9 +935,8 @@ int literal_type_convertable(tokenid_t from, tokenid_t to) {
 // int/float to any primitive type, to pointer * but cannot to reference &, bool
 // bool can to int type, but cannot float type, char type
 // only u8 can cast to char, but char can to int
-// 
+// it seems use token type is good than use typeid_t type
 int as_type_convertable(tokenid_t from, tokenid_t to) {
-  // TODO: use typeid_t
   if (to == BOOL)
     return from == BOOL;
 
