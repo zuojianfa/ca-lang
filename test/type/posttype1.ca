@@ -1,0 +1,6 @@
+fn main() {
+    let a: A = 102;
+    type A = i32;
+    print a;
+}
+

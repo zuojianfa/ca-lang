@@ -121,9 +121,12 @@ set(test_case_seq 1)
 do_test(cmp "211232223232232" ca ../test/cmp/cmp1.ca)
 
 set(test_case_seq 1)
-do_test(type "good" ca ../test/type/pointer1.ca)
 do_test(type "good" ca ../test/type/array1.ca)
 do_test(type "line: 44, col: 22: type `A5` defined multiple times" ca ../test/type/array2.ca)
+do_test(type "line: 4, column: 14, expected `t:i32`, found `t:f32`" ca ../test/type/diff_type.ca)
+do_test(type "101" ca ../test/type/duptypevar.ca)
+do_test(type "good" ca ../test/type/pointer1.ca)
 do_test(type "good" ca ../test/type/struct1.ca)
+do_test(type "good" ca ../test/type/struct2.ca)
 
 

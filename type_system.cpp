@@ -412,7 +412,7 @@ CADataType *catype_make_type_symname(typeid_t name, int type, int size) {
 
 CADataType *catype_make_unknown_type(SymTable *scope, typeid_t id, int size) {
   CADataType *dt = catype_make_type_symname(id, TYPE_UNKNOWN, size);
-  //return dt;
+  return dt;
 }
 
 // type + '*'

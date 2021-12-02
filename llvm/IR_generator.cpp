@@ -649,14 +649,8 @@ static void walk_assign(ASTNode *p) {
   ASTNode *exprn = p->assignn.expr;
 
   typeid_t expr_types[2];
-  expr_types[0] = get_expr_type_from_tree(idn, 0);
-#if 0
-  if (exprn->exprn.expr_type == typeid_novalue)
-    inference_expr_type(exprn);
-  post_make_expr(exprn);
-#endif
-
   ASTNode *group[2] = {idn, exprn};
+  expr_types[0] = get_expr_type_from_tree(idn, 0);
   expr_types[1] = get_expr_type_from_tree(exprn, 0);
 
   if (expr_types[0] == typeid_novalue && expr_types[1] == typeid_novalue) {
