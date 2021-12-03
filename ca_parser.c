@@ -246,9 +246,6 @@ ASTNode *make_stmt_ret_expr(ASTNode *expr) {
 
   check_return_type(curr_fn_rettype);
 
-  // TODO: remove following one and use `curr_fn_rettype` directly in the function `determine_expr_type`
-  //CADataType *cadt = catype_get_by_name(curr_fn_rettype);
-  //determine_expr_type(expr, cadt->type);
   ASTNode *p = new_ASTNode(TTE_Ret);
   p->retn.expr = expr;
   return p;
@@ -306,7 +303,7 @@ CADataType *make_array_type(CADataType *type, LitBuffer *size) {
 CADataType *get_datatype_by_ident(int id) {
   // firstly try to get primitive type from primitive type table
   typeid_t typeid = sym_form_type_id(id, 0);
-  CADataType *type = catype_get_by_name(typeid);
+  CADataType *type = catype_get_primitive_by_name(typeid);
   if (type)
     return type;
   
@@ -529,10 +526,7 @@ ASTNode *make_literal(CALiteral *litv) {
 
     ASTNode *p = new_ASTNode(TTE_Literal);
     p->litn.litv = *litv;
-    p->begloc.row = glineno_prev;
-    p->begloc.col = gcolno_prev;
-    p->endloc.row = glineno;
-    p->endloc.col = gcolno;
+    set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
 
     return p;
 }
@@ -806,10 +800,11 @@ typeid_t inference_expr_type(ASTNode *p) {
     return p->entry->u.var->datatype;
   case TTE_As:
     type1 = inference_expr_type(p->exprasn.expr);
-    typedt = catype_get_by_name(p->exprasn.type);
+    // TODO: handle when complex type
+    typedt = catype_get_by_name(p->symtable, p->exprasn.type);
     CHECK_GET_TYPE_VALUE(p, typedt, p->exprasn.type);
 
-    exprdt = catype_get_by_name(type1);
+    exprdt = catype_get_by_name(p->symtable, type1);
     CHECK_GET_TYPE_VALUE(p, exprdt, type1);
 
     if (!as_type_convertable(exprdt->type, typedt->type)) {
@@ -881,7 +876,8 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 // determine and set the expr type for the expr for a specified type, different
 // from `inference_expr_type` which have no a defined type parameter
 int determine_expr_type(ASTNode *node, typeid_t type) {
-  CADataType *typeid = catype_get_by_name(type);
+  // TODO: handle when complex type
+  CADataType *typeid = catype_get_by_name(node->symtable, type);
   //CHECK_GET_TYPE_VALUE(node, typeid, type);
   tokenid_t typetok = typeid ? typeid->type : tokenid_novalue;
   typeid_t id;
@@ -927,7 +923,8 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     break;
   case TTE_As:
     //if (!as_type_convertable(typetok, node->exprasn.type->type)) {
-    dt = catype_get_by_name(node->exprasn.type);
+    // TODO: handle when complex type
+    dt = catype_get_by_name(node->symtable, node->exprasn.type);
     CHECK_GET_TYPE_VALUE(node, dt, node->exprasn.type);
 
     if (typetok != dt->type) {
@@ -1288,8 +1285,6 @@ static int check_fn_proto(STEntry *prev, int id, ST_ArgList *currargs, typeid_t 
 ASTNode *make_fn_proto(int id, ST_ArgList *arglist, typeid_t rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
 
-  CADataType *retdt = catype_get_by_name(rettype);
-  //CHECK_GET_TYPE_VALUE(p, retdt, itr->second->fndecln.ret);
   curr_fn_rettype = rettype;
 
   SLoc beg = {glineno, gcolno};
@@ -1428,7 +1423,9 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
   // when already exists then just use the type and skip step 2.
   const char *signature = sym_form_struct_signature(structname, curr_symtable);
   int symname = symname_check_insert(signature);
-  CADataType *dt = catype_get_by_name(symname);
+
+  // TODO: handle struct definition, should not need get type here directly
+  CADataType *dt = catype_get_primitive_by_name(symname);
   if (!dt) {
     // 2. form a struct CADataType object when have no such cache
     // 2.a. put the CADataType into catype cache

@@ -214,15 +214,6 @@ int check_uchar_value_scope(uint8_t lit, tokenid_t typetok);
 int literal_type_convertable(tokenid_t from, tokenid_t to);
 int as_type_convertable(tokenid_t from, tokenid_t to);
 
-// type finding
-int catype_init();
-int catype_put_by_name(typeid_t name, CADataType *datatype);
-CADataType *catype_get_by_name(typeid_t name);
-int catype_put_by_token(int token, CADataType *datatype);
-CADataType *catype_get_by_token(int token);
-int catype_is_float(tokenid_t typetok);
-
-const char *get_type_string(int tok);
 void set_litbuf(LitBuffer *litb, char *text, int len, int typetok);
 
 CAVariable *cavar_create(int name, typeid_t datatype);

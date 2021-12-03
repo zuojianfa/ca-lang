@@ -55,6 +55,9 @@ extern int glineno;
 extern int gcolno;
 extern ir_codegen::IR1 ir1;
 
+// name to CADatatype map
+std::unordered_map<typeid_t, CADataType *> s_type_map;
+
 using namespace llvm;
 std::unordered_map<std::string, int> s_token_primitive_map {
   {"void",   VOID},
@@ -207,6 +210,8 @@ std::unordered_map<std::string, int> s_token_map = {
 };
 
 static CADataType *catype_make_type(const char *name, int type, int size);
+
+BEGIN_EXTERN_C
 int catype_init() {
   CADataType *datatype;
   int name;
@@ -214,24 +219,24 @@ int catype_init() {
   datatype = catype_make_type("t:i32", I32, 4); // i32
 
   name = symname_check_insert("t:int");
-  catype_put_by_name(name, datatype);         // int
+  catype_put_primitive_by_name(name, datatype); // int
 
   catype_make_type("t:i64", I64, 8);            // i64
 
   datatype = catype_make_type("t:u32", U32, 4); // u32
 
   name = symname_check_insert("t:uint");
-  catype_put_by_name(name, datatype);         // uint
+  catype_put_primitive_by_name(name, datatype); // uint
 
   catype_make_type("t:u64", U64, 8);            // u64
 
   datatype = catype_make_type("t:f32", F32, 4); // f32
   name = symname_check_insert("t:float");
-  catype_put_by_name(name, datatype);         // float
+  catype_put_primitive_by_name(name, datatype); // float
 
   datatype = catype_make_type("t:f64", F64, 8); // f64
   name = symname_check_insert("t:double");
-  catype_put_by_name(name, datatype);         // double
+  catype_put_primitive_by_name(name, datatype); // double
 
   catype_make_type("t:bool", BOOL, 1);          // bool
   catype_make_type("t:char", CHAR, 1);          // char
@@ -240,7 +245,47 @@ int catype_init() {
   return 0;
 }
 
-BEGIN_EXTERN_C
+int catype_put_primitive_by_name(typeid_t name, CADataType *datatype) {
+  s_type_map.insert(std::move(std::make_pair(name, datatype)));
+  return 0;
+}
+
+CADataType *catype_get_primitive_by_name(typeid_t name) {
+  auto itr = s_type_map.find(name);
+  if (itr == s_type_map.end())
+    return nullptr;
+
+  return itr->second;
+}
+
+int catype_put_by_token(int token, CADataType *datatype) {
+  // TODO:
+  return 0;
+}
+
+CADataType *catype_get_by_token(int token) {
+  // TODO:
+  return nullptr;
+}
+
+CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
+  // firstly try to get primitive type from primitive type table
+  CADataType *type = catype_get_primitive_by_name(name);
+  if (type)
+    return type;
+  
+  STEntry *entry = sym_getsym(symtable, name, 1);
+  if (!entry)
+    return nullptr;
+
+  if (entry->sym_type != Sym_DataType) {
+    yyerror("(internal), `%d` not a type name `%s`", entry->sym_type, symname_get(name));
+    return nullptr;
+  }
+
+  return entry->u.datatype;
+}
+
 // inference and set the literal type for the literal, when the literal have no
 // a determined type, different from `determine_literal_type`, the later is used by passing a defined type  
 typeid_t inference_literal_type(CALiteral *lit) {
@@ -406,7 +451,7 @@ CADataType *catype_make_type_symname(typeid_t name, int type, int size) {
   dt->size = size;
   dt->signature = name;
   dt->struct_layout = nullptr;
-  //catype_put_by_name(name, dt);
+  //catype_put_primitive_by_name(name, dt);
   return dt;
 }
 
@@ -444,7 +489,8 @@ static int form_datatype_signature(CADataType *type, int plus, uint64_t len) {
 
 CADataType *catype_make_pointer_type(CADataType *datatype) {
   typeid_t signature = form_datatype_signature(datatype, '*', 0);
-  CADataType *type = catype_get_by_name(signature);
+  // TODO: use type also from symbol
+  CADataType *type = catype_get_primitive_by_name(signature);
   if (type)
     return type;
 
@@ -456,7 +502,7 @@ CADataType *catype_make_pointer_type(CADataType *datatype) {
     type->formalname = signature;
     type->signature = signature;
     type->pointer_layout->dimension++;
-    catype_put_by_name(signature, type);
+    catype_put_primitive_by_name(signature, type);
     break;
   case ARRAY:
     // array's pointer
@@ -480,7 +526,8 @@ CADataType *catype_make_pointer_type(CADataType *datatype) {
 // the array representation using the later which is the compact one
 CADataType *catype_make_array_type(CADataType *datatype, uint64_t len) {
   int signature = form_datatype_signature(datatype, '[', len);
-  CADataType *dt = catype_get_by_name(signature);
+  // TODO: use type also from symbol
+  CADataType *dt = catype_get_primitive_by_name(signature);
   if (dt)
     return dt;
 
@@ -493,7 +540,7 @@ CADataType *catype_make_array_type(CADataType *datatype, uint64_t len) {
     dt->formalname = signature;
     dt->signature = signature;
     dt->array_layout->dimarray[dt->array_layout->dimension++] = len;
-    catype_put_by_name(signature, dt);
+    catype_put_primitive_by_name(signature, dt);
     break;
   case POINTER:
   case STRUCT:
@@ -584,7 +631,8 @@ static double parse_to_double(CALiteral *value) {
 }
 
 static int can_type_binding(CALiteral *lit, tokenid_t typetok) {
-  CADataType *dt = catype_get_by_name(lit->datatype);
+  // TODO: use type also from symbol table, when literal also support array or struct, e.g. AA {d,b}
+  CADataType *dt = catype_get_primitive_by_name(lit->datatype);
   switch (dt->type) {
   case I64:
     return !check_i64_value_scope(lit->u.i64value, typetok);
@@ -606,7 +654,8 @@ static int can_type_binding(CALiteral *lit, tokenid_t typetok) {
 
 Value *gen_literal_value(CALiteral *value, tokenid_t typetok, SLoc loc) {
   // check if literal value type matches the given typetok, if not match, report error
-  CADataType *dt = catype_get_by_name(value->datatype);
+  // TODO: use type also from symbol table, when literal also support array or struct, e.g. AA {d,b}
+  CADataType *dt = catype_get_primitive_by_name(value->datatype);
   if (value->fixed_type && dt->type != typetok) {
     yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
 	    loc.row, loc.col, get_type_string(dt->type), get_type_string(typetok));
@@ -905,9 +954,6 @@ Instruction::CastOps gen_cast_ops(int fromtok, int totok) {
   return llvmtype_cast_table[fromtok-VOID][totok-VOID];
 }
 
-// name to CADatatype map
-std::unordered_map<typeid_t, CADataType *> s_type_map;
-
 // used for literal value convertion, left side is lexical literal value (I64
 // stand for negative integer value, U64 stand for positive integer value, F64
 // stand for floating point value) right side is real literal value
@@ -1040,7 +1086,7 @@ static CADataType *catype_make_type(const char *name, int type, int size) {
   datatype->size = size;
   datatype->signature = formalname;
   datatype->struct_layout = nullptr;
-  catype_put_by_name(formalname, datatype);
+  catype_put_primitive_by_name(formalname, datatype);
   return datatype;
 }
 

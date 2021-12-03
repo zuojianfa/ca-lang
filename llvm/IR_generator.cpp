@@ -182,7 +182,7 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     if (entry->sym_type != Sym_Variable)
       yyerror("symbol type is not variable: (%d != %d)", entry->sym_type, Sym_Variable);
 
-    CADataType *dt = catype_get_by_name(entry->u.var->datatype);
+    CADataType *dt = catype_get_by_name(st, entry->u.var->datatype);
     CHECK_GET_TYPE_VALUE(curr_fn_node, dt, entry->u.var->datatype);
 
     Type *type = gen_type_from_token(dt->type);
@@ -278,7 +278,7 @@ static Value *walk_literal(ASTNode *p) {
   // when fixed_type is set use it else use intent_type
   tokenid_t typetok = 0;
   if (p->litn.litv.fixed_type) {
-    CADataType *dt = catype_get_by_name(p->litn.litv.datatype);
+    CADataType *dt = catype_get_by_name(p->symtable, p->litn.litv.datatype);
     CHECK_GET_TYPE_VALUE(p, dt, p->litn.litv.datatype);
     typetok = dt->type;
   } else {
@@ -312,7 +312,7 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
       ir1.builder().CreateStore(defval, var, name);
   } else {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
-    CADataType *dt = catype_get_by_name(p->entry->u.var->datatype);
+    CADataType *dt = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
     CHECK_GET_TYPE_VALUE(p, dt, p->entry->u.var->datatype);
 
     Type *type = gen_type_from_token(dt->type);
@@ -337,7 +337,7 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
 static Value *walk_id(ASTNode *p) {
   Value *var = walk_id_defv(p);
 
-  CADataType *dt = catype_get_by_name(p->entry->u.var->datatype);
+  CADataType *dt = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
   CHECK_GET_TYPE_VALUE(p, dt, p->entry->u.var->datatype);
 
   auto operands = std::make_unique<CalcOperand>(OT_Alloc, var, dt->type);
@@ -672,7 +672,7 @@ static void walk_assign(ASTNode *p) {
  
   Value *vp = walk_id_defv(idn, v);
 
-  CADataType *dt = catype_get_by_name(idn->entry->u.var->datatype);
+  CADataType *dt = catype_get_by_name(p->symtable, idn->entry->u.var->datatype);
   CHECK_GET_TYPE_VALUE(p, dt, idn->entry->u.var->datatype);
 
   auto u = std::make_unique<CalcOperand>(OT_Store, vp, dt->type);
@@ -681,7 +681,7 @@ static void walk_assign(ASTNode *p) {
 
 static void walk_expr_minus(ASTNode *p) {
   typeid_t type = get_expr_type_from_tree(p->exprn.operands[0], 0);
-  CADataType *dt = catype_get_by_name(type);
+  CADataType *dt = catype_get_by_name(p->symtable, type);
   CHECK_GET_TYPE_VALUE(p, dt, type);
   if (is_unsigned_type(dt->type)) {
     yyerror("unsigned type `%s` cannot apply `-` operator", symname_get(type));
@@ -710,7 +710,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
       formaltype = typeid_novalue;
     } else {
       STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
-      CADataType *dt = catype_get_by_name(paramentry->u.var->datatype);
+      CADataType *dt = catype_get_by_name(name->symtable, paramentry->u.var->datatype);
       CHECK_GET_TYPE_VALUE(param, dt, paramentry->u.var->datatype);
       formaltype = paramentry->u.var->datatype;
     }
@@ -773,7 +773,7 @@ static void walk_expr_call(ASTNode *p) {
   }
  
   CallInst *callret = ir1.builder().CreateCall(fn, argv, isvoidty ? "" : fnname);
-  CADataType *retdt = catype_get_by_name(itr->second->fndecln.ret);
+  CADataType *retdt = catype_get_by_name(p->symtable, itr->second->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, itr->second->fndecln.ret);
 
   auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, retdt->type);
@@ -791,7 +791,7 @@ static void walk_ret(ASTNode *p) {
     determine_expr_type(retn, retid);
     if (retn->type == TTE_Literal && !retn->litn.litv.fixed_type) {
       auto itr = function_map.find(curr_fn->getName().str());
-      CADataType *retdt = catype_get_by_name(itr->second->fndecln.ret);
+      CADataType *retdt = catype_get_by_name(p->symtable, itr->second->fndecln.ret);
       CHECK_GET_TYPE_VALUE(p, retdt, itr->second->fndecln.ret);
       retn->litn.litv.intent_type = retdt->type;
     }
@@ -805,7 +805,7 @@ static void walk_ret(ASTNode *p) {
     // match the function return value and the literal return value
     if (rettype != v->getType()) {
       typeid_t retty = curr_fn_node->fndefn.fn_decl->fndecln.ret;
-      CADataType *retdt = catype_get_by_name(retty);
+      CADataType *retdt = catype_get_by_name(p->symtable, retty);
       CHECK_GET_TYPE_VALUE(retn, retdt, retty);
       typeid_t exprtype = get_expr_type_from_tree(retn, 0);
       yyerror("line: %d, column: %d, return value `%s` type '%s' not match function type '%s'",
@@ -854,7 +854,7 @@ static void walk_expr_op2(ASTNode *p) {
     return;
   }
 
-  CADataType *dt = catype_get_by_name(typeid1);
+  CADataType *dt = catype_get_by_name(p->symtable, typeid1);
   CHECK_GET_TYPE_VALUE(p, dt, typeid1);
   tokenid_t type1 = dt->type;
 
@@ -893,7 +893,7 @@ static void walk_expr_op2(ASTNode *p) {
 
 static void walk_expr_as(ASTNode *node) {
   //CADataType *type = node->exprasn.type;
-  CADataType *type = catype_get_by_name(node->exprasn.type);
+  CADataType *type = catype_get_by_name(node->symtable, node->exprasn.type);
   CHECK_GET_TYPE_VALUE(node, type, node->exprasn.type);
 
   ASTNode *exprn = node->exprasn.expr;
@@ -905,7 +905,7 @@ static void walk_expr_as(ASTNode *node) {
   walk_stack(exprn);
 
   typeid_t stype = get_expr_type_from_tree(exprn, 0);
-  CADataType *dt = catype_get_by_name(stype);
+  CADataType *dt = catype_get_by_name(node->symtable, stype);
   CHECK_GET_TYPE_VALUE(node, dt, stype);
   tokenid_t stypetok = dt->type;
   
@@ -1000,14 +1000,14 @@ static Function *walk_fn_declare(ASTNode *p) {
       return nullptr;
     }
 
-    CADataType *dt = catype_get_by_name(entry->u.var->datatype);
+    CADataType *dt = catype_get_by_name(p->symtable, entry->u.var->datatype);
     CHECK_GET_TYPE_VALUE(p, dt, entry->u.var->datatype);
 
     Type *type = gen_type_from_token(dt->type);
     params.push_back(type);
   }
 
-  CADataType *retdt = catype_get_by_name(p->fndecln.ret);
+  CADataType *retdt = catype_get_by_name(p->symtable, p->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, p->fndecln.ret);
   Type *rettype = gen_type_from_token(retdt->type);
   fn = ir1.gen_extern_fn(rettype, fnname, params, &param_names, !!p->fndecln.args.contain_varg);
@@ -1022,7 +1022,7 @@ static Function *walk_fn_declare(ASTNode *p) {
 
 static void generate_final_return(ASTNode *p) {
   // should check if the function returned a value instead of append a return value always
-  CADataType *retdt = catype_get_by_name(p->fndefn.fn_decl->fndecln.ret);
+  CADataType *retdt = catype_get_by_name(p->symtable, p->fndefn.fn_decl->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, p->fndefn.fn_decl->fndecln.ret);
 
   if (g_with_ret_value) {
@@ -1061,7 +1061,7 @@ static Function *walk_fn_define(ASTNode *p) {
   // insert here debugging information
   init_fn_param_info(fn, p->fndefn.fn_decl->fndecln.args, p->symtable, p->begloc.row);
 
-  CADataType *retdt = catype_get_by_name(p->fndefn.fn_decl->fndecln.ret);
+  CADataType *retdt = catype_get_by_name(p->symtable, p->fndefn.fn_decl->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, p->fndefn.fn_decl->fndecln.ret);
   if (retdt->type != VOID) {
     p->fndefn.retslot = (void *)ir1.gen_var(fn->getReturnType(), "retslot");

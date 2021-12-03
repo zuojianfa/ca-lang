@@ -16,12 +16,10 @@
 #include <unordered_map>
 
 #include "type_system.h"
-//#include "type_system_llvm.h"
 
 #include <unordered_map>
 
 extern std::unordered_map<std::string, int> s_token_map;
-extern std::unordered_map<typeid_t, CADataType *> s_type_map;
 
 BEGIN_EXTERN_C
 void yyerror(const char *s, ...);
@@ -77,29 +75,6 @@ int find_lexical_keyword(const char *name) {
     return itr->second;
 
   return -1;
-}
-
-int catype_put_by_name(typeid_t name, CADataType *datatype) {
-  s_type_map.insert(std::move(std::make_pair(name, datatype)));
-  return 0;
-}
-
-CADataType *catype_get_by_name(typeid_t name) {
-  auto itr = s_type_map.find(name);
-  if (itr == s_type_map.end())
-    return nullptr;
-
-  return itr->second;
-}
-
-int catype_put_by_token(int token, CADataType *datatype) {
-  // TODO:
-  return 0;
-}
-
-CADataType *catype_get_by_token(int token) {
-  // TODO:
-  return nullptr;
 }
 
 void set_litbuf(LitBuffer *litb, char *text, int len, int typetok) {
