@@ -13,6 +13,8 @@ fn main() {
     print B;
 }
 
+let A: i32 = 99;
+
 type A = i32;
 
 fn A() -> A {

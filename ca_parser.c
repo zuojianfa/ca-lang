@@ -1282,7 +1282,7 @@ static int check_fn_proto(STEntry *prev, int id, ST_ArgList *currargs, typeid_t 
   return 0;
 }
 
-ASTNode *make_fn_proto(int id, ST_ArgList *arglist, typeid_t rettype) {
+ASTNode *make_fn_proto(int fnname, ST_ArgList *arglist, typeid_t rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
 
   curr_fn_rettype = rettype;
@@ -1290,23 +1290,30 @@ ASTNode *make_fn_proto(int id, ST_ArgList *arglist, typeid_t rettype) {
   SLoc beg = {glineno, gcolno};
   SLoc end = {glineno, gcolno};
 
-  STEntry *entry = sym_getsym(&g_root_symtable, id, 0);
+  //void *carrier = get_post_function(fnname);
+  // for handle post function declaration or define
+  int existpost = exists_post_function(fnname);
+  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (extern_flag) {
     if (entry) {
-      check_fn_proto(entry, id, arglist, rettype);
+      check_fn_proto(entry, fnname, arglist, rettype);
     } else {
-      entry = sym_check_insert(&g_root_symtable, id, Sym_FnDecl);
+      entry = sym_check_insert(&g_root_symtable, fnname, Sym_FnDecl);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
       *entry->u.f.arglists = *arglist;
     }
     entry->u.f.rettype = rettype;
 
-    return build_fn_decl(id, arglist, rettype, beg, end);
+    ASTNode *decln = build_fn_decl(fnname, arglist, rettype, beg, end);
+    if (existpost)
+      put_post_function(fnname, decln);
+
+    return decln;
   } else {
     if (entry) {
       if (entry->sym_type == Sym_FnDef) {
 	yyerror("line: %d, col: %d: function '%s' already defined on line %d, col %d.",
-		glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
+		glineno, gcolno, symname_get(fnname), entry->sloc.row, entry->sloc.col);
 	return NULL;
       }
 
@@ -1316,19 +1323,23 @@ ASTNode *make_fn_proto(int id, ST_ArgList *arglist, typeid_t rettype) {
 	entry->sloc = loc;
       } else {
 	yyerror("line: %d, col: %d: name '%s' is not a function defined on line %d, col %d.",
-		glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
+		glineno, gcolno, symname_get(fnname), entry->sloc.row, entry->sloc.col);
 	return NULL;
       }
 
-      check_fn_proto(entry, id, arglist, rettype);
+      check_fn_proto(entry, fnname, arglist, rettype);
     } else {
-      entry = sym_check_insert(&g_root_symtable, id, Sym_FnDef);
+      entry = sym_check_insert(&g_root_symtable, fnname, Sym_FnDef); 
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
       *entry->u.f.arglists = *arglist;
     }
     entry->u.f.rettype = rettype;
 
-    return build_fn_define(id, arglist, rettype, beg, end);
+    ASTNode *defn = build_fn_define(fnname, arglist, rettype, beg, end);
+    if (existpost)
+      put_post_function(fnname, defn);
+
+    return defn;
   }
 }
 
@@ -1364,9 +1375,11 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
 
 #ifdef __SUPPORT_BACK_TYPE__
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
-  if (!entry) {
-    
-  }  
+  if (entry) {
+    check_fn_define(fnname, param);
+  } else {
+    put_post_function(fnname, NULL);
+  }
 #else
   check_fn_define(fnname, param);
 #endif

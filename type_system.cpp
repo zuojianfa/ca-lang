@@ -33,18 +33,12 @@
 #include "llvm/ir1.h"
 #include <cstdint>
 #include <cstdio>
+#include <utility>
 
-#ifdef __cplusplus
 BEGIN_EXTERN_C
-#endif
-
 #include "ca.tab.h"
-
 void yyerror(const char *s, ...);
-
-#ifdef __cplusplus
 END_EXTERN_C
-#endif
 
 #include <unordered_map>
 
@@ -57,6 +51,7 @@ extern ir_codegen::IR1 ir1;
 
 // name to CADatatype map
 std::unordered_map<typeid_t, CADataType *> s_type_map;
+std::unordered_map<typeid_t, void *> g_function_post_map;
 
 using namespace llvm;
 std::unordered_map<std::string, int> s_token_primitive_map {
@@ -79,9 +74,49 @@ std::unordered_map<std::string, int> s_token_primitive_map {
 };
 
 //std::unordered_map<typeid_t, CADataTypeList>()
+std::unordered_map<std::string, int> s_token_map = {
+#if 0
+  {"void",   VOID},
+  {"int",    I32},
+  {"i32",    I32},
+  {"i64",    I64},
+  {"uint",   U32},
+  {"u32",    U32},
+  {"u64",    U64},
+  {"float",  F32},
+  {"f32",    F32},
+  {"double", F64},
+  {"f64",    F64},
+  {"bool",   BOOL},
+  {"i8",     CHAR},
+  {"char",   CHAR},
+  {"u8",     UCHAR},
+  {"uchar",  UCHAR},
+#endif
+
+  {">=",     GE},
+  {"<=",     LE},
+  {"==",     EQ},
+  {"!=",     NE},
+  {"while",  WHILE},
+  {"if",     IF},
+  {"ife",    IFE},
+  {"else",   ELSE},
+  {"print",  PRINT},
+  {"goto",   GOTO},
+  {"fn",     FN},
+  {"extern", EXTERN},
+  {"return", RET},
+  {"let",    LET},
+  {"...",    VARG},
+  {"struct", STRUCT},
+  {"type",   TYPE},
+  {"as",     AS},
+};
+
+static CADataType *catype_make_type(const char *name, int type, int size);
 
 BEGIN_EXTERN_C
-
 enum TypeType {
   TT_Primitive,
   TT_Alias,
@@ -167,51 +202,6 @@ tokenid_t sym_primitive_token_from_id(typeid_t id) {
   return -1;
 }
 
-END_EXTERN_C
-
-std::unordered_map<std::string, int> s_token_map = {
-#if 0
-  {"void",   VOID},
-  {"int",    I32},
-  {"i32",    I32},
-  {"i64",    I64},
-  {"uint",   U32},
-  {"u32",    U32},
-  {"u64",    U64},
-  {"float",  F32},
-  {"f32",    F32},
-  {"double", F64},
-  {"f64",    F64},
-  {"bool",   BOOL},
-  {"i8",     CHAR},
-  {"char",   CHAR},
-  {"u8",     UCHAR},
-  {"uchar",  UCHAR},
-#endif
-
-  {">=",     GE},
-  {"<=",     LE},
-  {"==",     EQ},
-  {"!=",     NE},
-  {"while",  WHILE},
-  {"if",     IF},
-  {"ife",    IFE},
-  {"else",   ELSE},
-  {"print",  PRINT},
-  {"goto",   GOTO},
-  {"fn",     FN},
-  {"extern", EXTERN},
-  {"return", RET},
-  {"let",    LET},
-  {"...",    VARG},
-  {"struct", STRUCT},
-  {"type",   TYPE},
-  {"as",     AS},
-};
-
-static CADataType *catype_make_type(const char *name, int type, int size);
-
-BEGIN_EXTERN_C
 int catype_init() {
   CADataType *datatype;
   int name;
@@ -578,6 +568,26 @@ CADataType *catype_make_struct_type(int symname, ST_ArgList *arglist) {
   }
 
   return dt;
+}
+
+void put_post_function(typeid_t fnname, void *carrier) {
+  g_function_post_map[fnname] = carrier;
+}
+
+int exists_post_function(typeid_t fnname) {
+  auto itr = g_function_post_map.find(fnname);
+  if (itr != g_function_post_map.end())
+    return 1;
+
+  return 0;
+}
+
+void *get_post_function(typeid_t fnname) {
+  auto itr = g_function_post_map.find(fnname);
+  if (itr != g_function_post_map.end())
+    return itr->second;
+
+  return nullptr;
 }
 
 END_EXTERN_C

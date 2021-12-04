@@ -30,6 +30,10 @@ CADataType *catype_get_by_token(int token);
 int catype_is_float(tokenid_t typetok);
 CADataType *catype_get_by_name(SymTable *symtable, typeid_t name);
 
+void put_post_function(typeid_t fnname, void *carrier);
+int exists_post_function(typeid_t fnname);
+void *get_post_function(typeid_t fnname);
+
 #ifdef __cplusplus
 END_EXTERN_C
 #endif

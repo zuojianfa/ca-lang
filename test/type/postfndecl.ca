@@ -1,0 +1,18 @@
+fn main() {
+    {
+        let a: A = 102;
+        {
+            putchar(a);
+        }
+    }
+
+    let a: A = putchar(66);
+    print a;
+
+    let b = putchar(67);
+    print b;
+
+}
+
+extern fn putchar(ch: A) -> A;
+type A = i32;

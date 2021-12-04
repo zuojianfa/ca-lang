@@ -111,6 +111,7 @@ static std::map<Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
 
 static int walk_stack(ASTNode *p);
 extern RootTree *gtree;
+extern std::unordered_map<typeid_t, void *> g_function_post_map;
 
 static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load") {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
@@ -1397,10 +1398,19 @@ static void init_llvm_env() {
     diinfo = std::make_unique<dwarf_debug::DWARFDebugInfo>(ir1.builder(), ir1.module(), genv.src_path);
 }
 
-#ifdef __cplusplus
-extern "C"
-#endif
-int walk(RootTree *tree) {
+static void handle_post_functions() {
+  for (auto itr = g_function_post_map.begin(); itr != g_function_post_map.end(); ++itr) {
+    ASTNode *node = (ASTNode *)itr->second;
+    if (node->type == TTE_FnDecl)
+      walk_fn_declare(node);
+    else if (node->type == TTE_FnDef)
+      walk_fn_declare(node->fndefn.fn_decl);
+    else
+      yyerror("(internal) not a function declare or definition");
+  }
+}
+
+static int walk(RootTree *tree) {
   NodeChain *p = tree->head;
   llvm_codegen_begin(tree);
   for (int i = 0; i < tree->count; ++i) {
@@ -1548,7 +1558,9 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "program `%s` :\n", genv.src_path);
 
   yyparse();
-  
+
+  handle_post_functions();
+
   walk(gtree);
 
   dot_finalize();

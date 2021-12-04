@@ -254,7 +254,7 @@ ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
-ASTNode *make_fn_proto(int id, ST_ArgList *arglist, typeid_t type);
+ASTNode *make_fn_proto(int fnname, ST_ArgList *arglist, typeid_t type);
 ASTNode *make_fn_call(int fnname, ASTNode *param);
 ASTNode *make_ident_expr(int id);
 ASTNode *make_as(ASTNode *expr, typeid_t type);

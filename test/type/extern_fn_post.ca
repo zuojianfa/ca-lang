@@ -1,0 +1,11 @@
+extern fn func1(a: i32) -> i32;
+
+fn main() {
+    let a = func1(101);
+    print a;
+}
+
+fn func1(a: i32) -> i32 {
+    return a * 2;
+}
+
