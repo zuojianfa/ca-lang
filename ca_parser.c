@@ -1332,18 +1332,16 @@ ASTNode *make_fn_proto(int id, ST_ArgList *arglist, typeid_t rettype) {
   }
 }
 
-ASTNode *make_fn_call(int fnname, ASTNode *param) {
-  dot_emit("fn_call", symname_get(fnname));
-
+int check_fn_define(int fnname, ASTNode *param) {
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (!entry) {
     yyerror("line: %d, col: %d: function '%s' not defined", glineno, gcolno, symname_get(fnname));
-    return NULL;
+    return -1;
   }
 
   if (entry->sym_type != Sym_FnDecl && entry->sym_type != Sym_FnDef) {
     yyerror("line: %d, col: %d: '%s' is not a function", glineno, gcolno, symname_get(fnname));
-    return NULL;
+    return -1;
   }
 
   // check formal parameter and actual parameter
@@ -1355,8 +1353,23 @@ ASTNode *make_fn_call(int fnname, ASTNode *param) {
      !formalparam->contain_varg && formalparam->argc != param->arglistn.argc) {
     yyerror("line: %d, col: %d: actual parameter number `%d` not match formal parameter number `%d`",
 	    glineno, gcolno, param->arglistn.argc, formalparam->argc);
-    return NULL;
+    return -1;
   }
+
+  return 0;
+}
+
+ASTNode *make_fn_call(int fnname, ASTNode *param) {
+  dot_emit("fn_call", symname_get(fnname));
+
+#ifdef __SUPPORT_BACK_TYPE__
+  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
+  if (!entry) {
+    
+  }  
+#else
+  check_fn_define(fnname, param);
+#endif
 
   return make_expr(FN_CALL, 2, make_id(fnname, TTEId_FnName), param);
 }

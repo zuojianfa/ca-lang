@@ -1,0 +1,19 @@
+fn func1() -> A {
+    return 103;
+}
+
+fn main() {
+    {
+        let a: A = 102;
+        {
+            print a;
+        }
+    }
+
+    let a: i32 = func1();
+    print a;
+    
+}
+
+type A = i32;
+

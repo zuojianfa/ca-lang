@@ -19,13 +19,13 @@
 
 #include <unordered_map>
 
-extern std::unordered_map<std::string, int> s_token_map;
-
 BEGIN_EXTERN_C
 void yyerror(const char *s, ...);
 extern int glineno;
 extern int gcolno;
 END_EXTERN_C
+
+extern std::unordered_map<std::string, int> s_token_map;
 
 // static char *s_symname_buffer = NULL;
 static std::vector<char> s_symname_buffer;

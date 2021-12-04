@@ -699,6 +699,15 @@ static void walk_expr_minus(ASTNode *p) {
 
 static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
   int fnname = name->idn.i;
+  if (name->idn.idtype != IdType::TTEId_FnName) {
+      yyerror("line: %d, col: %d: the id: `%s` is not function name",
+	      param->begloc.row, param->begloc.col, symname_get(fnname));
+  }
+
+#ifdef __SUPPORT_BACK_TYPE__
+  check_fn_define(fnname, param);
+#endif
+  
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   ST_ArgList *formalparam = entry->u.f.arglists;
 

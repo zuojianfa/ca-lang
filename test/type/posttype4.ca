@@ -1,0 +1,28 @@
+
+fn func1() -> A {
+    return 103;
+}
+
+fn func2() -> B {
+    return 104i64;
+}
+
+fn main() {
+    {
+        let a: A = 102;
+        {
+            print a;
+        }
+    }
+
+    let a: i32 = func1();
+    print a;
+
+    let b = func2();
+    print b;
+}
+
+type A = i32;
+type B = i64;
+
+

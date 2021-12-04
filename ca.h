@@ -259,6 +259,7 @@ ASTNode *make_fn_call(int fnname, ASTNode *param);
 ASTNode *make_ident_expr(int id);
 ASTNode *make_as(ASTNode *expr, typeid_t type);
 ASTNode *make_stmt_list_zip();
+int check_fn_define(int fnname, ASTNode *param);
 // for tree node compress deep into wide, begin for stmt list beginning
 void put_astnode_into_list(ASTNode *stmt, int begin);
 

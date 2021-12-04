@@ -1,0 +1,10 @@
+fn main() {
+    {
+        let a: A = 102;
+        {
+            print a;
+        }
+    }
+    type A = i32;
+}
+

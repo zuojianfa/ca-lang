@@ -128,5 +128,12 @@ do_test(type "101" ca ../test/type/duptypevar.ca)
 do_test(type "good" ca ../test/type/pointer1.ca)
 do_test(type "good" ca ../test/type/struct1.ca)
 do_test(type "good" ca ../test/type/struct2.ca)
+do_test(type "102" ca ../test/type/posttype1.ca)
+do_test(type "102" ca ../test/type/posttype2.ca)
+do_test(type "102103" ca ../test/type/posttype3.ca)
+do_test(type "102103104" ca ../test/type/posttype4.ca)
+do_test(type "102103104" ca ../test/type/postfunc1.ca)
+do_test(type "102103104" ca ../test/type/postfunc2.ca)
+do_test(type "102103104" ca ../test/type/postfunc3.ca)
 
 
