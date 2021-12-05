@@ -1,0 +1,11 @@
+fn main() {
+    let b: A = func1(103);
+    print b;
+}
+
+fn func1(a: i32) -> i32 {
+    return a * 2;
+}
+
+type A = i32;
+

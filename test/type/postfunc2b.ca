@@ -1,3 +1,4 @@
+// when compiler support post function and same name function this can pass
 fn main() {
     {
         let A: A = 102;

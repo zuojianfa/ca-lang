@@ -590,6 +590,37 @@ void *get_post_function(typeid_t fnname) {
   return nullptr;
 }
 
+int catype_check_identical(SymTable *st1, typeid_t type1, SymTable *st2, typeid_t type2) {
+  // notice: when type1 == type2 does means they are equal, because they belong diffrent symbol table
+  if (type1 == type2 && st1 == st2)
+    return 1;
+
+  CADataType *dt1 = catype_get_by_name(st1, type1);
+  CADataType *dt2 = catype_get_by_name(st2, type2);
+
+  if (!dt1 || !dt2)
+    return 0;
+
+  if (dt1->type != dt2->type)
+    return 0;
+
+  // TODO: check not only the token type but also check other information when the type is complex type
+  return 1;
+}
+
+int catype_check_identical_witherror(SymTable *st1, typeid_t type1, SymTable *st2, typeid_t type2, int exitwhenerror, SLoc *loc) {
+  if (catype_check_identical(st1, type1, st2, type2))
+    return 1;
+
+  if (exitwhenerror) {
+    yyerror("line: %d, col: %d: the type `%s` not identical type `%s`",
+	    loc->row, loc->col, symname_get(type1), symname_get(type2));
+    exit(-1);
+  }
+
+  return 0;
+}
+
 END_EXTERN_C
 
 Value *tidy_value_with_arith(Value *v, int typetok) {

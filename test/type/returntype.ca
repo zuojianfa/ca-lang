@@ -1,0 +1,9 @@
+fn func1() -> VOID{
+}
+
+fn main() {
+	func1();
+	print 'g'; print 'o'; print 'o'; print 'd';print '\n';
+}
+
+type VOID = void;

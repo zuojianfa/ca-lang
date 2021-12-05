@@ -738,7 +738,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
       formaltype = realtype;    
 
     // check the formal parameter and actual parameter type
-    if (realtype != formaltype) {
+    if (!catype_check_identical(name->symtable, realtype, param->symtable, formaltype)) {
       yyerror("line: %d, col: %d: the %d parameter type '%s' not match the parameter declared type '%s'",
 	      param->begloc.row, param->begloc.col, i, symname_get(realtype)+2, symname_get(formaltype)+2);
       return;
@@ -831,7 +831,7 @@ static void walk_ret(ASTNode *p) {
       diinfo->emit_location(p->endloc.row, p->endloc.col);
 
     if (rettype != ir1.void_type()) {
-      yyerror("line: %d, column: %d, void function type cannot return value",
+      yyerror("line: %d, column: %d, void type function, cannot return a valuedd",
 	      p->begloc.row, p->begloc.col);
       return;
     }
@@ -858,7 +858,7 @@ static void walk_expr_op2(ASTNode *p) {
   typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0], 0);
   typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1], 0);
 
-  if (typeid1 != typeid2) {
+  if (!catype_check_identical(p->symtable, typeid1, p->symtable, typeid2)) {
     yyerror("operation have 2 different types: '%s', '%s'",
 	    symname_get(typeid1), symname_get(typeid2));
     return;
@@ -1401,6 +1401,11 @@ static void init_llvm_env() {
 static void handle_post_functions() {
   for (auto itr = g_function_post_map.begin(); itr != g_function_post_map.end(); ++itr) {
     ASTNode *node = (ASTNode *)itr->second;
+    if (!node) {
+      yyerror("function `%s` is used but not defined", symname_get(itr->first));
+      return;
+    }
+
     if (node->type == TTE_FnDecl)
       walk_fn_declare(node);
     else if (node->type == TTE_FnDef)

@@ -244,7 +244,7 @@ ASTNode *make_stmt_ret_expr(ASTNode *expr) {
     curr_fn_rettype = sym_form_type_id_from_token(I32);
   }
 
-  check_return_type(curr_fn_rettype);
+  //check_return_type(curr_fn_rettype);
 
   ASTNode *p = new_ASTNode(TTE_Ret);
   p->retn.expr = expr;
@@ -252,8 +252,8 @@ ASTNode *make_stmt_ret_expr(ASTNode *expr) {
 }
 
 ASTNode *make_stmt_ret() {
-  if (curr_fn_rettype != sym_form_type_id_from_token(VOID))
-    yyerror("line: %d, col: %d: function have no return type", glineno, gcolno);
+  /* if (curr_fn_rettype != sym_form_type_id_from_token(VOID)) */
+  /*   yyerror("line: %d, col: %d: function have no return type", glineno, gcolno); */
 
   ASTNode *p = new_ASTNode(TTE_Ret);
   p->retn.expr = NULL;
@@ -853,7 +853,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     // get function return type
     ASTNode *idn = node->exprn.operands[0];
     STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-    entry->u.f.rettype;
+    catype_check_identical_witherror(node->symtable, type, node->symtable, entry->u.f.rettype, 1, &node->begloc);
     break;
   }
   case STMT_EXPR:
@@ -911,10 +911,11 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
 
     if (node->entry->u.var->datatype == typeid_novalue)
       node->entry->u.var->datatype = type;
-    else if (node->entry->u.var->datatype != type) {
-      // yyerror
-      // return -1;
-      fprintf(stderr, "line: %d, col: %d: determine different type `%s` != `%s`\n",
+    else if (!catype_check_identical(node->symtable,
+				     node->entry->u.var->datatype,
+				     node->symtable, type)) {
+      // fprintf(stderr, 
+      yyerror("line: %d, col: %d: determine different type `%s` != `%s`\n",
 	     node->begloc.row, node->begloc.col, symname_get(type),
 	     symname_get(node->entry->u.var->datatype));
       return 0;
@@ -928,7 +929,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     CHECK_GET_TYPE_VALUE(node, dt, node->exprasn.type);
 
     if (typetok != dt->type) {
-      yyerror("line: %d, column: %d, type `%s` cannot convert (as) to type `%s`",
+      yyerror("line: %d, column: %d, type `%s` cannot determine into `%s`",
 		node->begloc.row, node->begloc.col,
 		get_type_string(typetok), get_type_string(dt->type));
       return -1;

@@ -1,0 +1,19 @@
+fn main() {
+    {
+        let a: i32 = 102;
+        {
+            a = putchar(a);putchar('\n');
+	    print a;putchar('\n');
+        }
+    }
+
+    let a: i32 = putchar(66);putchar('\n');
+    print a;putchar('\n');
+
+    let b = putchar(67);putchar('\n');
+    print b;putchar('\n');
+
+}
+
+extern fn putchar(ch: i32) -> i32;
+

@@ -1,6 +1,6 @@
 fn main() {
     {
-        let a: A = 102;
+        let a: i32 = 102;
         {
             putchar(a);
         }

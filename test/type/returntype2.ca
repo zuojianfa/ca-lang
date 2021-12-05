@@ -1,0 +1,10 @@
+fn func1() {
+	return 0;
+}
+
+fn main() {
+	func1();
+	print 'g'; print 'o'; print 'o'; print 'd';print '\n';
+}
+
+type VOID = void;
