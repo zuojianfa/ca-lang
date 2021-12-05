@@ -521,6 +521,7 @@ static void walk_if_common(ASTNode *p) {
   ir1.builder().SetInsertPoint(outbb);
   
   if (isexpr) {
+    // TODO: check if use typeid instead of tokenid
     if (tt1 != tt2) {
       yyerror("expression type not equal in if ... else ... expression");
       return;

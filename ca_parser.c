@@ -779,7 +779,7 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       typeid_t type = inference_expr_type(node->exprn.operands[i]);
       if (type1 == typeid_novalue) {
 	type1 = type;
-      } else if (type1 != type) {
+      } else if (!catype_check_identical(node->symtable, type1, node->symtable, type)) {
 	yyerror("line: %d, column: %d, expected `%s`, found `%s`",
 		node->begloc.row, node->begloc.col, symname_get(type1), symname_get(type));
 	return typeid_novalue;
@@ -842,7 +842,7 @@ typeid_t inference_expr_type(ASTNode *p) {
     type1 = inference_expr_expr_type(p->ifn.bodies[0]);
     if (p->ifn.remain) {
       typeid_t type2 = inference_expr_expr_type(p->ifn.remain);
-      if (type1 != type2) {
+      if (!catype_check_identical(p->symtable, type1, p->symtable, type2)) {
 	yyerror("line: %d, col: %d: if expression type not same `%s` != `%s`",
 		glineno, gcolno, symname_get(type1), symname_get(type2));
 	return typeid_novalue;
@@ -996,7 +996,7 @@ int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands) {
       if (type1 == typeid_novalue) {
 	type1 = expr_types[i];
 	typei = i;
-      } else if (type1 != expr_types[i]) {
+      } else if (!catype_check_identical(p->symtable, type1, p->symtable, expr_types[i])) {
 	yyerror("line: %d, col: %d: type name conflicting: '%s' of type '%s', '%s' of type '%s'",
 		p->begloc.col, p->begloc.row,
 		get_node_name_or_value(p->exprn.operands[typei]), symname_get(type1),
@@ -1034,11 +1034,10 @@ int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenu
       if (type1 == typeid_novalue) {
 	type1 = expr_types[i];
 	typei = i;
-      } else if (type1 != expr_types[i]) {
-	yyerror("line: %d, col: %d: type name conflicting: '%s' of type '%s', '%s' of type '%s'",
-		nodes[0]->begloc.col, nodes[0]->begloc.row,
-		get_node_name_or_value(nodes[0]->exprn.operands[typei]), symname_get(type1),
-		get_node_name_or_value(nodes[0]->exprn.operands[i]), symname_get(expr_types[i]));
+      } else if (!catype_check_identical(nodes[i]->symtable, type1, nodes[i]->symtable, expr_types[i])) {
+	yyerror("line: %d, col: %d: type name conflicting: type '%s' with type '%s'",
+		nodes[i]->begloc.col, nodes[i]->begloc.row,
+		symname_get(type1), symname_get(expr_types[i]));
 	return 0;
       }
     } else {
@@ -1259,7 +1258,7 @@ static int check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, 
   /* check if function declaration is the same */
   if (currargs->argc != prevargs->argc) {
     yyerror("line: %d, col: %d: function '%s' parameter number not identical with previous, see: line %d, col %d.",
-	    glineno, gcolno, symname_get(fnname), prev->sloc.row, prev->sloc.col);
+	    glineno, gcolno, catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
 

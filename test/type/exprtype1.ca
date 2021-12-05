@@ -1,0 +1,7 @@
+fn main() {
+    let a = 3i32;
+    let b = 4i64;
+    let c = a + b;
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

@@ -224,6 +224,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
+- [ ] handle `check_fn_proto` check if it can check some item when post type definitions
 - [ ] search `fnname` and replace `symname_get()` with `catype_get_function_name()`
 - [ ] search `!=` and replace with function `catype_check_identical`
 - [ ] search `catype_get_by_name` test posttype, unique type use method

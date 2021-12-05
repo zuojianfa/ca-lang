@@ -1,0 +1,8 @@
+fn main() {
+    let a = 3i32;
+    let b: A = 4i32;
+    let c = a + b;
+    type A = i32;
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

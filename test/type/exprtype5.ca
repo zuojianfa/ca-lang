@@ -1,0 +1,9 @@
+fn main() {
+    let a = 3i32;
+    let b: A = 4;
+    let c = a + b;
+
+    type A = f32;
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+
