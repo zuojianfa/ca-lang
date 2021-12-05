@@ -117,10 +117,23 @@ const char *sym_form_type_name(const char *name) {
   return type_buf;
 }
 
+const char *sym_form_function_name(const char *name) {
+  static char type_buf[1024];
+  sprintf(type_buf, "f:%s", name);
+  return type_buf;
+}
+
 typeid_t sym_form_type_id(int id, int islabel) {
   const char *name = symname_get(id);
   const char *typename = islabel ?
     sym_form_label_name(name) : sym_form_type_name(name);
+  typeid_t typeid = symname_check_insert(typename);
+  return typeid;
+}
+
+typeid_t sym_form_function_id(int fnid) {
+  const char *name = symname_get(fnid);
+  const char *typename = sym_form_function_name(name);
   typeid_t typeid = symname_check_insert(typename);
   return typeid;
 }
@@ -1153,7 +1166,10 @@ ASTNode *build_mock_main_fn_node() {
 
   typeid_t typesym = sym_form_type_id_from_token(I32);
   decl->fndecln.ret = typesym;
-  decl->fndecln.name = symname_check("main");
+
+  int fnid = symname_check("main");
+  decl->fndecln.name = sym_form_function_id(fnid);
+  
   decl->fndecln.is_extern = 0;
 
   ASTNode *p = new_ASTNode(TTE_FnDef);
@@ -1163,7 +1179,7 @@ ASTNode *build_mock_main_fn_node() {
   return p;
 }
 
-static ASTNode *build_fn_decl(int name, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
+static ASTNode *build_fn_decl(typeid_t name, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
     ASTNode *p = new_ASTNode(TTE_FnDecl);
     p->fndecln.ret = rettype;
     p->fndecln.name = name;
@@ -1174,7 +1190,7 @@ static ASTNode *build_fn_decl(int name, ST_ArgList *al, typeid_t rettype, SLoc b
     return p;
 }
 
-static ASTNode *build_fn_define(int name, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
+static ASTNode *build_fn_define(typeid_t name, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
     ASTNode *decl = build_fn_decl(name, al, rettype, beg, end);
     ASTNode *p = new_ASTNode(TTE_FnDef);
     p->fndefn.fn_decl = decl;
@@ -1237,20 +1253,20 @@ ASTNode *make_if(int isexpr, int argc, ...) {
 }
 
 // compare if the previous defined function proto is the same as the current defining
-static int check_fn_proto(STEntry *prev, int id, ST_ArgList *currargs, typeid_t rettype) {
+static int check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, typeid_t rettype) {
   ST_ArgList *prevargs = prev->u.f.arglists;
 
   /* check if function declaration is the same */
   if (currargs->argc != prevargs->argc) {
     yyerror("line: %d, col: %d: function '%s' parameter number not identical with previous, see: line %d, col %d.",
-	    glineno, gcolno, symname_get(id), prev->sloc.row, prev->sloc.col);
+	    glineno, gcolno, symname_get(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
 
   // check parameter types
   if (prevargs->contain_varg != currargs->contain_varg) {
     yyerror("line: %d, col: %d: function '%s' variable parameter not identical, see: line %d, col %d.",
-	    glineno, gcolno, symname_get(id), prev->sloc.row, prev->sloc.col);
+	    glineno, gcolno, symname_get(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
 
@@ -1259,13 +1275,13 @@ static int check_fn_proto(STEntry *prev, int id, ST_ArgList *currargs, typeid_t 
     STEntry *currentry = sym_getsym(currargs->symtable, currargs->argnames[i], 0);
     if (!preventry || !currentry || preventry->sym_type != Sym_Variable || currentry->sym_type != Sym_Variable) {
       yyerror("line: %d, col: %d: function '%s' internal error: symbol table entry error",
-	      glineno, gcolno, symname_get(id));
+	      glineno, gcolno, symname_get(fnname));
       return -1;
     }
 
     if (preventry->u.var->datatype != currentry->u.var->datatype) {
       yyerror("line: %d, col: %d: function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
-	      glineno, gcolno, symname_get(id),
+	      glineno, gcolno, symname_get(fnname),
 	      symname_get(preventry->u.var->datatype)+2,
 	      symname_get(currentry->u.var->datatype)+2,
 	      prev->sloc.row, prev->sloc.col);
@@ -1276,15 +1292,17 @@ static int check_fn_proto(STEntry *prev, int id, ST_ArgList *currargs, typeid_t 
   // check if function return type is the same as declared
   if (prev->u.f.rettype != rettype) {
     yyerror("line: %d, col: %d: function '%s' return type not identical, see: line %d, col %d.",
-	    glineno, gcolno, symname_get(id), prev->sloc.row, prev->sloc.col);
+	    glineno, gcolno, symname_get(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
 
   return 0;
 }
 
-ASTNode *make_fn_proto(int fnname, ST_ArgList *arglist, typeid_t rettype) {
+ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
+
+  typeid_t fnname = sym_form_function_id(fnid);
 
   curr_fn_rettype = rettype;
 
@@ -1344,7 +1362,7 @@ ASTNode *make_fn_proto(int fnname, ST_ArgList *arglist, typeid_t rettype) {
   }
 }
 
-int check_fn_define(int fnname, ASTNode *param) {
+int check_fn_define(typeid_t fnname, ASTNode *param) {
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (!entry) {
     yyerror("line: %d, col: %d: function '%s' not defined", glineno, gcolno, symname_get(fnname));
@@ -1371,10 +1389,12 @@ int check_fn_define(int fnname, ASTNode *param) {
   return 0;
 }
 
-ASTNode *make_fn_call(int fnname, ASTNode *param) {
-  dot_emit("fn_call", symname_get(fnname));
+ASTNode *make_fn_call(int fnid, ASTNode *param) {
+  dot_emit("fn_call", symname_get(fnid));
 
-#ifdef __SUPPORT_BACK_TYPE__
+  typeid_t fnname = sym_form_function_id(fnid);
+
+  #ifdef __SUPPORT_BACK_TYPE__
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (entry) {
     check_fn_define(fnname, param);

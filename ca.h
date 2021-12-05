@@ -95,7 +95,7 @@ typedef struct TFnDeclNode {
   int is_extern;   // is extern function
   typeid_t ret;    // specify the return type of the function, typeid_novalue stand for no return value
   //CADataType *ret; 
-  int name;        // function name subscript to sym array
+  typeid_t name;        // function name subscript to sym array
   ST_ArgList args;
 } TFnDeclNode;
 
@@ -204,8 +204,10 @@ int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 int add_fn_args_actual(SymTable *st, ASTNode *arg);
 const char *sym_form_label_name(const char *name);
 const char *sym_form_type_name(const char *name);
+const char *sym_form_function_name(const char *name);
 const char *sym_form_struct_signature(const char *name, SymTable *st);
 typeid_t sym_form_type_id(int id, int islabel);
+typeid_t sym_form_function_id(int fnid);
 typeid_t sym_form_type_id_from_token(tokenid_t tok);
 tokenid_t sym_primitive_token_from_id(typeid_t id);
 
@@ -254,12 +256,12 @@ ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
-ASTNode *make_fn_proto(int fnname, ST_ArgList *arglist, typeid_t type);
-ASTNode *make_fn_call(int fnname, ASTNode *param);
+ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
+ASTNode *make_fn_call(int fnid, ASTNode *param);
 ASTNode *make_ident_expr(int id);
 ASTNode *make_as(ASTNode *expr, typeid_t type);
 ASTNode *make_stmt_list_zip();
-int check_fn_define(int fnname, ASTNode *param);
+int check_fn_define(typeid_t fnname, ASTNode *param);
 // for tree node compress deep into wide, begin for stmt list beginning
 void put_astnode_into_list(ASTNode *stmt, int begin);
 

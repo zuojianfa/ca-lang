@@ -621,6 +621,10 @@ int catype_check_identical_witherror(SymTable *st1, typeid_t type1, SymTable *st
   return 0;
 }
 
+const char *catype_get_function_name(typeid_t fnname) {
+  return symname_get(fnname) + 2;
+}
+
 END_EXTERN_C
 
 Value *tidy_value_with_arith(Value *v, int typetok) {

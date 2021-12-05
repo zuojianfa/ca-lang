@@ -29,6 +29,7 @@
 #include <vector>
 #include "ca.h"
 
+#include "ca_types.h"
 #include "type_system.h"
 #include "type_system_llvm.h"
 
@@ -699,7 +700,7 @@ static void walk_expr_minus(ASTNode *p) {
 }
 
 static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
-  int fnname = name->idn.i;
+  typeid_t fnname = name->idn.i;
   if (name->idn.idtype != IdType::TTEId_FnName) {
       yyerror("line: %d, col: %d: the id: `%s` is not function name",
 	      param->begloc.row, param->begloc.col, symname_get(fnname));
@@ -751,7 +752,7 @@ static void walk_expr_call(ASTNode *p) {
   ASTNode *args = p->exprn.operands[1];
   check_and_determine_param_type(name, args);
 
-  const char *fnname = symname_get(name->idn.i);
+  const char *fnname = catype_get_function_name(name->idn.i);
 
   Function *fn = ir1.module().getFunction(fnname);
   if (!fn)
@@ -979,7 +980,7 @@ static void walk_expr(ASTNode *p) {
 }
 
 static Function *walk_fn_declare(ASTNode *p) {
-  const char *fnname = symname_get(p->fndecln.name);
+  const char *fnname = catype_get_function_name(p->fndecln.name);
 
   Function *fn = ir1.module().getFunction(fnname);
   auto itr = function_map.find(fnname);

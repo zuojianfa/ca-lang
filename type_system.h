@@ -35,7 +35,10 @@ int exists_post_function(typeid_t fnname);
 void *get_post_function(typeid_t fnname);
 
 int catype_check_identical(SymTable *st1, typeid_t type1, SymTable *st2, typeid_t type2);
-int catype_check_identical_witherror(SymTable *st1, typeid_t type1, SymTable *st2, typeid_t type2, int exitwhenerror, SLoc *loc);
+int catype_check_identical_witherror(SymTable *st1, typeid_t type1,
+                                     SymTable *st2, typeid_t type2,
+                                     int exitwhenerror, SLoc *loc);
+const char *catype_get_function_name(typeid_t fnname);
 
 #ifdef __cplusplus
 END_EXTERN_C
