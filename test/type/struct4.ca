@@ -1,0 +1,13 @@
+fn main() {
+    struct AA {
+	a: *AA,
+	b: BB,
+    }
+
+    struct BB {
+    	a: *AA,
+    }
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

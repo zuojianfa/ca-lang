@@ -225,10 +225,6 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
 - [ ] handle `check_fn_proto` check if it can check some item when post type definitions
-- [ ] search `fnname` and replace `symname_get()` with `catype_get_function_name()`
-- [ ] search `!=` and replace with function `catype_check_identical`
-- [ ] search `catype_get_by_name` test posttype, unique type use method
-- [ ] treat function id with "f:ident", make function can postpone
 - [ ] handle pointer struct type
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
 - [ ] handle logical operation type convert, in function `IR1::gen_sub` ..., and case '<', etc

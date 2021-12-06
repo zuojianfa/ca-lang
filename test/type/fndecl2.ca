@@ -1,0 +1,8 @@
+extern fn func1(a: i32) -> i32;
+extern fn func1(a: A) -> i32;
+type A = i32;
+
+fn main() {
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

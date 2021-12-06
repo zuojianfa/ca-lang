@@ -625,6 +625,10 @@ const char *catype_get_function_name(typeid_t fnname) {
   return symname_get(fnname) + 2;
 }
 
+const char *catype_get_type_name(typeid_t type) {
+  return symname_get(type) + 2;
+}
+
 END_EXTERN_C
 
 Value *tidy_value_with_arith(Value *v, int typetok) {

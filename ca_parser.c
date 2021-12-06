@@ -353,6 +353,13 @@ ASTNode *make_type_def(int id, CADataType *type) {
   // make it can have the same name for the type name and variable name
   // implemented just like the label type: add a prefix before the type name
   typeid_t symname = sym_form_type_id(id, 0);
+  CADataType *primtype = catype_get_primitive_by_name(symname);
+  if (primtype) {
+    yyerror("line: %d, col: %d: type alias id `%s` cannot be primitive type",
+	    glineno, gcolno, symname_get(id));
+    return NULL;
+  }
+
   STEntry *entry = sym_getsym(curr_symtable, symname, 0);
   if (entry) {
     yyerror("line: %d, col: %d: type `%s` defined multiple times",
@@ -1265,7 +1272,7 @@ static int check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, 
   // check parameter types
   if (prevargs->contain_varg != currargs->contain_varg) {
     yyerror("line: %d, col: %d: function '%s' variable parameter not identical, see: line %d, col %d.",
-	    glineno, gcolno, symname_get(fnname), prev->sloc.row, prev->sloc.col);
+	    glineno, gcolno, catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
 
@@ -1274,15 +1281,15 @@ static int check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, 
     STEntry *currentry = sym_getsym(currargs->symtable, currargs->argnames[i], 0);
     if (!preventry || !currentry || preventry->sym_type != Sym_Variable || currentry->sym_type != Sym_Variable) {
       yyerror("line: %d, col: %d: function '%s' internal error: symbol table entry error",
-	      glineno, gcolno, symname_get(fnname));
+	      glineno, gcolno, catype_get_function_name(fnname));
       return -1;
     }
 
     if (preventry->u.var->datatype != currentry->u.var->datatype) {
       yyerror("line: %d, col: %d: function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
-	      glineno, gcolno, symname_get(fnname),
-	      symname_get(preventry->u.var->datatype)+2,
-	      symname_get(currentry->u.var->datatype)+2,
+	      glineno, gcolno, catype_get_function_name(fnname),
+	      catype_get_type_name(preventry->u.var->datatype),
+	      catype_get_type_name(currentry->u.var->datatype),
 	      prev->sloc.row, prev->sloc.col);
       return -1;
     }
@@ -1291,7 +1298,7 @@ static int check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, 
   // check if function return type is the same as declared
   if (prev->u.f.rettype != rettype) {
     yyerror("line: %d, col: %d: function '%s' return type not identical, see: line %d, col %d.",
-	    glineno, gcolno, symname_get(fnname), prev->sloc.row, prev->sloc.col);
+	    glineno, gcolno, catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
 
