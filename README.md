@@ -224,6 +224,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
+- [ ] remove entry object in ASTNode
 - [ ] handle `check_fn_proto` check if it can check some item when post type definitions
 - [ ] handle pointer struct type
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
@@ -263,4 +264,114 @@ See `LICENSE` file in this directory, for license in directory `cruntime` see cr
 # searches
 ```
 reduce_node_and_type
+```
+
+# type tree
+## types
+```
+i8 i32 f32 f64 bool ...
+*i8 *i32 *f32 *f64 *bool ...
+**i8 **i32 **f32 **f64 **bool ...
+[i8;3] [i32;4] [f32;7] [f64;1] [bool;9] ...
+[[i8;3];4] [[i32;4];3] [[f32;7];6] [[f64;1];3] [[bool;9];3] ...
+*[i8;3]
+[*i8;3] [*[i8;3];4] ...
+[[i8;3];4] *[[i8;3];4] **[[i8;3];4] ***[[i8;3];4] [*[i8;3];4] [**[i8;3];4] *[*[i8;3];4] *[**[i8;3];4] ...
+struct AA { a: i8, b: i32 } *AA [AA;3] *[AA;3] [*AA;3]
+struct BB { a: AA, b: *AA }
+
+T
+*T [T;3] struct TT {a: T}
+**T [*T;3] struct TT {a: *T}  *[T;3] [[T;3];3] struct TT {a: [T;3]}  *TT [TT;3] struct TT2 {a: TT}
+...
+```
+
+## struct type representation
+```
+
+```
+
+## entry representation
+```
+CADataType *resolve(typeid_t datatype) {
+	CADataType *dt = catype_get_primitive_by_name(datatype);
+	if (dt)
+		return dt;
+	
+	dt = sym_getsym(symtable, datatype);
+	if (dt->type != Sym_DataType) {
+		error;
+	}
+	
+	if (dt->u.datatype.is_non_primitive_terminal)
+		resolve_non_primitive_terminal(); // like structure definition or future definition like enum tuple etc,
+	else
+		resolve(dt->u.datatype.datatype);
+}
+
+
+```
+
+## recursive definition
+```
+type AA = BB;
+type BB = AA;
+
+type AA = AA;
+
+type AA = *AA;
+
+type AA = *BB;
+type BB = AA;
+
+type AA = *BB;
+type BB = *AA;
+```
+
+```
+struct AA {
+	a: AA
+}
+```
+
+```
+struct AA {
+	a: BB
+}
+
+struct BB {
+	b: AA
+}
+```
+
+## non-recursive definition
+```
+struct AA {
+	a: *AA
+}
+```
+
+```
+struct AA {
+	a: *BB
+}
+
+struct BB {
+	b: *AA
+}
+
+```
+
+## others
+### how to identify named type and unnamed type?
+```
+let a: A;
+type A = [*i32;3];
+
+let b: [*i32;3];
+```
+```
+a <= t:A
+b <= t:[*i32;3]
+A <= [*i32;3]
 ```

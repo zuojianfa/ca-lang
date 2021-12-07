@@ -58,6 +58,7 @@ extern int yychar, yylineno;
   LitBuffer litb;   /* literal buffer */
     //IdToken idtok;    /* return type token */
   int symnameid;    /* symbol table index */
+  typeid_t tid;
   ASTNode *astnode; /* node pointer */
 };
 
@@ -84,7 +85,8 @@ extern int yychar, yylineno;
 %type	<symnameid>	label_id attrib_scope ret_type
 //			%type	<symnameid>	atomic_type
 //			%type	<idtok>		type_postfix
-%type	<datatype>	data_type pointer_type array_type ident_type
+//			%type	<datatype>	data_type pointer_type array_type ident_type
+%type	<tid>	data_type pointer_type array_type ident_type
 
 %start program
 
@@ -232,17 +234,16 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	'('expr ')'           { dot_emit("expr", "'(' expr ')'"); $$ = $2; }
 	|	fn_call               { dot_emit("expr", "fn_call"); $$ = $1; }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
-	|	expr AS data_type     { $$ = make_as($1, $3->signature); }
+	|	expr AS data_type     { $$ = make_as($1, $3); }
 		;
 
 data_type:	ident_type            { $$ = $1; }
 	|	pointer_type          { $$ = $1; }
 	|	array_type            { $$ = $1; }
-//	|	IDENT                 { $$ = get_datatype_by_ident($1); }
 	;
 
 //atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
-ident_type: 	IDENT { $$ = get_datatype_by_ident($1); }
+ident_type: 	IDENT { $$ = sym_form_type_id($1); /* get_datatype_by_ident($1) */ }
 		;
 
 struct_type_def: STRUCT IDENT
@@ -280,10 +281,10 @@ iddef:		iddef_typed  { dot_emit("iddef", "iddef_typed"); $$ = $1; }
 	|	IDENT        { dot_emit("iddef", "IDENT"); $$ = cavar_create($1, typeid_novalue); }
 	;
 
-iddef_typed:	IDENT ':' data_type { dot_emit("iddef_typed", "IDENT ':' data_type"); $$ = cavar_create($1, $3->signature); }
+iddef_typed:	IDENT ':' data_type { dot_emit("iddef_typed", "IDENT ':' data_type"); $$ = cavar_create($1, $3); }
 	;
 
-ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2->signature; }
+ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; }
 	|	{ $$ = make_ret_type_void(); }
 		;
 

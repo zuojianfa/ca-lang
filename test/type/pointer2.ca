@@ -1,0 +1,5 @@
+fn main() {
+    let a = 0 as *i32;
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

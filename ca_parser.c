@@ -123,12 +123,31 @@ const char *sym_form_function_name(const char *name) {
   return type_buf;
 }
 
-typeid_t sym_form_type_id(int id, int islabel) {
+const char *sym_form_pointer_name(const char *name) {
+  static char type_buf[1024];
+  sprintf(type_buf, "t:*%s", name);
+  return type_buf;
+}
+
+const char *sym_form_array_name(const char *name, int dimension) {
+  static char type_buf[1024];
+  sprintf(type_buf, "t:[%s;%d]", name, dimension);
+  return type_buf;
+}
+
+// id -> (t:)id or (l:)id
+typeid_t sym_form_type_id(int id) {
   const char *name = symname_get(id);
-  const char *typename = islabel ?
-    sym_form_label_name(name) : sym_form_type_name(name);
+  const char *typename = sym_form_type_name(name);
   typeid_t typeid = symname_check_insert(typename);
   return typeid;
+}
+
+typeid_t sym_form_label_id(int id) {
+  const char *name = symname_get(id);
+  const char *typename = sym_form_label_name(name);
+  typeid_t labelid = symname_check_insert(typename);
+  return labelid;
 }
 
 typeid_t sym_form_function_id(int fnid) {
@@ -136,6 +155,20 @@ typeid_t sym_form_function_id(int fnid) {
   const char *typename = sym_form_function_name(name);
   typeid_t typeid = symname_check_insert(typename);
   return typeid;
+}
+
+typeid_t sym_form_pointer_id(typeid_t type) {
+  const char *name = catype_get_type_name(type);
+  const char *typename = sym_form_pointer_name(name);
+  typeid_t typeid = symname_check_insert(typename);
+  return typeid;  
+}
+
+typeid_t sym_form_array_id(typeid_t type, int dimension) {
+  const char *name = catype_get_type_name(type);
+  const char *typename = sym_form_array_name(name, dimension);
+  typeid_t typeid = symname_check_insert(typename);
+  return typeid;  
 }
 
 const char *sym_form_struct_signature(const char *name, SymTable *st) {
@@ -291,31 +324,34 @@ ASTNode *make_stmtexpr_list(ASTNode *stmts, ASTNode *expr) {
   return node;
 }
 
-CADataType *make_pointer_type(CADataType *type) {
-  return catype_make_pointer_type(type);
+typeid_t make_pointer_type(typeid_t type) {
+  return sym_form_pointer_id(type);
+  /* return catype_make_pointer_type(type); */
 }
 
-CADataType *make_array_type(CADataType *type, LitBuffer *size) {
+typeid_t make_array_type(typeid_t type, LitBuffer *size) {
   if (size->typetok != U64) {
     yyerror("line: %d, col: %d: array size not usize (u64) type, but `%s` type",
 	    glineno, gcolno, get_type_string(size->typetok));
-    return NULL;
+    return typeid_novalue;
   }
 
   const char *text = symname_get(size->text);
   if (!text) {
     yyerror("line: %d, col: %d: get literal size failed", glineno, gcolno);
-    return NULL;
+    return typeid_novalue;
   }
 
   uint64_t len;
   sscanf(text, "%lu", &len);
-  return catype_make_array_type(type, len);
+  return sym_form_array_id(type, (int)len);
+  /*return catype_make_array_type(type, len);*/
 }
 
+#if 0
 CADataType *get_datatype_by_ident(int id) {
   // firstly try to get primitive type from primitive type table
-  typeid_t typeid = sym_form_type_id(id, 0);
+  typeid_t typeid = sym_form_type_id(id);
   CADataType *type = catype_get_primitive_by_name(typeid);
   if (type)
     return type;
@@ -348,27 +384,29 @@ CADataType *get_datatype_by_ident(int id) {
 
   return entry->u.datatype;
 }
+#endif
 
-ASTNode *make_type_def(int id, CADataType *type) {
+ASTNode *make_type_def(int id, typeid_t type) {
   // make it can have the same name for the type name and variable name
   // implemented just like the label type: add a prefix before the type name
-  typeid_t symname = sym_form_type_id(id, 0);
-  CADataType *primtype = catype_get_primitive_by_name(symname);
+  typeid_t newtype = sym_form_type_id(id);
+  CADataType *primtype = catype_get_primitive_by_name(newtype);
   if (primtype) {
     yyerror("line: %d, col: %d: type alias id `%s` cannot be primitive type",
 	    glineno, gcolno, symname_get(id));
     return NULL;
   }
 
-  STEntry *entry = sym_getsym(curr_symtable, symname, 0);
+  STEntry *entry = sym_getsym(curr_symtable, newtype, 0);
   if (entry) {
     yyerror("line: %d, col: %d: type `%s` defined multiple times",
 	    glineno, gcolno, symname_get(id));
     return NULL;
   }
 
-  entry = sym_insert(curr_symtable, symname, Sym_DataType);
-  entry->u.datatype = type;
+  entry = sym_insert(curr_symtable, newtype, Sym_DataType);
+  entry->u.datatype.id = type;
+  entry->u.datatype.members = NULL;
   SLoc loc = {glineno, gcolno};
   entry->sloc = loc;
 
@@ -648,7 +686,7 @@ ASTNode *make_goto(int labelid) {
   dot_emit("stmt", "GOTO label_id");
   /* because the label name can using the same name as other names (variable, function, etc)
      so innerly represent the label name as "l:<name>", in order to distinguish them */
-  int lpos = sym_form_type_id(labelid, 1);
+  int lpos = sym_form_label_id(labelid);
   STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
   if (entry) {
     switch(entry->sym_type) {
@@ -676,7 +714,7 @@ ASTNode *make_label_def(int labelid) {
 
   /* because the label name can using the same name as other names (variable, function, etc)
      so innerly represent the label name as "l:<name>", in order to distinguish them */
-  int lpos = sym_form_type_id(labelid, 1);
+  int lpos = sym_form_label_id(labelid);
   STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
   if (entry) {
     switch(entry->sym_type) {
@@ -1043,7 +1081,7 @@ int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenu
 	typei = i;
       } else if (!catype_check_identical(nodes[i]->symtable, type1, nodes[i]->symtable, expr_types[i])) {
 	yyerror("line: %d, col: %d: type name conflicting: type '%s' with type '%s'",
-		nodes[i]->begloc.col, nodes[i]->begloc.row,
+		nodes[i]->begloc.row, nodes[i]->begloc.col,
 		symname_get(type1), symname_get(expr_types[i]));
 	return 0;
       }
@@ -1455,8 +1493,7 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
   dot_emit("struct_type_def", "IDENT");
 
   // see make_fn_proto
-  SymTable *membertable = curr_symtable;
-  arglist->symtable = membertable;
+  arglist->symtable = curr_symtable;
 
   // popup the structure member symbol table
   // after that will define type name in it
@@ -1464,14 +1501,33 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
 
   // 0. check if current scope already exists such type and report error when already exists
   const char *structname = symname_get(id);
-  typeid_t stypeid = sym_form_type_id(id, 0);
-  STEntry *entry = sym_getsym(curr_symtable, stypeid, 0);
+  typeid_t structtype = sym_form_type_id(id);
+  STEntry *entry = sym_getsym(curr_symtable, structtype, 0);
   if (entry) {
     yyerror("line: %d, col: %d: type '%s' already defined",
 	    glineno, gcolno, symname_get(id));
     return NULL;
   }
 
+  CADataType *primtype = catype_get_primitive_by_name(structtype);
+  if (primtype) {
+    yyerror("line: %d, col: %d: struct type id `%s` cannot be primitive type",
+	    glineno, gcolno, symname_get(id));
+    return NULL;
+  }
+
+#if 1
+  ASTNode *p = new_ASTNode(TTE_Struct);
+  entry = sym_insert(curr_symtable, structtype, Sym_DataType);
+  entry->u.datatype.id = structtype;
+  entry->u.datatype.members = (ST_ArgList *)malloc(sizeof(ST_ArgList));
+
+  // just remember the argument list and for later use
+  *entry->u.datatype.members = *arglist;
+  entry->sloc = (SLoc){glineno, gcolno};
+  p->entry = entry;
+  
+#else
   // 1. get the struct signature and check if it already exists in catype caches
   // when already exists then just use the type and skip step 2.
   const char *signature = sym_form_struct_signature(structname, curr_symtable);
@@ -1486,14 +1542,15 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
   }
 
   // 3. put the struct CADataType into current scope Symbol table for later use
-  entry = sym_insert(curr_symtable, stypeid, Sym_DataType);
+  entry = sym_insert(curr_symtable, structtype, Sym_DataType);
   entry->sloc = (SLoc){glineno, gcolno};
   entry->u.datatype = dt;
   
   // 4. create ASTNode object and set the object type as the datatype type
-  // and set the CADatatype object
+  // and set the CADataType object
   ASTNode *p = new_ASTNode(TTE_Struct);
   p->entry = entry;
+#endif
 
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &entry->sloc);
   return p;

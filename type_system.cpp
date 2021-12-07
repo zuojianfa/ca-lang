@@ -263,17 +263,24 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   CADataType *type = catype_get_primitive_by_name(name);
   if (type)
     return type;
-  
+
+  const char *caname = symname_get(name);
+
+  // NEXT TODO: realize following function: scan the name and pickup the name kernel and get symbol from symbol table and search
+  //unwind(caname);
+    
   STEntry *entry = sym_getsym(symtable, name, 1);
-  if (!entry)
+  if (!entry) {
+    
     return nullptr;
+  }
 
   if (entry->sym_type != Sym_DataType) {
     yyerror("(internal), `%d` not a type name `%s`", entry->sym_type, symname_get(name));
     return nullptr;
   }
 
-  return entry->u.datatype;
+  return catype_unwind_type_object(symtable, entry);
 }
 
 // inference and set the literal type for the literal, when the literal have no
@@ -627,6 +634,21 @@ const char *catype_get_function_name(typeid_t fnname) {
 
 const char *catype_get_type_name(typeid_t type) {
   return symname_get(type) + 2;
+}
+
+CADataType *catype_unwind_type_object(SymTable *symtable, STEntry *entry) {
+  if (!entry->u.datatype.members)
+    return catype_get_by_name(symtable, entry->u.datatype.id);
+
+  // NEXT TODO: unwind the type into type object, when have object like members
+  // e.g.
+  // example 1:
+  // t:AA; type AA = *[*[*BB;3];4]; type BB = *CC; type CC = [*i32;6];
+  // after unwind: *[*[**[*i32;6];3];4]
+  // example 2:
+  // t:AA; type AA = *[*[*BB;3];4]; struct BB { a: CC }; type CC = *[i32;6];
+  // after unwind, it becomes: *[*[*BB;3];4]
+  return nullptr;
 }
 
 END_EXTERN_C

@@ -1124,7 +1124,8 @@ static Function *walk_fn_define(ASTNode *p) {
 
 static void walk_struct(ASTNode *node) {
   STEntry *entry = node->entry;
-  CADataType *dt = entry->u.datatype;
+  //CADataType *dt = entry->u.datatype;
+  typeid_t dt = entry->u.datatype.id;
 
   // TODO: may need generate struct llvm code here
 }

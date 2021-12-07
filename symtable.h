@@ -182,7 +182,11 @@ typedef struct STEntry {
       typeid_t rettype;
     } f;                // when type is Sym_ArgList and contains return type
     CAVariable *var;    // when sym_type are Sym_Variable Sym_Member
-    CADataType *datatype; // when sym_type is Sym_DataType
+    //CADataType *datatype; // when sym_type is Sym_DataType
+    struct {
+      typeid_t id;  // when sym_type is Sym_DataType
+      ST_ArgList *members; // when id is of struct type it have members, TODO: refactor it make it extensible to other complex type like enum etc.
+    } datatype;
   } u;
 } STEntry;
 

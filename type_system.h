@@ -40,6 +40,7 @@ int catype_check_identical_witherror(SymTable *st1, typeid_t type1,
                                      int exitwhenerror, SLoc *loc);
 const char *catype_get_function_name(typeid_t fnname);
 const char *catype_get_type_name(typeid_t type);
+CADataType *catype_unwind_type_object(SymTable *symtable, STEntry *entry);
 
 #ifdef __cplusplus
 END_EXTERN_C
