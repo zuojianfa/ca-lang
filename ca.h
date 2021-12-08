@@ -206,6 +206,7 @@ const char *sym_form_label_name(const char *name);
 const char *sym_form_type_name(const char *name);
 const char *sym_form_function_name(const char *name);
 const char *sym_form_struct_signature(const char *name, SymTable *st);
+typeid_t sym_form_symtable_type_id(typeid_t name, SymTable *st);
 typeid_t sym_form_type_id(int id);
 typeid_t sym_form_label_id(int id);
 typeid_t sym_form_function_id(int fnid);

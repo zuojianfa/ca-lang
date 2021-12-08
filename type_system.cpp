@@ -50,7 +50,9 @@ extern int gcolno;
 extern ir_codegen::IR1 ir1;
 
 // name to CADatatype map
-std::unordered_map<typeid_t, CADataType *> s_type_map;
+std::unordered_map<typeid_t, CADataType *> s_symtable_type_map;
+std::unordered_map<typeid_t, CADataType *> s_signature_type_map;
+std::unordered_map<typeid_t, CADataType *> s_primitive_type_map;
 std::unordered_map<typeid_t, void *> g_function_post_map;
 
 using namespace llvm;
@@ -236,13 +238,13 @@ int catype_init() {
 }
 
 int catype_put_primitive_by_name(typeid_t name, CADataType *datatype) {
-  s_type_map.insert(std::move(std::make_pair(name, datatype)));
+  s_primitive_type_map.insert(std::move(std::make_pair(name, datatype)));
   return 0;
 }
 
 CADataType *catype_get_primitive_by_name(typeid_t name) {
-  auto itr = s_type_map.find(name);
-  if (itr == s_type_map.end())
+  auto itr = s_primitive_type_map.find(name);
+  if (itr == s_primitive_type_map.end())
     return nullptr;
 
   return itr->second;
@@ -258,15 +260,46 @@ CADataType *catype_get_by_token(int token) {
   return nullptr;
 }
 
+int catype_unwind_type_signature(SymTable *symtable, typeid_t name) {
+  // TODO: 
+  const char *caname = symname_get(name);
+  STEntry *entry = sym_getsym(symtable, name, 1);
+  if (!entry->u.datatype.members)
+    return catype_get_by_name(symtable, entry->u.datatype.id);
+  
+}
+
 CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
+  // NEXT TODO: put the primitive type table and the table by signature into together, so the step will become
+  // 0) find type object in s_symtable_type_map table for speeding up
+  // 1) if not find, then unwind the typeid of the type
+  // 2) find in the primitive (global datatype) table, if find then return the type object
+  // 3) if not find, then uses the unwinded typeid create the type object
+  // 4) put the object into global table and s_symtable_type_map table
+  //
   // firstly try to get primitive type from primitive type table
   CADataType *type = catype_get_primitive_by_name(name);
   if (type)
     return type;
 
+  // scan the name and pickup the name kernel and get symbol from symbol table and search
+
+  // secondly find from symbol table type definition table
+  typeid_t windst = sym_form_symtable_type_id(name, symtable);
+  auto itr = s_symtable_type_map.find(windst);
+  if (itr != s_symtable_type_map.end())
+    return itr->second;
+
+  // thirdly find from global signature table type definition table
+  int unwind = catype_unwind_type_signature(symtable, name);
+  auto itr2 = s_signature_type_map.find(unwind);
++  if (itr2 != s_symtable_type_map.end()) {
+    s_symtable_type_map.insert(std::make_pair(windst, itr2->second));
+    return itr2->second;
+  }
+
   const char *caname = symname_get(name);
 
-  // NEXT TODO: realize following function: scan the name and pickup the name kernel and get symbol from symbol table and search
   //unwind(caname);
     
   STEntry *entry = sym_getsym(symtable, name, 1);
