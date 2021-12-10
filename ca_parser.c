@@ -177,7 +177,7 @@ const char *sym_form_struct_signature(const char *name, SymTable *st) {
   return name_buf;
 }
 
-typeid_t sym_form_symtable_type_id(typeid_t name, SymTable *st) {
+typeid_t sym_form_symtable_type_id(SymTable *st, typeid_t name) {
   static char name_buf[1024];
   const char *chname = catype_get_type_name(name);
   sprintf(name_buf, "%s@%p", chname, st);

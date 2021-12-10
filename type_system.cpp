@@ -52,7 +52,7 @@ extern ir_codegen::IR1 ir1;
 // name to CADatatype map
 std::unordered_map<typeid_t, CADataType *> s_symtable_type_map;
 std::unordered_map<typeid_t, CADataType *> s_signature_type_map;
-std::unordered_map<typeid_t, CADataType *> s_primitive_type_map;
+std::unordered_map<typeid_t, CADataType *> s_type_map;
 std::unordered_map<typeid_t, void *> g_function_post_map;
 
 using namespace llvm;
@@ -238,13 +238,13 @@ int catype_init() {
 }
 
 int catype_put_primitive_by_name(typeid_t name, CADataType *datatype) {
-  s_primitive_type_map.insert(std::move(std::make_pair(name, datatype)));
+  s_type_map.insert(std::move(std::make_pair(name, datatype)));
   return 0;
 }
 
 CADataType *catype_get_primitive_by_name(typeid_t name) {
-  auto itr = s_primitive_type_map.find(name);
-  if (itr == s_primitive_type_map.end())
+  auto itr = s_type_map.find(name);
+  if (itr == s_type_map.end())
     return nullptr;
 
   return itr->second;
@@ -260,23 +260,94 @@ CADataType *catype_get_by_token(int token) {
   return nullptr;
 }
 
-int catype_unwind_type_signature(SymTable *symtable, typeid_t name) {
+// type signature example:
+// primitive: i8 i32 u32 f64 bool void ...
+// pointer: *<anytype>, *i8 *u32 *f64 ...
+// reference: &<anytype>, &i8 &u32 &f64 ...
+// array: [<anytype>;N]
+// struct: {<name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, }
+// tuple: (<anytype>,<anytype>,<anytype>[,])
+// union: < <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
+// enum: #name, name=value, name#
+// how to represent the recursive type?
+// struct AA { a: *AA, b: {} }
+typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name) {
+  const char *caname = symname_get(name);
+  char *pch = caname;
+  while(*pch) {
+    
+  }
+
+  return name;
+
+#if 0
   // TODO: 
   const char *caname = symname_get(name);
   STEntry *entry = sym_getsym(symtable, name, 1);
   if (!entry->u.datatype.members)
     return catype_get_by_name(symtable, entry->u.datatype.id);
-  
+#endif
 }
 
+CADataType *catype_create_type_from_unwind(int unwind) {
+  const char *unwindstr = symname_get(unwind);
+
+  // TODO:
+  yyerror("unwinding...");
+  return nullptr;
+}
+// NEXT TODO:
+// 1. how to check type circle?
+// the checking algorithm can instance into calculate the type size, when type A
+// depends on type B then need calculate type B's size,   A => B, B => C, C => A
+// then there is a circle. when type X is a multiple members type such as
+// struct, then type X will depends on all it's members, so become calculate on
+// it's members' size
+// 2. how to reprensent a type?
+// because a type may be recursive defined (not a circle: e.g. struct A {a: *A})
+// so it's hard or not easy to reprensent using structure way, so here can use
+// the unwinded string to reprensent the type in CADataType object. and because
+// the operation against complex type can also be easyly calculated using string
+// represent, such as the *operator just return a step in types.
+// 3. how to do complex type operation, include: * & . etc?
+// 4. how to unwind a type of recursive defined?
+// just unwind to recursive part and reprensent. ???
+// 
+
+
 CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
-  // NEXT TODO: put the primitive type table and the table by signature into together, so the step will become
-  // 0) find type object in s_symtable_type_map table for speeding up
-  // 1) if not find, then unwind the typeid of the type
-  // 2) find in the primitive (global datatype) table, if find then return the type object
-  // 3) if not find, then uses the unwinded typeid create the type object
-  // 4) put the object into global table and s_symtable_type_map table
-  //
+  // put the primitive type table and the table by signature into together, so the step will become
+  // 1) find type object in s_symtable_type_map table for speeding up
+  // 2) if not find, then unwind the typeid of the type
+  // 3) find in the primitive (global datatype) table, if find then return the type object
+  // 4) if not find, then uses the unwinded typeid create the type object
+  // 5) put the object into global table and s_symtable_type_map table
+
+  // step 1: find type from symtable type table
+  typeid_t windst = sym_form_symtable_type_id(symtable, name);
+  auto itr = s_symtable_type_map.find(windst);
+  if (itr != s_symtable_type_map.end())
+    return itr->second;
+
+  // step 2: get unwind id
+  typeid_t unwind = catype_unwind_type_signature(symtable, name);
+
+  // step 3: find type from global (signature) table
+  auto itr2 = s_type_map.find(unwind);
+  if (itr2 != s_type_map.end()) {
+    s_symtable_type_map.insert(std::make_pair(windst, itr2->second));
+    return itr2->second;
+  }
+
+  // step 4: create type object
+  CADataType *dt = catype_create_type_from_unwind(unwind);
+
+  // step 5: update symtable type table
+  s_symtable_type_map.insert(std::make_pair(windst, dt));
+  s_type_map.insert(std::make_pair(unwind, dt));
+  return dt;
+
+#if 0
   // firstly try to get primitive type from primitive type table
   CADataType *type = catype_get_primitive_by_name(name);
   if (type)
@@ -285,7 +356,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // scan the name and pickup the name kernel and get symbol from symbol table and search
 
   // secondly find from symbol table type definition table
-  typeid_t windst = sym_form_symtable_type_id(name, symtable);
+  typeid_t windst = sym_form_symtable_type_id(symtable, name);
   auto itr = s_symtable_type_map.find(windst);
   if (itr != s_symtable_type_map.end())
     return itr->second;
@@ -293,7 +364,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // thirdly find from global signature table type definition table
   int unwind = catype_unwind_type_signature(symtable, name);
   auto itr2 = s_signature_type_map.find(unwind);
-+  if (itr2 != s_symtable_type_map.end()) {
+  if (itr2 != s_symtable_type_map.end()) {
     s_symtable_type_map.insert(std::make_pair(windst, itr2->second));
     return itr2->second;
   }
@@ -314,6 +385,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   }
 
   return catype_unwind_type_object(symtable, entry);
+#endif
 }
 
 // inference and set the literal type for the literal, when the literal have no
