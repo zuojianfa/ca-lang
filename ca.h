@@ -208,6 +208,7 @@ const char *sym_form_function_name(const char *name);
 const char *sym_form_struct_signature(const char *name, SymTable *st);
 typeid_t sym_form_symtable_type_id(SymTable *st, typeid_t name);
 typeid_t sym_form_type_id(int id);
+typeid_t sym_form_type_id_by_str(const char *idname);
 typeid_t sym_form_label_id(int id);
 typeid_t sym_form_function_id(int fnid);
 typeid_t sym_form_pointer_id(typeid_t type);

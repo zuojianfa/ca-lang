@@ -31,8 +31,10 @@
 #include "type_system_llvm.h"
 
 #include "llvm/ir1.h"
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <utility>
 
 BEGIN_EXTERN_C
@@ -260,22 +262,85 @@ CADataType *catype_get_by_token(int token) {
   return nullptr;
 }
 
-// type signature example:
-// primitive: i8 i32 u32 f64 bool void ...
-// pointer: *<anytype>, *i8 *u32 *f64 ...
-// reference: &<anytype>, &i8 &u32 &f64 ...
-// array: [<anytype>;N]
-// struct: {<name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, }
-// tuple: (<anytype>,<anytype>,<anytype>[,])
-// union: < <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
-// enum: #name, name=value, name#
-// how to represent the recursive type?
-// struct AA { a: *AA, b: {} }
-typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name) {
-  const char *caname = symname_get(name);
-  char *pch = caname;
+// compare 2 types' signature, strict means if do strict compare
+static int catype_compare_type_signature(std::map<std::string, std::string> &prenamemap,
+					 const char *caname1, const char *caname2, int strict)
+{
+  // TODO: implement it
+
+  // the unwinding algorithm according to the upper type definitions
+  int i = 0;
+  char namebuf[128];
+  const char *pch = caname;
+  STEntry *entry = nullptr;
+  CADataType *dt = nullptr;
   while(*pch) {
-    
+    switch (*pch) {
+    case '*':
+      // handling pointer: *AA
+    case '&':
+      // handling reference: &AA
+      // TODO: when implementing reference type
+      // & can reprensent the reference type or the get address operator, here
+      // when in type name it must be the reference type
+      break;
+    case '[':
+      // handling array: [AA;N]
+    case '{':
+      // handling structure: {Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, }
+    case '(':
+      // handling tuple - named or unnamed: (<anytype>,<anytype>,<anytype>[,])
+    case '<':
+      // handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
+    case '#':
+      // handling enum: #AA, BB, ... #
+    default:
+      // handling a named type: AA
+      if (!isalpha(*pch))
+	return -1; // format error
+
+      do {
+	namebuf[i++] = *pch++;
+      } while(isalnum(*pch));
+
+      entry = sym_gettypesym_by_name(symtable, namebuf, 1);
+      if (!entry)
+	return -1;
+
+      // when the type is a primitive, then return it
+      dt = catype_get_primitive_by_name(entry->u.datatype.id);
+      if (!dt) {
+	strcpy(sigbuf, namebuf);
+	return 0;
+      }
+
+      // when type is not a structure type directly
+      if (!entry->u.datatype.members) {
+	char buf[4096];
+	const char *name = catype_get_type_name(entry->u.datatype.id);
+
+	int ret = catype_unwind_type_signature_inner(symtable, name, prenameset, buf, 4096);
+	if (ret == -1) {
+	  yyerror("unwind type `%s` failed", name);
+	  return -1;
+	}
+
+	if (*pch) {
+	  yyerror("type container extra text when unwind type `%s`", name);
+	  return -1;
+	}
+
+	strcpy(sigbuf, buf);
+	return 0;
+      }
+      
+      // NEXT TODO: handle the struct type condition here
+      // when type is a structure type (complex type should also handle here)
+      ST_ArgList *members = entry->u.datatype.members;
+      members->
+
+      break;
+    }
   }
 
   return name;
@@ -287,6 +352,218 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name) {
   if (!entry->u.datatype.members)
     return catype_get_by_name(symtable, entry->u.datatype.id);
 #endif
+}
+
+// type signature example:
+// primitive: i8 i32 u32 f64 bool void ...
+// pointer: *<anytype>, *i8 *u32 *f64 ...
+// reference: &<anytype>, &i8 &u32 &f64 ...
+// array: [<anytype>;N]
+// struct: {Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, }
+// unnamed tuple: (<anytype>,<anytype>,<anytype>[,])
+// named tuple: (Name; <anytype>,<anytype>,<anytype>[,]) # <anytype> can also include Name
+// union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
+// enum: #name, name=value, name#
+// how to represent the recursive type?
+// struct AA { a: *AA, b: {} }
+
+// TODO: consider replace string style signature comparing with struct based, it
+// means transfer the string signature stype into struct signature. But
+// currently don't known if it have a higher performance.
+// the signature is just used for indexing the type object, it can not be used
+// for operation such as `->` not only because it have performance issue but
+// also it have no the ability to know the exactly type in the recursive part do
+// so when use the signature
+
+static int catype_unwind_type_name(SymTable *symtable, const char *pch,
+				   const std::set<std::string> &prenameset,
+				   char *sigbuf, int buflen);
+static int catype_unwind_type_signature_inner(SymTable *symtable, typeid_t name,
+					      const std::set<std::string> &prenameset,
+					      char *sigbuf, int buflen)
+{
+  // t:i32 => return
+  // t:*i32 t:**i32 => 
+  // t:[i32;3]
+  // type A = **B; type B = **[*i32;3] t:A => t:**B; t:
+
+  // firstly find from type table
+  const char *caname = catype_get_type_name(name);
+  CADataType *dt = catype_get_primitive_by_name(name);
+  if (dt) {
+    strcpy(sigbuf, caname);
+    return 0;
+  }
+
+  // the unwinding algorithm according to the upper type definitions
+  int i = 0;
+  int n;
+  char namebuf[128];
+  const char *pch = caname;
+  STEntry *entry = nullptr;
+  dt = nullptr;
+  while(*pch) {
+    switch (*pch) {
+    case '*':
+      // handling pointer: *AA
+    case '&':
+      // handling reference: &AA
+      // TODO: when implementing reference type
+      // & can reprensent the reference type or the get address operator, here
+      // when in type name it must be the reference type
+      break;
+    case '[':
+      // handling array: [AA;N]
+    case '{':
+      // handling structure: {Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, }
+    case '(':
+      // handling tuple - named or unnamed: (<anytype>,<anytype>,<anytype>[,])
+    case '<':
+      // handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
+    case '#':
+      // handling enum: #AA, BB, ... #
+    default:
+      return catype_unwind_type_name(symtable, pch, prenameset, sigbuf, buflen);
+    }
+  }
+
+  return name;
+
+  
+  
+  STEntry *entry = sym_getsym(symtable, name, 1);
+  if (!entry)
+    return typeid_novalue;
+
+  if (entry->sym_type != Sym_DataType)
+    return typeid_novalue;
+
+  // when type is not a structure type directly
+  if (!entry->u.datatype.members) {
+    char buf[4096];
+    const char *name = catype_get_type_name(entry->u.datatype.id);
+
+    int ret = catype_unwind_type_signature_inner(symtable, name, prenameset, buf, 4096);
+    if (ret == -1) {
+      yyerror("unwind type `%s` failed", name);
+      return -1;
+    }
+
+    if (*pch) {
+      yyerror("type container extra text when unwind type `%s`", name);
+      return -1;
+    }
+
+    strcpy(sigbuf, buf);
+    return 0;
+  }  
+
+  const char *caname = catype_get_type_name(name);
+}
+
+// NEXT TODO: check handling right symbol table and right upper function implementation
+static int catype_unwind_type_name(SymTable *symtable, const char *pch,
+                                   const std::set<std::string> &prenameset,
+                                   char *sigbuf, int buflen)
+{
+  int i = 0;
+  char namebuf[128];
+
+  // handling a named type: AA
+  if (!isalpha(*pch))
+    return -1; // format error
+
+  do {
+    namebuf[i++] = *pch++;
+  } while(isalnum(*pch));
+
+  // find from symbol table which may store the type
+  STEntry *entry = sym_gettypesym_by_name(symtable, namebuf, 1);
+  if (!entry)
+    return -1;
+
+  // when the name already processed, then the name here should be the recursive name
+  if (prenameset.find(namebuf) != prenameset.end()) {
+    strcpy(sigbuf, namebuf);
+    return 0;
+  }
+
+  std::set<std::string> nameset = prenameset;
+  nameset.insert(namebuf);
+
+  // when type is not a structure type directly
+  if (!entry->u.datatype.members) {
+    //char buf[4096];
+    //const char *name = catype_get_type_name(entry->u.datatype.id);
+    int ret = catype_unwind_type_signature_inner(symtable, entry->u.datatype.id, nameset, sigbuf, buflen);
+    if (ret == -1) {
+      yyerror("unwind type `%s` failed", namebuf);
+      return -1;
+    }
+
+    if (*pch) {
+      yyerror("type container extra text when unwind type `%s`", namebuf);
+      return -1;
+    }
+
+    return 0;
+  }
+      
+  // NEXT TODO: handle the struct type condition here
+  // when type is a structure type (complex type should also handle here)
+  const char *caname = catype_get_type_name(entry->u.datatype.id);
+
+  // when the struct type already unwinded then just append the name
+  // TODO: in struct different members when later member already exist in previous
+  // and use it, this strategy can only compare in strict mode, unstrict mode will
+  // need expand type in all struct member's even when previous member already expanded
+  // the same type. e.g.
+  // struct T1 { a: A, b: B, c: A}
+  // struct T2 { a: A, b: B, c: B}
+  // when the previous type A and B unwinded but the last A and B not unwind,
+  // it will can not compare in non-strict mode, because don't known if type A equal B
+  // so TODO: also unwind when the type is not in the recursive scope, so also need
+  // check if one type is under the recursive scope
+  if (prenameset.find(caname) != prenameset.end()) {
+    strcpy(sigbuf, caname);
+    return 0;
+  }
+
+  int n = sprintf(sigbuf, "{%s;", caname);
+  ST_ArgList *members = entry->u.datatype.members;
+  for (int i = 0; i < members->argc; ++i) {
+    const char *argname = symname_get(members->argnames[i]);
+    STEntry *nameentry = sym_getsym(members->symtable, members->argnames[i], 0);
+    if (nameentry->sym_type != Sym_Member) {
+      yyerror("(internal) symbol type is not struct member for argument: `%s`", argname);
+      return -1;
+    }
+
+    char buf[4096];
+    int ret = catype_unwind_type_signature_inner(members->symtable, nameentry->u.var->datatype,
+						 nameset, buf, 4096);
+    n += sprintf(sigbuf + n, "%s:%s,", argname, buf);
+  }
+
+  sigbuf[n-1] = '}'; // remove last ',' or ';' when it is empty struct
+  sigbuf[n] = '\0';
+
+  return 0;
+}
+
+typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name) {
+  char sigbuf[4096];
+  std::set<std::string> recursive_check_set;
+  
+  typeid_t ret = catype_unwind_type_signature_inner(symtable, name, recursive_check_set, sigbuf, 4096);
+  if (ret == typeid_novalue) {
+    yyerror("unwind type signature `%s` failed", name);
+    return typeid_novalue;
+  }
+
+  return ret;
+
+  //return symname_check_insert(sigbuf);
 }
 
 CADataType *catype_create_type_from_unwind(int unwind) {
@@ -311,8 +588,24 @@ CADataType *catype_create_type_from_unwind(int unwind) {
 // represent, such as the *operator just return a step in types.
 // 3. how to do complex type operation, include: * & . etc?
 // 4. how to unwind a type of recursive defined?
-// just unwind to recursive part and reprensent. ???
+// when encounter a struct name then check if the name already appearance
+// previously in this definition, if so, then it's the end for this name,
+// else register the just encountered name for later checkings
+// 5. how to compare two signature?
+// there are 2 style methods to compare them:
+// 1) strict: compare the type structure also compare the name when contains
+// struct
+// 2) unstrict only compare the type structure, but ignore the name of
+// contains struct or field
+// Q: how to do comparing when to do unstrict compare?
+// A: can use equalvalent exchange such as when encountering. e.g. There are
+// type A signature, type B signature, each time when encounter name namingly
+// nameA-1, nameB-1 in both signature, create map nameA-1 => nameB-1 and nameB-1
+// => nameA-1, later when encounter another pair names then search in the map to
+// see if they already exists and if they are the same, if so then the name are
+// identical, else they are not identical 
 // 
+
 
 
 CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {

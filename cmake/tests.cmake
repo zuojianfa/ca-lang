@@ -156,6 +156,7 @@ do_test(type "good" ca ../test/type/struct2.ca)
 do_test(type "good" ca ../test/type/struct3.ca)
 do_test(type "good" ca ../test/type/struct4.ca)
 do_test(type "3" ca ../test/type/typedef.ca)
+do_test(type "34" ca ../test/type/typehir.ca)
 do_test(type "101" ca ../test/type/typesimple.ca)
 
 

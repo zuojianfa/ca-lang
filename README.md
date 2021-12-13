@@ -185,8 +185,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   detect the conflicting
 
 ## Makefile
-- [ ] use cmake to build the system
-- [ ] make test .ca file automatically generating not write one by one
+- [x] use cmake to build the system
+- [x] make test .ca file automatically generating not write one by one
+	can use ctest framework, but each .ca test case need write by hand
 
 ## Optimization
 - [ ] support optimization for each function not only `main`
@@ -207,6 +208,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [ ] write a tool to converting c function declare into ca's declare
   - [ ] write a tool to convert c header file declear into ca's declare file
 - [ ] create self memory management runtime system, can invoke malloc directly
+- [ ] define system limitations: such as max identifier name, max function parameters, ...
   
 ## Testing
 - [ ] convert (by hand) a real whole program project into ca language project
@@ -374,4 +376,15 @@ let b: [*i32;3];
 a <= t:A
 b <= t:[*i32;3]
 A <= [*i32;3]
+```
+
+
+# another representation of type
+using `symname_id` instead of the string representation of name. keep the special element unchanged, such as * [] {} ... 
+this should can speed up the find performance 
+```
+*i32 => *i32id, i32id == symname_check_insert("t:i32")
+*nameA => *nameAid, nameAid == symname_check_insert("t:nameA")
+[i32;3] => [i32id;3]
+struct A {a: i32, b: *A} => {Aid; aid:i32id, bid:*Aid}, Aid == symname_check_insert("t:Aid")
 ```

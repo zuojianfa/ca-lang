@@ -1,0 +1,15 @@
+// testing for type shield: no allow type shield
+fn main() {
+    type A = B;
+    type B = i32;
+
+    {
+        type B = i64;
+        let a: A = 3i32;
+        let b: A = 4i64;
+
+        print a;
+        print b;
+    }
+}
+

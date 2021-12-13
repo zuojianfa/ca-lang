@@ -186,6 +186,7 @@ typedef struct STEntry {
     struct {
       typeid_t id;  // when sym_type is Sym_DataType
       ST_ArgList *members; // when id is of struct type it have members, TODO: refactor it make it extensible to other complex type like enum etc.
+      SymTable *idtable; // TODO: assign symtable value for the id, and use it when unwinding type, or it have bug when not use the symbol table in the type is defining, because when unwinding, it may find the symbol in other level scope
     } datatype;
   } u;
 } STEntry;
@@ -240,6 +241,7 @@ int sym_dump(SymTable *st, FILE *file);
 
 // parent: if search parent symtable
 STEntry *sym_getsym(SymTable *st, int idx, int parent);
+STEntry *sym_gettypesym_by_name(SymTable *st, const char *name, int parent);
 int sym_tablelen(SymTable *t);
 SymType sym_gettype(SymTable *t, int idx, int parent);
 SLoc sym_getsloc(SymTable *t, int idx, int parent);

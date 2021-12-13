@@ -143,6 +143,12 @@ typeid_t sym_form_type_id(int id) {
   return typeid;
 }
 
+typeid_t sym_form_type_id_by_str(const char *idname) {
+  const char *typename = sym_form_type_name(idname);
+  typeid_t typeid = symname_check_insert(typename);
+  return typeid;
+}
+
 typeid_t sym_form_label_id(int id) {
   const char *name = symname_get(id);
   const char *typename = sym_form_label_name(name);
