@@ -419,6 +419,7 @@ ASTNode *make_type_def(int id, typeid_t type) {
 
   entry = sym_insert(curr_symtable, newtype, Sym_DataType);
   entry->u.datatype.id = type;
+  entry->u.datatype.idtable = curr_symtable;
   entry->u.datatype.members = NULL;
   SLoc loc = {glineno, gcolno};
   entry->sloc = loc;
@@ -1533,6 +1534,7 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
   ASTNode *p = new_ASTNode(TTE_Struct);
   entry = sym_insert(curr_symtable, structtype, Sym_DataType);
   entry->u.datatype.id = structtype;
+  entry->u.datatype.idtable = curr_symtable;
   entry->u.datatype.members = (ST_ArgList *)malloc(sizeof(ST_ArgList));
 
   // just remember the argument list and for later use
