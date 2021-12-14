@@ -186,7 +186,7 @@ typedef struct STEntry {
     struct {
       typeid_t id;  // when sym_type is Sym_DataType
       ST_ArgList *members; // when id is of struct type it have members, TODO: refactor it make it extensible to other complex type like enum etc.
-      SymTable *idtable; // TODO: assign symtable value for the id, and use it when unwinding type, or it have bug when not use the symbol table in the type is defining, because when unwinding, it may find the symbol in other level scope
+      struct SymTable *idtable; // TODO: assign symtable value for the id, and use it when unwinding type, or it have bug when not use the symbol table in the type is defining, because when unwinding, it may find the symbol in other level scope
     } datatype;
   } u;
 } STEntry;

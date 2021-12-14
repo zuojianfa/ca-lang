@@ -1,3 +1,4 @@
+// test pointer type define grammar
 type ta = i32;
 type pta1 = *i32;
 type pta2 = **i32;
