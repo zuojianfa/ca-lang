@@ -1,0 +1,27 @@
+// test for recursive type
+fn main() {
+    struct AA { a: AA, }
+    struct A1 { a: A1, b: i32, }
+    struct A2 { a: A1, b: A2, }
+    struct A3 { a: A3, b: A2, }
+    struct A4 { a: A3, b: A4, }
+    struct A5 { a: A5, b: A4, }
+    struct A6 { a: A5, b: A6, }
+    struct A7 { a: A7, b: BB, }
+
+    struct BB { a: B1, b: i32 }
+    struct B1 { a: B2, }
+    struct B2 { a: B2, b: A7, }
+
+    type PAA = *AA;
+
+    let pv0: PAA = 0;
+    let v0: AA = 0;
+    let v1: A1 = 0;
+    let v2: A2 = 0;
+    let v3: A3 = 0;
+    let v4: A4 = 0;
+    let v5: A5 = 0;
+    let v6: A6 = 0;
+    let v7: A7 = 0;
+}

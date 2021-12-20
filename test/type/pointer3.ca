@@ -1,0 +1,18 @@
+fn main() {
+    let a = 0 as ***i32;
+    let b = 0 as ****i32;
+    let c = 0 as *****AA;
+    let d: *****AA = 0;
+    let e = 0 as II;
+    let f: II = 0;
+    type II = *****AA;
+    type AA = BB;
+    type BB = CC;
+    type CC = DD;
+    
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+
+type DD = EE;
+type EE = i32;
+

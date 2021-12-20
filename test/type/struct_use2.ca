@@ -1,0 +1,63 @@
+// test for non recursive type
+fn main() {
+    struct AA {}
+    struct A1 {a : i32}
+    struct A2 {a : *f64}
+    struct A3 {a : [f32;64]}
+    struct A4 {b1: A1}
+    struct A5 {b1: *A1}
+    struct A6 {b1: [A1;32]}
+    struct A7 {b2: A2}
+    struct A8 {b2: *A2}
+    struct A9 {b2: [A2;32]}
+    struct A10{b3: A3}
+    struct A11{b3: *A3}
+    struct A12{b3: [A3;32]}
+    struct A13{c3: A6}
+    struct A14{c3: *A6}
+    struct A15{c3: [A6;32]}
+    struct A16{c3: A12}
+    struct A17{c3: *A12}
+    struct A18{c3: [A12;32]}
+    struct A19{c3: A18}
+    struct A20{c3: *A18}
+    struct A21{c3: [A18;32]}
+
+    let v0:  AA  = 0;
+    let v1:  A1  = 0;
+    let v2:  A2  = 0;
+    let v3:  A3  = 0;
+    let v4:  A4  = 0;
+    let v5:  A5  = 0;
+    let v6:  A6  = 0;
+    let v7:  A7  = 0;
+    let v8:  A8  = 0;
+    let v9:  A9  = 0;
+    let v10: A10 = 0;
+    let v11: A11 = 0;
+    let v12: A12 = 0;
+    let v13: A13 = 0;
+    let v14: A14 = 0;
+    let v15: A15 = 0;
+    let v16: A16 = 0;
+    let v17: A17 = 0;
+    let v18: A18 = 0;
+    let v19: A19 = 0;
+    let v20: A20 = 0;
+    let v21: A21 = 0;
+
+    let v22: A22 = 0;
+    let v23: A23 = 0;
+    let v24: A24 = 0;
+    let v25: A25 = 0;
+    let v26: A26 = 0;
+    let v27: *[*A26;6] = 0;
+    let v28: A28 = 0;
+
+    type A22 = A21;
+    type A23 = A22;
+    struct A24{v1: A10, v2: A21}
+    struct A25{v1: *A10, v2: **[A21;3]}
+    struct A26{v1: [A10;3], v2: *[*A25;4]}
+    struct A28{v1: [A10;3], v2: *[*A25;4], v3: A10, v4: *A10, v5: A25}
+}

@@ -381,15 +381,18 @@ static int catype_compare_type_signature(std::map<std::string, std::string> &pre
 
 static int catype_unwind_type_name(SymTable *symtable, const char *pch,
                                    const std::set<std::string> &prenameset,
-                                   char *sigbuf, int &buflen);
+				   const std::set<std::string> &rcheckset,
+                                   char *sigbuf, int &buflen, int *typesize);
 
 static int catype_unwind_type_array(SymTable *symtable, const char *pch,
                                     const std::set<std::string> &prenameset,
-                                    char *sigbuf, int &buflen);
+				    const std::set<std::string> &rcheckset,
+                                    char *sigbuf, int &buflen, int *typesize);
 
 static int catype_unwind_type_struct(SymTable *symtable, const char *pch,
                                      const std::set<std::string> &prenameset,
-                                     char *sigbuf, int &buflen);
+				     const std::set<std::string> &rcheckset,
+                                     char *sigbuf, int &buflen, int *typesize);
 
 static int str_assign_while(char *sigbuf, const char *&pch, int ch) {
   int i = 0;
@@ -401,10 +404,18 @@ static int str_assign_while(char *sigbuf, const char *&pch, int ch) {
 }
 
 // buflen: input/output parameter, input for sigbuf size, output for used size
-// RETURN: -1: when error,  0 or positive value, the consumption index
+// typesize: when `typesize` is not NULL, it will store the typesize, return -1
+// when have type is unlimited type
+// prenameset: for checking if the name already appear in upper tree
+//   it always inherit values from parent.
+// rcheckset: for checking if exists recursive.
+//   when encouner '*' '&' it will discard (not use) the values from parent
+//   
+// RETURN: -1: when error,  0 or positive value.the consumption index
 static int catype_unwind_type_signature_inner(SymTable *symtable, const char *caname,
 					      const std::set<std::string> &prenameset,
-					      char *sigbuf, int &buflen)
+					      const std::set<std::string> &rcheckset,
+					      char *sigbuf, int &buflen, int *typesize)
 {
   // t:i32 => return
   // t:*i32 t:**i32 => 
@@ -420,11 +431,19 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
   STEntry *entry = nullptr;
   CADataType *dt = nullptr;
   int tbuflen = 0;
+  int tmptypesize = 0;
+  int sizefin = 0;
+  *typesize = -1;
+  std::set<std::string> rcheckseti;
+  const std::set<std::string> *prcheckset;
+
   while(*pch) {
     switch (*pch) {
     case '*':
       // handling pointer: *AA
       sigi += str_assign_while(sigbuf, pch, '*');
+      *typesize = sizeof(void *);
+      sizefin = 1;
       break;
     case '&':
       // handling reference: &AA
@@ -432,38 +451,55 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
       // & can reprensent the reference type or the get address operator, here
       // when in type name it must be the reference type
       sigi += str_assign_while(sigbuf, pch, '&');
+      *typesize = sizeof(void *);
+      sizefin = 1;
       break;
-    case '[':
-      // handling array: [AA;N], [[AA];N1];N2], ...
-    case '{':
-      // handling structure: {Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, }
-      tbuflen = buflen - sigi;
-      ret = (*pch == '[') ?
-	catype_unwind_type_array(symtable, pch, prenameset, sigbuf + sigi, tbuflen) :
-	catype_unwind_type_struct(symtable, pch, prenameset, sigbuf + sigi, tbuflen);
-
-      if (ret == -1) {
-	yyerror("unwind type name `%s` failed", pch);
-	return -1;
-      }
-
-      buflen = sigi + tbuflen;
-      return (pch - caname) + ret;
-    case '(':
-      // handling tuple - named or unnamed: (<anytype>,<anytype>,<anytype>[,])
-    case '<':
-      // handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
-    case '#':
-      // handling enum: #AA, BB, ... #
     default:
       tbuflen = buflen - sigi;
-      ret = catype_unwind_type_name(symtable, pch, prenameset, sigbuf + sigi, tbuflen);
+      if (sizefin) {
+	// when type already determined (* & case), just use new check set
+	prcheckset = &rcheckseti;
+      } else {
+	// inherit the parent recursive check set
+	prcheckset = &rcheckset;
+      }
+
+      switch(*pch) {
+      case '[':
+	// handling array: [AA;N], [[AA];N1];N2], ...
+	ret = catype_unwind_type_array(symtable, pch, prenameset, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize);
+	break;
+      case '{':
+	// handling structure: {Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, }
+	ret = catype_unwind_type_struct(symtable, pch, prenameset, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize);
+	break;
+      case '(':
+	// TODO: handling tuple - named or unnamed: (<anytype>,<anytype>,<anytype>[,])
+	ret = -1;
+	break;
+      case '<':
+	// TODO: handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
+	ret = -1;
+	break;
+      case '#':
+	// TODO: handling enum: #AA, BB, ... #
+	ret = -1;
+	break;
+      default:
+	ret = catype_unwind_type_name(symtable, pch, prenameset, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize);
+	break;
+      }
+      
       if (ret == -1) {
 	yyerror("unwind type name `%s` failed", pch);
 	return -1;
       }
 
       buflen = sigi + tbuflen;
+      // when size already determined (when pointer or reference type) or size calculation failed
+      if (!sizefin || tmptypesize == -1)
+	*typesize = tmptypesize;
+
       return (pch - caname) + ret;
     }
   }
@@ -473,11 +509,17 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 
 static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 				     const std::set<std::string> &prenameset,
-				     char *sigbuf, int &buflen) {
+				     const std::set<std::string> &rcheckset,
+				     char *sigbuf, int &buflen, int *typesize) {
   const char *pch = pchbegin;
   int sigi = 0;
   sigbuf[sigi++] = *pch++; // = '{';
   int i = 0;
+  int tmptypesize = 0;
+  int sizeerror = 0;
+  int calcing = 0;
+  *typesize = -1;
+
   char namebuf[128];
   while(isalnum(*pch)) {
     sigbuf[sigi++] = *pch;
@@ -499,7 +541,11 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 
   std::set<std::string> nameset = prenameset;
   nameset.insert(namebuf);
+  std::set<std::string> checkset = rcheckset;
+  checkset.insert(namebuf);
+
   while (*pch != '}') {
+    int tsize = 0;
     i = 0;
     while(isalnum(*pch)) {
       sigbuf[sigi++] = *pch++;
@@ -519,7 +565,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     sigbuf[sigi++] = *pch++; // = ':';
 
     int tbuflen = buflen - sigi;
-    int ret = catype_unwind_type_signature_inner(symtable, pch, nameset, sigbuf+sigi, tbuflen);
+    int ret = catype_unwind_type_signature_inner(symtable, pch, nameset, checkset, sigbuf+sigi, tbuflen, &tsize);
     if (ret == -1) {
       yyerror("unwind type `%s` failed");
       return -1;
@@ -530,21 +576,40 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 
     if (*pch == ',')
       sigbuf[sigi++] = *pch++; // = ',';
+
+    if (tsize == -1)
+      sizeerror = 1;
+    else if (tsize == -2)
+      calcing = 1;
+    else 
+      tmptypesize += tsize;
   }
 
   sigbuf[sigi++] = *pch++; // = '}';
   buflen = sigi;
+
+  if (sizeerror)
+    *typesize = -1;
+  else if (calcing)
+    *typesize = -2;
+  else
+    *typesize = tmptypesize;
+
   return pch - pchbegin;
 }
 
 static int catype_unwind_type_array(SymTable *symtable, const char *pchbegin,
 				    const std::set<std::string> &prenameset,
-				    char *sigbuf, int &buflen) {
+				    const std::set<std::string> &rcheckset,
+				    char *sigbuf, int &buflen, int *typesize) {
   const char *pch = pchbegin;
   int sigi = 0;
+  int tmptypesize = 0;
+  *typesize = -1;
+
   sigbuf[sigi++] = *pch++; // should be '['
   int tbuflen = buflen - sigi;
-  int ret = catype_unwind_type_signature_inner(symtable, pch, prenameset, sigbuf+sigi, tbuflen);
+  int ret = catype_unwind_type_signature_inner(symtable, pch, prenameset, rcheckset, sigbuf+sigi, tbuflen, &tmptypesize);
   if (ret == -1) {
     yyerror("unwind type `%s` failed");
     return -1;
@@ -578,6 +643,11 @@ static int catype_unwind_type_array(SymTable *symtable, const char *pchbegin,
   // TODO: the number can be used when form CADataType
   int dim = atoi(numbuf);
 
+  if (tmptypesize < 0)
+    *typesize = tmptypesize;
+  else
+    *typesize = tmptypesize * dim;
+
   sigbuf[sigi++] = *pch++; // = ']';
   buflen = sigi;
   return pch - pchbegin;
@@ -586,8 +656,11 @@ static int catype_unwind_type_array(SymTable *symtable, const char *pchbegin,
 // RETURN: -1: when error,  0 or positive value, the consumption index
 static int catype_unwind_type_name(SymTable *symtable, const char *pch,
                                    const std::set<std::string> &prenameset,
-                                   char *sigbuf, int &buflen)
+				   const std::set<std::string> &rcheckset,
+                                   char *sigbuf, int &buflen, int *typesize)
 {
+  *typesize = -1;
+
   char namebuf[128];
 
   // handling a named type: AA
@@ -605,6 +678,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   if (dt) {
     strcpy(sigbuf, namebuf);
     buflen = i;
+    *typesize = dt->size;
     return i;
   }
 
@@ -613,34 +687,51 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   if (!entry)
     return -1;
 
+  if (rcheckset.find(namebuf) != rcheckset.end()) {
+    // this is the recursive a type definition, type size is recursive, so may have unlimited size
+    return -1;
+  }
+
   // when the name already processed, then the name here should be the recursive name
   if (prenameset.find(namebuf) != prenameset.end()) {
     strcpy(sigbuf, namebuf);
     buflen = i;
+    // when type already appear previous, -2 means the type size is calculating upper
+    // and the type size of this layer depends on the upper case
+    *typesize = -2;
     return i;
   }
 
   std::set<std::string> nameset = prenameset;
   nameset.insert(namebuf);
 
-  const char *caname = catype_get_type_name(entry->u.datatype.id);  
+  std::set<std::string> checkset = rcheckset;
+  checkset.insert(namebuf);
+
+  const char *caname = catype_get_type_name(entry->u.datatype.id);
 
   // when type is not a structure type directly
   if (!entry->u.datatype.members) {
     int tbuflen = buflen;
-    int ret = catype_unwind_type_signature_inner(entry->u.datatype.idtable, caname, nameset, sigbuf, tbuflen);
+    int ret = catype_unwind_type_signature_inner(entry->u.datatype.idtable, caname, nameset, checkset, sigbuf, tbuflen, typesize);
     if (ret == -1) {
-      yyerror("unwind type `%s` failed", namebuf);
+      yyerror("unwind type `%s` failed", caname);
       return -1;
     }
 
-    if (*pch) {
-      yyerror("type container extra text when unwind type `%s`", namebuf);
+    if (*(caname+ret)) {
+      yyerror("type contains extra text when unwind type `%s`", caname);
       return -1;
     }
 
     buflen = tbuflen;
-    return i + ret;
+    return i; // + ret;
+  }
+
+  if (checkset.find(caname) != checkset.end()) {
+    // this is the recursive a type definition, type size is recursive, so may have unlimited size
+    // *typesize = -1;
+    return -1;
   }
       
   // NEXT TODO: handle the struct type condition here
@@ -657,16 +748,22 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   // it will can not compare in non-strict mode, because don't known if type A equal B
   // so TODO: also unwind when the type is not in the recursive scope, so also need
   // check if one type is under the recursive scope
-  if (prenameset.find(caname) != prenameset.end()) {
+  if (nameset.find(caname) != nameset.end()) {
     int len = strlen(caname);
     strncpy(sigbuf, caname, len+1);
     buflen = len;
+    *typesize = -2;
     return i;
   }
+
+  int tmptypesize = 0;
+  int sizeerror = 0;
+  int calcing = 0;
 
   int sigi = sprintf(sigbuf, "{%s;", caname);
   ST_ArgList *members = entry->u.datatype.members;
   for (int j = 0; j < members->argc; ++j) {
+    int tsize = 0;
     const char *argname = symname_get(members->argnames[j]);
     STEntry *nameentry = sym_getsym(members->symtable, members->argnames[j], 0);
     if (nameentry->sym_type != Sym_Member) {
@@ -678,25 +775,45 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     const char *mtypename = catype_get_type_name(nameentry->u.var->datatype);
     int tbuflen = buflen - sigi;
     int ret = catype_unwind_type_signature_inner(members->symtable, mtypename,
-						 nameset, sigbuf + sigi, tbuflen);
+						 nameset, checkset, sigbuf + sigi, tbuflen, &tsize);
     sigi += tbuflen;
     sigbuf[sigi++] = ','; // = ',';
+
+    if (tsize == -1)
+      sizeerror = 1;
+    else if (tsize == -2)
+      calcing = 1;
+    else 
+      tmptypesize += tsize;
   }
 
   sigbuf[sigi-1] = '}'; // remove last ',' or ';' when it is empty struct
   sigbuf[sigi] = '\0';
 
   buflen = sigi;
+
+  if (sizeerror)
+    *typesize = -1;
+  else if (calcing)
+    *typesize = -2;
+  else
+    *typesize = tmptypesize;
+
   return i;
 }
 
-typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name) {
+static int catype_calculate_typesize(const char *sigbuf, int len) {
+  return 0;
+}
+
+typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *typesize) {
   char sigbuf[4096] = "t:";
+  std::set<std::string> prenameset;
   std::set<std::string> recursive_check_set;
 
   const char *caname = catype_get_type_name(name);
-  int len = 4096;
-  int ret = catype_unwind_type_signature_inner(symtable, caname, recursive_check_set, sigbuf+2, len);
+  int len = 4096 - 2;
+  int ret = catype_unwind_type_signature_inner(symtable, caname, prenameset, recursive_check_set, sigbuf+2, len, typesize);
   if (ret == -1) {
     yyerror("unwind type signature `%s` failed", caname);
     return typeid_novalue;
@@ -821,7 +938,8 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
     return itr->second;
 
   // step 2: get unwind id
-  typeid_t unwind = catype_unwind_type_signature(symtable, name);
+  int typesize = 0;
+  typeid_t unwind = catype_unwind_type_signature(symtable, name, &typesize);
 
   // step 3: find type from global (signature) table
   auto itr2 = s_type_map.find(unwind);
@@ -830,6 +948,11 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
     return itr2->second;
   }
 
+  // start testing
+  const char *tmpstr = symname_get(unwind);
+  printf("typesize: %d\t%s\n", typesize, tmpstr);
+  // end testing
+
   // step 4: create type object
   CADataType *dt = catype_create_type_from_unwind(unwind);
 
@@ -837,46 +960,6 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   s_symtable_type_map.insert(std::make_pair(windst, dt));
   s_type_map.insert(std::make_pair(unwind, dt));
   return dt;
-
-#if 0
-  // firstly try to get primitive type from primitive type table
-  CADataType *type = catype_get_primitive_by_name(name);
-  if (type)
-    return type;
-
-  // scan the name and pickup the name kernel and get symbol from symbol table and search
-
-  // secondly find from symbol table type definition table
-  typeid_t windst = sym_form_symtable_type_id(symtable, name);
-  auto itr = s_symtable_type_map.find(windst);
-  if (itr != s_symtable_type_map.end())
-    return itr->second;
-
-  // thirdly find from global signature table type definition table
-  int unwind = catype_unwind_type_signature(symtable, name);
-  auto itr2 = s_signature_type_map.find(unwind);
-  if (itr2 != s_symtable_type_map.end()) {
-    s_symtable_type_map.insert(std::make_pair(windst, itr2->second));
-    return itr2->second;
-  }
-
-  const char *caname = symname_get(name);
-
-  //unwind(caname);
-    
-  STEntry *entry = sym_getsym(symtable, name, 1);
-  if (!entry) {
-    
-    return nullptr;
-  }
-
-  if (entry->sym_type != Sym_DataType) {
-    yyerror("(internal), `%d` not a type name `%s`", entry->sym_type, symname_get(name));
-    return nullptr;
-  }
-
-  return catype_unwind_type_object(symtable, entry);
-#endif
 }
 
 // inference and set the literal type for the literal, when the literal have no

@@ -1,0 +1,81 @@
+type A1 = [i32; 4];
+type A2 = [A1; 3];
+type A3 = [A2; 5];
+type A4 = [A3; 5];
+type A5 = [A4; 3];
+type A6 = [A5; 5];
+type A7 = [A6; 5];
+type A8 = [[i32;4];3];
+type A9 = [[[i32;4];3];5];
+type A10 = [[[[i32;4];3];5];5];
+type A11 = [[[[[i32;4];3];5];5];3];
+type A12 = [[[[[[i32;4];3];5];5];3];5];
+type A13 = [[[[[[[i32;4];3];5];5];3];5];5];
+
+type AA = i32;
+
+fn main() {
+    let aa: AA = 0;
+    type AA = i64;
+
+    let a1: A1 = 0;
+    let a2: A2 = 0;
+    let a3: A3 = 0;
+    let a4: A4 = 0;
+    let a5: A5 = 0;
+    let a6: A6 = 0;
+    let a7: A7 = 0;
+    let a8: A8 = 0;
+    let a9: A9 = 0;
+    let a10: A10 = 0;
+    let a11: A11 = 0;
+    let a12: A12 = 0;
+    let a13: A13 = 0;
+
+    type A1 = [i32; 4];
+    type A2 = [A1; 3];
+    type A3 = [A2; 5];
+    type A4 = [A3; 5];
+    type A5 = [A4; 3];
+    type A6 = [A5; 5];
+    type A7 = [A6; 5];
+    type A8 = [[i32;4];3];
+    type A9 = [[[i32;4];3];5];
+    type A10 = [[[[i32;4];3];5];5];
+    type A11 = [[[[[i32;4];3];5];5];3];
+    type A12 = [[[[[[i32;4];3];5];5];3];5];
+    type A13 = [[[[[[[i32;4];3];5];5];3];5];5];
+    {
+	type A1 = [i32; 4];
+	type A2 = [A1; 3];
+	type A3 = [A2; 5];
+	type A4 = [A3; 5];
+	type A5 = [A4; 3];
+	type A6 = [A5; 5];
+	type A7 = [A6; 5];
+	type A8 = [[i32;4];3];
+	type A9 = [[[i32;4];3];5];
+	type A10 = [[[[i32;4];3];5];5];
+	type A11 = [[[[[i32;4];3];5];5];3];
+	type A12 = [[[[[[i32;4];3];5];5];3];5];
+	type A13 = [[[[[[[i32;4];3];5];5];3];5];5];
+
+        let a1: A1 = 0;
+        let a2: A2 = 0;
+        let a3: A3 = 0;
+        let a4: A4 = 0;
+	let a5: A5 = 0;
+        let a6: A6 = 0;
+        let a7: A7 = 0;
+        let a8: A8 = 0;
+        let a9: A9 = 0;
+        let a10: A10 = 0;
+        let a11: A11 = 0;
+        let a12: A12 = 0;
+        let a13: A13 = 0;
+    }
+    
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+
