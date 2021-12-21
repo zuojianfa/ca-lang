@@ -226,6 +226,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
+- [ ] implement CADataType object for following 3 functions `catype_unwind_type_array`, ...
 - [ ] debug calculate type size, create CADataType object from unwinding function directly
 - [ ] debug unwinding type id (maybe by debugging all kinds of type: pointer, array), create CADataType object from ful id
 - [ ] remove entry object in ASTNode

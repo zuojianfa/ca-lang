@@ -385,17 +385,20 @@ static int catype_compare_type_signature(std::map<std::string, std::string> &pre
 static int catype_unwind_type_name(SymTable *symtable, const char *pch,
                                    const std::set<std::string> &prenameset,
 				   const std::set<std::string> &rcheckset,
-                                   char *sigbuf, int &buflen, int *typesize);
+                                   char *sigbuf, int &buflen, int *typesize,
+				   CADataType **retdt = nullptr);
 
 static int catype_unwind_type_array(SymTable *symtable, const char *pch,
                                     const std::set<std::string> &prenameset,
 				    const std::set<std::string> &rcheckset,
-                                    char *sigbuf, int &buflen, int *typesize);
+                                    char *sigbuf, int &buflen, int *typesize,
+				    CADataType **retdt = nullptr);
 
 static int catype_unwind_type_struct(SymTable *symtable, const char *pch,
                                      const std::set<std::string> &prenameset,
 				     const std::set<std::string> &rcheckset,
-                                     char *sigbuf, int &buflen, int *typesize);
+                                     char *sigbuf, int &buflen, int *typesize,
+				     CADataType **retdt = nullptr);
 
 static int str_assign_while(char *sigbuf, const char *&pch, int ch) {
   int i = 0;
@@ -418,8 +421,10 @@ static int str_assign_while(char *sigbuf, const char *&pch, int ch) {
 // compacted.
 // but when the object created directly from unwinded string, it not need to do
 // the normalize, because the unwinded string is already normalized
-// 
+//
 // RETURN: -1: when error,  0 or positive value.the consumption index
+
+// TODO: for CADataType design and fill back the signature
 static int catype_unwind_type_signature_inner(SymTable *symtable, const char *caname,
 					      const std::set<std::string> &prenameset,
 					      const std::set<std::string> &rcheckset,
@@ -434,11 +439,13 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
   // the unwinding algorithm according to the upper type definitions
   int i = 0;
   int sigi = 0;
-  int ret;
+  int ret = -1;
   char namebuf[128];
   const char *pch = caname;
   STEntry *entry = nullptr;
   CADataType *dt = nullptr;
+  CADataType *addrdt = nullptr;
+  CADataType **outdt = nullptr;
   int tbuflen = 0;
   int tmptypesize = 0;
   int sizefin = 0;
@@ -450,13 +457,21 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
     switch (*pch) {
     case '*':
       // handling pointer: *AA
-      sigi += str_assign_while(sigbuf, pch, '*');
+      ret = str_assign_while(sigbuf, pch, '*');
+      sigi += ret;
       *typesize = sizeof(void *);
       sizefin = 1;
+
+      if (retdt) {
+	addrdt = catype_make_type_symname(typeid_novalue, POINTER, sizeof(void *));
+	addrdt->pointer_layout = new CAPointer;
+	//dt->pointer_layout->type = datatype;
+	addrdt->pointer_layout->dimension = ret;
+      }
       break;
     case '&':
       // handling reference: &AA
-      // TODO: when implementing reference type
+      // TODO: when implementing reference type, also for CADataType
       // & can reprensent the reference type or the get address operator, here
       // when in type name it must be the reference type
       sigi += str_assign_while(sigbuf, pch, '&');
@@ -473,14 +488,16 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 	prcheckset = &rcheckset;
       }
 
+      outdt = retdt ? &dt : nullptr;
+
       switch(*pch) {
       case '[':
 	// handling array: [AA;N], [[AA];N1];N2], ...
-	ret = catype_unwind_type_array(symtable, pch, prenameset, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize);
+	ret = catype_unwind_type_array(symtable, pch, prenameset, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt);
 	break;
       case '{':
 	// handling structure: {Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, }
-	ret = catype_unwind_type_struct(symtable, pch, prenameset, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize);
+	ret = catype_unwind_type_struct(symtable, pch, prenameset, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt);
 	break;
       case '(':
 	// TODO: handling tuple - named or unnamed: (<anytype>,<anytype>,<anytype>[,])
@@ -495,7 +512,7 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 	ret = -1;
 	break;
       default:
-	ret = catype_unwind_type_name(symtable, pch, prenameset, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize);
+	ret = catype_unwind_type_name(symtable, pch, prenameset, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt);
 	break;
       }
       
@@ -509,6 +526,18 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
       if (!sizefin || tmptypesize == -1)
 	*typesize = tmptypesize;
 
+      if (retdt) {
+	if (addrdt) {
+	  addrdt->pointer_layout->type = *outdt;
+	  *retdt = addrdt;
+	} else {
+	  *retdt = *outdt;
+	}
+
+        (*retdt)->signature = sym_form_type_id_by_str(sigbuf);
+	(*retdt)->formalname = (*retdt)->signature; // TODO: determine formalname's value
+      }
+
       return (pch - caname) + ret;
     }
   }
@@ -519,7 +548,8 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 				     const std::set<std::string> &prenameset,
 				     const std::set<std::string> &rcheckset,
-				     char *sigbuf, int &buflen, int *typesize) {
+				     char *sigbuf, int &buflen, int *typesize,
+				     CADataType **retdt) {
   const char *pch = pchbegin;
   int sigi = 0;
   sigbuf[sigi++] = *pch++; // = '{';
@@ -610,7 +640,8 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 static int catype_unwind_type_array(SymTable *symtable, const char *pchbegin,
 				    const std::set<std::string> &prenameset,
 				    const std::set<std::string> &rcheckset,
-				    char *sigbuf, int &buflen, int *typesize) {
+				    char *sigbuf, int &buflen, int *typesize,
+				    CADataType **retdt) {
   const char *pch = pchbegin;
   int sigi = 0;
   int tmptypesize = 0;
@@ -666,7 +697,8 @@ static int catype_unwind_type_array(SymTable *symtable, const char *pchbegin,
 static int catype_unwind_type_name(SymTable *symtable, const char *pch,
                                    const std::set<std::string> &prenameset,
 				   const std::set<std::string> &rcheckset,
-                                   char *sigbuf, int &buflen, int *typesize)
+                                   char *sigbuf, int &buflen, int *typesize,
+				   CADataType **retdt)
 {
   *typesize = -1;
 
