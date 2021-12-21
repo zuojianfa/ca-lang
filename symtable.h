@@ -39,7 +39,7 @@ typedef struct CADataType {
   union {
     struct CAStruct *struct_layout;  // when type is STRUCT
     struct CAArray *array_layout;    // when type is ARRAY
-    struct CAPointer *pointer_layout;
+    struct CAPointer *pointer_layout;// when type is POINTER
   };
 } CADataType;
 

@@ -214,7 +214,7 @@ STEntry *sym_getsym(SymTable *st, int idx, int parent) {
 STEntry *sym_gettypesym_by_name(SymTable *st, const char *name, int parent) {
   typeid_t id = sym_form_type_id_by_str(name);
   STEntry *entry = sym_getsym(st, id, parent);
-  if (entry->sym_type != Sym_DataType) {
+  if (!entry || entry->sym_type != Sym_DataType) {
     yyerror("the symbol name `%s` is not a type", name);
     return nullptr;
   }

@@ -46,6 +46,7 @@ typedef enum {
   TTEId_VarAssign, // when TTE_Id
   TTEId_VarUse,    // when TTE_Id
   TTEId_FnName,    // when TTE_Id
+  TTEId_Type,      // when TTE_Id, the symname of type name
   TTEId_Label,     // when TTE_Label
   TTEId_LabelGoto, // when TTE_LabelGoto
   TTEId_Num,
@@ -265,6 +266,7 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
 ASTNode *make_fn_call(int fnid, ASTNode *param);
 ASTNode *make_ident_expr(int id);
 ASTNode *make_as(ASTNode *expr, typeid_t type);
+ASTNode *make_sizeof(typeid_t type);
 ASTNode *make_stmt_list_zip();
 int check_fn_define(typeid_t fnname, ASTNode *param);
 // for tree node compress deep into wide, begin for stmt list beginning

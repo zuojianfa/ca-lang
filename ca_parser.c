@@ -830,6 +830,9 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
   case STMT_EXPR:
     type1 = inference_expr_type(node->exprn.operands[1]);
     break;
+  case SIZEOF:
+    type1 = sym_form_type_id_from_token(U64);
+    break;
   case AS:
   case UMINUS:
   case IF_EXPR:
@@ -930,6 +933,14 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
   }
   case STMT_EXPR:
     determine_expr_type(node->exprn.operands[1], type);
+    break;
+  case SIZEOF:
+    if (type != sym_form_type_id_from_token(U64)) {
+      yyerror("line: %d, col: %d: conflict when determining type: `%s` != `u64`",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(type));
+
+      return -1;
+    }
     break;
   case AS:
   case UMINUS:
@@ -1580,6 +1591,13 @@ ASTNode *make_as(ASTNode *expr, typeid_t type) {
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
 
   ASTNode *node = make_expr(AS, 1, p);
+  return node;
+}
+
+ASTNode *make_sizeof(typeid_t type) {
+  ASTNode *p = make_id(type, TTEId_Type);
+  ASTNode *node = make_expr(SIZEOF, 1, p);
+  node->exprn.expr_type = sym_form_type_id_from_token(U64);
   return node;
 }
 

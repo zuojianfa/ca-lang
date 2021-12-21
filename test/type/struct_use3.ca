@@ -1,6 +1,6 @@
 // test for recursive type
 fn main() {
-    struct AA { a: AA, }
+    struct AA { a: *AA, }
     struct A1 { a: A1, b: i32, }
     struct A2 { a: A1, b: A2, }
     struct A3 { a: A3, b: A2, }

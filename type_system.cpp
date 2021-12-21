@@ -116,6 +116,9 @@ std::unordered_map<std::string, int> s_token_map = {
   {"struct", STRUCT},
   {"type",   TYPE},
   {"as",     AS},
+  {"sizeof", SIZEOF},
+  {"typeof", TYPEOF},
+  {"typeid", TYPEID},
 };
 
 static CADataType *catype_make_type(const char *name, int type, int size);
@@ -410,12 +413,18 @@ static int str_assign_while(char *sigbuf, const char *&pch, int ch) {
 //   it always inherit values from parent.
 // rcheckset: for checking if exists recursive.
 //   when encouner '*' '&' it will discard (not use) the values from parent
-//   
+// retdt: when retdt not null then return the CADataType object associated with
+// signature, notice: the returned object `retdt` need normalized to become
+// compacted.
+// but when the object created directly from unwinded string, it not need to do
+// the normalize, because the unwinded string is already normalized
+// 
 // RETURN: -1: when error,  0 or positive value.the consumption index
 static int catype_unwind_type_signature_inner(SymTable *symtable, const char *caname,
 					      const std::set<std::string> &prenameset,
 					      const std::set<std::string> &rcheckset,
-					      char *sigbuf, int &buflen, int *typesize)
+					      char *sigbuf, int &buflen, int *typesize,
+					      CADataType **retdt = nullptr)
 {
   // t:i32 => return
   // t:*i32 t:**i32 => 
@@ -728,6 +737,12 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     return i; // + ret;
   }
 
+  // if it is struct type definition then the `namebuf` should identical to the `caname`,
+  // so when check with new set (checkset and nameset) it will always find it because the upper
+  // just added it, and when check with old set (rcheckset and prenameset), it always cannot find
+  // because previously already find one time, so the struct case is special, so no need do
+  // following checking
+#if 0
   if (checkset.find(caname) != checkset.end()) {
     // this is the recursive a type definition, type size is recursive, so may have unlimited size
     // *typesize = -1;
@@ -755,6 +770,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     *typesize = -2;
     return i;
   }
+#endif
 
   int tmptypesize = 0;
   int sizeerror = 0;
@@ -813,7 +829,8 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *ty
 
   const char *caname = catype_get_type_name(name);
   int len = 4096 - 2;
-  int ret = catype_unwind_type_signature_inner(symtable, caname, prenameset, recursive_check_set, sigbuf+2, len, typesize);
+  CADataType *retdt = NULL;
+  int ret = catype_unwind_type_signature_inner(symtable, caname, prenameset, recursive_check_set, sigbuf+2, len, typesize, &retdt);
   if (ret == -1) {
     yyerror("unwind type signature `%s` failed", caname);
     return typeid_novalue;

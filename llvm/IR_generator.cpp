@@ -7,6 +7,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/IR/Value.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Error.h"
@@ -940,6 +941,15 @@ static void walk_expr_as(ASTNode *node) {
   oprand_stack.push_back(std::move(u));
 }
 
+static void walk_expr_sizeof(ASTNode *id) {
+  int typesize = 0;
+  typeid_t unwind = catype_unwind_type_signature(id->symtable, id->idn.i, &typesize);
+  Value *value = ir1.gen_int((uint64_t)typesize);
+
+  auto u = std::make_unique<CalcOperand>(OT_Const, value, U64);
+  oprand_stack.push_back(std::move(u));
+}
+
 static void walk_expr(ASTNode *p) {
   //post_make_expr(p);
   
@@ -950,6 +960,9 @@ static void walk_expr(ASTNode *p) {
   switch (p->exprn.op) {
   case AS:
     walk_stack(p->exprn.operands[0]);
+    break;
+  case SIZEOF:
+    walk_expr_sizeof(p->exprn.operands[0]);
     break;
   case UMINUS:
     walk_expr_minus(p);

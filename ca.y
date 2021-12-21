@@ -67,7 +67,7 @@ extern int yychar, yylineno;
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR
-%token			ARROW INFER TYPE
+%token			ARROW INFER TYPE SIZEOF TYPEOF TYPEID
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			GE LE EQ NE '>' '<'
@@ -86,7 +86,7 @@ extern int yychar, yylineno;
 //			%type	<symnameid>	atomic_type
 //			%type	<idtok>		type_postfix
 //			%type	<datatype>	data_type pointer_type array_type ident_type
-%type	<tid>	data_type pointer_type array_type ident_type
+%type	<tid>		data_type pointer_type array_type ident_type
 
 %start program
 
@@ -235,11 +235,13 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	fn_call               { dot_emit("expr", "fn_call"); $$ = $1; }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
 	|	expr AS data_type     { $$ = make_as($1, $3); }
+	|	SIZEOF '(' data_type ')'{ $$ = make_sizeof($3); }
 		;
 
 data_type:	ident_type            { $$ = $1; }
 	|	pointer_type          { $$ = $1; }
 	|	array_type            { $$ = $1; }
+	|	TYPEOF '(' expr ')'   { $$ = 0; /* TODO: realize it */ }
 	;
 
 //atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR

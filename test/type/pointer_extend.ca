@@ -1,0 +1,11 @@
+fn main() {
+	type A = **i32;
+	type B = **A;
+	type C = *B;
+
+	let b: C = 0;
+
+	let a = sizeof(C);
+	print a; print '\n';
+}
+
