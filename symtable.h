@@ -45,12 +45,13 @@ typedef struct CADataType {
 
 typedef struct CAStructField {
   int name;           // field name
-  //CADataType *type;   // field type
-  typeid_t type;
+  CADataType *type;   // field type
+  //typeid_t type;
 } CAStructField;
 
 typedef struct CAStruct {
   int fieldnum;
+  int capacity;
   struct CAStructField *fields;
 } CAStruct;
 
