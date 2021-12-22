@@ -594,6 +594,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     castruct->fields = new CAStructField[castruct->capacity];
     addrdt->struct_layout = castruct;
     nameset.insert(std::make_pair(namebuf, addrdt));
+    *retdt = addrdt;
   } else {
     nameset.insert(std::make_pair(namebuf, nullptr));
   }
@@ -670,10 +671,8 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     *typesize = tmptypesize;
 
   // TODO: fillback typeid signature when possible or need to use these information
-  if (retdt) {
+  if (retdt)
     addrdt->size = *typesize;
-    *retdt = addrdt;
-  }
 
   return pch - pchbegin;
 }
@@ -834,20 +833,6 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     return i; // + ret;
   }
 
-  // NEXT TODO: following
-  CADataType *addrdt = nullptr;
-  CAStruct *castruct = nullptr;
-  if (retdt) {
-    addrdt = catype_make_type_symname(typeid_novalue, STRUCT, *typesize);
-    castruct = new CAStruct;
-    castruct->fieldnum = 0;
-    castruct->capacity = 10;
-    castruct->fields = new CAStructField[castruct->capacity];
-    addrdt->struct_layout = castruct;
-  }
-
-  nameset.insert(std::make_pair(namebuf, addrdt));
-
   // if it is struct type definition then the `namebuf` should identical to the `caname`,
   // so when check with new set (checkset and nameset) it will always find it because the upper
   // just added it, and when check with old set (rcheckset and prenamemap), it always cannot find
@@ -883,6 +868,21 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   }
 #endif
 
+  // NEXT TODO: following
+  CADataType *addrdt = nullptr;
+  CAStruct *castruct = nullptr;
+  if (retdt) {
+    addrdt = catype_make_type_symname(typeid_novalue, STRUCT, *typesize);
+    castruct = new CAStruct;
+    castruct->fieldnum = 0;
+    castruct->capacity = 10;
+    castruct->fields = new CAStructField[castruct->capacity];
+    addrdt->struct_layout = castruct;
+    *retdt = addrdt;
+  }
+
+  nameset.insert(std::make_pair(namebuf, addrdt));
+
   int tmptypesize = 0;
   int sizeerror = 0;
   int calcing = 0;
@@ -901,8 +901,15 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     sigi += sprintf(sigbuf + sigi, "%s:", argname);
     const char *mtypename = catype_get_type_name(nameentry->u.var->datatype);
     int tbuflen = buflen - sigi;
+
+    CADataType **outdt = retdt ? &dt : nullptr;
     int ret = catype_unwind_type_signature_inner(members->symtable, mtypename,
-						 nameset, checkset, sigbuf + sigi, tbuflen, &tsize);
+						 nameset, checkset, sigbuf + sigi, tbuflen, &tsize, outdt);
+    if (ret == -1) {
+      yyerror("unwind type `%s` failed");
+      return -1;
+    }
+
     sigi += tbuflen;
     sigbuf[sigi++] = ','; // = ',';
 
@@ -912,6 +919,22 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
       calcing = 1;
     else 
       tmptypesize += tsize;
+
+    if (retdt) {
+      if (castruct->fieldnum >= castruct->capacity) {
+	CAStructField *fields = new CAStructField[castruct->capacity * 2];
+	for (int i = 0; i < castruct->capacity; ++i)
+	  fields[i] = castruct->fields[i];
+
+	delete[] castruct->fields;
+	castruct->fields = fields;
+	castruct->capacity *= 2;
+      }
+
+      castruct->fields[castruct->fieldnum].name = members->argnames[j];
+      castruct->fields[castruct->fieldnum].type = *outdt;
+      castruct->fieldnum++;
+    }
   }
 
   sigbuf[sigi-1] = '}'; // remove last ',' or ';' when it is empty struct
@@ -925,6 +948,9 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     *typesize = -2;
   else
     *typesize = tmptypesize;
+
+  if (retdt)
+    addrdt->size = *typesize;
 
   return i;
 }
