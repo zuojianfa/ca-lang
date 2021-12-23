@@ -1,5 +1,5 @@
 fn main() {
-    let v1: I1    = 0;
+    let v1: I1    = 0; // i32
     let v2: P     = 0;
     let v3: A     = 0;
     let v4: PP    = 0;

@@ -65,8 +65,8 @@ void dot_emit(const char *from, const char *to) {
 
 void dot_emit_expr(const char *from, const char *to, int op) {
   switch(op) {
-  case PRINT:
-    dot_emit("stmt", "PRINT expr");
+  case DBGPRINT:
+    dot_emit("stmt", "DBGPRINT expr");
     break;
   case RET:
     // when return expression

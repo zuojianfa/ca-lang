@@ -283,12 +283,21 @@ void add_fn_args_p(ST_ArgList *arglist, int varg) {
 }
 
 ASTNode *make_stmt_print(ASTNode *expr) {
-  ASTNode *p = new_ASTNode(TTE_Print);
+  ASTNode *p = new_ASTNode(TTE_DbgPrint);
   p->printn.expr = expr;
   p->begloc = expr->begloc;
   p->endloc = expr->endloc;
   p->symtable = curr_symtable;
   return p;
+}
+
+ASTNode *make_stmt_print_datatype(typeid_t tid) {
+  ASTNode *p = new_ASTNode(TTE_DbgPrintType);
+  p->printtypen.type = tid;
+  p->begloc = (SLoc){glineno, gcolno};
+  p->endloc = (SLoc){glineno, gcolno};
+  p->symtable = curr_symtable;
+  return p;  
 }
 
 ASTNode *make_stmt_expr(ASTNode *expr) {
@@ -424,7 +433,9 @@ ASTNode *make_type_def(int id, typeid_t type) {
   SLoc loc = {glineno, gcolno};
   entry->sloc = loc;
 
-  ASTNode *p = new_ASTNode(TTE_Empty);
+  ASTNode *p = new_ASTNode(TTE_TypeDef);
+  p->typedefn.newtype = newtype;
+  p->typedefn.type = type;
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   return p;
 }

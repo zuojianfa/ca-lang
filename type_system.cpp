@@ -106,7 +106,9 @@ std::unordered_map<std::string, int> s_token_map = {
   {"if",     IF},
   {"ife",    IFE},
   {"else",   ELSE},
-  {"print",  PRINT},
+  {"print",  DBGPRINT},
+  {"dbgprint",  DBGPRINT},
+  {"dbgprinttype",  DBGPRINTTYPE},
   {"goto",   GOTO},
   {"fn",     FN},
   {"extern", EXTERN},
@@ -265,6 +267,100 @@ CADataType *catype_get_by_token(int token) {
   return nullptr;
 }
 
+#define out_source stderr
+//#define out_source stdout
+
+void debug_print_lmbrace(int num) {
+    while (num > 0) {
+    fprintf(out_source, "[");
+    --num;
+  }
+}
+
+void debug_print_star(int num) {
+    while (num > 0) {
+    fprintf(out_source, "*");
+    --num;
+  }
+}
+
+void debug_print_tab(int num) {
+  while (num > 0) {
+    fprintf(out_source, "\t");
+    --num;
+  }
+}
+
+// pointer: *type
+// array: [
+//            [
+//                i32;
+//                4
+//            ];
+//            6
+//        ]
+//
+// struct: {0xxxxx
+//             a: i32,
+//             b: [
+//                    i32;
+//                    5
+//                ],
+//             c: {0xxxxx
+//                    a: i32
+//                },
+//         }
+//
+void debug_catype_datatype_aux(const CADataType *datatype, std::set<const CADataType *> &accessed, int identhead, int ident) {
+  if (accessed.find(datatype) != accessed.end()) {
+    // already accessed, only print address of the datatype
+    debug_print_tab(identhead);
+    fprintf(out_source, "%s@%p", symname_get(datatype->formalname), datatype);
+    return;
+  }
+
+  switch(datatype->type) {
+  case POINTER:
+    debug_print_tab(identhead);
+    debug_print_star(datatype->pointer_layout->dimension);
+    debug_catype_datatype_aux(datatype->pointer_layout->type, accessed, 0, ident);
+    break;
+  case ARRAY:
+    debug_print_tab(identhead);
+    debug_print_lmbrace(datatype->array_layout->dimension);
+    debug_catype_datatype_aux(datatype->array_layout->type, accessed, 0, ident);
+    for (int i = 0; i < datatype->array_layout->dimension; ++i) {
+      fprintf(out_source, "; %d]", datatype->array_layout->dimarray[i]);
+      //debug_print_tab(ident + datatype->array_layout->dimension - i);
+      //fprintf(out_source, "]");
+    }
+    break;
+  case STRUCT:
+    debug_print_tab(identhead);
+    fprintf(out_source, "{%s@%p\n", symname_get(datatype->formalname), datatype);
+    accessed.insert(datatype);
+    for (int i = 0; i < datatype->struct_layout->fieldnum; ++i) {
+      debug_print_tab(ident + 1);
+      fprintf(out_source, "%s: ", symname_get(datatype->struct_layout->fields[i].name));
+      debug_catype_datatype_aux(datatype->struct_layout->fields[i].type, accessed, 0, ident + 1);
+      fprintf(out_source, ",\n");
+    }
+
+    debug_print_tab(ident);
+    fprintf(out_source, "}");
+    break;
+  default:
+    fprintf(out_source, "%s", get_type_string(datatype->type));
+    break;
+  }
+}
+
+void debug_catype_datatype(const CADataType *datatype) {
+  std::set<const CADataType *> accessed;
+  debug_catype_datatype_aux(datatype, accessed, 0, 0);
+  fprintf(out_source, "\n");
+}
+
 // compare 2 types' signature, strict means if do strict compare
 static int catype_compare_type_signature(std::map<std::string, std::string> &prenamemap,
 					 const char *caname1, const char *caname2, int strict)
@@ -340,7 +436,7 @@ static int catype_compare_type_signature(std::map<std::string, std::string> &pre
 	return 0;
       }
       
-      // NEXT TODO: handle the struct type condition here
+      // handle the struct type condition here
       // when type is a structure type (complex type should also handle here)
       ST_ArgList *members = entry->u.datatype.members;
       members->
@@ -535,7 +631,6 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 	}
 
         (*retdt)->signature = sym_form_type_id_by_str(sigbuf);
-	(*retdt)->formalname = (*retdt)->signature; // TODO: determine formalname's value
       }
 
       return (pch - caname) + ret;
@@ -543,6 +638,22 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
   }
 
   return -1;
+}
+
+static void castruct_add_member(CAStruct *castruct, int name, CADataType *dt) {
+  if (castruct->fieldnum >= castruct->capacity) {
+    CAStructField *fields = new CAStructField[castruct->capacity * 2];
+    for (int i = 0; i < castruct->capacity; ++i)
+      fields[i] = castruct->fields[i];
+
+    delete[] castruct->fields;
+    castruct->fields = fields;
+    castruct->capacity *= 2;
+  }
+
+  castruct->fields[castruct->fieldnum].name = name;
+  castruct->fields[castruct->fieldnum].type = dt;
+  castruct->fieldnum++;
 }
 
 static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
@@ -578,26 +689,26 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 
   sigbuf[sigi++] = *pch++; // = ';';
 
-  std::map<std::string, CADataType *> nameset = prenamemap;
+  std::map<std::string, CADataType *> namemap = prenamemap;
   std::set<std::string> checkset = rcheckset;
   checkset.insert(namebuf);
 
   CADataType *dt = nullptr;
   CADataType *addrdt = nullptr;
   CAStruct *castruct = nullptr;
-
   if (retdt) {
-    addrdt = catype_make_type_symname(typeid_novalue, STRUCT, *typesize);
+    int nameid = symname_check_insert(namebuf);
+    addrdt = catype_make_type_symname(nameid, STRUCT, *typesize);
     castruct = new CAStruct;
     castruct->fieldnum = 0;
     castruct->capacity = 10;
     castruct->fields = new CAStructField[castruct->capacity];
     addrdt->struct_layout = castruct;
-    nameset.insert(std::make_pair(namebuf, addrdt));
+    namemap.insert(std::make_pair(namebuf, addrdt));
     *retdt = addrdt;
-  } else {
-    nameset.insert(std::make_pair(namebuf, nullptr));
   }
+
+  namemap.insert(std::make_pair(namebuf, addrdt));
 
   while (*pch != '}') {
     int tsize = 0;
@@ -624,7 +735,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     int tbuflen = buflen - sigi;
     
     CADataType **outdt = retdt ? &dt : nullptr;
-    int ret = catype_unwind_type_signature_inner(symtable, pch, nameset, checkset, sigbuf+sigi, tbuflen, &tsize, outdt);
+    int ret = catype_unwind_type_signature_inner(symtable, pch, namemap, checkset, sigbuf+sigi, tbuflen, &tsize, outdt);
     if (ret == -1) {
       yyerror("unwind type `%s` failed");
       return -1;
@@ -643,21 +754,8 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     else 
       tmptypesize += tsize;
 
-    if (retdt) {
-      if (castruct->fieldnum >= castruct->capacity) {
-	CAStructField *fields = new CAStructField[castruct->capacity * 2];
-	for (int i = 0; i < castruct->capacity; ++i)
-	  fields[i] = castruct->fields[i];
-
-	delete[] castruct->fields;
-	castruct->fields = fields;
-	castruct->capacity *= 2;
-      }
-
-      castruct->fields[castruct->fieldnum].name = symname_check_insert(namebuf);
-      castruct->fields[castruct->fieldnum].type = *outdt;
-      castruct->fieldnum++;
-    }
+    if (retdt)
+      castruct_add_member(castruct, symname_check_insert(namebuf), *outdt);
   }
 
   sigbuf[sigi++] = *pch++; // = '}';
@@ -747,6 +845,17 @@ static int catype_unwind_type_array(SymTable *symtable, const char *pchbegin,
   return pch - pchbegin;
 }
 
+// when the struct type already unwinded then just append the name
+// in struct different members when later member already exist in previous
+// and use it, this strategy can only compare in strict mode, unstrict mode will
+// need expand type in all struct member's even when previous member already expanded
+// the same type. e.g.
+// struct T1 { a: A, b: B, c: A}
+// struct T2 { a: A, b: B, c: B}
+// when the previous type A and B unwinded but the last A and B not unwind,
+// it will can not compare in non-strict mode, because don't known if type A equal B
+// so also unwind when the type is not in the recursive scope, so also need
+// check if one type is under the recursive scope
 // RETURN: -1: when error,  0 or positive value, the consumption index
 static int catype_unwind_type_name(SymTable *symtable, const char *pch,
 				   const std::map<std::string, CADataType *> &prenamemap,
@@ -754,7 +863,6 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
                                    char *sigbuf, int &buflen, int *typesize,
 				   CADataType **retdt)
 {
-  // TODO: check map and pointer to the right one, implement retdt
   *typesize = -1;
 
   char namebuf[128];
@@ -788,6 +896,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
 
   if (rcheckset.find(namebuf) != rcheckset.end()) {
     // this is the recursive a type definition, type size is recursive, so may have unlimited size
+    // TODO: return error number and the upper logic can print different error message
     return -1;
   }
 
@@ -800,13 +909,18 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     // and the type size of this layer depends on the upper case
     *typesize = -2;
 
+    if (!itr->second) {
+      yyerror("line: %d, col: %d: type `%s` should recursive defining", glineno, gcolno, namebuf);
+      return -1;
+    }
+
     if (retdt)
       *retdt = itr->second;
 
     return i;
   }
 
-  std::map<std::string, CADataType *> nameset = prenamemap;
+  std::map<std::string, CADataType *> namemap = prenamemap;
   std::set<std::string> checkset = rcheckset;
   checkset.insert(namebuf);
 
@@ -817,8 +931,8 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     int tbuflen = buflen;
 
     // when ever retdt is null, it still use this
-    nameset.insert(std::make_pair(namebuf, nullptr));
-    int ret = catype_unwind_type_signature_inner(entry->u.datatype.idtable, caname, nameset, checkset, sigbuf, tbuflen, typesize, retdt);
+    namemap.insert(std::make_pair(namebuf, nullptr));
+    int ret = catype_unwind_type_signature_inner(entry->u.datatype.idtable, caname, namemap, checkset, sigbuf, tbuflen, typesize, retdt);
     if (ret == -1) {
       yyerror("unwind type `%s` failed", caname);
       return -1;
@@ -834,45 +948,15 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   }
 
   // if it is struct type definition then the `namebuf` should identical to the `caname`,
-  // so when check with new set (checkset and nameset) it will always find it because the upper
+  // so when check with new set (checkset and namemap) it will always find it because the upper
   // just added it, and when check with old set (rcheckset and prenamemap), it always cannot find
   // because previously already find one time, so the struct case is special, so no need do
   // following checking
-#if 0
-  if (checkset.find(caname) != checkset.end()) {
-    // this is the recursive a type definition, type size is recursive, so may have unlimited size
-    // *typesize = -1;
-    return -1;
-  }
-      
-  // NEXT TODO: handle the struct type condition here
-  // when type is a structure type (complex type should also handle here)
-
-  // when the struct type already unwinded then just append the name
-  // TODO: in struct different members when later member already exist in previous
-  // and use it, this strategy can only compare in strict mode, unstrict mode will
-  // need expand type in all struct member's even when previous member already expanded
-  // the same type. e.g.
-  // struct T1 { a: A, b: B, c: A}
-  // struct T2 { a: A, b: B, c: B}
-  // when the previous type A and B unwinded but the last A and B not unwind,
-  // it will can not compare in non-strict mode, because don't known if type A equal B
-  // so TODO: also unwind when the type is not in the recursive scope, so also need
-  // check if one type is under the recursive scope
-  if (nameset.find(caname) != nameset.end()) {
-    int len = strlen(caname);
-    strncpy(sigbuf, caname, len+1);
-    buflen = len;
-    *typesize = -2;
-    return i;
-  }
-#endif
-
-  // NEXT TODO: following
   CADataType *addrdt = nullptr;
   CAStruct *castruct = nullptr;
   if (retdt) {
-    addrdt = catype_make_type_symname(typeid_novalue, STRUCT, *typesize);
+    int nameid = symname_check_insert(namebuf);
+    addrdt = catype_make_type_symname(nameid, STRUCT, *typesize);
     castruct = new CAStruct;
     castruct->fieldnum = 0;
     castruct->capacity = 10;
@@ -881,7 +965,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     *retdt = addrdt;
   }
 
-  nameset.insert(std::make_pair(namebuf, addrdt));
+  namemap.insert(std::make_pair(namebuf, addrdt));
 
   int tmptypesize = 0;
   int sizeerror = 0;
@@ -904,7 +988,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
 
     CADataType **outdt = retdt ? &dt : nullptr;
     int ret = catype_unwind_type_signature_inner(members->symtable, mtypename,
-						 nameset, checkset, sigbuf + sigi, tbuflen, &tsize, outdt);
+						 namemap, checkset, sigbuf + sigi, tbuflen, &tsize, outdt);
     if (ret == -1) {
       yyerror("unwind type `%s` failed");
       return -1;
@@ -920,21 +1004,8 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     else 
       tmptypesize += tsize;
 
-    if (retdt) {
-      if (castruct->fieldnum >= castruct->capacity) {
-	CAStructField *fields = new CAStructField[castruct->capacity * 2];
-	for (int i = 0; i < castruct->capacity; ++i)
-	  fields[i] = castruct->fields[i];
-
-	delete[] castruct->fields;
-	castruct->fields = fields;
-	castruct->capacity *= 2;
-      }
-
-      castruct->fields[castruct->fieldnum].name = members->argnames[j];
-      castruct->fields[castruct->fieldnum].type = *outdt;
-      castruct->fieldnum++;
-    }
+    if (retdt)
+      castruct_add_member(castruct, members->argnames[j], *outdt);
   }
 
   sigbuf[sigi-1] = '}'; // remove last ',' or ';' when it is empty struct
@@ -959,7 +1030,7 @@ static int catype_calculate_typesize(const char *sigbuf, int len) {
   return 0;
 }
 
-typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *typesize) {
+typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *typesize, CADataType **retdt) {
   char sigbuf[4096] = "t:";
 
   std::map<std::string, CADataType *> prenamemap;
@@ -967,15 +1038,19 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *ty
 
   const char *caname = catype_get_type_name(name);
   int len = 4096 - 2;
-  CADataType *retdt = NULL;
-  int ret = catype_unwind_type_signature_inner(symtable, caname, prenamemap, recursive_check_set, sigbuf+2, len, typesize, &retdt);
+  int ret = catype_unwind_type_signature_inner(symtable, caname, prenamemap, recursive_check_set, sigbuf+2, len, typesize, retdt);
   if (ret == -1) {
     yyerror("unwind type signature `%s` failed", caname);
     return typeid_novalue;
   }
 
   sigbuf[len+2] = '\0';
-  return symname_check_insert(sigbuf);
+
+  typeid_t signature = symname_check_insert(sigbuf);
+  if (*retdt)
+    (*retdt)->signature = signature;
+  
+  return signature;
 }
 
 CADataType *catype_create_type_from_unwind(int unwind) {
@@ -1045,7 +1120,7 @@ CADataType *catype_create_type_from_unwind(int unwind) {
   yyerror("unwinding...");
   return nullptr;
 }
-// NEXT TODO:
+
 // 1. how to check type circle?
 // the checking algorithm can instance into calculate the type size, when type A
 // depends on type B then need calculate type B's size,   A => B, B => C, C => A
@@ -1094,7 +1169,11 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
 
   // step 2: get unwind id
   int typesize = 0;
-  typeid_t unwind = catype_unwind_type_signature(symtable, name, &typesize);
+  CADataType *dt = nullptr;
+  typeid_t unwind = catype_unwind_type_signature(symtable, name, &typesize, &dt);
+  if (unwind == typeid_novalue) {
+    return nullptr;
+  }
 
   // step 3: find type from global (signature) table
   auto itr2 = s_type_map.find(unwind);
@@ -1109,7 +1188,9 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // end testing
 
   // step 4: create type object
-  CADataType *dt = catype_create_type_from_unwind(unwind);
+  // NEXT TODO: implement following 2 type
+  //dt = catype_create_type_from_unwind(unwind);
+  //dt = catype_formalize_type(dt);
 
   // step 5: update symtable type table
   s_symtable_type_map.insert(std::make_pair(windst, dt));

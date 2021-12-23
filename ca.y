@@ -65,7 +65,7 @@ extern int yychar, yylineno;
 %token	<litb>		LITERAL
 %token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER TYPE_UNKNOWN
 %token	<symnameid>	IDENT
-%token			WHILE IF IFE PRINT GOTO EXTERN FN RET LET EXTERN_VAR
+%token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR
 %token			ARROW INFER TYPE SIZEOF TYPEOF TYPEID
 %nonassoc		IFX
@@ -159,7 +159,9 @@ fn_args_call_p:	fn_args_call_p ',' expr { add_fn_args_actual(curr_symtable, $3);
 
 stmt:		';'			{ $$ = make_empty(); }
 	|	expr ';'                { $$ = make_stmt_expr($1); }
-	|	PRINT expr ';'          { $$ = make_stmt_print($2); }
+	|	DBGPRINT expr ';'          { $$ = make_stmt_print($2); }
+	|	DBGPRINTTYPE data_type ';' { $$ = make_stmt_print_datatype($2); }
+	|	DBGPRINTTYPE '(' data_type ')' ';' { $$ = make_stmt_print_datatype($3); }
 	|	RET expr ';'            { $$ = make_stmt_ret_expr($2); }
 	|	RET ';'		        { $$ = make_stmt_ret(); }
 	|	let_stmt                { $$ = $1; }

@@ -1,0 +1,24 @@
+fn main() {
+    dbgprinttype ***i32;
+    dbgprinttype ****i32;
+    dbgprinttype *****AA;
+    dbgprinttype ******AA;
+    dbgprinttype II;
+    dbgprinttype AA;
+    dbgprinttype BB;
+    dbgprinttype CC;
+    dbgprinttype DD;
+    dbgprinttype EE;
+    dbgprinttype i32;
+
+    type II = *****AA;
+    type AA = BB;
+    type BB = CC;
+    type CC = DD;
+    
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+
+type DD = EE;
+type EE = i32;
+

@@ -1,0 +1,623 @@
+program `dbgstruct_use1.ca` :
+{AA@0x9c7c60
+}
+{A1@0x9c83a0
+}
+{A2@0x9c8420
+	a: i32,
+	b: i64,
+	c: u32,
+	d: f32,
+	e: f64,
+	f: bool,
+	g: char,
+	h: uchar,
+}
+{A3@0x9c8580
+	a: {AA@0x9c87b0
+	},
+	b: {A1@0x9c88f0
+	},
+	c: {A2@0x9c89e0
+		a: i32,
+		b: i64,
+		c: u32,
+		d: f32,
+		e: f64,
+		f: bool,
+		g: char,
+		h: uchar,
+	},
+}
+{A4@0x9c9060
+	aa: i32,
+	b: *i32,
+	c: **i32,
+	d: ***i32,
+	e: *{AA@0x9c9250
+	},
+	f: **{A1@0x9c93c0
+	},
+	g: *{A3@0x9c9530
+		a: {AA@0x9c9710
+		},
+		b: {A1@0x9c9850
+		},
+		c: {A2@0x9c9940
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	h: **{A2@0x9c9b10
+		a: i32,
+		b: i64,
+		c: u32,
+		d: f32,
+		e: f64,
+		f: bool,
+		g: char,
+		h: uchar,
+	},
+}
+{A5@0x9c8740
+	a: {A4@0x9ca810
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9caaa0
+		},
+		f: **{A1@0x9cac20
+		},
+		g: *{A3@0x9cad50
+			a: {AA@0x9cafd0
+			},
+			b: {A1@0x9cb110
+			},
+			c: {A2@0x9cb200
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9cb330
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	b: *{A4@0x9cb460
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9cb650
+		},
+		f: **{A1@0x9cb780
+		},
+		g: *{A3@0x9cb8b0
+			a: {AA@0x9cb9a0
+			},
+			b: {A1@0x9cba90
+			},
+			c: {A2@0x9cbb80
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9cbcb0
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	c: **{A4@0x9cbef0
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9cc0e0
+		},
+		f: **{A1@0x9cc210
+		},
+		g: *{A3@0x9cc340
+			a: {AA@0x9cc430
+			},
+			b: {A1@0x9cc520
+			},
+			c: {A2@0x9cc610
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9cc740
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	d: ***{A4@0x9cc980
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9ccb70
+		},
+		f: **{A1@0x9ccca0
+		},
+		g: *{A3@0x9ccdd0
+			a: {AA@0x9ccec0
+			},
+			b: {A1@0x9ccfb0
+			},
+			c: {A2@0x9cd0a0
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9cd1d0
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	e: ****{A4@0x9cd410
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9cd600
+		},
+		f: **{A1@0x9cd730
+		},
+		g: *{A3@0x9cd860
+			a: {AA@0x9cd950
+			},
+			b: {A1@0x9cda40
+			},
+			c: {A2@0x9cdb30
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9cdc60
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+}
+{A5@0x9cabc0
+	a: {A4@0x9caa80
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9cfd40
+		},
+		f: **{A1@0x9cfec0
+		},
+		g: *{A3@0x9cfff0
+			a: {AA@0x9d02c0
+			},
+			b: {A1@0x9d0400
+			},
+			c: {A2@0x9d04f0
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d0620
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	b: *{A4@0x9d0750
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9d0940
+		},
+		f: **{A1@0x9d0a70
+		},
+		g: *{A3@0x9d0ba0
+			a: {AA@0x9d0c90
+			},
+			b: {A1@0x9d0d80
+			},
+			c: {A2@0x9d0e70
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d0fa0
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	c: **{A4@0x9d10d0
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9d12c0
+		},
+		f: **{A1@0x9d13f0
+		},
+		g: *{A3@0x9d1520
+			a: {AA@0x9d1610
+			},
+			b: {A1@0x9d1700
+			},
+			c: {A2@0x9d17f0
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d1920
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	d: ***{A4@0x9d1a50
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9d1c40
+		},
+		f: **{A1@0x9d1d70
+		},
+		g: *{A3@0x9d1ea0
+			a: {AA@0x9d1f90
+			},
+			b: {A1@0x9d2080
+			},
+			c: {A2@0x9d2170
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d22a0
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	e: ****{A4@0x9d23d0
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9d25c0
+		},
+		f: **{A1@0x9d26f0
+		},
+		g: *{A3@0x9d2820
+			a: {AA@0x9d2910
+			},
+			b: {A1@0x9d2a00
+			},
+			c: {A2@0x9d2af0
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d2c20
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+}
+*{A5@0x9d2d80
+	a: {A4@0x9d2e70
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9d3060
+		},
+		f: **{A1@0x9d3190
+		},
+		g: *{A3@0x9d32c0
+			a: {AA@0x9d33b0
+			},
+			b: {A1@0x9d34a0
+			},
+			c: {A2@0x9d3590
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d36c0
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	b: *{A4@0x9d37f0
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9d39e0
+		},
+		f: **{A1@0x9d3b10
+		},
+		g: *{A3@0x9d3c40
+			a: {AA@0x9d3d30
+			},
+			b: {A1@0x9d3e20
+			},
+			c: {A2@0x9d3f10
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d4040
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	c: **{A4@0x9d4170
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9d4360
+		},
+		f: **{A1@0x9d4490
+		},
+		g: *{A3@0x9d45c0
+			a: {AA@0x9d46b0
+			},
+			b: {A1@0x9d47a0
+			},
+			c: {A2@0x9d4890
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d49c0
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	d: ***{A4@0x9d4af0
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9d4ce0
+		},
+		f: **{A1@0x9d4e10
+		},
+		g: *{A3@0x9d4f40
+			a: {AA@0x9d5030
+			},
+			b: {A1@0x9d5120
+			},
+			c: {A2@0x9d5210
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d5340
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+	e: ****{A4@0x9d5470
+		aa: i32,
+		b: *i32,
+		c: **i32,
+		d: ***i32,
+		e: *{AA@0x9d5660
+		},
+		f: **{A1@0x9d5790
+		},
+		g: *{A3@0x9d58c0
+			a: {AA@0x9d59b0
+			},
+			b: {A1@0x9d5aa0
+			},
+			c: {A2@0x9d5b90
+				a: i32,
+				b: i64,
+				c: u32,
+				d: f32,
+				e: f64,
+				f: bool,
+				g: char,
+				h: uchar,
+			},
+		},
+		h: **{A2@0x9d5cc0
+			a: i32,
+			b: i64,
+			c: u32,
+			d: f32,
+			e: f64,
+			f: bool,
+			g: char,
+			h: uchar,
+		},
+	},
+}
+**[*[*[*[{A2@0x9caa60
+	a: i32,
+	b: i64,
+	c: u32,
+	d: f32,
+	e: f64,
+	f: bool,
+	g: char,
+	h: uchar,
+}; 3]; 4]; 5]; 6]

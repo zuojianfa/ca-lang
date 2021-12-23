@@ -1,0 +1,64 @@
+// test for non recursive type
+fn main() {
+    struct AA {}
+    struct A1 {a : i32}
+    struct A2 {a : *f64}
+    struct A3 {a : [f32;64]}
+    struct A4 {b1: A1}
+    struct A5 {b1: *A1}
+    struct A6 {b1: [A1;32]}
+    struct A7 {b2: A2}
+    struct A8 {b2: *A2}
+    struct A9 {b2: [A2;32]}
+    struct A10{b3: A3}
+    struct A11{b3: *A3}
+    struct A12{b3: [A3;32]}
+    struct A13{c3: A6}
+    struct A14{c3: *A6}
+    struct A15{c3: [A6;32]}
+    struct A16{c3: A12}
+    struct A17{c3: *A12}
+    struct A18{c3: [A12;32]}
+    struct A19{c3: A18}
+    struct A20{c3: *A18}
+    struct A21{c3: [A18;32]}
+
+    dbgprinttype AA ; // {AA}
+    dbgprinttype A1 ; // {A1; a: i32}
+    dbgprinttype A2 ; // {A2; a: *f64}
+    dbgprinttype A3 ; // {A3; a: [f32; 64]}
+    dbgprinttype A4 ; // {A4; b1: {A1; a: i32}}
+    dbgprinttype A5 ; // {A5; b1: *{A1; a: i32}}
+    dbgprinttype A6 ; // {A6; b1: [{A1; a: i32}; 32]}
+    dbgprinttype A7 ; // {A7; b2: {A2; a: *f64}}
+    dbgprinttype A8 ; // {A8; b2: *{A2; a: *f64}}
+    dbgprinttype A9 ; // {A9; b2: [{A2; a: *f64};32]}
+    dbgprinttype A10; // {A10; b3: {A3; a: [f32; 64]}}
+    dbgprinttype A11; // {A11; b3: *{A3; a: [f32; 64]}}
+    dbgprinttype A12; // {A12; b3: [{A3; a: [f32; 64]};32]}
+    dbgprinttype A13; // {A13; c3: {A6; b1: [{A1; a: i32}; 32]}}
+    dbgprinttype A14; // {A14; c3: *{A6; b1: [{A1; a: i32}; 32]}}
+    dbgprinttype A15; // {A15; c3: [{A6; b1: [{A1; a: i32}; 32]};32]}
+    dbgprinttype A16; // {A16; c3: {A12; b3: [{A3; a: [f32; 64]};32]}}
+    dbgprinttype A17; // {A17; c3: *{A12; b3: [{A3; a: [f32; 64]};32]}}
+    dbgprinttype A18; // {A18; c3: [{A12; b3: [{A3; a: [f32; 64]};32]};32]}
+    dbgprinttype A19; // {A19; c3: {A18; c3: [{A12; b3: [{A3; a: [f32; 64]};32]};32]}}
+    dbgprinttype A20; // {A20; c3: *{A18; c3: [{A12; b3: [{A3; a: [f32; 64]};32]};32]}}
+    dbgprinttype A21; // {A21; c3: [{A18; c3: [{A12; b3: [{A3; a: [f32; 64]};32]};32]};32]}
+    dbgprinttype A22;
+    dbgprinttype A23;
+    dbgprinttype A24;
+    dbgprinttype A25;
+    dbgprinttype A26;
+    dbgprinttype *[*A26;6];
+    dbgprinttype A28;
+
+    type A22 = A21;
+    type A23 = A22;
+    struct A24{v1: A10, v2: A21}
+    struct A25{v1: *A10, v2: **[A21;3]}
+    struct A26{v1: [A10;3], v2: *[*A25;4]}
+    struct A28{v1: [A10;3], v2: *[*A25;4], v3: A10, v4: *A10, v5: A25}
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}

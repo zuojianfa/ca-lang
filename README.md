@@ -250,7 +250,7 @@ detailed TODO LIST:
 *2 	 	    make_vardef 			    '='
 *1 	 	    make_stmt_ret 			    RET
 *1 	 	    make_stmt_ret_expr 		    RET
-*1 	 	    make_stmt_print 		    PRINT
+*1 	 	    make_stmt_print 		    DBGPRINT
 *listlen  	make_stmt_list_zip 		    stmt_list ';'
 2	 	    make_expr  			        ';'
 

@@ -230,7 +230,7 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname,
 }
 
 static int is_valued_expr(int op) {
-  return (op != PRINT && op != RET);
+  return (op != DBGPRINT && op != RET && op != DBGPRINTTYPE);
 }
 
 #if 0
@@ -547,7 +547,7 @@ static void walk_expr_ife(ASTNode *p) {
   walk_if_common(p);
 }
 
-static void walk_print(ASTNode *p) {
+static void walk_dbgprint(ASTNode *p) {
   inference_expr_type(p->printn.expr);
   walk_stack(p->printn.expr);
   auto pair = pop_right_value();
@@ -570,6 +570,43 @@ static void walk_print(ASTNode *p) {
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
   ir1.builder().CreateCall(printf_fn, printf_args, "n");
+}
+
+static void walk_dbgprinttype(ASTNode *p) {
+  int typesize = 0;
+  CADataType *dt = nullptr;
+  typeid_t unwind = catype_unwind_type_signature(p->symtable, p->printtypen.type, &typesize, &dt);
+  if (unwind == typeid_novalue) {
+    yyerror("line: %d, col: %d: unwind type `%s` failed",
+	    p->begloc.col, p->begloc.row, symname_get(p->printtypen.type));
+    return;
+  }
+
+  // print datatype information when compiling
+  debug_catype_datatype(dt);
+
+#if 1 // when need print in run uncomment it
+  Function *printf_fn = ir1.module().getFunction("printf");
+  if (!printf_fn)
+    yyerror("cannot find declared extern printf function");
+
+  // handle expression value transfer
+  const char *format = "size = %lu, type: %s\n";
+  Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
+
+  // TODO: type string
+  Constant *type_str = ir1.builder().CreateGlobalStringPtr(symname_get(unwind));
+
+  Value *value = ir1.gen_int((uint64_t)typesize);
+  std::vector<Value *> printf_args(1, format_str);
+  printf_args.push_back(value);
+  printf_args.push_back(type_str);
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col);
+
+  ir1.builder().CreateCall(printf_fn, printf_args, "n");
+#endif
 }
 
 // How to inference the type of variable and determine the literal type in right
@@ -943,7 +980,7 @@ static void walk_expr_as(ASTNode *node) {
 
 static void walk_expr_sizeof(ASTNode *id) {
   int typesize = 0;
-  typeid_t unwind = catype_unwind_type_signature(id->symtable, id->idn.i, &typesize);
+  typeid_t unwind = catype_unwind_type_signature(id->symtable, id->idn.i, &typesize, nullptr);
   Value *value = ir1.gen_int((uint64_t)typesize);
 
   auto u = std::make_unique<CalcOperand>(OT_Const, value, U64);
@@ -1143,6 +1180,15 @@ static void walk_struct(ASTNode *node) {
   // TODO: may need generate struct llvm code here
 }
 
+static void walk_typedef(ASTNode *node) {
+  CADataType *dt = catype_get_by_name(node->symtable, node->typedefn.newtype);
+  if (!dt) {
+    yyerror("line: %d, col: %d: get type (or unwind type) `%s` failed",
+	    node->begloc.col, node->begloc.row,
+	    symname_get(node->typedefn.newtype));
+  }
+}
+
 typedef void (*walk_fn_t)(ASTNode *p);
 static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_empty,
@@ -1157,11 +1203,13 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_if,
   (walk_fn_t)walk_expr_as,
   (walk_fn_t)walk_struct,
-  (walk_fn_t)walk_print,
+  (walk_fn_t)walk_dbgprint,
+  (walk_fn_t)walk_dbgprinttype,
   (walk_fn_t)walk_ret,
   (walk_fn_t)walk_assign,
   (walk_fn_t)walk_empty,
   (walk_fn_t)walk_stmtlist,
+  (walk_fn_t)walk_typedef,
 };
 
 static int walk_stack(ASTNode *p) {

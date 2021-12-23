@@ -1,0 +1,38 @@
+// test for recursive type
+fn main() {
+    type R1 = R2;
+    type R2 = R3;
+    type R3 = R4;
+    type R4 = R5;
+    type R5 = *R1;
+
+    type R6 = R6;
+
+    //let a: R6 = 0;
+    
+    //dbgprinttype R1;
+
+    // struct SR2 { r2: *SR2 }
+    // dbgprinttype SR2;
+
+    // struct AA { a: *AA, }
+    // type A1 = AA;
+    // type A2 = A1;
+    // type A3 = A2;
+
+    // type A4 = A7;
+    // type A5 = A4;
+    // type A6 = A5;
+    // type A7 = *A4;
+    
+    // dbgprinttype AA;
+    // dbgprinttype A1;
+    // dbgprinttype A2;
+    // dbgprinttype A3;
+    // dbgprinttype A4;
+    // dbgprinttype A5;
+    // dbgprinttype A6;
+    // dbgprinttype A7;
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}

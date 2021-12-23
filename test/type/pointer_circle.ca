@@ -1,0 +1,10 @@
+fn main() {
+	type A = B;
+	type B = C;
+	type C = *A;
+
+	let a = sizeof(A);
+	let b: A = 0;
+	print a; print '\n';
+}
+

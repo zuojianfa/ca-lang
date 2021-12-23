@@ -32,11 +32,13 @@ typedef enum {
   TTE_If,
   TTE_As,
   TTE_Struct,      // struct definition
-  TTE_Print,
+  TTE_DbgPrint,
+  TTE_DbgPrintType,
   TTE_Ret,
   TTE_Assign,
   TTE_ArgList,
   TTE_StmtList,
+  TTE_TypeDef,
   TTE_Num,
 } ASTNodeType;
 
@@ -133,6 +135,15 @@ typedef struct TPrintNode {
   struct ASTNode *expr;
 } TPrintNode;
 
+typedef struct TPrintTypeNode {
+  typeid_t type;
+} TPrintTypeNode;
+
+typedef struct TTypeDef {
+  typeid_t newtype;
+  typeid_t type;
+} TTypeDef;
+
 typedef struct TRet {
   struct ASTNode *expr;
 } TRet;
@@ -170,6 +181,8 @@ typedef struct ASTNode {
     TIfNode ifn;         /* if statement */
     TExprAsNode exprasn; /* as statement */
     TPrintNode printn;   /* print statement */
+    TPrintTypeNode printtypen;   /* print type statement */
+    TTypeDef typedefn;   /* handle typedef, just for type checking */
     TRet retn;           /* return statement */
     TAssign assignn;     /* assigment value */
     TArgList arglistn;   /* actual argument list */
@@ -233,6 +246,7 @@ ASTNode *make_fn_body(ASTNode *blockbody);
 ASTNode *make_fn_decl(ASTNode *proto);
 void add_fn_args_p(ST_ArgList *arglist, int varg);
 ASTNode *make_stmt_print(ASTNode *expr);
+ASTNode *make_stmt_print_datatype(typeid_t tid);
 ASTNode *make_stmt_expr(ASTNode *expr);
 ASTNode *make_stmt_ret_expr(ASTNode *expr);
 ASTNode *make_stmt_ret();

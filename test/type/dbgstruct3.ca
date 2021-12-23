@@ -1,0 +1,6 @@
+fn main() {
+    dbgprinttype AA;
+    dbgprinttype *AA;
+    struct AA{}
+}
+
