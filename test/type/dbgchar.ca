@@ -1,0 +1,13 @@
+struct A2 {
+    a: i32,
+    f: bool,
+    g: char,
+    h: uchar,
+}
+
+fn main() {
+    dbgprinttype A2;
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

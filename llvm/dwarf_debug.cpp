@@ -35,6 +35,9 @@ void DWARFDebugInfo::initialize_types() {
   _ditypes["bool"] = dibuilder->createBasicType("bool", 8, llvm::dwarf::DW_ATE_boolean);
   _ditypes["char"] = dibuilder->createBasicType("char", 8, llvm::dwarf::DW_ATE_signed_char);
   _ditypes["uchar"] = dibuilder->createBasicType("char", 8, llvm::dwarf::DW_ATE_unsigned_char);
+
+  _ditypes["i8"] = dibuilder->createBasicType("char", 8, llvm::dwarf::DW_ATE_signed_char);
+  _ditypes["u8"] = dibuilder->createBasicType("char", 8, llvm::dwarf::DW_ATE_unsigned_char);
 }
 
 llvm::DIType *DWARFDebugInfo::get_ditype(const char *type) {

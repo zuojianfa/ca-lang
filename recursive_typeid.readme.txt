@@ -1,0 +1,31 @@
+struct A { a: *A; }
+typeid(A) == {A; a: *A}
+
+struct A { b: B }
+struct B { a: *A; }
+typeid(A) == {A; b: {B; a: *A}};
+typeid(B) == {B; a: *{A; b: B}};
+
+struct A {
+    b: B,
+    c: C,
+}
+struct B { c: C }
+struct C { a: *A }
+// struct C { d: D }
+// struct D { a: *A }
+
+typeid(A) == {A; b: {B; c: {C; a: *A}}, c: {C; a: *A}}
+typeid(B) == {B; c: {C; a: *{A; b: B, c: C }}}
+typeid(C) == {C; a: *{A; b: {B; c: C}, c: C}}
+typeid(AA) == typeid(A)
+typeid(BB) == typeid(A)
+type AA = A;
+type BB = AA;
+
+struct A { b: B, c: C}
+struct B { c: C }
+struct C { d: D }
+struct D { a: *A }
+
+

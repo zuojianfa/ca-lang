@@ -137,7 +137,9 @@ const char *sym_form_array_name(const char *name, int dimension) {
 
 // id -> (t:)id or (l:)id
 typeid_t sym_form_type_id(int id) {
-  const char *name = symname_get(id);
+  //const char *name = symname_get(id);
+  const char *name = get_inner_type_string(id);
+  
   const char *typename = sym_form_type_name(name);
   typeid_t typeid = symname_check_insert(typename);
   return typeid;

@@ -24,6 +24,7 @@
 */
 
 #include "ca.h"
+#include "strutil.h"
 
 #include "ca_types.h"
 #include "symtable.h"
@@ -63,9 +64,11 @@ std::unordered_map<std::string, int> s_token_primitive_map {
   {"int",    I32},
   {"i32",    I32},
   {"i64",    I64},
+  {"isize",  I64},
   {"uint",   U32},
   {"u32",    U32},
   {"u64",    U64},
+  {"usize",  U64},
   {"float",  F32},
   {"f32",    F32},
   {"double", F64},
@@ -75,6 +78,27 @@ std::unordered_map<std::string, int> s_token_primitive_map {
   {"char",   CHAR},
   {"u8",     UCHAR},
   {"uchar",  UCHAR},
+};
+
+std::unordered_map<std::string, std::string> s_token_primitive_inner_map {
+  {"void",   "void",},
+  {"int",    "i32", },
+  {"i32",    "i32", },
+  {"i64",    "i64", },
+  {"isize",  "i64", },
+  {"uint",   "u32", },
+  {"u32",    "u32", },
+  {"u64",    "u64", },
+  {"usize",  "u64", },
+  {"float",  "f32", },
+  {"f32",    "f32", },
+  {"double", "f64", },
+  {"f64",    "f64", },
+  {"bool",   "bool",},
+  {"i8",     "i8",  },
+  {"char",   "i8",  },
+  {"u8",     "u8",  },
+  {"uchar",  "u8",  },
 };
 
 //std::unordered_map<typeid_t, CADataTypeList>()
@@ -166,7 +190,20 @@ TypeDB g_typedb[] = {
   {"uchar", 0, 9, 1, UCHAR,TT_Alias},
 };
 
-const char *get_type_string(int tok) {
+const char *get_inner_type_string_by_str(const char *name) {
+  auto itr = s_token_primitive_inner_map.find(name);
+  if (itr != s_token_primitive_inner_map.end())
+    return itr->second.c_str();
+
+  return name;
+}
+
+const char *get_inner_type_string(int id) {
+  const char *name = symname_get(id);
+  return get_inner_type_string_by_str(name);
+}
+
+static const char *get_type_string_common(int tok, bool forid) {
   switch (tok) {
   case VOID:
     return "void";
@@ -185,18 +222,27 @@ const char *get_type_string(int tok) {
   case BOOL:
     return "bool";
   case CHAR:
-    return "char";
+    // TODO: for all above using following one
+    return forid ? get_inner_type_string_by_str("char") : "char";
   case UCHAR:
-    return "uchar";
+    return forid ? get_inner_type_string_by_str("uchar") : "uchar";
   default:
     yyerror("bad type token: %d", tok);
     return nullptr;
   }
 }
 
+const char *get_type_string(int tok) {
+  return get_type_string_common(tok, false);
+}
+
+const char *get_type_string_for_signature(int tok) {
+  return get_type_string_common(tok, true);
+}
+
 typeid_t sym_form_type_id_from_token(tokenid_t tok) {
   char namebuf[16];
-  const char *name = get_type_string(tok);
+  const char *name = get_type_string_for_signature(tok);
   sprintf(namebuf, "t:%s", name);
   return symname_check(namebuf);
 }
@@ -240,6 +286,8 @@ int catype_init() {
   catype_make_type("t:bool", BOOL, 1);          // bool
   catype_make_type("t:char", CHAR, 1);          // char
   catype_make_type("t:uchar", UCHAR, 1);        // uchar
+  catype_make_type("t:i8", CHAR, 1);            // char
+  catype_make_type("t:u8", UCHAR, 1);           // uchar
 
   return 0;
 }
@@ -350,7 +398,7 @@ void debug_catype_datatype_aux(const CADataType *datatype, std::set<const CAData
     fprintf(out_source, "}");
     break;
   default:
-    fprintf(out_source, "%s", get_type_string(datatype->type));
+    fprintf(out_source, "%s", get_type_string_for_signature(datatype->type));
     break;
   }
 }
@@ -359,102 +407,6 @@ void debug_catype_datatype(const CADataType *datatype) {
   std::set<const CADataType *> accessed;
   debug_catype_datatype_aux(datatype, accessed, 0, 0);
   fprintf(out_source, "\n");
-}
-
-// compare 2 types' signature, strict means if do strict compare
-static int catype_compare_type_signature(std::map<std::string, std::string> &prenamemap,
-					 const char *caname1, const char *caname2, int strict)
-{
-  return 0;
-#if 0
-  // TODO: implement it
-
-  // the unwinding algorithm according to the upper type definitions
-  int i = 0;
-  char namebuf[128];
-  const char *pch = caname;
-  STEntry *entry = nullptr;
-  CADataType *dt = nullptr;
-  while(*pch) {
-    switch (*pch) {
-    case '*':
-      // handling pointer: *AA
-    case '&':
-      // handling reference: &AA
-      // TODO: when implementing reference type
-      // & can reprensent the reference type or the get address operator, here
-      // when in type name it must be the reference type
-      break;
-    case '[':
-      // handling array: [AA;N]
-    case '{':
-      // handling structure: {Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, }
-    case '(':
-      // handling tuple - named or unnamed: (<anytype>,<anytype>,<anytype>[,])
-    case '<':
-      // handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
-    case '#':
-      // handling enum: #AA, BB, ... #
-    default:
-      // handling a named type: AA
-      if (!isalpha(*pch))
-	return -1; // format error
-
-      do {
-	namebuf[i++] = *pch++;
-      } while(isalnum(*pch));
-      namebuf[i] = '\0';
-
-      entry = sym_gettypesym_by_name(symtable, namebuf, 1);
-      if (!entry)
-	return -1;
-
-      // when the type is a primitive, then return it
-      dt = catype_get_primitive_by_name(entry->u.datatype.id);
-      if (!dt) {
-	strcpy(sigbuf, namebuf);
-	return 0;
-      }
-
-      // when type is not a structure type directly
-      if (!entry->u.datatype.members) {
-	char buf[4096];
-	const char *name = catype_get_type_name(entry->u.datatype.id);
-
-	int ret = catype_unwind_type_signature_inner(symtable, name, prenamemap, buf, 4096);
-	if (ret == -1) {
-	  yyerror("unwind type `%s` failed", name);
-	  return -1;
-	}
-
-	if (*pch) {
-	  yyerror("type container extra text when unwind type `%s`", name);
-	  return -1;
-	}
-
-	strcpy(sigbuf, buf);
-	return 0;
-      }
-      
-      // handle the struct type condition here
-      // when type is a structure type (complex type should also handle here)
-      ST_ArgList *members = entry->u.datatype.members;
-      members->
-
-      break;
-    }
-  }
-
-  return name;
-#endif
-
-#if 0
-  // TODO: 
-  const char *caname = symname_get(name);
-  STEntry *entry = sym_getsym(symtable, name, 1);
-  if (!entry->u.datatype.members)
-    return catype_get_by_name(symtable, entry->u.datatype.id);
-#endif
 }
 
 // type signature example:
@@ -868,14 +820,9 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   char namebuf[128];
 
   // handling a named type: AA
-  if (!isalpha(*pch))
+  int i = strutil_parse_ident_str(pch, namebuf);
+  if (!i)
     return -1; // format error
-
-  int i = 0;
-  do {
-    namebuf[i++] = *pch++;
-  } while(isalnum(*pch));
-  namebuf[i] = '\0';
 
   typeid_t id = sym_form_type_id_by_str(namebuf);
   CADataType *dt = catype_get_primitive_by_name(id);
@@ -1053,7 +1000,283 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *ty
   return signature;
 }
 
+// skeleton, member-name, type-name
+enum DataTypeCmpLevel {
+  DTCL_Skeleton, // (0 0) the type skeleton must be the same, other factor can
+                 // be different, can compare 2 type's member layout, when same
+                 // means layout same
+  DTCL_TypeName, // (0 1) the type skeleton, type name must be the same, struct
+                 // member name can be different, cannot keep program rightly
+                 // for use different name
+  DTCL_Member, // (1 0) the type skeleton, struct member name must be the same,
+                // type name can be different, can keep program rightly, ca
+                // should use this model
+  DTCL_Strict, // (1 1) the type skeleton, type name, struct member name must be
+               // the same, like C
+};
+
+// return true when strictly compare type name
+static int catypeaux_strict_typename(DataTypeCmpLevel level) {
+  return level == DTCL_TypeName || level == DTCL_Strict;
+}
+
+// return true when strictly compare member name
+static int catypeaux_strict_membername(DataTypeCmpLevel level) {
+  return level == DTCL_Member || level == DTCL_Strict;
+}
+
+// compare 2 types' signature
+// return value: 1: same, 0: not same, -1: when error (e.g. format issue)
+// e.g.
+// {A24;v1:{A10;b3:{A3;a:[f32;64]}},v2:{A21;c3:[{A18;c3:[{A12;b3:[{A3;a:[f32;64]};32]};32]};32]}}
+// notice that: using namemap comparing the data type skeleton, it can only
+// compare when the type name order is exchanged, cannot compare if the type
+// name real have the same member layout, so it can used in a cache, such as
+// data layout cache and when cache not hit then reconstruct the cache
+static int catype_compare_type_by_signature_str(std::map<std::string, std::string> &prenamemap,
+						const char *caname1, const char *caname2,
+						DataTypeCmpLevel cmplevel)
+{
+  if (cmplevel == DTCL_Strict)
+    return !strcmp(caname1, caname2);
+
+  // non strict compare will ignoring the name of structure enum etc.
+  std::map<std::string, std::string> namemap;
+
+  // when ignoring type name compare only consider the name after '{' which is
+  // the struct name, for primitive type name they should do strict compare.
+  // although `rust` can redifinition primitive type but `ca` not support that
+
+  const char *pch1 = caname1;
+  const char *pch2 = caname2;
+
+  char namebuf1[1024];
+  char namebuf2[1024];
+  int i = 0, j = 0;
+
+  int stricttype = catypeaux_strict_typename(cmplevel);
+  int strictmember = catypeaux_strict_membername(cmplevel);
+
+  // here not parse the signature structure, just using simple algorithm to do
+  // the job and without type validation checking, assuming the input is verified
+  // with different prefix character, there are different actions, the core idea
+  // is coping with id names, and identify if it is an type name or struct member
+  // name:
+  // '{': next is type name
+  // ';': next is struct member name when is not a numeric
+  // ',': next is struct member name
+  // or when encounter an alphabetic char, then look back the previous char, and
+  // according to the char to do actions:
+  // '{': encounter a new name that not in the name map, then compare type name
+  // ';' or ',': then compare struct member name
+  // else: the follower is either a primitive type name or the struct name
+  // previously already accessed
+
+  if (isalpha(*pch1) && isalpha(*pch2))
+    return !strcmp(pch1, pch2);
+
+  while (true) {
+    while (!isalpha(*pch1) && *pch1 != '\0' && *pch1 == *pch2) {
+      pch1++;
+      pch2++;
+    }
+
+    // check if anyone scanned over
+    if (*pch1 == '\0' && *pch2 == '\0')
+      return 1;
+    else if (*pch1 == '\0' || *pch2 == '\0') // one over, one not over
+      return 0;
+
+    if (!isalpha(*pch1) || !isalpha(*pch2)) // means *pch1 != *pch2
+      return 0;
+
+    // handling alphabetic case
+    i = strutil_parse_alnum_str(pch1, namebuf1);
+    j = strutil_parse_alnum_str(pch2, namebuf2);
+    if (!i || !j)
+      return -1; // data type format error
+
+    // when not encounter a structure start, it must be not identical
+    switch (*(pch1-1)) {
+    case '{':
+      // compare sub-datatype, first encountered
+      if (stricttype) {
+	if (strcmp(namebuf1, namebuf2))
+	  return 0;
+      } else {
+	namemap.insert(std::make_pair(namebuf1, namebuf2));
+      }
+      break;
+    case ';':
+    case ',':
+      // compare member name
+      if (strictmember) {
+	if (strcmp(namebuf1, namebuf2))
+	  return 0;
+      } // else do nothing, not compare name or use namemap
+      break;
+    default:
+      {
+	// compare sub-datatype, later encountered
+	auto itr = namemap.find(namebuf1);
+	if (itr != namemap.end()) {
+	  if (strcmp(itr->second.c_str(), namebuf2))
+	    return 0;
+	} else {
+	  // when not in map, it must be an primitive type, so just compare them
+	  if (strcmp(namebuf1, namebuf2))
+	    return 0;
+	}
+      }
+      break;
+    }
+
+    pch1 += i; pch2 += j;
+  }
+
+  return -1;
+}
+
+// compare 2 types' signature, strict means if do strict compare
+static int catype_compare_type_by_signature(std::map<std::string, std::string> &prenamemap,
+					    typeid_t name1, typeid_t name2,
+					    DataTypeCmpLevel cmplevel)
+{
+  const char *caname1 = catype_get_type_name(name1);
+  const char *caname2 = catype_get_type_name(name2);
+  return catype_compare_type_by_signature_str(prenamemap, caname1, caname2, cmplevel);
+}
+
+// calculate the type line's closure: all the type's CADataType object
+// in that related to the type and insert into table with signature. e.g.
+// struct A { b: B, c: C }
+// struct B { c: C }
+// struct C { a: *A }
+// type AA = A;
+// type BB = AA;
+//
+// typeid(A) == {A; b: {B; c: {C; a: *A}}, c: {C; a: *A}}
+// typeid(B) == {B; c: {C; a: *{A; b: B, c: C }}}
+// typeid(C) == {C; a: *{A; b: {B; c: C}, c: C}}
+// typeid(AA) == typeid(A)
+// typeid(BB) == typeid(A)
+// when input is 'struct A' it related to type B and C, so here calculate
+// all the typeid of A B and C and finally put them into s_type_map
+// 
+void catype_make_type_closure(SymTable *symtable, typeid_t id) {
+  // NEXT TODO:
+  //catype_get_by_name();
+  
+}
+
+// compact CADataType object of pointer * or array [ into one object 
+static CADataType *catype_formalize_type_compact(CADataType *datatype) {
+  switch(datatype->type) {
+  case POINTER:
+    while (datatype->pointer_layout->type->type == POINTER) {
+      auto *tmp = datatype;
+      int dim = tmp->pointer_layout->dimension;
+      datatype = datatype->pointer_layout->type;
+      datatype->pointer_layout->dimension += dim;
+
+      delete tmp->pointer_layout;
+      delete tmp; // free memory of prevous type
+    }
+
+    datatype->pointer_layout->type =
+      catype_formalize_type_compact(datatype->pointer_layout->type);
+
+    return datatype;
+  case ARRAY:
+    while (datatype->array_layout->type->type == ARRAY) {
+      auto *tmp = datatype->array_layout->type;
+      datatype->array_layout->type = tmp->array_layout->type;
+      for (int i = 0, j = datatype->array_layout->dimension;
+	   i < tmp->array_layout->dimension;
+	   ++i, ++j) {
+	datatype->array_layout->dimarray[j] = tmp->array_layout->dimarray[i];
+      }
+      datatype->array_layout->dimension += tmp->array_layout->dimension;
+
+      delete tmp->array_layout;
+      delete tmp;
+    }
+
+    datatype->array_layout->type =
+      catype_formalize_type_compact(datatype->array_layout->type);
+
+    return datatype;
+  case STRUCT:
+    for (int i = 0; i < datatype->struct_layout->fieldnum; ++i) {
+      auto *&type = datatype->struct_layout->fields[i].type;
+      type = catype_formalize_type_compact(type);
+    }
+
+    return datatype;
+  default: // primitive type
+    return datatype;
+  }
+}
+
+// expand compacted * or array [ into separate CADataType object
+static CADataType *catype_formalize_type_expand(CADataType *datatype) {
+  CADataType *nextdt = nullptr;
+  CADataType *currdt = datatype;
+  int dim = 0;
+  int *parray = nullptr;
+
+  while (true) {
+    switch (currdt->type) {
+    case POINTER:
+      // TODO: make the expanded (use clone following) signature formalname to correct one
+      dim = currdt->pointer_layout->dimension;
+      currdt->pointer_layout->dimension = 1;
+      for (int i = 1; i < dim; ++i) {
+	CADataType *dt = catype_clone_thin(currdt);
+	currdt->pointer_layout->type = dt;
+	currdt = dt;
+      }
+      
+      currdt = currdt->pointer_layout->type;
+      break;
+    case ARRAY:
+      // TODO: make the expanded (use clone following) signature formalname to correct one
+      dim = currdt->array_layout->dimension;
+      parray = currdt->array_layout->dimarray;
+      currdt->array_layout->dimension = 1;
+      for (int i = 1; i < dim; ++i) {
+	CADataType *dt = catype_clone_thin(currdt);
+	dt->array_layout->dimarray[0] = parray[i];
+	currdt->array_layout->type = dt;
+	currdt = dt;
+      }
+
+      currdt = currdt->array_layout->type;
+      break;
+    case STRUCT:
+      for (int i = 0; i < currdt->struct_layout->fieldnum; ++i) {
+	auto *&type = currdt->struct_layout->fields[i].type;
+	type = catype_formalize_type_expand(type);
+      }
+
+      return datatype;
+    default: // primitive type
+      return datatype;
+    }
+  }
+
+  return nullptr;
+}
+
+static CADataType *catype_formalize_type(CADataType *datatype, int compact) {
+  if (compact)
+    return catype_formalize_type_compact(datatype);
+  else
+    return catype_formalize_type_expand(datatype);
+}
+
 CADataType *catype_create_type_from_unwind(int unwind) {
+  // NEXT TODO:
   const char *unwindstr = symname_get(unwind);
 #if 0
   int i = 0;
@@ -1318,7 +1541,6 @@ void determine_literal_type(CALiteral *lit, tokenid_t typetok) {
     return;
   }
 
-  //const char *name = get_type_string(typetok);
   lit->datatype = sym_form_type_id_from_token(typetok);
 
   lit->fixed_type = 1;

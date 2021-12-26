@@ -87,7 +87,7 @@ target_include_directories(irgen PRIVATE . ${CMAKE_CURRENT_BINARY_DIR})
 #add_dependencies(irgen ca.tab.h)
 
 #  ca.h config.h dotgraph.h symtable.h utils.h llvm/IR_generator.h ca.l ca.y
-add_executable(ca ca.y ca.l ca.tab.c lex.yy.c ca_parser.c dotgraph.cpp symtable_cpp.cpp utils.c $<TARGET_OBJECTS:irgen>)
+add_executable(ca ca.y ca.l ca.tab.c lex.yy.c ca_parser.c dotgraph.cpp symtable_cpp.cpp utils.c strutil.c $<TARGET_OBJECTS:irgen>)
 target_link_options(ca PRIVATE ${llvm_ldflags})
 
 # default to debug version without an postfix, when need it just uncomment following one
