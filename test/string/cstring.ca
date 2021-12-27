@@ -1,0 +1,8 @@
+extern fn printf(format: *char, ...) -> i32;
+extern fn puts(s: *char) -> i32;
+
+fn main() {
+    let s: *char = "Hello CA!";
+    puts(s);
+}
+

@@ -23,6 +23,8 @@ int gcolno = 0;
 	} while(0)
 %}
 
+%x L_STRING
+
 %option yylineno
 
 %%
@@ -36,6 +38,9 @@ int gcolno = 0;
 \'.\'		{ ULL(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, CHAR); return LITERAL; }
 "true"		{ ULL(); set_litbuf(&yylval.litb, "1", 1, BOOL); return LITERAL; }
 "false"		{ ULL(); set_litbuf(&yylval.litb, "0", 1, BOOL); return LITERAL; }
+
+\"              { ULL(); BEGIN L_STRING;  }
+
 
 \/\/.*$         { ULL(); /* return COMMENT; */ }
 [-()<>=+*/;{}.:,]	{ ULL(); return *yytext; }

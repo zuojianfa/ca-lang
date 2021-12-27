@@ -1413,7 +1413,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // step 4: create type object
   // NEXT TODO: implement following 2 type
   //dt = catype_create_type_from_unwind(unwind);
-  //dt = catype_formalize_type(dt);
+  dt = catype_formalize_type(dt, 1);
 
   // step 5: update symtable type table
   s_symtable_type_map.insert(std::make_pair(windst, dt));

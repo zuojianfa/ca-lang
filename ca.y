@@ -62,7 +62,7 @@ extern int yychar, yylineno;
   ASTNode *astnode; /* node pointer */
 };
 
-%token	<litb>		LITERAL
+%token	<litb>		LITERAL STR_LITERAL
 %token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER TYPE_UNKNOWN
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
@@ -75,7 +75,7 @@ extern int yychar, yylineno;
 %left			'*' '/'
 %left			AS
 %nonassoc		UMINUS
-%type	<litv>		literal lit_field lit_field_list lit_struct_def
+%type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def lit_array_def lit_array_list
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
@@ -294,10 +294,19 @@ ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; 
 
 literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, $1.typetok, -1); }
 	|	LITERAL IDENT    { create_literal(&$$, $1.text, $1.typetok, sym_primitive_token_from_id($2)); }
+	|	STR_LITERAL      {  }
+	|	lit_array_def    { $$ = $1; }
 	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
 	;
 
-lit_struct_def:	IDENT '{' lit_field_list  '}'
+lit_array_def:	'[' lit_array_list ']'
+	;
+
+lit_array_list:	lit_array_list ',' literal
+	|	literal
+	;
+
+lit_struct_def:	IDENT '{' lit_struct_field_list  '}'
 		{
 		    dot_emit("", "");
 		    // TODO: define structure
@@ -305,15 +314,17 @@ lit_struct_def:	IDENT '{' lit_field_list  '}'
 		}
 	;
 
-lit_field_list:	lit_field_list ',' lit_field
+lit_struct_field_list:
+		lit_struct_field_list ',' lit_struct_field
 		{
 		    dot_emit("", "");
 		    // TODO: define structure 
 		}
-	|	lit_field        { dot_emit("", ""); $$ = $1; }
+	|	lit_struct_field        { dot_emit("", ""); $$ = $1; }
 	;
 
-lit_field:	literal          { dot_emit("", ""); $$ = $1; }
+lit_struct_field:
+		literal          { dot_emit("", ""); $$ = $1; }
 	;
 
 %%
