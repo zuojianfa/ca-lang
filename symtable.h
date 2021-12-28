@@ -99,10 +99,6 @@ typedef struct CALiteral {
   // if need remove this field, just use datatype null or not null for the existance
   int fixed_type;
 
-  // when fixed_type is false, it stand for the type of the default literal value
-  // when have no any context
-  int intent_type;
-
   // the literal I64 for negative integer value, U64 for positive integer value,
   // F64 for floating point value, BOOL is true false value, CHAR is 'x' value,
   // UCHAR is '\x' value

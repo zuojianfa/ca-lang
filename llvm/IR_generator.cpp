@@ -274,21 +274,12 @@ static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  if (!p->litn.litv.fixed_type /* && p->grammartype == NGT_stmt_expr */)
+  if (!p->litn.litv.fixed_type)
     inference_expr_type(p);
 
-  // the intent_type is for determining the binding type of literal value
-  // when fixed_type is set use it else use intent_type
-  tokenid_t typetok = 0;
-  if (p->litn.litv.fixed_type) {
-    CADataType *dt = catype_get_by_name(p->symtable, p->litn.litv.datatype);
-    CHECK_GET_TYPE_VALUE(p, dt, p->litn.litv.datatype);
-    typetok = dt->type;
-  } else {
-    yyerror("line: %d, col: %d: should never used the intent type",
-	    p->begloc.col, p->begloc.row);
-    typetok = p->litn.litv.intent_type;
-  }
+  CADataType *dt = catype_get_by_name(p->symtable, p->litn.litv.datatype);
+  CHECK_GET_TYPE_VALUE(p, dt, p->litn.litv.datatype);
+  tokenid_t typetok = dt->type;
 
   Value *v = gen_literal_value(&p->litn.litv, typetok, p->begloc);
 
@@ -632,10 +623,6 @@ static void walk_dbgprinttype(ASTNode *p) {
 // type as it's type.
 //   when the right side is a final expression (id or literal) then use the id
 //   or the literal's type as the variable's type.
-//   1) when the literal is not determined yet then use the intent_type of the
-//   literal type as both the literal's type and the variable's type. It need
-//   check if the intent_type matches the literal value, when not match then
-//   report an error.
 //   2) when the literal type is determined (with a postfix type), then check if
 //   the literal value matches the determined type.
 //
@@ -843,7 +830,6 @@ static void walk_ret(ASTNode *p) {
       auto itr = function_map.find(curr_fn->getName().str());
       CADataType *retdt = catype_get_by_name(p->symtable, itr->second->fndecln.ret);
       CHECK_GET_TYPE_VALUE(p, retdt, itr->second->fndecln.ret);
-      retn->litn.litv.intent_type = retdt->type;
     }
 
     walk_stack(retn);

@@ -479,7 +479,6 @@ void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t 
   int typetok;
   lit->textid = textid;
   lit->littypetok = littypetok;
-  lit->intent_type = 0;
   if (postfixtypetok == -1) {
     lit->fixed_type = 0;
     lit->postfixtypetok = 0;
