@@ -5,6 +5,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <sstream>
 #include <stack>
 #include <stdint.h>
 #include <stdio.h>
@@ -56,7 +57,8 @@ static int symname_insert(const std::string &s) {
 
   size_t bsize = s_symname_buffer.size();
   s_symname_buffer.resize(tsize);
-  strcpy(&s_symname_buffer[bsize], s.c_str());
+  strncpy(&s_symname_buffer[bsize], s.data(), s.size());
+  s_symname_buffer[tsize-1] = (char)0;
 
   s_symname_name2pos.insert(std::make_pair(s, (int)bsize));
   return bsize;
@@ -77,9 +79,15 @@ int find_lexical_keyword(const char *name) {
   return -1;
 }
 
-void set_litbuf(LitBuffer *litb, char *text, int len, int typetok) {
+void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok) {
   int name = symname_check_insert(text);
 
+  litb->typetok = typetok;
+  litb->len = len;
+  litb->text = name;
+}
+
+void set_litbuf_symname(LitBuffer *litb, int name, int len, int typetok) {
   litb->typetok = typetok;
   litb->len = len;
   litb->text = name;
@@ -107,6 +115,15 @@ int symname_init() {
 
 int symname_check_insert(const char *name) {
   auto s = std::string(name);
+  auto itr = s_symname_name2pos.find(s);
+  if (itr != s_symname_name2pos.end())
+    return itr->second;
+
+  return symname_insert(s);
+}
+
+int symname_binary_check_insert(const char *name, int len) {
+  auto s = std::string(name, len);
   auto itr = s_symname_name2pos.find(s);
   if (itr != s_symname_name2pos.end())
     return itr->second;
@@ -241,6 +258,56 @@ void sym_setsloc(SymTable *st, int idx, SLoc loc) {
 void sym_destroy(SymTable *st) {
   SymTableInner *table = (SymTableInner *)st->opaque;
   delete table;
+}
+
+static std::vector<char> &buffer_prepare(void *handle, int len, int &oldsize) {
+  std::vector<char> &v = *static_cast<std::vector<char> *>(handle);
+  oldsize = v.size();
+  size_t newsize = oldsize + len;
+  if (newsize > v.capacity())
+    v.reserve(newsize * 2);
+
+  v.resize(newsize);
+  return v;
+}
+
+void *buffer_create() {
+  void *v = static_cast<void *>(new std::vector<char>(4096));
+  return v;
+}
+
+void buffer_destroy(void *handle) {
+  std::vector<char> *v = static_cast<std::vector<char> *>(handle);
+  delete v;
+}
+
+void buffer_append(void *handle, const char *text, int len) {
+  int oldsize = 0;
+  auto &v = buffer_prepare(handle, len, oldsize);
+  strncpy(&v[oldsize], text, len);
+}
+
+void buffer_append_char(void *handle, int ch) {
+  int oldsize = 0;
+  auto &v = buffer_prepare(handle, 1, oldsize);
+  v[oldsize] = (char)ch;
+}
+
+int buffer_binary_end(void *handle, int *len) {
+  int oldsize = 0;
+  auto &v = buffer_prepare(handle, 1, oldsize);
+  v[oldsize] = (char)0;
+
+  *len = v.size() - 1;
+  int name = symname_binary_check_insert(v.data(), v.size());
+
+  buffer_destroy(handle);
+  return name;
+}
+
+const char *buffer_end(void *handle, int *len) {
+  int name = buffer_binary_end(handle, len);
+  return symname_get(name);
 }
 
 END_EXTERN_C

@@ -14,6 +14,10 @@ int gcolno_prev = 0;
 int glineno = 1;
 int gcolno = 0;
 
+//#define MAX_STRING_LITERAL_LEN 4096
+//char string_buffer[MAX_STRING_LITERAL_LEN];
+void *string_buffer = NULL;
+
 // update line location information
 #define ULL()                           \
 	do {                            \
@@ -24,6 +28,7 @@ int gcolno = 0;
 %}
 
 %x L_STRING
+%x L_RAW_STRING
 
 %option yylineno
 
@@ -39,8 +44,86 @@ int gcolno = 0;
 "true"		{ ULL(); set_litbuf(&yylval.litb, "1", 1, BOOL); return LITERAL; }
 "false"		{ ULL(); set_litbuf(&yylval.litb, "0", 1, BOOL); return LITERAL; }
 
-\"              { ULL(); BEGIN L_STRING;  }
+  /*****************************************
+   * begin handling string literal *********
+   *****************************************/
 
+  /* following are for raw string without escape semantic and '"" character */
+  /* e.g. r#"abc "Hello world" "Hello Universe" "def" "# */
+
+r#\"	         	{
+				ULL();
+				string_buffer = buffer_create();
+				buffer_append(string_buffer, yytext+3, yyleng-3);
+				BEGIN L_RAW_STRING;
+			}
+<L_RAW_STRING>\n	buffer_append_char(string_buffer, '\n');
+<L_RAW_STRING>\r	buffer_append_char(string_buffer, '\r');
+<L_RAW_STRING>\"#	{
+				BEGIN INITIAL;
+				int len = 0;
+				const char *s = buffer_end(string_buffer, &len);
+				set_litbuf(&yylval.litb, s, len, CSTRING);
+				return STR_LITERAL;
+			}
+<L_RAW_STRING>.		buffer_append_char(string_buffer, yytext[0]);
+
+  /* following are for raw string without escape semantic */
+r\"[^"]*\"	       	{
+				ULL();
+				set_litbuf(&yylval.litb, yytext+2, yyleng-3, CSTRING);
+				return STR_LITERAL;
+			}
+
+  /* following are for simple string without '"' and '\' */
+\"[^"\\]*\"		{
+				ULL();
+				set_litbuf(&yylval.litb, yytext+1, yyleng-2, CSTRING);
+				return STR_LITERAL;
+			}
+  /* following are for general string with '"' and '\' */
+\"[^"\\]*     		{
+				ULL();
+				string_buffer = buffer_create();
+				buffer_append(string_buffer, yytext+1, yyleng-1);
+				BEGIN(L_STRING);
+			}
+<L_STRING>[^"\\]+       buffer_append(string_buffer, yytext, yyleng);
+
+  /* Handle escape sequences in string */
+<L_STRING>\\x[0-9]{1,3} {
+				int code = atoi(yytext + 2);
+				if (code > 255)
+				   yyerror("string escape decimal larger than 255");
+				buffer_append_char(string_buffer, code);
+			}
+
+<L_STRING>\\n           buffer_append_char(string_buffer, '\n');
+<L_STRING>\\r           buffer_append_char(string_buffer, '\r');
+<L_STRING>\\t		buffer_append_char(string_buffer, '\t');
+<L_STRING>\\v		buffer_append_char(string_buffer, '\v');
+<L_STRING>\\a		buffer_append_char(string_buffer, '\a');
+<L_STRING>\\b		buffer_append_char(string_buffer, '\b');
+<L_STRING>\\f		buffer_append_char(string_buffer, '\f');
+<L_STRING>\\\\		buffer_append_char(string_buffer, '\\');
+<L_STRING>\\\"		buffer_append_char(string_buffer, '\"');
+
+<L_STRING>\\.           buffer_append_char(string_buffer, yytext[1]);
+<L_STRING>\\\n          { /* A backslash at the end of the line. Do nothing */ }
+<L_STRING>\"            {
+				BEGIN INITIAL;
+				int len = 0;
+				int s = buffer_binary_end(string_buffer, &len);
+				set_litbuf_symname(&yylval.litb, s, len, CSTRING);
+				return STR_LITERAL;
+			}
+
+<L_STRING><<EOF>>	{ yyerror("end line when processing string\n"); }
+<L_STRING>\\  		{ yyerror("end line when processing string\n"); }
+
+  /*****************************************
+   * end handling string literal *********
+   *****************************************/
 
 \/\/.*$         { ULL(); /* return COMMENT; */ }
 [-()<>=+*/;{}.:,]	{ ULL(); return *yytext; }

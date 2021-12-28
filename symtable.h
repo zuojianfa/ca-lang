@@ -220,7 +220,8 @@ int check_uchar_value_scope(uint8_t lit, tokenid_t typetok);
 int literal_type_convertable(tokenid_t from, tokenid_t to);
 int as_type_convertable(tokenid_t from, tokenid_t to);
 
-void set_litbuf(LitBuffer *litb, char *text, int len, int typetok);
+void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok);
+void set_litbuf_symname(LitBuffer *litb, int name, int len, int typetok);
 
 CAVariable *cavar_create(int name, typeid_t datatype);
 void cavar_destroy(CAVariable **var);
@@ -253,6 +254,14 @@ void sym_destroy(SymTable *t);
 
 int lexical_init();
 int find_lexical_keyword(const char *name);
+
+// create a string buffer
+void *buffer_create();
+void buffer_append(void *handle, const char *text, int len);
+void buffer_append_char(void *handle, int ch);
+// finished the buffer and return symname
+const char *buffer_end(void *handle, int *len);
+int buffer_binary_end(void *handle, int *len);
 
 #ifdef __cplusplus
 END_EXTERN_C

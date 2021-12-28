@@ -372,44 +372,6 @@ typeid_t make_array_type(typeid_t type, LitBuffer *size) {
   /*return catype_make_array_type(type, len);*/
 }
 
-#if 0
-CADataType *get_datatype_by_ident(int id) {
-  // firstly try to get primitive type from primitive type table
-  typeid_t typeid = sym_form_type_id(id);
-  CADataType *type = catype_get_primitive_by_name(typeid);
-  if (type)
-    return type;
-  
-  //return make_instance_type_atomic(id);
-
-  // NEXT TODO: when id is not defined yet, it may can reference the later when it is pointer type. How to do?
-  // how to resolve expression type inference when type is not determined yet
-  // answer: in the end of "block_body: '{'stmt_list_star '}'" determine or backfill the type information
-  // when in previous just register the CADataType sketlon
-  // TODO: make it can use the primitive type name as the variable name
-  // TODO: make the function name can also be the researved word
-  STEntry *entry = sym_getsym(curr_symtable, typeid, 1);
-  if (!entry) {
-#ifdef __SUPPORT_BACK_TYPE__
-    CADataType *type = catype_make_unknown_type(curr_symtable, typeid, 0);
-    return type;
-#else
-    yyerror("line: %d, col: %d: cannot find symbol for id `%s`",
-	    glineno, gcolno, symname_get(id));
-    return NULL;
-#endif
-  }
-
-  if (entry->sym_type != Sym_DataType) {
-    yyerror("line: %d, col: %d: not a type name `%s`",
-	    glineno, gcolno, symname_get(id));
-    return NULL;
-  }
-
-  return entry->u.datatype;
-}
-#endif
-
 ASTNode *make_type_def(int id, typeid_t type) {
   // make it can have the same name for the type name and variable name
   // implemented just like the label type: add a prefix before the type name
@@ -529,6 +491,11 @@ void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t 
     // here can directly determine literal type, it is postfixtypetok
     determine_literal_type(lit, postfixtypetok);
   }
+}
+
+void create_string_literal(CALiteral *lit, const LitBuffer *litb) {
+  // TODO;
+
 }
 
 SymTable *push_new_symtable() {

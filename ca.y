@@ -63,7 +63,7 @@ extern int yychar, yylineno;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
-%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER TYPE_UNKNOWN
+%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER TYPE_UNKNOWN CSTRING
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR
@@ -247,7 +247,7 @@ data_type:	ident_type            { $$ = $1; }
 	;
 
 //atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
-ident_type: 	IDENT { $$ = sym_form_type_id($1); /* get_datatype_by_ident($1) */ }
+ident_type: 	IDENT { $$ = sym_form_type_id($1); }
 		;
 
 struct_type_def: STRUCT IDENT
@@ -294,7 +294,7 @@ ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; 
 
 literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, $1.typetok, -1); }
 	|	LITERAL IDENT    { create_literal(&$$, $1.text, $1.typetok, sym_primitive_token_from_id($2)); }
-	|	STR_LITERAL      {  }
+	|	STR_LITERAL      { create_string_literal(&$$, &$1); }
 	|	lit_array_def    { $$ = $1; }
 	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
 	;
