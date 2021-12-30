@@ -1,0 +1,39 @@
+extern fn printf(format: *char, ...) -> i32;
+extern fn puts(s: *char) -> i32;
+
+fn main() {
+    let format = "%s=====%d";
+    let v = "abcd";
+    printf(format, v, 333);
+
+    // debug it
+    format = "%s=====%d\n";
+    printf(format, v, 333);
+
+    // debug it, it not output now
+    printf("%s=====%d\n", "dddd", 321);
+    
+    let s: *char = "Hello CA!";
+    puts(s);
+
+    let s2 = "Hello S2";
+    puts(s2);
+
+    let s3 = s;
+    puts(s3);
+
+    let s4 = s2;
+    puts(s4);
+
+    puts("\n");
+
+    printf(s);
+    puts("abc\n");
+    printf(s2);
+    puts("abc\n");
+    printf(s3);
+    puts("\n");
+    printf(s4);
+    puts("\n");
+}
+

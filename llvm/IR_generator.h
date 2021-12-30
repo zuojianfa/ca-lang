@@ -19,7 +19,7 @@ struct CalcOperand{
 CalcOperand(OperandType t, llvm::Value *v, tokenid_t typetok) :
   type(t), operand(v), datatypetok(typetok) {}
   OperandType type;
-  tokenid_t datatypetok;
+  tokenid_t datatypetok; // TODO: change it into CADataType object
   llvm::Value *operand;
 };
 

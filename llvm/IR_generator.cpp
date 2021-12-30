@@ -188,11 +188,11 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     CADataType *dt = catype_get_by_name(st, entry->u.var->datatype);
     CHECK_GET_TYPE_VALUE(curr_fn_node, dt, entry->u.var->datatype);
 
-    Type *type = gen_type_from_token(dt->type);
+    Type *type = gen_llvmtype_from_catype(dt);
     AllocaInst *slot = ir1.gen_var(type, name, &arg);
 
     if (enable_debug_info()) {
-      DIType *ditype = diinfo->get_ditype(get_type_string(dt->type));
+      DIType *ditype = diinfo->get_ditype(catype_get_type_name(dt->signature)); // get_type_string(dt->type)
       DILocalVariable *divar = diinfo->dibuilder->createParameterVariable(disp, arg.getName(), i, diunit, row, ditype, true);
 
       const DILocation *diloc = DILocation::get(disp->getContext(), row, 0, disp);
@@ -277,13 +277,13 @@ static Value *walk_literal(ASTNode *p) {
   if (!p->litn.litv.fixed_type)
     inference_expr_type(p);
 
+  // NEXT TODO: put following 3 line into gen_literal_value function
   CADataType *dt = catype_get_by_name(p->symtable, p->litn.litv.datatype);
   CHECK_GET_TYPE_VALUE(p, dt, p->litn.litv.datatype);
-  tokenid_t typetok = dt->type;
 
-  Value *v = gen_literal_value(&p->litn.litv, typetok, p->begloc);
+  Value *v = gen_literal_value(&p->litn.litv, dt, p->begloc);
 
-  auto operands = std::make_unique<CalcOperand>(OT_Const, v, typetok);
+  auto operands = std::make_unique<CalcOperand>(OT_Const, v, dt->type);
   oprand_stack.push_back(std::move(operands));
 
   return v;
@@ -309,8 +309,8 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
     CADataType *dt = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
     CHECK_GET_TYPE_VALUE(p, dt, p->entry->u.var->datatype);
 
-    Type *type = gen_type_from_token(dt->type);
-    const char *typestr = get_type_string(dt->type);
+    Type *type = gen_llvmtype_from_catype(dt);
+    const char *typestr = catype_get_type_name(dt->signature); // get_type_string(dt->type);
 
     // here determine if `#[scope(global)]` is specified
     if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
@@ -956,7 +956,7 @@ static void walk_expr_as(ASTNode *node) {
   auto calco = pop_right_operand("tmpexpr");
   Value *v = calco->operand;
   if (castopt != (ICO)0) {
-    Type *stype = gen_type_from_token(type->type);
+    Type *stype = gen_llvmtype_from_catype(type);
     v = ir1.gen_cast_value(castopt, v, stype);
   }
  
@@ -1051,13 +1051,13 @@ static Function *walk_fn_declare(ASTNode *p) {
     CADataType *dt = catype_get_by_name(p->symtable, entry->u.var->datatype);
     CHECK_GET_TYPE_VALUE(p, dt, entry->u.var->datatype);
 
-    Type *type = gen_type_from_token(dt->type);
+    Type *type = gen_llvmtype_from_catype(dt);
     params.push_back(type);
   }
 
   CADataType *retdt = catype_get_by_name(p->symtable, p->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, p->fndecln.ret);
-  Type *rettype = gen_type_from_token(retdt->type);
+  Type *rettype = gen_llvmtype_from_catype(retdt);
   fn = ir1.gen_extern_fn(rettype, fnname, params, &param_names, !!p->fndecln.args.contain_varg);
   function_map.insert(std::make_pair(fnname, p));
   fn->setCallingConv(CallingConv::C);

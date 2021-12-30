@@ -227,7 +227,7 @@ static const char *get_type_string_common(int tok, bool forid) {
   case UCHAR:
     return forid ? get_inner_type_string_by_str("uchar") : "uchar";
   case CSTRING:
-    return "*u8";
+    return "*i8";
   default:
     yyerror("bad type token: %d", tok);
     return nullptr;
@@ -1800,7 +1800,7 @@ Value *tidy_value_with_arith(Value *v, int typetok) {
   return v;
 }
 
-Type *gen_type_from_token(int tok) {
+Type *gen_llvmtype_from_token(int tok) {
   switch (tok) {
   case VOID:
     return ir1.void_type();
@@ -1824,6 +1824,22 @@ Type *gen_type_from_token(int tok) {
     return ir1.int_type<uint8_t>();
   default:
     return nullptr;
+  }
+}
+
+Type *gen_llvmtype_from_catype(CADataType *catype) {
+  switch (catype->type) {
+  case POINTER:
+    // TODO: implement other type
+    return ir1.intptr_type<int8_t>();
+  case ARRAY:
+    // TODO: implement array type
+    return nullptr;
+  case STRUCT:
+    // TODO: implement struct type
+    return nullptr;
+  default:
+    return gen_llvmtype_from_token(catype->type);
   }
 }
 
@@ -1863,19 +1879,11 @@ static int can_type_binding(CALiteral *lit, tokenid_t typetok) {
   }
 }
 
-Value *gen_literal_value(CALiteral *value, tokenid_t typetok, SLoc loc) {
+Value *gen_primitive_literal_value(CALiteral *value, tokenid_t typetok, SLoc loc) {
   // check if literal value type matches the given typetok, if not match, report error
-  // TODO: use type also from symbol table, when literal also support array or struct, e.g. AA {d,b}
-  CADataType *dt = catype_get_primitive_by_name(value->datatype);
-  if (value->fixed_type && dt->type != typetok) {
-    yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
-	    loc.row, loc.col, get_type_string(dt->type), get_type_string(typetok));
-    return nullptr;
-  }
-
   if (!value->fixed_type && !can_type_binding(value, typetok)) {
     yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
-	    loc.row, loc.col, get_type_string(dt->type), get_type_string(typetok));
+	    loc.row, loc.col, get_type_string(typetok), get_type_string(typetok));
     return nullptr;
   }
 
@@ -1903,6 +1911,33 @@ Value *gen_literal_value(CALiteral *value, tokenid_t typetok, SLoc loc) {
     return ir1.gen_int((uint8_t)parse_to_int64(value));
   default:
     return nullptr;
+  }
+}
+
+Value *gen_literal_value(CALiteral *value, CADataType *dt, SLoc loc) {
+  // TODO: use type also from symbol table, when literal also support array or struct, e.g. AA {d,b}
+  switch(dt->type) {
+  case POINTER:
+    if (value->littypetok == CSTRING) {
+      // create string literal
+      const char *data = symname_get(value->u.strvalue.text);
+      llvm::StringRef strref(data, value->u.strvalue.len);
+      Constant *llvmconststr = ir1.builder().CreateGlobalStringPtr(strref);
+      return llvmconststr;
+    }
+
+    yyerror("other pointer literal not implemented yet");
+    return nullptr;
+  case ARRAY:
+    // TODO:
+    yyerror("the array literal not implemented yet");
+    return nullptr;
+  case STRUCT:
+    // TODO:
+    yyerror("the struct literal not implemented yet");
+    return nullptr;
+  default:
+    return gen_primitive_literal_value(value, dt->type, loc);
   }
 }
 
