@@ -78,6 +78,7 @@ r\"[^"]*\"	       	{
   /* following are for simple string without '"' and '\' */
 \"[^"\\]*\"		{
 				ULL();
+				yytext[yyleng-1] = 0;
 				set_litbuf(&yylval.litb, yytext+1, yyleng-2, CSTRING);
 				return STR_LITERAL;
 			}

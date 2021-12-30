@@ -226,6 +226,8 @@ static const char *get_type_string_common(int tok, bool forid) {
     return forid ? get_inner_type_string_by_str("char") : "char";
   case UCHAR:
     return forid ? get_inner_type_string_by_str("uchar") : "uchar";
+  case CSTRING:
+    return "*u8";
   default:
     yyerror("bad type token: %d", tok);
     return nullptr;
@@ -244,7 +246,7 @@ typeid_t sym_form_type_id_from_token(tokenid_t tok) {
   char namebuf[16];
   const char *name = get_type_string_for_signature(tok);
   sprintf(namebuf, "t:%s", name);
-  return symname_check(namebuf);
+  return symname_check_insert(namebuf);
 }
 
 tokenid_t sym_primitive_token_from_id(typeid_t id) {
@@ -1430,12 +1432,11 @@ typeid_t inference_literal_type(CALiteral *lit) {
   }
 
   const char *text = symname_get(lit->textid);
-  tokenid_t littypetok = lit->littypetok;
   int badscope = 0;
   tokenid_t intentdeftype = 0;
 
   // handle non-fixed type literal value
-  switch (littypetok) {
+  switch (lit->littypetok) {
   case I64:
     intentdeftype = I32;
     lit->u.i64value = atoll(text);
@@ -1472,7 +1473,7 @@ typeid_t inference_literal_type(CALiteral *lit) {
 
   if (badscope) {
     yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	    glineno, gcolno, get_type_string(littypetok), get_type_string(intentdeftype));
+	    glineno, gcolno, get_type_string(lit->littypetok), get_type_string(intentdeftype));
     return typeid_novalue;
   }
 

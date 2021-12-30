@@ -476,16 +476,13 @@ void check_return_type(typeid_t fnrettype) {
 // for the first scan is hard to determine the types, because the expression may
 // have multiple part and the pre part don't know the later part's type
 void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t postfixtypetok) {
-  int typetok;
   lit->textid = textid;
   lit->littypetok = littypetok;
   if (postfixtypetok == -1) {
     lit->fixed_type = 0;
-    lit->postfixtypetok = 0;
     lit->datatype = typeid_novalue;
   } else {
     lit->fixed_type = 1;
-    lit->postfixtypetok = postfixtypetok;
 
     // here can directly determine literal type, it is postfixtypetok
     determine_literal_type(lit, postfixtypetok);
@@ -493,8 +490,12 @@ void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t 
 }
 
 void create_string_literal(CALiteral *lit, const LitBuffer *litb) {
-  // TODO;
-
+  lit->fixed_type = 1;
+  lit->littypetok = litb->typetok; // CSTRING;
+  lit->textid = litb->text;
+  lit->datatype = sym_form_type_id_from_token(litb->typetok);
+  lit->u.strvalue.text = litb->text;
+  lit->u.strvalue.len = litb->len;
 }
 
 SymTable *push_new_symtable() {
@@ -733,16 +734,9 @@ ASTNode *make_label_def(int labelid) {
 }
 
 // TODO: check if these should return typeid_t or tokenid_t
-typeid_t get_expr_type_from_tree(ASTNode *node, int ispost) {
+typeid_t get_expr_type_from_tree(ASTNode *node) {
   switch (node->type) {
   case TTE_Literal:
-    if (ispost) {
-      if (node->litn.litv.postfixtypetok == tokenid_novalue)
-	return typeid_novalue;
-      
-      return sym_form_type_id_from_token(node->litn.litv.postfixtypetok);
-    }
-
     return node->litn.litv.datatype;
   case TTE_Id:
     if (!node->entry || node->entry->sym_type != Sym_Variable) {
@@ -880,9 +874,9 @@ typeid_t inference_expr_type(ASTNode *p) {
 
     // determine if expression type
     // TODO: realize multiple if else statement
-    type1 = inference_expr_expr_type(p->ifn.bodies[0]);
+    type1 = inference_expr_type(p->ifn.bodies[0]);
     if (p->ifn.remain) {
-      typeid_t type2 = inference_expr_expr_type(p->ifn.remain);
+      typeid_t type2 = inference_expr_type(p->ifn.remain);
       if (!catype_check_identical(p->symtable, type1, p->symtable, type2)) {
 	yyerror("line: %d, col: %d: if expression type not same `%s` != `%s`",
 		glineno, gcolno, symname_get(type1), symname_get(type2));

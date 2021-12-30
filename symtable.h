@@ -90,12 +90,14 @@ typedef struct CAPointer {
   int dimension;
 } CAPointer;
 
+typedef struct CAString {
+  int text;
+  int len;
+} CAString;
+
 typedef struct CALiteral {
-  // specify if literal type is defined (fixed) with postfix (u32,f64, ...)
-  // indicate if the literal type is determined, should not combine with
-  // postfixtypetok, because when it have no postfix but it's neibough have an
-  // postfix, then it will use the neighbour's type, but the postfixtypetok
-  // field always be 0
+  // specify if literal type is defined (fixed) with postfix (u32,f64, ...).
+  // indicate if the literal type is determined
   // if need remove this field, just use datatype null or not null for the existance
   int fixed_type;
 
@@ -104,19 +106,18 @@ typedef struct CALiteral {
   // UCHAR is '\x' value
   tokenid_t littypetok;
 
-  int postfixtypetok;      // the postfix type when postfix is set
-
   // text id in symname table, text is used for latering literal type inference
   int textid;
 
   // when the literal type already determined then datatype is not NULL 
-  //CADataType *datatype;
   typeid_t datatype;
   union {
-    int64_t  i64value;      // store either integer type value include unsigned
-    double   f64value;      // store floating value
-    void    *structvalue;
-    void    *arrayvalue;
+    int64_t  i64value;      // store either signed or unsigned integer value
+    double   f64value;      // store floating point value
+
+    CAString strvalue;      // string literal value
+    void    *structvalue;   // struct literal value
+    void    *arrayvalue;    // array literal value
   } u;
 } CALiteral;
 

@@ -259,7 +259,7 @@ static void post_make_expr(ASTNode *p) {
 	  p->exprn.operands[i]->exprn.expr_type == typeid_novalue)
 	post_make_expr(p->exprn.operands[i]);
 
-      expr_types[i] = get_expr_type_from_tree(p->exprn.operands[i], 0);
+      expr_types[i] = get_expr_type_from_tree(p->exprn.operands[i]);
     }
     break;
   }
@@ -678,8 +678,8 @@ static void walk_assign(ASTNode *p) {
 
   typeid_t expr_types[2];
   ASTNode *group[2] = {idn, exprn};
-  expr_types[0] = get_expr_type_from_tree(idn, 0);
-  expr_types[1] = get_expr_type_from_tree(exprn, 0);
+  expr_types[0] = get_expr_type_from_tree(idn);
+  expr_types[1] = get_expr_type_from_tree(exprn);
 
   if (expr_types[0] == typeid_novalue && expr_types[1] == typeid_novalue) {
     expr_types[1] = inference_expr_type(exprn);
@@ -708,7 +708,7 @@ static void walk_assign(ASTNode *p) {
 }
 
 static void walk_expr_minus(ASTNode *p) {
-  typeid_t type = get_expr_type_from_tree(p->exprn.operands[0], 0);
+  typeid_t type = get_expr_type_from_tree(p->exprn.operands[0]);
   CADataType *dt = catype_get_by_name(p->symtable, type);
   CHECK_GET_TYPE_VALUE(p, dt, type);
   if (is_unsigned_type(dt->type)) {
@@ -760,7 +760,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
     else
       determine_expr_type(expr, formaltype);
 
-    realtype = get_expr_type_from_tree(expr, 0);
+    realtype = get_expr_type_from_tree(expr);
     if (formaltype == typeid_novalue)
       formaltype = realtype;    
 
@@ -843,7 +843,7 @@ static void walk_ret(ASTNode *p) {
       typeid_t retty = curr_fn_node->fndefn.fn_decl->fndecln.ret;
       CADataType *retdt = catype_get_by_name(p->symtable, retty);
       CHECK_GET_TYPE_VALUE(retn, retdt, retty);
-      typeid_t exprtype = get_expr_type_from_tree(retn, 0);
+      typeid_t exprtype = get_expr_type_from_tree(retn);
       yyerror("line: %d, column: %d, return value `%s` type '%s' not match function type '%s'",
 	      retn->begloc.row, retn->begloc.col, get_node_name_or_value(retn),
 	      symname_get(exprtype), symname_get(retty));
@@ -881,8 +881,8 @@ static void walk_expr_op2(ASTNode *p) {
   Value *v3 = nullptr;
 
   // TODO: here should can use pair1.second pair2.second
-  typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0], 0);
-  typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1], 0);
+  typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0]);
+  typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1]);
 
   if (!catype_check_identical(p->symtable, typeid1, p->symtable, typeid2)) {
     yyerror("operation have 2 different types: '%s', '%s'",
@@ -940,7 +940,7 @@ static void walk_expr_as(ASTNode *node) {
   inference_expr_type(exprn);
   walk_stack(exprn);
 
-  typeid_t stype = get_expr_type_from_tree(exprn, 0);
+  typeid_t stype = get_expr_type_from_tree(exprn);
   CADataType *dt = catype_get_by_name(node->symtable, stype);
   CHECK_GET_TYPE_VALUE(node, dt, stype);
   tokenid_t stypetok = dt->type;
