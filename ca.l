@@ -29,6 +29,7 @@ void *string_buffer = NULL;
 
 %x L_STRING
 %x L_RAW_STRING
+%x L_COMMENT
 
 %option yylineno
 
@@ -57,16 +58,17 @@ r#\"	         	{
 				buffer_append(string_buffer, yytext+3, yyleng-3);
 				BEGIN L_RAW_STRING;
 			}
-<L_RAW_STRING>\n	buffer_append_char(string_buffer, '\n');
-<L_RAW_STRING>\r	buffer_append_char(string_buffer, '\r');
+<L_RAW_STRING>\n	{ ULL(); ++glineno; gcolno = 0; buffer_append_char(string_buffer, '\n'); }
+<L_RAW_STRING>\r	{ ULL(); ++glineno; gcolno = 0; buffer_append_char(string_buffer, '\r'); }
 <L_RAW_STRING>\"#	{
+				ULL();
 				BEGIN INITIAL;
 				int len = 0;
 				const char *s = buffer_end(string_buffer, &len);
 				set_litbuf(&yylval.litb, s, len, CSTRING);
 				return STR_LITERAL;
 			}
-<L_RAW_STRING>.		buffer_append_char(string_buffer, yytext[0]);
+<L_RAW_STRING>.		{ ULL(); buffer_append_char(string_buffer, yytext[0]); }
 
   /* following are for raw string without escape semantic */
 r\"[^"]*\"	       	{
@@ -89,44 +91,57 @@ r\"[^"]*\"	       	{
 				buffer_append(string_buffer, yytext+1, yyleng-1);
 				BEGIN(L_STRING);
 			}
-<L_STRING>[^"\\]+       buffer_append(string_buffer, yytext, yyleng);
+<L_STRING>[^"\\]+       { ULL(); buffer_append(string_buffer, yytext, yyleng); }
 
   /* Handle escape sequences in string */
 <L_STRING>\\x[0-9]{1,3} {
+				ULL();
 				int code = atoi(yytext + 2);
 				if (code > 255)
 				   yyerror("string escape decimal larger than 255");
 				buffer_append_char(string_buffer, code);
 			}
 
-<L_STRING>\\n           buffer_append_char(string_buffer, '\n');
-<L_STRING>\\r           buffer_append_char(string_buffer, '\r');
-<L_STRING>\\t		buffer_append_char(string_buffer, '\t');
-<L_STRING>\\v		buffer_append_char(string_buffer, '\v');
-<L_STRING>\\a		buffer_append_char(string_buffer, '\a');
-<L_STRING>\\b		buffer_append_char(string_buffer, '\b');
-<L_STRING>\\f		buffer_append_char(string_buffer, '\f');
-<L_STRING>\\\\		buffer_append_char(string_buffer, '\\');
-<L_STRING>\\\"		buffer_append_char(string_buffer, '\"');
+<L_STRING>\\n           { ULL(); buffer_append(string_buffer, "\\n", 2); }
+<L_STRING>\\r           { ULL(); buffer_append(string_buffer, "\\r", 2); }
+<L_STRING>\\t		{ ULL(); buffer_append(string_buffer, "\\t", 2); }
+<L_STRING>\\v		{ ULL(); buffer_append(string_buffer, "\\v", 2); }
+<L_STRING>\\a		{ ULL(); buffer_append(string_buffer, "\\a", 2); }
+<L_STRING>\\b		{ ULL(); buffer_append(string_buffer, "\\b", 2); }
+<L_STRING>\\f		{ ULL(); buffer_append(string_buffer, "\\f", 2); }
+<L_STRING>\\\\		{ ULL(); buffer_append(string_buffer, "\\\\", 2); }
+<L_STRING>\\\"		{ ULL(); buffer_append(string_buffer, "\\\"", 2); }
 
-<L_STRING>\\.           buffer_append_char(string_buffer, yytext[1]);
-<L_STRING>\\\n          { /* A backslash at the end of the line. Do nothing */ }
+<L_STRING>\\.           { ULL(); buffer_append_char(string_buffer, yytext[1]); }
+<L_STRING>\\\n          { ULL(); ++glineno; gcolno = 0; /* A backslash at the end of the line. Do nothing */ }
 <L_STRING>\"            {
+				ULL();
 				BEGIN INITIAL;
 				int len = 0;
 				int s = buffer_binary_end(string_buffer, &len);
 				set_litbuf_symname(&yylval.litb, s, len, CSTRING);
+				printf("string: %s\n", symname_get(s));
 				return STR_LITERAL;
 			}
 
-<L_STRING><<EOF>>	{ yyerror("end line when processing string\n"); }
-<L_STRING>\\  		{ yyerror("end line when processing string\n"); }
+<L_STRING><<EOF>>	{ ULL(); yyerror("end line when processing string\n"); }
+<L_STRING>\\  		{ ULL(); yyerror("end line when processing string\n"); }
 
   /*****************************************
    * end handling string literal *********
    *****************************************/
 
-\/\/.*$         { ULL(); /* return COMMENT; */ }
+ /*
+\/\*                { ULL(); BEGIN L_COMMENT; }
+<L_COMMENT>\n       { ULL(); ++glineno; gcolno = 0; }
+<L_COMMENT>\r       { ULL(); ++glineno; gcolno = 0; }
+<L_COMMENT>\"       { ULL(); }
+<L_COMMENT>\/       { ULL(); }
+<L_COMMENT>\*       { ULL(); }
+<L_COMMENT>\*\/     { BEGIN INITIAL; }
+ */
+
+\/\/.*$         { ULL(); /* return COMMENT; */}
 [-()<>=+*/;{}.:,]	{ ULL(); return *yytext; }
 \#|\[|\]        { ULL(); return *yytext; }
 ">="		{ ULL(); return GE; }
@@ -146,7 +161,7 @@ r\"[^"]*\"	       	{
 
 		return IDENT;
 	}
-\n	{ glineno_prev = glineno; gcolno_prev = gcolno; ++glineno; gcolno = 0; }
+\n	{ ULL(); ++glineno; gcolno = 0; }
 
 [ \t]+	{ ULL(); } /* ignore whitespace */
 
