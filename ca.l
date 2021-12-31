@@ -102,15 +102,15 @@ r\"[^"]*\"	       	{
 				buffer_append_char(string_buffer, code);
 			}
 
-<L_STRING>\\n           { ULL(); buffer_append(string_buffer, "\\n", 2); }
-<L_STRING>\\r           { ULL(); buffer_append(string_buffer, "\\r", 2); }
-<L_STRING>\\t		{ ULL(); buffer_append(string_buffer, "\\t", 2); }
-<L_STRING>\\v		{ ULL(); buffer_append(string_buffer, "\\v", 2); }
-<L_STRING>\\a		{ ULL(); buffer_append(string_buffer, "\\a", 2); }
-<L_STRING>\\b		{ ULL(); buffer_append(string_buffer, "\\b", 2); }
-<L_STRING>\\f		{ ULL(); buffer_append(string_buffer, "\\f", 2); }
-<L_STRING>\\\\		{ ULL(); buffer_append(string_buffer, "\\\\", 2); }
-<L_STRING>\\\"		{ ULL(); buffer_append(string_buffer, "\\\"", 2); }
+<L_STRING>\\n           { ULL(); buffer_append_char(string_buffer, '\n'); }
+<L_STRING>\\r           { ULL(); buffer_append_char(string_buffer, '\r'); }
+<L_STRING>\\t		{ ULL(); buffer_append_char(string_buffer, '\t'); }
+<L_STRING>\\v		{ ULL(); buffer_append_char(string_buffer, '\v'); }
+<L_STRING>\\a		{ ULL(); buffer_append_char(string_buffer, '\a'); }
+<L_STRING>\\b		{ ULL(); buffer_append_char(string_buffer, '\b'); }
+<L_STRING>\\f		{ ULL(); buffer_append_char(string_buffer, '\f'); }
+<L_STRING>\\\\		{ ULL(); buffer_append_char(string_buffer, '\\'); }
+<L_STRING>\\\"		{ ULL(); buffer_append_char(string_buffer, '\"'); }
 
 <L_STRING>\\.           { ULL(); buffer_append_char(string_buffer, yytext[1]); }
 <L_STRING>\\\n          { ULL(); ++glineno; gcolno = 0; /* A backslash at the end of the line. Do nothing */ }
@@ -120,7 +120,6 @@ r\"[^"]*\"	       	{
 				int len = 0;
 				int s = buffer_binary_end(string_buffer, &len);
 				set_litbuf_symname(&yylval.litb, s, len, CSTRING);
-				printf("string: %s\n", symname_get(s));
 				return STR_LITERAL;
 			}
 

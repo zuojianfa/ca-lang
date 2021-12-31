@@ -1408,8 +1408,8 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   }
 
   // start testing
-  const char *tmpstr = symname_get(unwind);
-  printf("typesize: %d\t%s\n", typesize, tmpstr);
+  //const char *tmpstr = symname_get(unwind);
+  //printf("typesize: %d\t%s\n", typesize, tmpstr);
   // end testing
 
   // step 4: create type object

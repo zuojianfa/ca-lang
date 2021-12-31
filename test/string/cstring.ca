@@ -4,5 +4,8 @@ extern fn puts(s: *char) -> i32;
 fn main() {
     let s: *char = "Hello CA!";
     puts(s);
+    let format = r"%s=====%d\n";
+    s = r"abcd\tdef";
+    printf(format, s, 123);
 }
 

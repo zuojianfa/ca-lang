@@ -1,0 +1,22 @@
+extern fn printf(format: *char, ...) -> i32;
+extern fn puts(s: *char) -> i32;
+
+fn main() {
+    let rs: *char = r"
+                A
+              / | \
+            B   C   D
+           /  / |  / \
+          E  F  G H   I
+";
+    puts(rs);
+
+    puts(r"
+                A
+              / | \
+            B   C   D
+           /  / |  / \
+          E  F  G H   I
+");
+}
+

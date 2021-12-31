@@ -1,38 +1,58 @@
 extern fn printf(format: *char, ...) -> i32;
 extern fn puts(s: *char) -> i32;
 
-fn main() {
+fn main() -> i32 {
     let format = "%s=====%d\n";
-    let v = "abcd";
-    printf(format, v, 333);
-    // // debug it
-    // format = "%s=====%d\n";
-    // printf(format, v, 333);
+    let s = "abcd\tdef";
+    printf(format, s, 333);
+    let v = 2;
+    let c = 'a';
+    let n = printf("aaa: %d\nbbb: %d\nccc: %c\nddd: %s\n", 1, v, c, s);
+    printf("n: %d\n\n", n);
 
-    // // debug it, it not output now
-    // printf("%s=====%d\n", "dddd", 321);
+    n = printf("aaa: %d
+	bbb: %d
+	ccc: %c
+	ddd: %s
+	", 1, v, c, s);
+    printf("n: %d\n", n);
+
+    format = "%s=====%d\n";
+    s = "abcd\tdef";
+    printf(format, s, 123);
+
+    format = r"%s=====%d\n";
+    s = r"abcd\tdef";
+    printf(format, s, 123);
+
+    printf("\n");
+
+    // debug it, it not output now
+    printf("%s <===> %d\n", "dddd", 321);
     
-    // let s: *char = "Hello CA!";
-    // puts(s);
+    let ss: *char = "Hello CA!";
+    puts(ss);
 
-    // let s2 = "Hello S2";
-    // puts(s2);
+    let s2 = "Hello S2";
+    puts(s2);
 
-    // let s3 = s;
-    // puts(s3);
+    let s3 = s;
+    puts(s3);
 
-    // let s4 = s2;
-    // puts(s4);
+    let s4 = s2;
+    puts(s4);
 
-    // puts("\n");
+    puts("\n");
+    printf(s);
 
-    // printf(s);
-    // puts("abc\n");
-    // printf(s2);
-    // puts("abc\n");
-    // printf(s3);
-    // puts("\n");
-    // printf(s4);
-    // puts("\n");
+    puts("abc\n");
+    printf(s2);
+    puts("abc\n");
+    printf(s3);
+    puts("\n");
+    printf(s4);
+    puts("\n");
+
+    return 99;
 }
 

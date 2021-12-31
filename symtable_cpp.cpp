@@ -272,7 +272,9 @@ static std::vector<char> &buffer_prepare(void *handle, int len, int &oldsize) {
 }
 
 void *buffer_create() {
-  void *v = static_cast<void *>(new std::vector<char>(4096));
+  auto *pv = new std::vector<char>;
+  pv->reserve(4096);
+  void *v = static_cast<void *>(pv);
   return v;
 }
 

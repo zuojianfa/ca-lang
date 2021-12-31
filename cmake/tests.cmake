@@ -32,6 +32,23 @@ function(do_test prefix result cmd args)
   set(test_case_seq ${test_case_seq} PARENT_SCOPE)
 endfunction()
 
+function(do_testn prefix result cmd args)
+  math(EXPR argc "${ARGC} - 1" OUTPUT_FORMAT DECIMAL)
+  set(argl ${ARGV${argc}})
+  if(ARGC GREATER 3)
+    list(SUBLIST ARGV 3 ${ARGC} arglist)
+  endif()
+
+  set(testname ${prefix}${test_case_seq}-${argl})
+
+  add_test(NAME ${testname} COMMAND ${cmd} ${arglist})
+  set_tests_properties(${testname}
+    PROPERTIES PASS_REGULAR_EXPRESSION ${result}
+    )
+  math(EXPR test_case_seq "${test_case_seq} + 1" OUTPUT_FORMAT DECIMAL)
+  set(test_case_seq ${test_case_seq} PARENT_SCOPE)
+endfunction()
+
 # batch of test cases
 # when exists main function
 do_test(t "define void @timestamp()" ca -ll ../test/extern_call1.ca)
@@ -176,3 +193,11 @@ do_test(type "3" ca ../test/type/typedef.ca)
 do_test(type "34" ca ../test/type/typehir.ca)
 do_test(type "good" ca ../test/type/typeof.ca)
 do_test(type "101" ca ../test/type/typesimple.ca)
+
+set(test_case_seq 1)
+do_test(string "Hello CA!\nabcd[\\]tdef=====123" ca ../test/string/cstring.ca)
+do_test(string "abcd	def=====333\naaa: 1\nbbb: 2\nccc: a\nddd: abcd	def\nn: 35\n\naaa: 1\n	bbb: 2\n	ccc: a\n	ddd: abcd	def\n	n: 39\nabcd	def=====123\nabcd[\\]tdef=====123[\\]n\ndddd <===> 321\nHello CA!\nHello S2\nabcd[\\]tdef\nHello S2\n\n\nabcd[\\]tdefabc\n\nHello S2abc\n\nabcd[\\]tdef\n\nHello S2\n\n\nreturn value: 99\n" ca ../test/string/cstring2.ca)
+do_test(string "Hello[\\]t[\\]r[\\]nCA!\nHello[\\]tCA! r\"ABCD\" \"r \nHello\n		[\\]t[\\]r[\\]nCA!\nHello[\\]tCA!\n		 r\"ABCD\" \"r \n\nreturn value: 26\n" ca ../test/string/cstring3.ca)
+do_test(string "                A\n              / | \\n            B   C   D\n           /  / |  / \\n          E  F  G H   I\n.*                A\n              / | \\n            B   C   D\n           /  / |  / \\n          E  F  G H   I\n" ca ../test/string/cstring4.ca)
+
+

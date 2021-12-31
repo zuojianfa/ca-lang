@@ -2,10 +2,17 @@ extern fn printf(format: *char, ...) -> i32;
 extern fn puts(s: *char) -> i32;
 
 fn main() {
-    let s: *char = "Hello CA!";
-    puts(s);
+    let rs: *char = r"Hello\t\r\nCA!";
+    puts(rs);
 
-    let s2 = "Hello S2";
-    puts(s2);
+    let rs2 = r#"Hello\tCA! r"ABCD" "r "#;
+    puts(rs2);
+
+    rs = r"Hello
+		\t\r\nCA!";
+    puts(rs);
+    rs2 = r#"Hello\tCA!
+		 r"ABCD" "r "#;
+    puts(rs2);
 }
 
