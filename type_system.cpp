@@ -31,13 +31,18 @@
 #include "type_system.h"
 #include "type_system_llvm.h"
 
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/ir1.h"
+#include <array>
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 BEGIN_EXTERN_C
 #include "ca.tab.h"
@@ -1866,31 +1871,51 @@ Type *gen_llvmtype_from_token(int tok) {
 Type *gen_llvmtype_from_catype(CADataType *catype) {
   switch (catype->type) {
   case POINTER: {
-    // TODO: implement other type
-    Type *innertype = gen_llvmtype_from_catype(catype->pointer_layout->type);
-    if (!innertype) {
-      fprintf(stderr, "create type failed: %s\n",
+    // create llvm pointer type
+    Type *kerneltype = gen_llvmtype_from_catype(catype->pointer_layout->type);
+    if (!kerneltype) {
+      fprintf(stderr, "create kernel type for pointer failed: %s\n",
 	      symname_get(catype->pointer_layout->type->signature));
       return nullptr;
     }
-    PointerType *ptrtype = PointerType::get(innertype, 0);
+
+    Type *ptrtype = kerneltype;
+    int i = catype->pointer_layout->dimension;
+    while(i-- > 0)
+      ptrtype = PointerType::get(ptrtype, 0);
+
     return ptrtype;
-    //return ir1.intptr_type<int8_t>();
   }
   case ARRAY: {
-    // TODO: implement array type
+    // create llvm array type
+    Type *kerneltype = gen_llvmtype_from_catype(catype->array_layout->type);
+    if (!kerneltype) {
+      fprintf(stderr, "create kernel type for array failed: %s\n",
+	      symname_get(catype->array_layout->type->signature));
+      return nullptr;
+    }
 
-    //ArrayType *arrtype = ArrayType::get(Type *ElementType, uint64_t NumElements);
-    return nullptr;
+    Type *arrtype = kerneltype;
+    int i = catype->array_layout->dimension;
+    while (--i > -1)
+      arrtype = ArrayType::get(arrtype, catype->array_layout->dimarray[i]);
+
+    return arrtype;
   }
   case STRUCT: {
-    // TODO: implement struct type
-    ArrayRef<Type *> fields;
+    // create llvm struct type
+    size_t fieldnum = catype->struct_layout->fieldnum;
+    std::vector<Type *> fields;
     StringRef name;
     bool pack = false;
-    StructType *sttype = StructType::create(ir1.ctx(), fields, name, pack);
-    //sttype->setBody();
-    return nullptr;
+
+    for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
+      Type *fieldtype = gen_llvmtype_from_catype(catype->struct_layout->fields[i].type);
+      fields.push_back(fieldtype);
+    }
+    
+    StructType *sttype = StructType::get(ir1.ctx(), fields, pack);
+    return sttype;
   }
   default:
     return gen_llvmtype_from_token(catype->type);
@@ -1985,13 +2010,24 @@ Value *gen_literal_value(CALiteral *value, CADataType *dt, SLoc loc) {
       return llvmconststr;
     }
 
+    //Type *type = gen_llvmtype_from_catype(dt);
+
+    //ir1.builder().CreateGlobalStringPtr(format);
+    //ir1.builder().CreatePointerCast(Value *V, Type *DestTy);
+    //ConstantPointerNull;
+    
     yyerror("other pointer literal not implemented yet");
     return nullptr;
   case ARRAY:
     // TODO:
+    //ConstantArray::get(ArrayType *T, ArrayRef<Constant *> V);
+    //ConstantDataArray;
+    //FeatureBitArray;
+
     yyerror("the array literal not implemented yet");
     return nullptr;
   case STRUCT:
+    //ConstantStruct::get();
     // TODO:
     yyerror("the struct literal not implemented yet");
     return nullptr;

@@ -147,6 +147,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] handle the main function begin position
 
 ## Grammar
+- [x] support `__zero_init__` value for initial the value of any type with 0 initialized
 - [x] add function functionality
 - [ ] support array
 - [ ] support layered variable definition
@@ -247,9 +248,8 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO: 
 - [ ] implement `gen_zero_literal_value` ``
-- [ ] add a special literal value which stand for initialize the type with 0 like `__zero_init__`
 - [ ] UCHAR -> U8, CHAR -> I8
-- [ ] impl `gen_llvmtype_from_catype`, `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
+- [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
 - [ ] implement following functions: 
   `catype_compare_type_signature`, 
   `catype_make_type_closure`,
