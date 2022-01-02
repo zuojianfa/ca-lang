@@ -39,6 +39,7 @@ typedef enum {
   TTE_ArgList,
   TTE_StmtList,
   TTE_TypeDef,
+  TTE_VarDefValue, // the value of `__zero_init__` to specify initial all with 0, carry nothing
   TTE_Num,
 } ASTNodeType;
 
@@ -271,6 +272,7 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
 //ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
 ASTNode *make_id(int id, IdType idtype);
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global);
+ASTNode *make_vardef_zero_value();
 ASTNode *make_assign(int id, ASTNode *exprn);
 ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);

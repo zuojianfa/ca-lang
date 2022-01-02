@@ -31,6 +31,7 @@
 #include "type_system.h"
 #include "type_system_llvm.h"
 
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/ir1.h"
 #include <cctype>
 #include <cstdint>
@@ -145,6 +146,7 @@ std::unordered_map<std::string, int> s_token_map = {
   {"sizeof", SIZEOF},
   {"typeof", TYPEOF},
   {"typeid", TYPEID},
+  {"__zero_init__", ZERO_INITIAL},
 };
 
 static CADataType *catype_make_type(const char *name, int type, int size);
@@ -307,14 +309,17 @@ CADataType *catype_get_primitive_by_name(typeid_t name) {
   return itr->second;
 }
 
-int catype_put_by_token(int token, CADataType *datatype) {
-  // TODO:
+int catype_put_primitive_by_token(tokenid_t token, CADataType *datatype) {
+  // TODO: this function should never used
+  typeid_t name = sym_form_type_id_from_token(token);
+  catype_put_primitive_by_name(name, datatype);
   return 0;
 }
 
-CADataType *catype_get_by_token(int token) {
-  // TODO:
-  return nullptr;
+CADataType *catype_get_primitive_by_token(tokenid_t token) {
+  typeid_t name = sym_form_type_id_from_token(token);
+  CADataType *dt = catype_get_primitive_by_name(name);
+  return dt;
 }
 
 #define out_source stderr
@@ -1486,7 +1491,8 @@ typeid_t inference_literal_type(CALiteral *lit) {
 // determine and set the literal type for the literal for a specified type,
 // different from `inference_literal_type` which have no a defined type
 // parameter
-void determine_literal_type(CALiteral *lit, tokenid_t typetok) {
+void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
+  tokenid_t typetok = catype->type;
   if (typetok == tokenid_novalue || typetok == VOID)
     return;
 
@@ -1500,8 +1506,21 @@ void determine_literal_type(CALiteral *lit, tokenid_t typetok) {
     return;
   }
 
-  const char *text = symname_get(lit->textid);
+  switch (typetok) {
+  case CSTRING:
+  case POINTER:
+  case ARRAY:
+  case STRUCT:
+    lit->datatype = catype->signature; // TODO: this signature here may not accurrate yet
+    lit->catype = catype;
+    lit->fixed_type = 1;
+    return;
+  default:
+    break;
+  }
 
+  // folliwing is for primitive -> primitive type
+  const char *text = symname_get(lit->textid);
   int badscope = 0;
 
   // check literal value scope
@@ -1547,6 +1566,28 @@ void determine_literal_type(CALiteral *lit, tokenid_t typetok) {
   lit->fixed_type = 1;
 }
 
+void determine_literal_type(CALiteral *lit, CADataType *catype) {
+  if (!catype)
+    return;
+
+  tokenid_t typetok = catype->type;
+  tokenid_t littypetok = lit->littypetok;
+
+  // TODO: check if can convert
+  switch (littypetok) {
+  case CSTRING:
+  case POINTER:
+  case ARRAY:
+  case STRUCT:
+    // TODO: implementing these kind of type conversion when encounter
+    yyerror("cannot convert complex type to any type, may need change the functionality later");
+    break;
+  default:
+    determine_primitive_literal_type(lit, catype);
+    break;
+  }
+}
+
 CADataType *catype_clone_thin(const CADataType *type) {
   auto dt = new CADataType;
   dt->formalname = type->formalname;
@@ -1587,11 +1628,6 @@ CADataType *catype_make_type_symname(typeid_t name, int type, int size) {
   dt->signature = name;
   dt->struct_layout = nullptr;
   //catype_put_primitive_by_name(name, dt);
-  return dt;
-}
-
-CADataType *catype_make_unknown_type(SymTable *scope, typeid_t id, int size) {
-  CADataType *dt = catype_make_type_symname(id, TYPE_UNKNOWN, size);
   return dt;
 }
 
@@ -1829,15 +1865,33 @@ Type *gen_llvmtype_from_token(int tok) {
 
 Type *gen_llvmtype_from_catype(CADataType *catype) {
   switch (catype->type) {
-  case POINTER:
+  case POINTER: {
     // TODO: implement other type
-    return ir1.intptr_type<int8_t>();
-  case ARRAY:
+    Type *innertype = gen_llvmtype_from_catype(catype->pointer_layout->type);
+    if (!innertype) {
+      fprintf(stderr, "create type failed: %s\n",
+	      symname_get(catype->pointer_layout->type->signature));
+      return nullptr;
+    }
+    PointerType *ptrtype = PointerType::get(innertype, 0);
+    return ptrtype;
+    //return ir1.intptr_type<int8_t>();
+  }
+  case ARRAY: {
     // TODO: implement array type
+
+    //ArrayType *arrtype = ArrayType::get(Type *ElementType, uint64_t NumElements);
     return nullptr;
-  case STRUCT:
+  }
+  case STRUCT: {
     // TODO: implement struct type
+    ArrayRef<Type *> fields;
+    StringRef name;
+    bool pack = false;
+    StructType *sttype = StructType::create(ir1.ctx(), fields, name, pack);
+    //sttype->setBody();
     return nullptr;
+  }
   default:
     return gen_llvmtype_from_token(catype->type);
   }
@@ -1912,6 +1966,11 @@ Value *gen_primitive_literal_value(CALiteral *value, tokenid_t typetok, SLoc loc
   default:
     return nullptr;
   }
+}
+
+Value *gen_zero_literal_value(CADataType *catype) {
+  // TODO: implement it
+  return nullptr;
 }
 
 Value *gen_literal_value(CALiteral *value, CADataType *dt, SLoc loc) {
@@ -2044,6 +2103,7 @@ Value *create_def_value(int typetok) {
   }
 }
 
+// used for `as` value convertion
 // VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER
 // Trunc ZExt SExt FPToUI FPToSI UIToFP SIToFP FPTrunc FPExt PtrToInt IntToPtr BitCast AddrSpaceCast
 // CastOpsBegin stand for no need convert, CastOpsEnd stand for cannot convert
@@ -2200,23 +2260,30 @@ Instruction::CastOps gen_cast_ops(int fromtok, int totok) {
   return llvmtype_cast_table[fromtok-VOID][totok-VOID];
 }
 
-// used for literal value convertion, left side is lexical literal value (I64
-// stand for negative integer value, U64 stand for positive integer value, F64
-// stand for floating point value) right side is real literal value
-// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER
-static int s_literal_type_convertable_table[ATOMTYPE_END - VOID + 1][ATOMTYPE_END - VOID + 1] = {
+// used for literal value convertion
+// 1. for the type that before ATOMTYPE_END, it use following regulars:
+//   left side is lexical literal value (I64 stand for negative integer value,
+//   U64 stand for positive integer value, F64 stand for floating point value)
+//   right side is real literal value
+// 2. for the type that after ATOMTYPE_END, it use different regulars:
+//   they are have no scope checking, because they are non-primitive type
+// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
+static int s_literal_type_convertable_table[ATOMTYPE_END - VOID + 1][CSTRING - ATOMTYPE_END + ATOMTYPE_END - VOID + 1] = {
   {0, }, // VOID -> other-type, means convert from VOID type to other type
   {0, },   // I32 -> other-type
-  {0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0}, // I64 ->
-  {0, }, // U32 ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0}, // U64 ->
-  {0, }, // F32 ->
-  {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0}, // F64 ->
-  {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, // BOOL ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0}, // CHAR ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0}, // UCHAR ->
-  //  {0, }, // STRUCT
+  {0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 1, 1,}, // I64 ->
+  {0, }, // U32 ->						  
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 1, 1,}, // U64 ->
+  {0, }, // F32 ->						  
+  {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 0,}, // F64 ->
+  {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 0,}, // BOOL ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 1, 1,}, // CHAR ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 1, 1,}, // UCHAR ->
   {0, }, // ATOMTYPE_END
+  // {0, }, // STRUCT, these 4 should just is stub, they should not come here
+  // {0, }, // ARRAY ->
+  // {0, }, // POINTER ->
+  // {0, }, // CSTRING ->
 };
 
 int literal_type_convertable(tokenid_t from, tokenid_t to) {

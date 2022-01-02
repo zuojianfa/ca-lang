@@ -672,10 +672,7 @@ static void walk_dbgprinttype(ASTNode *p) {
 // (variable)'s type
 // 4) both have no type, then inference the right side expression type with
 // default one and apply it into the left side variable
-static void walk_assign(ASTNode *p) {
-  ASTNode *idn = p->assignn.id;
-  ASTNode *exprn = p->assignn.expr;
-
+static void inference_assign_type(ASTNode *idn, ASTNode *exprn) {
   typeid_t expr_types[2];
   ASTNode *group[2] = {idn, exprn};
   expr_types[0] = get_expr_type_from_tree(idn);
@@ -685,23 +682,44 @@ static void walk_assign(ASTNode *p) {
     expr_types[1] = inference_expr_type(exprn);
     if (expr_types[1] == typeid_novalue) {
       yyerror("line: %d, column: %d, inference expression type failed",
-	      p->begloc.row, p->begloc.col);
+	      exprn->begloc.row, exprn->begloc.col);
     }
   }
   
   reduce_node_and_type_group(group, expr_types, 2);
+}
+
+static void walk_assign(ASTNode *p) {
+  ASTNode *idn = p->assignn.id;
+  ASTNode *exprn = p->assignn.expr;
+
+  if (exprn->type != TTE_VarDefValue)
+    inference_assign_type(idn, exprn);
 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  walk_stack(exprn);
-  auto pair = pop_right_value("tmpexpr");
-  Value *v = pair.first;
- 
-  Value *vp = walk_id_defv(idn, v);
-
   CADataType *dt = catype_get_by_name(p->symtable, idn->entry->u.var->datatype);
   CHECK_GET_TYPE_VALUE(p, dt, idn->entry->u.var->datatype);
+
+  Value *v = nullptr;
+  if (exprn->type != TTE_VarDefValue) {
+    walk_stack(exprn);
+    auto pair = pop_right_value("tmpexpr");
+    v = pair.first;
+  } else {
+    typeid_t id = get_expr_type_from_tree(idn);
+    if (id == typeid_novalue) {
+      yyerror("line: %d, col: %d: the variable '%s' have not specified a type",
+	      idn->begloc.col, idn->begloc.row, symname_get(idn->idn.i));
+      return;
+    }
+
+    // TODO: initial all zero value with specified type
+    v = gen_zero_literal_value(dt);
+  }
+ 
+  Value *vp = walk_id_defv(idn, v);
 
   auto u = std::make_unique<CalcOperand>(OT_Store, vp, dt->type);
   oprand_stack.push_back(std::move(u));
@@ -929,8 +947,8 @@ static void walk_expr_op2(ASTNode *p) {
 
 static void walk_expr_as(ASTNode *node) {
   //CADataType *type = node->exprasn.type;
-  CADataType *type = catype_get_by_name(node->symtable, node->exprasn.type);
-  CHECK_GET_TYPE_VALUE(node, type, node->exprasn.type);
+  CADataType *astype = catype_get_by_name(node->symtable, node->exprasn.type);
+  CHECK_GET_TYPE_VALUE(node, astype, node->exprasn.type);
 
   ASTNode *exprn = node->exprasn.expr;
 
@@ -945,22 +963,22 @@ static void walk_expr_as(ASTNode *node) {
   CHECK_GET_TYPE_VALUE(node, dt, stype);
   tokenid_t stypetok = dt->type;
   
-  Instruction::CastOps castopt = gen_cast_ops(stypetok, type->type);
+  Instruction::CastOps castopt = gen_cast_ops(stypetok, astype->type);
   if (castopt == (ICO)-1) {
     yyerror("line: %d, column: %d, cannot convert `%s` into `%s`",
 	    node->begloc.row, node->begloc.col,
-	    get_type_string(stypetok), get_type_string(type->type));
+	    get_type_string(stypetok), get_type_string(astype->type));
     return;
   }
 
   auto calco = pop_right_operand("tmpexpr");
   Value *v = calco->operand;
   if (castopt != (ICO)0) {
-    Type *stype = gen_llvmtype_from_catype(type);
+    Type *stype = gen_llvmtype_from_catype(astype);
     v = ir1.gen_cast_value(castopt, v, stype);
   }
  
-  auto u = std::make_unique<CalcOperand>(calco->type, v, type->type);
+  auto u = std::make_unique<CalcOperand>(calco->type, v, astype->type);
   oprand_stack.push_back(std::move(u));
 }
 
@@ -1175,6 +1193,8 @@ static void walk_typedef(ASTNode *node) {
   }
 }
 
+static void walk_vardefvalue(ASTNode *node) {}
+
 typedef void (*walk_fn_t)(ASTNode *p);
 static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_empty,
@@ -1196,6 +1216,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_empty,
   (walk_fn_t)walk_stmtlist,
   (walk_fn_t)walk_typedef,
+  (walk_fn_t)walk_vardefvalue,
 };
 
 static int walk_stack(ASTNode *p) {

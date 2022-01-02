@@ -63,11 +63,11 @@ extern int yychar, yylineno;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
-%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER TYPE_UNKNOWN CSTRING
+%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR
-%token			ARROW INFER TYPE SIZEOF TYPEOF TYPEID
+%token			ARROW INFER TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			GE LE EQ NE '>' '<'
@@ -76,7 +76,7 @@ extern int yychar, yylineno;
 %left			AS
 %nonassoc		UMINUS
 %type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def lit_array_def lit_array_list
-%type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl
+%type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt struct_type_def type_def
@@ -179,8 +179,12 @@ stmt:		';'			{ $$ = make_empty(); }
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
 	;
 
-let_stmt:	attrib_scope LET iddef '=' expr ';'  { $$ = make_vardef($3, $5, 1); }
-	|	LET iddef '=' expr ';'               { $$ = make_vardef($2, $4, 0); }
+let_stmt:	attrib_scope LET iddef '=' vardef_value ';'  { $$ = make_vardef($3, $5, 1); }
+	|	LET iddef '=' vardef_value ';'               { $$ = make_vardef($2, $4, 0); }
+	;
+
+vardef_value:	expr                { $$ = $1; }
+	|	ZERO_INITIAL        { $$ = make_vardef_zero_value(); }
 	;
 
 ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }

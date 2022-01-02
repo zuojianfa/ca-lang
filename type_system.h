@@ -13,7 +13,8 @@ const char *get_printf_format(int type);
 int is_unsigned_type(tokenid_t type);
 const char *get_printf_format(int type);
 typeid_t inference_literal_type(CALiteral *lit);
-void determine_literal_type(CALiteral *lit, tokenid_t typetok);
+void determine_primitive_literal_type(CALiteral *lit, CADataType *catype);
+void determine_literal_type(CALiteral *lit, CADataType *catype);
 const char *get_inner_type_string_by_str(const char *name);
 const char *get_inner_type_string(int id);
 const char *get_type_string(int tok);
@@ -23,14 +24,13 @@ CADataType *catype_make_type_symname(int formalname, int type, int size);
 CADataType *catype_make_pointer_type(CADataType *datatype);
 CADataType *catype_make_array_type(CADataType *type, uint64_t len);
 CADataType *catype_make_struct_type(int symname, ST_ArgList *arglist);
-CADataType *catype_make_unknown_type(SymTable *scope, typeid_t id, int size);
 
 // type finding
 int catype_init();
 int catype_put_primitive_by_name(typeid_t name, CADataType *datatype);
 CADataType *catype_get_primitive_by_name(typeid_t name);
-int catype_put_by_token(int token, CADataType *datatype);
-CADataType *catype_get_by_token(int token);
+int catype_put_primitive_by_token(tokenid_t token, CADataType *datatype);
+CADataType *catype_get_primitive_by_token(tokenid_t token);
 int catype_is_float(tokenid_t typetok);
 CADataType *catype_get_by_name(SymTable *symtable, typeid_t name);
 

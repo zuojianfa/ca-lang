@@ -1,0 +1,29 @@
+extern fn printf(format: *char, ...) -> i32;
+extern fn sprintf(str: *char, format: *char, ...) -> i32;
+extern fn puts(s: *char) -> i32;
+extern fn strcpy(dest: *char, src: *char) -> *char;
+extern fn strcat(dest: *char, src: *char) -> *char;
+extern fn malloc(size: usize) -> *u8;
+extern fn free(ptr: *void);
+extern fn strchr(s: *char, c: i32) -> *char;
+
+fn main() {
+    let h: *char = "hello ";
+    let w: *char = "world!";
+
+    puts(h);
+    puts(w);
+
+    let buffer: *u8 = malloc(20);
+    
+    strcpy(buffer, h);
+    strcat(buffer, w);
+
+    puts(buffer);
+
+    let pos = strchr(buffer, 'w');
+    puts(pos);
+
+    free(buffer);
+}
+

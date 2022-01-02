@@ -225,7 +225,31 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 
 is scopeline the real skip function start for debugging? try it
 
+
+```
+
+(gdb) bt
+#0  yyerror (s=0x46a4a8 "bad type token: %d") at /home/xrsh/git/compiler/ca/ca_parser.c:1702
+#1  0x000000000044604b in get_type_string_common (tok=273, forid=false) at /home/xrsh/git/compiler/ca/type_system.cpp:233
+#2  0x0000000000445ec5 in get_type_string (tok=273) at /home/xrsh/git/compiler/ca/type_system.cpp:239
+#3  0x0000000000447a51 in determine_literal_type (lit=0x4fa2e0, typetok=273) at /home/xrsh/git/compiler/ca/type_system.cpp:1500
+#4  0x0000000000411257 in determine_expr_type (node=0x4fa2b0, type=131) at /home/xrsh/git/compiler/ca/ca_parser.c:947
+#5  0x00000000004119ca in reduce_node_and_type_group (nodes=0x7fffffffd8b0, expr_types=0x7fffffffd8c0, nodenum=2) at /home/xrsh/git/compiler/ca/ca_parser.c:1094
+#6  0x0000000000420a3f in walk_assign (p=0x4fa4b0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:692
+#7  0x000000000041e017 in walk_stack (p=0x4fa4b0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1205
+#8  0x0000000000420bc8 in walk_stmtlist (p=0x5059e0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:400
+#9  0x000000000041e017 in walk_stack (p=0x5059e0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1205
+#10 0x000000000041f6a3 in walk_fn_define (p=0x4fa0a0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1123
+#11 0x000000000041e017 in walk_stack (p=0x4fa0a0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1205
+#12 0x000000000041d304 in walk (tree=0x4e6fa0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1472
+#13 0x000000000041caec in main (argc=2, argv=0x7fffffffdba8) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1619
+```
+
 NEXT TODO: 
+- [ ] implement `gen_zero_literal_value` ``
+- [ ] add a special literal value which stand for initialize the type with 0 like `__zero_init__`
+- [ ] UCHAR -> U8, CHAR -> I8
+- [ ] impl `gen_llvmtype_from_catype`, `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
 - [ ] implement following functions: 
   `catype_compare_type_signature`, 
   `catype_make_type_closure`,

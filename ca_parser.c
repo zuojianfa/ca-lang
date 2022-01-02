@@ -485,7 +485,8 @@ void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t 
     lit->fixed_type = 1;
 
     // here can directly determine literal type, it is postfixtypetok
-    determine_literal_type(lit, postfixtypetok);
+    CADataType *catype = catype_get_primitive_by_token(postfixtypetok);
+    determine_primitive_literal_type(lit, catype);
   }
 }
 
@@ -652,6 +653,14 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global) {
   p->begloc = idn->begloc;
   p->endloc = exprn->endloc;
   p->symtable = symtable;
+  return p;
+}
+
+ASTNode *make_vardef_zero_value() {
+  ASTNode *p = new_ASTNode(TTE_VarDefValue);
+  p->begloc = (SLoc){glineno, gcolno};
+  p->endloc = (SLoc){glineno, gcolno};
+  p->symtable = curr_symtable;
   return p;
 }
 
@@ -933,9 +942,9 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 // from `inference_expr_type` which have no a defined type parameter
 int determine_expr_type(ASTNode *node, typeid_t type) {
   // TODO: handle when complex type
-  CADataType *typeid = catype_get_by_name(node->symtable, type);
-  //CHECK_GET_TYPE_VALUE(node, typeid, type);
-  tokenid_t typetok = typeid ? typeid->type : tokenid_novalue;
+  CADataType *catype = catype_get_by_name(node->symtable, type);
+  //CHECK_GET_TYPE_VALUE(node, catype, type);
+  tokenid_t typetok = catype ? catype->type : tokenid_novalue;
   typeid_t id;
   CADataType *dt;
   switch(node->type) {
@@ -944,7 +953,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
       return 0;
 
     // here determine the literal type in this place compare to when create literal node
-    determine_literal_type(&node->litn.litv, typetok);
+    determine_literal_type(&node->litn.litv, catype);
     break;
   case TTE_Id:
     if (!node->entry) {

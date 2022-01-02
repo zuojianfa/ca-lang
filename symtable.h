@@ -111,6 +111,9 @@ typedef struct CALiteral {
 
   // when the literal type already determined then datatype is not NULL 
   typeid_t datatype;
+
+  // when littypetok is STRUCT ARRAY POINTER CSTRING, and fixed_type true, then it is used
+  CADataType *catype;
   union {
     int64_t  i64value;      // store either signed or unsigned integer value
     double   f64value;      // store floating point value
