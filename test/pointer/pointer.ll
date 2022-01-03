@@ -18,4 +18,4 @@ attributes #0 = { noinline nounwind optnone uwtable "disable-tail-calls"="false"
 !llvm.ident = !{!1}
 
 !0 = !{i32 1, !"wchar_size", i32 4}
-!1 = !{!"clang version 12.0.0"}
+!1 = !{!"Ubuntu clang version 12.0.0-3ubuntu1~20.04.4"}

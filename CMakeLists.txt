@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17.0)
+cmake_minimum_required(VERSION 3.16.0)
 
 project(ca
   VERSION 0.1
@@ -74,8 +74,8 @@ set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "-O2 -g")
 
 # ${CLANGPP_CXXFLAGS} = -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
 # ${CLANGPP_LDFLAGS} = -L/usr/lib/llvm/12/lib64  -lLLVM-12
-set(llvm_cxxflags -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-set(llvm_ldflags -L/usr/lib/llvm/12/lib64  -lLLVM-12)
+set(llvm_cxxflags -I/usr/lib/llvm-12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
+set(llvm_ldflags -L/usr/lib/llvm-12/lib64  -lLLVM-12)
 
 add_subdirectory(llvm)
 

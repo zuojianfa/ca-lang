@@ -1,5 +1,5 @@
 int main() {
-	int *p1 = 0;
-	int *p2 = 0x12345678;
+	unsigned int *p1 = 0;
+	unsigned int *p2 = (unsigned int *)0x12345678;
 }
 

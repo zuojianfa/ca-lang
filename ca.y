@@ -49,7 +49,7 @@ extern int yychar, yylineno;
 
 %}/* symbol table */
 
-%define parse.error detailed
+%define parse.error verbose
 
 %union {
   CADataType *datatype;

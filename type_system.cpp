@@ -1511,6 +1511,8 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
     return;
   }
 
+  // TODO: how to check the scope of array struct and pointer?
+  // here temporary just return true in the scope checking check_i64_value_scope ...
   switch (typetok) {
   case CSTRING:
   case POINTER:
@@ -1518,9 +1520,9 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
   case STRUCT:
     lit->datatype = catype->signature; // TODO: this signature here may not accurrate yet
     lit->catype = catype;
-    lit->fixed_type = 1;
-    return;
+    break;
   default:
+	  lit->datatype = sym_form_type_id_from_token(typetok);
     break;
   }
 
@@ -1565,8 +1567,6 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
 	    glineno, gcolno, get_type_string(littypetok), get_type_string(typetok));
     return;
   }
-
-  lit->datatype = sym_form_type_id_from_token(typetok);
 
   lit->fixed_type = 1;
 }
@@ -2000,6 +2000,8 @@ Value *gen_zero_literal_value(CADataType *catype) {
 
 Value *gen_literal_value(CALiteral *value, CADataType *dt, SLoc loc) {
   // TODO: use type also from symbol table, when literal also support array or struct, e.g. AA {d,b}
+  Type *type = nullptr;
+  Value *llvmvalue = nullptr;
   switch(dt->type) {
   case POINTER:
     if (value->littypetok == CSTRING) {
@@ -2010,8 +2012,18 @@ Value *gen_literal_value(CALiteral *value, CADataType *dt, SLoc loc) {
       return llvmconststr;
     }
 
-    //Type *type = gen_llvmtype_from_catype(dt);
+    type = gen_llvmtype_from_catype(dt);
+    
+    if (value->u.i64value == 0) {
+      llvmvalue = ConstantPointerNull::get(static_cast<PointerType *>(type));
+    } else {
+      llvmvalue = ir1.gen_int<int64_t>(value->u.i64value);
+      //llvmvalue = ir1.builder().CreatePointerCast(llvmvalue, type);
+      llvmvalue = ir1.builder().CreateIntToPtr(llvmvalue, type);
+    }
 
+    return llvmvalue;
+      
     //ir1.builder().CreateGlobalStringPtr(format);
     //ir1.builder().CreatePointerCast(Value *V, Type *DestTy);
     //ConstantPointerNull;
@@ -2140,11 +2152,11 @@ Value *create_def_value(int typetok) {
 }
 
 // used for `as` value convertion
-// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER
+// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 // Trunc ZExt SExt FPToUI FPToSI UIToFP SIToFP FPTrunc FPExt PtrToInt IntToPtr BitCast AddrSpaceCast
 // CastOpsBegin stand for no need convert, CastOpsEnd stand for cannot convert
 static Instruction::CastOps
-llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
+llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
   { // Begin VOID
     (ICO)0,            /* VOID */
     (ICO)-1,           /* I32 */
@@ -2156,7 +2168,11 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     (ICO)-1,           /* CHAR */
     (ICO)-1,           /* UCHAR */
-    //    (ICO)-1            /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // VOID -> ?
   { // Begin I32
     (ICO)-1,           /* VOID */
@@ -2169,7 +2185,11 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::Trunc,        /* CHAR */
     ICO::Trunc,        /* UCHAR */
-    //    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    ICO::IntToPtr,     /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // I32 ->
   { // Begin I64
     (ICO)-1,           /* VOID */
@@ -2182,7 +2202,11 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::Trunc,	       /* CHAR */
     ICO::Trunc,	       /* UCHAR */
-    //    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    ICO::IntToPtr,     /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // I64 ->
   { // Begin U32
     (ICO)-1,           /* VOID */
@@ -2195,7 +2219,11 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::Trunc,	       /* CHAR */
     ICO::Trunc,	       /* UCHAR */
-    //    (ICO)-1            /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    ICO::IntToPtr,     /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // U32 ->
   { // Begin U64
     (ICO)-1,           /* VOID */
@@ -2208,7 +2236,11 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::Trunc,	       /* CHAR */
     ICO::Trunc,	       /* UCHAR */
-    //    (ICO)-1            /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    ICO::IntToPtr,     /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // U64 ->
   { // Begin F32
     (ICO)-1,           /* VOID */
@@ -2221,7 +2253,11 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::FPToSI,       /* CHAR */
     ICO::FPToUI,       /* UCHAR */
-    //    (ICO)-1            /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // F32 ->
   { // Begin F64
     (ICO)-1,           /* VOID */
@@ -2234,7 +2270,11 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::FPToSI,       /* CHAR */
     ICO::FPToUI,       /* UCHAR */
-    //    (ICO)-1            /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // F64 ->
   { // Begin BOOL
     (ICO)-1,           /* VOID */
@@ -2247,7 +2287,11 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)0,            /* BOOL */
     ICO::ZExt,	       /* CHAR */
     ICO::ZExt,	       /* UCHAR */
-    //    (ICO)-1            /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // BOOL ->
   { // Begin CHAR
     (ICO)-1,           /* VOID */
@@ -2260,7 +2304,11 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1 ,          /* BOOL */
     (ICO)0,            /* CHAR */
     ICO::BitCast,      /* UCHAR */
-    //    (ICO)-1            /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // CHAR ->
   { // Begin UCHAR
     (ICO)-1,           /* VOID */
@@ -2273,8 +2321,98 @@ llvmtype_cast_table[ATOMTYPE_END - VOID][ATOMTYPE_END - VOID] = {
     (ICO)-1,           /* BOOL */
     ICO::BitCast,      /* CHAR */
     (ICO)0,            /* UCHAR */
-    //    (ICO)-1            /* STRUCT */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)-1,           /* CSTRING */
   },                   // UCHAR ->
+  { // Begin ATOMTYPE_END
+    (ICO)-1,           /* VOID */
+    (ICO)-1,           /* I32 */
+    (ICO)-1,           /* I64 */
+    (ICO)-1,           /* U32 */
+    (ICO)-1,           /* U64 */
+    (ICO)-1,           /* F32 */
+    (ICO)-1,           /* F64 */
+    (ICO)-1,           /* BOOL */
+    (ICO)-1,           /* CHAR */
+    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)-1,           /* CSTRING */
+  },                   // ATOMTYPE_END -> ?
+  { // Begin STRUCT
+    (ICO)-1,           /* VOID */
+    (ICO)-1,           /* I32 */
+    (ICO)-1,           /* I64 */
+    (ICO)-1,           /* U32 */
+    (ICO)-1,           /* U64 */
+    (ICO)-1,           /* F32 */
+    (ICO)-1,           /* F64 */
+    (ICO)-1,           /* BOOL */
+    (ICO)-1,           /* CHAR */
+    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)-1,           /* CSTRING */
+  },                   // STRUCT -> ?
+  { // Begin ARRAY
+    (ICO)-1,           /* VOID */
+    (ICO)-1,           /* I32 */
+    (ICO)-1,           /* I64 */
+    (ICO)-1,           /* U32 */
+    (ICO)-1,           /* U64 */
+    (ICO)-1,           /* F32 */
+    (ICO)-1,           /* F64 */
+    (ICO)-1,           /* BOOL */
+    (ICO)-1,           /* CHAR */
+    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)-1,           /* CSTRING */
+  },                   // ARRAY -> ?
+  { // Begin POINTER
+    (ICO)-1,           /* VOID */
+    ICO::PtrToInt,     /* I32 */
+    ICO::PtrToInt,     /* I64 */
+    ICO::PtrToInt,     /* U32 */
+    ICO::PtrToInt,     /* U64 */
+    (ICO)-1,           /* F32 */
+    (ICO)-1,           /* F64 */
+    (ICO)-1,           /* BOOL */
+    (ICO)-1,           /* CHAR */
+    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)0,            /* POINTER */
+    (ICO)0,            /* CSTRING */
+  },                   // POINTER -> ?
+  { // Begin CSTRING
+    (ICO)-1,           /* VOID */
+    (ICO)-1,           /* I32 */
+    (ICO)-1,           /* I64 */
+    (ICO)-1,           /* U32 */
+    (ICO)-1,           /* U64 */
+    (ICO)-1,           /* F32 */
+    (ICO)-1,           /* F64 */
+    (ICO)-1,           /* BOOL */
+    (ICO)-1,           /* CHAR */
+    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* ATOMTYPE_END */
+    (ICO)-1,           /* STRUCT */
+    (ICO)-1,           /* ARRAY */
+    (ICO)-1,           /* POINTER */
+    (ICO)0,            /* CSTRING */
+  },                   // CSTRING -> ?
+
 #if 0
   { // Begin STRUCT
     (ICO)-1,           /* VOID */
@@ -2355,6 +2493,11 @@ int check_i64_value_scope(int64_t lit, tokenid_t typetok) {
   case F32:
   case F64:
     return 0;
+  case CSTRING:
+  case POINTER:
+  case ARRAY:
+  case STRUCT:
+    return 0;
   default:
     yyerror("i64 lexcial value incompatible with %s", get_type_string(typetok));
     return -1;
@@ -2388,6 +2531,11 @@ int check_u64_value_scope(uint64_t lit, tokenid_t typetok) {
     if (lit > std::numeric_limits<uint8_t>::max())
       return -1;
     return 0;
+  case CSTRING:
+  case POINTER:
+  case ARRAY:
+  case STRUCT:
+    return 0;
   default:
     yyerror("u64 lexcial value incompatible with %s", get_type_string(typetok));
     return -1;
@@ -2402,7 +2550,7 @@ int check_f64_value_scope(double lit, tokenid_t typetok) {
       return 1;
     return 0;
   case F64:
-    return 0;
+    return 0;    
   default:
     yyerror("f64 lexcial value incompatible with %s", get_type_string(typetok));
     return -1;
