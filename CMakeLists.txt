@@ -113,8 +113,14 @@ endif()
 add_custom_command(TARGET ca POST_BUILD COMMAND cp ca${OUTPUT_NAME_RELEASE} ${CMAKE_SOURCE_DIR})
 
 # testing work
-include("${CMAKE_SOURCE_DIR}/cmake/tests.cmake")
+# enable testing work
+enable_testing()
+
+#include("${CMAKE_SOURCE_DIR}/cmake/tests.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/functions.cmake")
 
 # packages
 include("${CMAKE_SOURCE_DIR}/cmake/packages.cmake")
+
+add_subdirectory(test)
 

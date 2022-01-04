@@ -1,0 +1,57 @@
+# verify usage message work
+add_test(NAME Usage COMMAND ca)
+set_tests_properties(Usage
+  PROPERTIES PASS_REGULAR_EXPRESSION ".*-jit"
+  )
+
+# verify ca can work for default parameter
+add_test(NAME CanRun COMMAND ca ${CMAKE_SOURCE_DIR}/test/goto2.ca)
+
+# batch of test cases
+# when exists main function
+set(test_case_seq 1)
+do_test(t "define void @timestamp()" ca -ll extern_call1.ca)
+do_test(t "56e" ca extern_call2.ca)
+do_test(t "from line 3, to line 5: function verify failed: Call parameter type does not match function signature!" ca -ll extern_printf.ca)
+do_test(t "line: 2, col: 40: function 'putchar' parameter number not identical with previous, see: line 0, col 0." ca extern_multi.ca)
+do_test(t "-824944808" ca fib2.ca)
+do_test(t "801767181" ca fib.ca)
+do_test(t "DISubprogram" ca -ll -g fib2.ca)
+do_test(t "1964338849" ca fib_mvar.ca)
+do_test(t "return value: 101" ca fn_simple2.ca)
+do_test(t "return value: 101" ca fn_simple3.ca)
+do_test(t "111445263496" ca fn_param.ca)
+do_test(t "2011114452634961445263496" ca fn_param2.ca)
+do_test(t "2011114452634960" ca fn_param2_comment.ca)
+do_test(t "40" ca fn_param3.ca)
+do_test(t "12345678910111213141516171819203.000000" ca fn_recursive2.ca)
+do_test(t "49" ca fn_recursive3.ca)
+do_test(t "2" ca goto.ca)
+do_test(t "-1186666367" ca goto2.ca)
+do_test(t "1115000000" ca -O2 goto3.ca)
+do_test(t "8000000" ca goto4.ca)
+do_test(t "41" ca ife.ca)
+do_test(t "4" ca ife2.ca)
+do_test(t "1HL" ca if_expr.ca)
+#do_test(t "1HL" ca if_stmt.ca)
+do_test(t "1Hello ca!.*2Hello ca!.*1Hello ca!.*3Hello ca!.*4Hello ca!.*6Hello ca!.*4Hello ca!.*3Hello ca!.*1Hello ca!.*" ca recur_scope.ca)
+do_test(t "1Hello ca!\n100Hello ca!\n1" ca recur_scope1.ca)
+do_test(t "1010100331" ca recur_scope2.ca)
+do_test(t "131" ca recur_scope3.ca)
+do_test(t "program.*return.ca.*return value: 0" ca return.ca)
+do_test(t "8.900000" ca type1.ca)
+do_test(t "7.900000\n7.400000" ca type2.ca)
+do_test(t "2.30000011.100000" ca type3.ca)
+do_test(t "13.500000.*57.830000.*13.500000.*57.830000.*1.*2.*3.*4.*5.*6.200000.*7.300000.*-2.*-3.*1.*2.*3.*4.*5.*6.200000.*7.300000.*-2.*-3.*1.*-432432.*9223372036854775807.*4000000000.*18446744073709551610.*6.200000.*7.300000.*-2147483648.*-9223372036854775808.*1.*2.*3.*4.*5.*6.200000.*7.300000.*-2147483648.*-9223372036854775808.*.*return value: 0" ca type4.ca)
+do_test(t "10.000000.*79.800000.*57.830000.*2.170000.*50.530000.*12.340000.*.*return value: 0" ca type5.ca)
+do_test(t "6.200000\n13.500000" ca type6.ca)
+do_test(t "32.*344.343231.*3.123000.*A.*1.*323.122300.*.*return value:.*" ca typed_var1.ca)
+do_test(t "return value: 4" ca fn_retconv.ca)
+
+add_subdirectory(nomain)
+add_subdirectory(as)
+add_subdirectory(cmp)
+add_subdirectory(type)
+add_subdirectory(string)
+add_subdirectory(pointer)
+

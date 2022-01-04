@@ -1,7 +1,7 @@
 fn main() {
     let vi: i8 = 121;
     print vi;
-    let vi8:    *i8    = 123451234512345  as *i8;
+    let vi8:    *i8    = 123451234512345i64 as *i8;
     let vi32:   *i32   = 12345 as *i32;
     let vi64:   *i64   = 12345 as *i64;
     let vu8:    *u8    = 12345 as *u8;

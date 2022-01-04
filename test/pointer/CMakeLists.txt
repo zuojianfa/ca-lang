@@ -1,0 +1,11 @@
+set(test_case_seq 1)
+do_testf(pointer "primitives.ca.ll" "primitives.ca.ll.tmp" ca -ll primitives.ca primitives.ca.ll.tmp)
+do_testf(pointer "primitives2.ca.ll" "primitives2.ca.ll.tmp" ca -ll primitives2.ca primitives2.ca.ll.tmp)
+do_testf(pointer "primitives3.ca.ll" "primitives3.ca.ll.tmp" ca -ll primitives3.ca primitives3.ca.ll.tmp)
+do_testf(pointer "primitives_notzero.ca.ll" "primitives_notzero.ca.ll.tmp" ca -ll primitives_notzero.ca primitives_notzero.ca.ll.tmp)
+do_testf(pointer "primitives2_notzero.ca.ll" "primitives2_notzero.ca.ll.tmp" ca -ll primitives2_notzero.ca primitives2_notzero.ca.ll.tmp)
+do_testf(pointer "primitives3_notzero.ca.ll" "primitives3_notzero.ca.ll.tmp" ca -ll primitives3_notzero.ca primitives3_notzero.ca.ll.tmp)
+do_testf(pointer "primitives_minus.ca.ll" "primitives_minus.ca.ll.tmp" ca -ll primitives_minus.ca primitives_minus.ca.ll.tmp)
+do_testf(pointer "primitives2_minus.ca.ll" "primitives2_minus.ca.ll.tmp" ca -ll primitives2_minus.ca primitives2_minus.ca.ll.tmp)
+do_testf(pointer "primitives3_minus.ca.ll" "primitives3_minus.ca.ll.tmp" ca -ll primitives3_minus.ca primitives3_minus.ca.ll.tmp)
+

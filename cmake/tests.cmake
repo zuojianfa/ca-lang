@@ -18,13 +18,13 @@ set(test_case_seq 1)
 function(do_test prefix result cmd args)
   math(EXPR argc "${ARGC} - 1" OUTPUT_FORMAT DECIMAL)
   set(argl ${ARGV${argc}})
-  if(ARGC GREATER 3)
-    list(SUBLIST ARGV 3 ${ARGC} arglist)
-  endif()
+  # if(ARGC GREATER 3)
+  #   list(SUBLIST ARGV 3 ${ARGC} arglist)
+  # endif()
 
   set(testname ${prefix}${test_case_seq}-${argl})
 
-  add_test(NAME ${testname} COMMAND ${cmd} ${arglist})
+  add_test(NAME ${testname} COMMAND ${cmd} ${args} ${ARGN})
   set_tests_properties(${testname}
     PROPERTIES PASS_REGULAR_EXPRESSION ${result}
     )
@@ -32,18 +32,23 @@ function(do_test prefix result cmd args)
   set(test_case_seq ${test_case_seq} PARENT_SCOPE)
 endfunction()
 
-function(do_testn prefix result cmd args)
+function(do_testf prefix samplef resultf cmd args)
   math(EXPR argc "${ARGC} - 1" OUTPUT_FORMAT DECIMAL)
   set(argl ${ARGV${argc}})
-  if(ARGC GREATER 3)
-    list(SUBLIST ARGV 3 ${ARGC} arglist)
-  endif()
-
   set(testname ${prefix}${test_case_seq}-${argl})
+  set(auxtestname aux-${testname})
 
-  add_test(NAME ${testname} COMMAND ${cmd} ${arglist})
-  set_tests_properties(${testname}
-    PROPERTIES PASS_REGULAR_EXPRESSION ${result}
+  set(resultf ${CMAKE_CURRENT_BINARY_DIR}/${resultf})
+  message("ccc: " ${resultf})
+  set(samplef ${CMAKE_CURRENT_SOURCE_DIR}/${samplef})
+  message("ddd: " ${samplef})
+
+  add_test(NAME ${auxtestname} COMMAND ${cmd} ${args} ${ARGN})
+  add_test(NAME ${testname} COMMAND cmp ${samplef} ${resultf})
+  set_tests_properties(${testname} PROPERTIES
+    DEPENDS ${auxtestname}
+    REQUIRED_FILES ${resultf}
+    FAIL_REGULAR_EXPRESSION "differ"
     )
   math(EXPR test_case_seq "${test_case_seq} + 1" OUTPUT_FORMAT DECIMAL)
   set(test_case_seq ${test_case_seq} PARENT_SCOPE)
@@ -202,3 +207,6 @@ do_test(string "                A\n              / | \\n            B   C   D\n 
 do_test(string "hello \nworld!\nhello world!\nworld!\n" ca ../test/string/cstring5.ca)
 
 
+set(test_case_seq 1)
+do_testf(pointer "primitives.ca.ll" "primitives.ca.ll.tmp" ca -ll ../test/pointer/primitives.ca primitives.ca.ll.tmp)
+# do_test(pointer "" )
