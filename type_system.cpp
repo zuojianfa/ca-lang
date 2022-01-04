@@ -1493,6 +1493,11 @@ typeid_t inference_literal_type(CALiteral *lit) {
   return lit->datatype;
 }
 
+static bool is_literal_zero_value(CALiteral *lit) {
+  const char *v = symname_get(lit->textid);
+  return lit->littypetok == U64 && !strcmp(v, "0");
+}
+
 // determine and set the literal type for the literal for a specified type,
 // different from `inference_literal_type` which have no a defined type
 // parameter
@@ -1504,7 +1509,8 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
   tokenid_t littypetok = lit->littypetok;
 
   // check convertable
-  if (!literal_type_convertable(littypetok, typetok)) {
+  if (!is_literal_zero_value(lit) &&
+      !literal_type_convertable(littypetok, typetok)) {
     yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
 	    glineno, gcolno,
 	    get_type_string(littypetok), get_type_string(typetok));
@@ -2445,14 +2451,14 @@ Instruction::CastOps gen_cast_ops(int fromtok, int totok) {
 static int s_literal_type_convertable_table[ATOMTYPE_END - VOID + 1][CSTRING - ATOMTYPE_END + ATOMTYPE_END - VOID + 1] = {
   {0, }, // VOID -> other-type, means convert from VOID type to other type
   {0, },   // I32 -> other-type
-  {0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 1, 1,}, // I64 ->
+  {0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // I64 ->
   {0, }, // U32 ->						  
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 1, 1,}, // U64 ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // U64 ->
   {0, }, // F32 ->						  
   {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 0,}, // F64 ->
   {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 0,}, // BOOL ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 1, 1,}, // CHAR ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 1, 1,}, // UCHAR ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // CHAR ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // UCHAR ->
   {0, }, // ATOMTYPE_END
   // {0, }, // STRUCT, these 4 should just is stub, they should not come here
   // {0, }, // ARRAY ->

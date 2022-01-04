@@ -1,0 +1,31 @@
+fn main() {
+    let vi8:    ***i8    = -1234567;
+    let vi32:   ***i32   = -1234567;
+    let vi64:   ***i64   = -1234567;
+    let vu8:    ***u8    = -12345671234567123;
+    let vu32:   ***u32   = -1234567;
+    let vu64:   ***u64   = -1234567;
+    let vf32:   ***f32   = -1234567;
+    let vf64:   ***f64   = -1234567;
+    let visize: ***isize = -1234567;
+    let vusize: ***usize = -1234567;
+    let vvoid:  ***void  = -1234567;
+    let vchar:  ***char  = -1234567;
+    let vuchar: ***uchar = -1234567;
+    let vbool:  ***bool  = -1234567;
+    let vasi8    = -1234567 as ***i8;
+    let vasi32   = -1234567 as ***i32;
+    let vasi64   = -1234567 as ***i64;
+    let vasu8    = -1234567 as ***u8;
+    let vasu32   = -1234567 as ***u32;
+    let vasu64   = -12345671234567123i64 as ***u64;
+    let vasf32   = -1234567 as ***f32;
+    let vasf64   = -1234567 as ***f64;
+    let vasisize = -1234567 as ***isize;
+    let vasusize = -1234567 as ***usize;
+    let vasvoid  = -1234567 as ***void;
+    let vaschar  = -1234567 as ***char;
+    let vasuchar = -1234567 as ***uchar;
+    let vasbool  = -1234567 as ***bool;
+}
+

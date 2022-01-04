@@ -1,22 +1,22 @@
 fn main() {
     let vi: i8 = 121;
     print vi;
-    let vi8:    *i8    = 12345;
-    let vi32:   *i32   = 12345;
-    let vi64:   *i64   = 12345;
-    let vu8:    *u8    = 12345;
-    let vu32:   *u32   = 12345;
-    let vu64:   *u64   = 12345;
-    let vf32:   *f32   = 12345;
-    let vf64:   *f64   = 12345;
-    let visize: *isize = 12345;
-    let vusize: *usize = 12345;
-    let vvoid:  *void  = 12345;
-    let vchar:  *char  = 12345;
-    let vuchar: *uchar = 12345;
-    let vbool:  *bool  = 12345;
+    let vi8:    *i8    = 123451234512345  as *i8;
+    let vi32:   *i32   = 12345 as *i32;
+    let vi64:   *i64   = 12345 as *i64;
+    let vu8:    *u8    = 12345 as *u8;
+    let vu32:   *u32   = 12345 as *u32;
+    let vu64:   *u64   = 12345 as *u64;
+    let vf32:   *f32   = 12345 as *f32;
+    let vf64:   *f64   = 12345 as *f64;
+    let visize: *isize = 12345 as *isize;
+    let vusize: *usize = 12345 as *usize;
+    let vvoid:  *void  = 12345 as *void;
+    let vchar:  *char  = 12345 as *char;
+    let vuchar: *uchar = 12345 as *uchar;
+    let vbool:  *bool  = 12345 as *bool;
 
-    let vasi8    = 12345 as *i8;
+    let vasi8    = 123451234512345u64 as *i8;
     let vasi32   = 12345 as *i32;
     let vasi64   = 12345 as *i64;
     let vasu8    = 12345 as *u8;
