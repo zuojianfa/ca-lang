@@ -1784,7 +1784,11 @@ void *get_post_function(typeid_t fnname) {
   return nullptr;
 }
 
-int catype_check_identical(SymTable *st1, typeid_t type1, SymTable *st2, typeid_t type2) {
+int catype_check_identical(CADataType *type1, CADataType *type2) {
+  return type1->signature == type2->signature;
+}
+
+int catype_check_identical_in_symtable(SymTable *st1, typeid_t type1, SymTable *st2, typeid_t type2) {
   // notice: when type1 == type2 does means they are equal, because they belong diffrent symbol table
   if (type1 == type2 && st1 == st2)
     return 1;
@@ -1795,15 +1799,18 @@ int catype_check_identical(SymTable *st1, typeid_t type1, SymTable *st2, typeid_
   if (!dt1 || !dt2)
     return 0;
 
+  // check not only the token type but also check other information when the type is complex type
   if (dt1->type != dt2->type)
     return 0;
 
-  // TODO: check not only the token type but also check other information when the type is complex type
+  if (dt1->signature != dt2->signature)
+    return 0;
+
   return 1;
 }
 
-int catype_check_identical_witherror(SymTable *st1, typeid_t type1, SymTable *st2, typeid_t type2, int exitwhenerror, SLoc *loc) {
-  if (catype_check_identical(st1, type1, st2, type2))
+int catype_check_identical_in_symtable_witherror(SymTable *st1, typeid_t type1, SymTable *st2, typeid_t type2, int exitwhenerror, SLoc *loc) {
+  if (catype_check_identical_in_symtable(st1, type1, st2, type2))
     return 1;
 
   if (exitwhenerror) {
@@ -2398,8 +2405,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
-    (ICO)0,            /* POINTER */
-    (ICO)0,            /* CSTRING */
+    ICO::BitCast,      /* POINTER */
+    ICO::BitCast,      /* CSTRING */
   },                   // POINTER -> ?
   { // Begin CSTRING
     (ICO)-1,           /* VOID */
@@ -2415,8 +2422,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
-    (ICO)-1,           /* POINTER */
-    (ICO)0,            /* CSTRING */
+    ICO::BitCast,      /* POINTER */
+    ICO::BitCast,      /* CSTRING */
   },                   // CSTRING -> ?
 
 #if 0
@@ -2436,7 +2443,12 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
 #endif
 };
 
-Instruction::CastOps gen_cast_ops(int fromtok, int totok) {
+Instruction::CastOps gen_cast_ops(CADataType *fromtype, CADataType *totype) {
+  if (fromtype->signature == totype->signature)
+    return (Instruction::CastOps)0;
+  
+  tokenid_t fromtok = fromtype->type;
+  tokenid_t totok = totype->type;
   return llvmtype_cast_table[fromtok-VOID][totok-VOID];
 }
 

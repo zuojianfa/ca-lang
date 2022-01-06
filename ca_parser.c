@@ -823,7 +823,7 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       typeid_t type = inference_expr_type(node->exprn.operands[i]);
       if (type1 == typeid_novalue) {
 	type1 = type;
-      } else if (!catype_check_identical(node->symtable, type1, node->symtable, type)) {
+      } else if (!catype_check_identical_in_symtable(node->symtable, type1, node->symtable, type)) {
 	yyerror("line: %d, column: %d, expected `%s`, found `%s`",
 		node->begloc.row, node->begloc.col, symname_get(type1), symname_get(type));
 	return typeid_novalue;
@@ -886,7 +886,7 @@ typeid_t inference_expr_type(ASTNode *p) {
     type1 = inference_expr_type(p->ifn.bodies[0]);
     if (p->ifn.remain) {
       typeid_t type2 = inference_expr_type(p->ifn.remain);
-      if (!catype_check_identical(p->symtable, type1, p->symtable, type2)) {
+      if (!catype_check_identical_in_symtable(p->symtable, type1, p->symtable, type2)) {
 	yyerror("line: %d, col: %d: if expression type not same `%s` != `%s`",
 		glineno, gcolno, symname_get(type1), symname_get(type2));
 	return typeid_novalue;
@@ -910,7 +910,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     // get function return type
     ASTNode *idn = node->exprn.operands[0];
     STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-    catype_check_identical_witherror(node->symtable, type, node->symtable, entry->u.f.rettype, 1, &node->begloc);
+    catype_check_identical_in_symtable_witherror(node->symtable, type, node->symtable, entry->u.f.rettype, 1, &node->begloc);
     break;
   }
   case STMT_EXPR:
@@ -946,7 +946,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
   //CHECK_GET_TYPE_VALUE(node, catype, type);
   tokenid_t typetok = catype ? catype->type : tokenid_novalue;
   typeid_t id;
-  CADataType *dt;
+  CADataType *exprcatype = NULL;
   switch(node->type) {
   case TTE_Literal:
     if (node->litn.litv.fixed_type)
@@ -976,7 +976,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
 
     if (node->entry->u.var->datatype == typeid_novalue)
       node->entry->u.var->datatype = type;
-    else if (!catype_check_identical(node->symtable,
+    else if (!catype_check_identical_in_symtable(node->symtable,
 				     node->entry->u.var->datatype,
 				     node->symtable, type)) {
       // fprintf(stderr, 
@@ -988,15 +988,14 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
 
     break;
   case TTE_As:
-    //if (!as_type_convertable(typetok, node->exprasn.type->type)) {
-    // TODO: handle when complex type
-    dt = catype_get_by_name(node->symtable, node->exprasn.type);
-    CHECK_GET_TYPE_VALUE(node, dt, node->exprasn.type);
+    exprcatype = catype_get_by_name(node->symtable, node->exprasn.type);
+    CHECK_GET_TYPE_VALUE(node, exprcatype, node->exprasn.type);
 
-    if (typetok != dt->type) {
-      yyerror("line: %d, column: %d, type `%s` cannot determine into `%s`",
-		node->begloc.row, node->begloc.col,
-		get_type_string(typetok), get_type_string(dt->type));
+    if (!catype_check_identical(catype, exprcatype)) {
+      yyerror("line: %d, column: %d, type `%s` cannot determined into `%s`",
+	      node->begloc.row, node->begloc.col,
+	      catype_get_type_name(catype->signature),
+	      catype_get_type_name(exprcatype->signature));
       return -1;
     }
 
@@ -1048,7 +1047,7 @@ int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands) {
       if (type1 == typeid_novalue) {
 	type1 = expr_types[i];
 	typei = i;
-      } else if (!catype_check_identical(p->symtable, type1, p->symtable, expr_types[i])) {
+      } else if (!catype_check_identical_in_symtable(p->symtable, type1, p->symtable, expr_types[i])) {
 	yyerror("line: %d, col: %d: type name conflicting: '%s' of type '%s', '%s' of type '%s'",
 		p->begloc.col, p->begloc.row,
 		get_node_name_or_value(p->exprn.operands[typei]), symname_get(type1),
@@ -1086,7 +1085,7 @@ int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenu
       if (type1 == typeid_novalue) {
 	type1 = expr_types[i];
 	typei = i;
-      } else if (!catype_check_identical(nodes[i]->symtable, type1, nodes[i]->symtable, expr_types[i])) {
+      } else if (!catype_check_identical_in_symtable(nodes[i]->symtable, type1, nodes[i]->symtable, expr_types[i])) {
 	yyerror("line: %d, col: %d: type name conflicting: type '%s' with type '%s'",
 		nodes[i]->begloc.row, nodes[i]->begloc.col,
 		symname_get(type1), symname_get(expr_types[i]));

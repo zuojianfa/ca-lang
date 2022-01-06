@@ -5,10 +5,19 @@ target triple = "x86_64-pc-linux-gnu"
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @main() #0 {
-  %1 = alloca i32*, align 8
+  %1 = alloca i32, align 4
   %2 = alloca i32*, align 8
-  store i32* null, i32** %1, align 8
-  store i32* inttoptr (i64 305419896 to i32*), i32** %2, align 8
+  %3 = alloca i32*, align 8
+  %4 = alloca i32*, align 8
+  %5 = alloca i32****, align 8
+  store i32 0, i32* %1, align 4
+  store i32* null, i32** %2, align 8
+  store i32* inttoptr (i64 12345678 to i32*), i32** %3, align 8
+  %6 = load i32*, i32** %2, align 8
+  store i32* %6, i32** %4, align 8
+  %7 = load i32*, i32** %3, align 8
+  %8 = bitcast i32* %7 to i32****
+  store i32**** %8, i32***** %5, align 8
   ret i32 0
 }
 
@@ -18,4 +27,4 @@ attributes #0 = { noinline nounwind optnone uwtable "disable-tail-calls"="false"
 !llvm.ident = !{!1}
 
 !0 = !{i32 1, !"wchar_size", i32 4}
-!1 = !{!"Ubuntu clang version 12.0.0-3ubuntu1~20.04.4"}
+!1 = !{!"clang version 12.0.0"}

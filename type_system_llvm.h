@@ -19,7 +19,7 @@ using ICO = llvm::Instruction::CastOps;
 
 extern llvm::CmpInst::Predicate s_cmp_predicate[ATOMTYPE_END-VOID][6];
 
-llvm::Instruction::CastOps gen_cast_ops(int fromtok, int totok);
+llvm::Instruction::CastOps gen_cast_ops(CADataType *fromtype, CADataType *totype);
 
 llvm::Value *tidy_value_with_arith(llvm::Value *v, int typetok);
 llvm::Value *gen_zero_literal_value(CADataType *catype);

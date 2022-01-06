@@ -783,7 +783,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
       formaltype = realtype;    
 
     // check the formal parameter and actual parameter type
-    if (!catype_check_identical(name->symtable, realtype, param->symtable, formaltype)) {
+    if (!catype_check_identical_in_symtable(name->symtable, realtype, param->symtable, formaltype)) {
       yyerror("line: %d, col: %d: the %d parameter type '%s' not match the parameter declared type '%s'",
 	      param->begloc.row, param->begloc.col, i, symname_get(realtype)+2, symname_get(formaltype)+2);
       return;
@@ -902,7 +902,7 @@ static void walk_expr_op2(ASTNode *p) {
   typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0]);
   typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1]);
 
-  if (!catype_check_identical(p->symtable, typeid1, p->symtable, typeid2)) {
+  if (!catype_check_identical_in_symtable(p->symtable, typeid1, p->symtable, typeid2)) {
     yyerror("operation have 2 different types: '%s', '%s'",
 	    symname_get(typeid1), symname_get(typeid2));
     return;
@@ -959,15 +959,16 @@ static void walk_expr_as(ASTNode *node) {
   walk_stack(exprn);
 
   typeid_t stype = get_expr_type_from_tree(exprn);
-  CADataType *dt = catype_get_by_name(node->symtable, stype);
-  CHECK_GET_TYPE_VALUE(node, dt, stype);
-  tokenid_t stypetok = dt->type;
+  CADataType *exprcatype = catype_get_by_name(node->symtable, stype);
+  CHECK_GET_TYPE_VALUE(node, exprcatype, stype);
+  tokenid_t stypetok = exprcatype->type;
   
-  Instruction::CastOps castopt = gen_cast_ops(stypetok, astype->type);
+  Instruction::CastOps castopt = gen_cast_ops(exprcatype, astype);
   if (castopt == (ICO)-1) {
     yyerror("line: %d, column: %d, cannot convert `%s` into `%s`",
 	    node->begloc.row, node->begloc.col,
-	    get_type_string(stypetok), get_type_string(astype->type));
+	    catype_get_type_name(exprcatype->signature),
+	    catype_get_type_name(astype->type));
     return;
   }
 
