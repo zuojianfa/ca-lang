@@ -8,4 +8,9 @@ do_testf(pointer "primitives3_notzero.ca.ll" "primitives3_notzero.ca.ll.tmp" ca 
 do_testf(pointer "primitives_minus.ca.ll" "primitives_minus.ca.ll.tmp" ca -ll primitives_minus.ca primitives_minus.ca.ll.tmp)
 do_testf(pointer "primitives2_minus.ca.ll" "primitives2_minus.ca.ll.tmp" ca -ll primitives2_minus.ca primitives2_minus.ca.ll.tmp)
 do_testf(pointer "primitives3_minus.ca.ll" "primitives3_minus.ca.ll.tmp" ca -ll primitives3_minus.ca primitives3_minus.ca.ll.tmp)
+do_testf(pointer "pointer.ca.ll" "pointer.ca.ll.tmp" ca -ll pointer.ca pointer.ca.ll.tmp)
+do_testf(pointer "pointer2.ca.ll" "pointer2.ca.ll.tmp" ca -ll pointer2.ca pointer2.ca.ll.tmp)
+do_testf(pointer "pointer_notzero.ca.ll" "pointer_notzero.ca.ll.tmp" ca -ll pointer_notzero.ca pointer_notzero.ca.ll.tmp)
+do_testf(pointer "pointer2_notzero.ca.ll" "pointer2_notzero.ca.ll.tmp" ca -ll pointer2_notzero.ca pointer2_notzero.ca.ll.tmp)
+do_testf(pointer "pointer_mixed.ca.ll" "pointer_mixed.ca.ll.tmp" ca -ll pointer_mixed.ca pointer_mixed.ca.ll.tmp)
 

@@ -1,18 +1,18 @@
 fn main() {
-    let vi8   : *i8    = 0;
-    let vi32  : *i32   = 0;
-    let vi64  : *i64   = 0;
-    let vu8   : *u8    = 0;
-    let vu32  : *u32   = 0;
-    let vu64  : *u64   = 0;
-    let vf32  : *f32   = 0;
-    let vf64  : *f64   = 0;
-    let visize: *isize = 0;
-    let vusize: *usize = 0;
-    let vvoid : *void  = 0;
-    let vchar : *char  = 0;
-    let vuchar: *uchar = 0;
-    let vbool : *bool  = 0;
+    let vi8   : *i8    = 4324343243i64 as *i8    ;
+    let vi32  : *i32   = 4324343243i64 as *i32   ;
+    let vi64  : *i64   = 4324343243i64 as *i64   ;
+    let vu8   : *u8    = 4324343243i64 as *u8    ;
+    let vu32  : *u32   = 4324343243i64 as *u32   ;
+    let vu64  : *u64   = 4324343243i64 as *u64   ;
+    let vf32  : *f32   = 4324343243i64 as *f32   ;
+    let vf64  : *f64   = 4324343243i64 as *f64   ;
+    let visize: *isize = 4324343243i64 as *isize ;
+    let vusize: *usize = 4324343243i64 as *usize ;
+    let vvoid : *void  = 4324343243i64 as *void  ;
+    let vchar : *char  = 4324343243i64 as *char  ;
+    let vuchar: *uchar = 4324343243i64 as *uchar ;
+    let vbool : *bool  = 4324343243i64 as *bool  ;
 
     let pvi8:    **i8    = vi8    as **i8;
     let pvi32:   **i32   = vi32   as **i32  ;
