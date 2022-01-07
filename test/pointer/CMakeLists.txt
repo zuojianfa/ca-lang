@@ -13,4 +13,5 @@ do_testf(pointer "pointer2.ca.ll" "pointer2.ca.ll.tmp" ca -ll pointer2.ca pointe
 do_testf(pointer "pointer_notzero.ca.ll" "pointer_notzero.ca.ll.tmp" ca -ll pointer_notzero.ca pointer_notzero.ca.ll.tmp)
 do_testf(pointer "pointer2_notzero.ca.ll" "pointer2_notzero.ca.ll.tmp" ca -ll pointer2_notzero.ca pointer2_notzero.ca.ll.tmp)
 do_testf(pointer "pointer_mixed.ca.ll" "pointer_mixed.ca.ll.tmp" ca -ll pointer_mixed.ca pointer_mixed.ca.ll.tmp)
+do_testf(pointer "pointer_mixed2.ca.ll" "pointer_mixed2.ca.ll.tmp" ca -ll pointer_mixed2.ca pointer_mixed2.ca.ll.tmp)
 

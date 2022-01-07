@@ -693,7 +693,7 @@ static void walk_assign(ASTNode *p) {
   ASTNode *idn = p->assignn.id;
   ASTNode *exprn = p->assignn.expr;
 
-  if (exprn->type != TTE_VarDefValue)
+  if (exprn->type != TTE_VarDefZeroValue)
     inference_assign_type(idn, exprn);
 
   if (enable_debug_info())
@@ -703,7 +703,7 @@ static void walk_assign(ASTNode *p) {
   CHECK_GET_TYPE_VALUE(p, dt, idn->entry->u.var->datatype);
 
   Value *v = nullptr;
-  if (exprn->type != TTE_VarDefValue) {
+  if (exprn->type != TTE_VarDefZeroValue) {
     walk_stack(exprn);
     auto pair = pop_right_value("tmpexpr");
     v = pair.first;

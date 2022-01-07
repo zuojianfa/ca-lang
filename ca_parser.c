@@ -492,7 +492,7 @@ void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t 
 
 void create_string_literal(CALiteral *lit, const LitBuffer *litb) {
   lit->fixed_type = 1;
-  lit->littypetok = litb->typetok; // CSTRING;
+  lit->littypetok = litb->typetok; // litb->typetok should be CSTRING;
   lit->textid = litb->text;
   lit->datatype = sym_form_type_id_from_token(litb->typetok);
   lit->u.strvalue.text = litb->text;
@@ -657,7 +657,7 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global) {
 }
 
 ASTNode *make_vardef_zero_value() {
-  ASTNode *p = new_ASTNode(TTE_VarDefValue);
+  ASTNode *p = new_ASTNode(TTE_VarDefZeroValue);
   p->begloc = (SLoc){glineno, gcolno};
   p->endloc = (SLoc){glineno, gcolno};
   p->symtable = curr_symtable;

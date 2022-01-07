@@ -93,6 +93,18 @@ void set_litbuf_symname(LitBuffer *litb, int name, int len, int typetok) {
   litb->text = name;
 }
 
+CAArrayLit arraylit_new() {
+  std::vector<CALiteral> *v = new std::vector<CALiteral>;
+  CAArrayLit lit = { static_cast<void *>(v) };
+  return lit;
+}
+
+CAArrayLit arraylit_append(CAArrayLit obj, CALiteral *lit) {
+  auto *v = static_cast<std::vector<CALiteral> *>(obj.data);
+  v->push_back(*lit);
+  return obj;
+}
+
 CAVariable *cavar_create(int name, typeid_t datatype) {
   CAVariable *var = new CAVariable;
   var->datatype = datatype;

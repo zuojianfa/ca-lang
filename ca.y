@@ -55,6 +55,7 @@ extern int yychar, yylineno;
   CADataType *datatype;
   CAVariable *var;
   CALiteral litv;   /* literal value */
+  CAArrayLit arraylitv; /* array literal value */
   LitBuffer litb;   /* literal buffer */
     //IdToken idtok;    /* return type token */
   int symnameid;    /* symbol table index */
@@ -75,7 +76,8 @@ extern int yychar, yylineno;
 %left			'*' '/'
 %left			AS
 %nonassoc		UMINUS
-%type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def lit_array_def lit_array_list
+%type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def lit_array_def
+%type	<arraylitv>	lit_array_list
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
@@ -303,11 +305,11 @@ literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, 
 	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
 	;
 
-lit_array_def:	'[' lit_array_list ']'
+lit_array_def:	'[' lit_array_list ']' {  = $2; /* $2: CAArrayLit */ }
 	;
 
-lit_array_list:	lit_array_list ',' literal
-	|	literal
+lit_array_list:	lit_array_list ',' literal { $$ = arraylit_append($1, &$3); }
+	|	literal { $$ = arraylit_new(); }
 	;
 
 lit_struct_def:	IDENT '{' lit_struct_field_list  '}'

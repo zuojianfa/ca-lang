@@ -184,6 +184,14 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 	- `#[scope(global)]` have the same effect as with `-main` option, so it's no affect to non-function variables
 - [ ] how to cope with: when use `-main` but the source file already defined a main function?
   detect the conflicting
+  
+- [x] support post type definition
+- [x] support multiple scope with bracket '{}'
+- [x] support raw string literal
+- [x] support multiple line string literal
+- [x] support pointer cast from integer and any other pointer
+- [ ] support array literal
+- [ ] support struct literal
 
 ## Makefile
 - [x] use cmake to build the system
@@ -246,7 +254,12 @@ is scopeline the real skip function start for debugging? try it
 #13 0x000000000041caec in main (argc=2, argv=0x7fffffffdba8) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1619
 ```
 
-NEXT TODO: 
+NEXT TODO:
+- [ ] support struct literal
+- [ ] support struct member operation 
+- [ ] support array literal
+- [ ] support array element operation
+- [ ] support addressing operator '&'
 - [ ] implement `gen_zero_literal_value` ``
 - [ ] UCHAR -> U8, CHAR -> I8
 - [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type

@@ -90,10 +90,18 @@ typedef struct CAPointer {
   int dimension;
 } CAPointer;
 
-typedef struct CAString {
+typedef struct CAStringLit {
   int text;
   int len;
-} CAString;
+} CAStringLit;
+
+typedef struct CAArrayLit {
+  void *data;
+} CAArrayLit;
+
+typedef struct CAStructLit {
+  void *data;
+} CAStructLit;
 
 typedef struct CALiteral {
   // specify if literal type is defined (fixed) with postfix (u32,f64, ...).
@@ -118,9 +126,9 @@ typedef struct CALiteral {
     int64_t  i64value;      // store either signed or unsigned integer value
     double   f64value;      // store floating point value
 
-    CAString strvalue;      // string literal value
-    void    *structvalue;   // struct literal value
-    void    *arrayvalue;    // array literal value
+    CAStringLit strvalue;      // string literal value
+    CAStructLit structvalue;  // struct literal value
+    CAArrayLit  arrayvalue;   // array literal value
   } u;
 } CALiteral;
 
@@ -222,6 +230,9 @@ int as_type_convertable(tokenid_t from, tokenid_t to);
 
 void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok);
 void set_litbuf_symname(LitBuffer *litb, int name, int len, int typetok);
+
+CAArrayLit arraylit_new();
+CAArrayLit arraylit_append(CAArrayLit obj, CALiteral *lit);
 
 CAVariable *cavar_create(int name, typeid_t datatype);
 void cavar_destroy(CAVariable **var);

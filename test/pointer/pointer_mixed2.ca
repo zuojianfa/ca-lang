@@ -1,0 +1,129 @@
+fn main() {
+    let a: i32 = 1234;
+    let vi8   : *i8    = a as *i8   ;
+    let vi32  : *i32   = a as *i32  ;
+    let vi64  : *i64   = a as *i64  ;
+    let vu8   : *u8    = a as *u8   ;
+    let vu32  : *u32   = a as *u32  ;
+    let vu64  : *u64   = a as *u64  ;
+    let vf32  : *f32   = a as *f32  ;
+    let vf64  : *f64   = a as *f64  ;
+    let visize: *isize = a as *isize;
+    let vusize: *usize = a as *usize;
+    let vvoid : *void  = a as *void ;
+    let vchar : *char  = a as *char ;
+    let vuchar: *uchar = a as *uchar;
+    let vbool : *bool  = a as *bool ;
+
+    // part 2
+    let pvi8:    **f32   = vi8    as **f32  ;
+    let pvi32:   **f64   = vi32   as **f64  ;
+    let pvi64:   **isize = vi64   as **isize;
+    let pvu8:    **usize = vu8    as **usize;
+    let pvu32:   **void  = vu32   as **void ;
+    let pvu64:   **char  = vu64   as **char ;
+    let pvf32:   **uchar = vf32   as **uchar;
+    let pvf64:   **bool  = vf64   as **bool ;
+    let pvisize: **i8    = visize as **i8   ;
+    let pvusize: **i32   = vusize as **i32  ;
+    let pvvoid:  **i64   = vvoid  as **i64  ;
+    let pvchar:  **u8    = vchar  as **u8   ;
+    let pvuchar: **u32   = vuchar as **u32  ;
+    let pvbool:  **u64   = vbool  as **u64  ;
+
+    let p2vi8    = vi8    as **f32  ;
+    let p2vi32   = vi32   as **f64  ;
+    let p2vi64   = vi64   as **isize;
+    let p2vu8    = vu8    as **usize;
+    let p2vu32   = vu32   as **void ;
+    let p2vu64   = vu64   as **char ;
+    let p2vf32   = vf32   as **uchar;
+    let p2vf64   = vf64   as **bool ;
+    let p2visize = visize as **i8   ;
+    let p2vusize = vusize as **i32  ;
+    let p2vvoid  = vvoid  as **i64  ;
+    let p2vchar  = vchar  as **u8   ;
+    let p2vuchar = vuchar as **u32  ;
+    let p2vbool  = vbool  as **u64  ;
+
+    // part 3
+    let ppvi8:    ***f32   = vi8    as ***f32  ;
+    let ppvi32:   ***f64   = vi32   as ***f64  ;
+    let ppvi64:   ***isize = vi64   as ***isize;
+    let ppvu8:    ***usize = vu8    as ***usize;
+    let ppvu32:   ***void  = vu32   as ***void ;
+    let ppvu64:   ***char  = vu64   as ***char ;
+    let ppvf32:   ***uchar = vf32   as ***uchar;
+    let ppvf64:   ***bool  = vf64   as ***bool ;
+    let ppvisize: ***i8    = visize as ***i8   ;
+    let ppvusize: ***i32   = vusize as ***i32  ;
+    let ppvvoid:  ***i64   = vvoid  as ***i64  ;
+    let ppvchar:  ***u8    = vchar  as ***u8   ;
+    let ppvuchar: ***u32   = vuchar as ***u32  ;
+    let ppvbool:  ***u64   = vbool  as ***u64  ;
+
+    let pp2vi8    = vi8    as ***f32  ;
+    let pp2vi32   = vi32   as ***f64  ;
+    let pp2vi64   = vi64   as ***isize;
+    let pp2vu8    = vu8    as ***usize;
+    let pp2vu32   = vu32   as ***void ;
+    let pp2vu64   = vu64   as ***char ;
+    let pp2vf32   = vf32   as ***uchar;
+    let pp2vf64   = vf64   as ***bool ;
+    let pp2visize = visize as ***i8   ;
+    let pp2vusize = vusize as ***i32  ;
+    let pp2vvoid  = vvoid  as ***i64  ;
+    let pp2vchar  = vchar  as ***u8   ;
+    let pp2vuchar = vuchar as ***u32  ;
+    let pp2vbool  = vbool  as ***u64  ;
+
+    // part 4
+    let pppvi8:    ****f32   = vi8    as ****f32  ;
+    let pppvi32:   ****f64   = vi32   as ****f64  ;
+    let pppvi64:   ****isize = vi64   as ****isize;
+    let pppvu8:    ****usize = vu8    as ****usize;
+    let pppvu32:   ****void  = vu32   as ****void ;
+    let pppvu64:   ****char  = vu64   as ****char ;
+    let pppvf32:   ****uchar = vf32   as ****uchar;
+    let pppvf64:   ****bool  = vf64   as ****bool ;
+    let pppvisize: ****i8    = visize as ****i8   ;
+    let pppvusize: ****i32   = vusize as ****i32  ;
+    let pppvvoid:  ****i64   = vvoid  as ****i64  ;
+    let pppvchar:  ****u8    = vchar  as ****u8   ;
+    let pppvuchar: ****u32   = vuchar as ****u32  ;
+    let pppvbool:  ****u64   = vbool  as ****u64  ;
+
+    let ppp2vi8    = vi8    as ****f32  ;
+    let ppp2vi32   = vi32   as ****f64  ;
+    let ppp2vi64   = vi64   as ****isize;
+    let ppp2vu8    = vu8    as ****usize;
+    let ppp2vu32   = vu32   as ****void ;
+    let ppp2vu64   = vu64   as ****char ;
+    let ppp2vf32   = vf32   as ****uchar;
+    let ppp2vf64   = vf64   as ****bool ;
+    let ppp2visize = visize as ****i8   ;
+    let ppp2vusize = vusize as ****i32  ;
+    let ppp2vvoid  = vvoid  as ****i64  ;
+    let ppp2vchar  = vchar  as ****u8   ;
+    let ppp2vuchar = vuchar as ****u32  ;
+    let ppp2vbool  = vbool  as ****u64  ;
+
+
+    let svi8    = ppp2vi8     as *i8   ;
+    let svi32   = ppp2vi32    as *i32  ;
+    let svi64   = ppp2vi64    as *i64  ;
+    let svu8    = ppp2vu8     as *u8   ;
+    let svu32   = ppp2vu32    as *u32  ;
+    let svu64   = ppp2vu64    as *u64  ;
+    let svf32   = ppp2vf32    as *f32  ;
+    let svf64   = ppp2vf64    as *f64  ;
+    let svisize = ppp2visize  as *isize;
+    let svusize = ppp2vusize  as *usize;
+    let svvoid  = ppp2vvoid   as *void ;
+    let svchar  = ppp2vchar   as *char ;
+    let svuchar = ppp2vuchar  as *uchar;
+    let svbool  = ppp2vbool   as *bool ;
+
+
+}
+
