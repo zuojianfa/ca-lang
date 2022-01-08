@@ -499,6 +499,15 @@ void create_string_literal(CALiteral *lit, const LitBuffer *litb) {
   lit->u.strvalue.len = litb->len;
 }
 
+void create_array_literal(CALiteral *lit, CAArrayLit arraylit) {
+  lit->fixed_type = 0;
+  lit->littypetok = ARRAY;
+  lit->textid = -1;
+  lit->datatype = typeid_novalue;
+  lit->catype = NULL;
+  lit->u.arrayvalue = arraylit;
+}
+
 SymTable *push_new_symtable() {
     SymTable *st = (SymTable *)malloc(sizeof(SymTable));
     sym_init(st, curr_symtable);

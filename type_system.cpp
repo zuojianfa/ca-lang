@@ -31,12 +31,17 @@
 #include "type_system.h"
 #include "type_system_llvm.h"
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Value.h"
 #include "llvm/MC/SubtargetFeature.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/ir1.h"
 #include <array>
+#include <cassert>
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
@@ -1425,7 +1430,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // step 4: create type object
   // NEXT TODO: implement following 2 type
   //dt = catype_create_type_from_unwind(unwind);
-  dt = catype_formalize_type(dt, 1);
+  dt = catype_formalize_type(dt, 0);
 
   // step 5: update symtable type table
   s_symtable_type_map.insert(std::make_pair(windst, dt));
@@ -1577,18 +1582,57 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
   lit->fixed_type = 1;
 }
 
+std::vector<CALiteral> *arraylit_deref(CAArrayLit obj);
+void determine_array_literal(CALiteral *lit, CADataType *catype) {
+  if (lit->littypetok != ARRAY && catype->type != ARRAY) {
+    yyerror("array type not identical: %d != %d\n", lit->littypetok, catype->type);
+    return;
+  }
+
+  // assuming the catype object is expand normalized, so dimension must be 1
+  assert(catype->array_layout->dimension == 1);
+  int len = catype->array_layout->dimarray[0];
+  std::vector<CALiteral> *lits = arraylit_deref(lit->u.arrayvalue);
+  if (len != lits->size()) {
+    yyerror("expected an array with a fixed size of %d elements, found one with %d elements",
+	    len, lits->size());
+    return;
+  }
+
+  for (int i = 0; i < len; ++i) {
+    CALiteral *sublit = &lits->at(i);
+    CADataType *subtype = catype->array_layout->type;
+    determine_literal_type(sublit, subtype);
+    if (sublit->fixed_type == 0 || sublit->datatype != subtype->signature) {
+      yyerror("determine literal failed for array element: fixed: %d, signature(lit: %s, type: %s), catype (%p, %p)",
+	      sublit->fixed_type, catype_get_type_name(sublit->datatype), catype_get_type_name(subtype->signature),
+	      sublit->catype, subtype);
+      return;
+    }
+
+    // no need check this
+    // if (sublit->catype != subtype) {}
+  }
+
+  lit->fixed_type = 1;
+  lit->datatype = catype->signature;
+  lit->catype = catype;
+}
+
 void determine_literal_type(CALiteral *lit, CADataType *catype) {
   if (!catype)
     return;
 
-  tokenid_t typetok = catype->type;
   tokenid_t littypetok = lit->littypetok;
+  tokenid_t typetok = catype->type;
 
   // TODO: check if can convert
   switch (littypetok) {
+  case ARRAY:
+    determine_array_literal(lit, catype);
+    break;
   case CSTRING:
   case POINTER:
-  case ARRAY:
   case STRUCT:
     // TODO: implementing these kind of type conversion when encounter
     yyerror("cannot convert complex type to any type, may need change the functionality later");
@@ -2011,39 +2055,59 @@ Value *gen_zero_literal_value(CADataType *catype) {
   return nullptr;
 }
 
-Value *gen_literal_value(CALiteral *value, CADataType *dt, SLoc loc) {
+Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
   // TODO: use type also from symbol table, when literal also support array or struct, e.g. AA {d,b}
   Type *type = nullptr;
   Value *llvmvalue = nullptr;
-  switch(dt->type) {
+  switch(catype->type) {
   case POINTER:
-    if (value->littypetok == CSTRING) {
+    if (lit->littypetok == CSTRING) {
       // create string literal
-      const char *data = symname_get(value->u.strvalue.text);
-      llvm::StringRef strref(data, value->u.strvalue.len);
+      const char *data = symname_get(lit->u.strvalue.text);
+      llvm::StringRef strref(data, lit->u.strvalue.len);
       Constant *llvmconststr = ir1.builder().CreateGlobalStringPtr(strref);
       return llvmconststr;
     }
 
-    type = gen_llvmtype_from_catype(dt);
+    type = gen_llvmtype_from_catype(catype);
     
-    if (value->u.i64value == 0) {
+    if (lit->u.i64value == 0) {
       llvmvalue = ConstantPointerNull::get(static_cast<PointerType *>(type));
+
+      // TODO: other pointer literal value should not supported 
+      //yyerror("other pointer literal not implemented yet");
+      //return nullptr;
     } else {
-      llvmvalue = ir1.gen_int<int64_t>(value->u.i64value);
+      llvmvalue = ir1.gen_int<int64_t>(lit->u.i64value);
       //llvmvalue = ir1.builder().CreatePointerCast(llvmvalue, type);
       llvmvalue = ir1.builder().CreateIntToPtr(llvmvalue, type);
     }
 
     return llvmvalue;
-      
-    //ir1.builder().CreateGlobalStringPtr(format);
-    //ir1.builder().CreatePointerCast(Value *V, Type *DestTy);
-    //ConstantPointerNull;
+  case ARRAY: {
+    // using expand formalized catype object
+    assert(catype->array_layout->dimension == 1);
+    assert(lit->littypetok == ARRAY);
+    int len = catype->array_layout->dimarray[0];
+    std::vector<CALiteral> *lits = arraylit_deref(lit->u.arrayvalue);
+    assert(len == lits->size());
+
+    CADataType *subtype = catype->array_layout->type;
+    for (int i = 0; i < len; ++i) {
+      CALiteral *sublit = &lits->at(i);
+      Value *subvalue = gen_literal_value(sublit, subtype, loc);
+    }
+
+    // llvm::ConstantArray
+
+    // makeArrayRef();
+    // MDStringArray::
+    // MDNodeArray::get();
+    // MDTupleArray;
     
-    yyerror("other pointer literal not implemented yet");
-    return nullptr;
-  case ARRAY:
+
+    // ConstantDataArray::get();
+    // ConstantArray::get(); //(ArrayType *T, ArrayRef<Constant *> V);
     // TODO:
     //ConstantArray::get(ArrayType *T, ArrayRef<Constant *> V);
     //ConstantDataArray;
@@ -2051,13 +2115,14 @@ Value *gen_literal_value(CALiteral *value, CADataType *dt, SLoc loc) {
 
     yyerror("the array literal not implemented yet");
     return nullptr;
+  }
   case STRUCT:
     //ConstantStruct::get();
     // TODO:
     yyerror("the struct literal not implemented yet");
     return nullptr;
   default:
-    return gen_primitive_literal_value(value, dt->type, loc);
+    return gen_primitive_literal_value(lit, catype->type, loc);
   }
 }
 

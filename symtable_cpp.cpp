@@ -105,6 +105,11 @@ CAArrayLit arraylit_append(CAArrayLit obj, CALiteral *lit) {
   return obj;
 }
 
+std::vector<CALiteral> *arraylit_deref(CAArrayLit obj) {
+  auto *v = static_cast<std::vector<CALiteral> *>(obj.data);
+  return v;
+}
+
 CAVariable *cavar_create(int name, typeid_t datatype) {
   CAVariable *var = new CAVariable;
   var->datatype = datatype;

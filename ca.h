@@ -236,6 +236,7 @@ int get_expr_type_from_tree(ASTNode *node);
 typeid_t inference_expr_type(ASTNode *p);
 void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t postfixtypetok);
 void create_string_literal(CALiteral *lit, const LitBuffer *litb);
+void create_array_literal(CALiteral *lit, CAArrayLit arraylit);
 const char *get_node_name_or_value(ASTNode *node);
 
 ASTNode *build_mock_main_fn_node();

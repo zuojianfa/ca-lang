@@ -76,8 +76,8 @@ extern int yychar, yylineno;
 %left			'*' '/'
 %left			AS
 %nonassoc		UMINUS
-%type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def lit_array_def
-%type	<arraylitv>	lit_array_list
+%type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def
+%type	<arraylitv>	lit_array_list lit_array_def
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
@@ -301,15 +301,15 @@ ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; 
 literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, $1.typetok, -1); }
 	|	LITERAL IDENT    { create_literal(&$$, $1.text, $1.typetok, sym_primitive_token_from_id($2)); }
 	|	STR_LITERAL      { create_string_literal(&$$, &$1); }
-	|	lit_array_def    { $$ = $1; }
+	|	lit_array_def    { create_array_literal(&$$, $1); }
 	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
 	;
 
-lit_array_def:	'[' lit_array_list ']' {  = $2; /* $2: CAArrayLit */ }
+lit_array_def:	'[' lit_array_list ']' { $$ = $2; }
 	;
 
 lit_array_list:	lit_array_list ',' literal { $$ = arraylit_append($1, &$3); }
-	|	literal { $$ = arraylit_new(); }
+	|	literal { $$ = arraylit_append(arraylit_new(), &$1);}
 	;
 
 lit_struct_def:	IDENT '{' lit_struct_field_list  '}'
