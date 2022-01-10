@@ -4,6 +4,7 @@
 #include "ca.h"
 #include "ca_types.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 BEGIN_EXTERN_C
@@ -22,7 +23,7 @@ const char *get_type_string_for_signature(int tok);
 CADataType *catype_clone_thin(const CADataType *type);
 CADataType *catype_make_type_symname(int formalname, int type, int size);
 CADataType *catype_make_pointer_type(CADataType *datatype);
-CADataType *catype_make_array_type(CADataType *type, uint64_t len);
+CADataType *catype_make_array_type(CADataType *type, uint64_t len, bool compact);
 CADataType *catype_make_struct_type(int symname, ST_ArgList *arglist);
 
 // type finding

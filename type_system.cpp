@@ -66,6 +66,8 @@ extern int glineno;
 extern int gcolno;
 extern ir_codegen::IR1 ir1;
 
+std::vector<CALiteral> *arraylit_deref(CAArrayLit obj);
+
 // name to CADatatype map
 std::unordered_map<typeid_t, CADataType *> s_symtable_type_map;
 std::unordered_map<typeid_t, CADataType *> s_signature_type_map;
@@ -1442,14 +1444,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   return dt;
 }
 
-// inference and set the literal type for the literal, when the literal have no
-// a determined type, different from `determine_literal_type`, the later is used by passing a defined type  
-typeid_t inference_literal_type(CALiteral *lit) {
-  if (lit->fixed_type) {
-    // no need inference, should report an error
-    return lit->datatype;
-  }
-
+static typeid_t inference_primitive_literal_type(CALiteral *lit) {
   const char *text = symname_get(lit->textid);
   int badscope = 0;
   tokenid_t intentdeftype = 0;
@@ -1500,6 +1495,85 @@ typeid_t inference_literal_type(CALiteral *lit) {
   lit->datatype = sym_form_type_id_from_token(intentdeftype);
   lit->fixed_type = 1;
   return lit->datatype;
+}
+
+static bool catype_is_complex_type(tokenid_t token) {
+  switch (token) {
+  case ARRAY:
+  case STRUCT:
+  case POINTER:
+    return true;
+  default:
+    return false;
+  }
+}
+
+static typeid_t inference_array_literal(CALiteral *lit) {
+  std::vector<CALiteral> *lits = arraylit_deref(lit->u.arrayvalue);
+  size_t len = lits->size();
+
+  CADataType *catype = nullptr;
+  CADataType *precatype = nullptr;
+  for (int i = 0; i < len; ++i) {
+    CALiteral *sublit = &lits->at(i);
+
+    // for the inference, here just need extract the first element and get it's
+    // type. when the other elements have different type, the later use will check for that
+    typeid_t subid = inference_literal_type(sublit);
+    if (!sublit->fixed_type) {
+      yyerror("after inference ot still cannot determine the literal type");
+      return typeid_novalue;
+    }
+
+    if (sublit->catype)
+      catype = sublit->catype;
+    else
+      catype = catype_get_primitive_by_name(sublit->datatype);
+
+    if (i == 0)
+      precatype = catype;
+
+    if (precatype->signature != catype->signature) {
+      yyerror("different array element type: idx %d: %p`%s`, idx %d: %p`%s`",
+	      i-1, precatype, catype_get_type_name(precatype->signature),
+	      i, catype, catype_get_type_name(catype->signature));
+      return typeid_novalue;
+    }
+
+    precatype = catype;
+  }
+
+  catype = catype_make_array_type(catype, len, 0);
+    
+  lit->catype = catype;
+  lit->datatype = lit->catype->signature;
+  lit->fixed_type = 1;
+
+  return lit->datatype;
+}
+
+// inference and set the literal type for the literal, when the literal have no
+// a determined type, different from `determine_literal_type`, the later is used by passing a defined type  
+typeid_t inference_literal_type(CALiteral *lit) {
+  if (lit->fixed_type) {
+    // no need inference, may should report an error
+    return lit->datatype;
+  }
+
+  switch(lit->littypetok) {
+  case ARRAY:
+    return inference_array_literal(lit);
+  case STRUCT:
+    // not implemented
+    yyerror("line: %d, col: %d: not implemented the literal for struct type.", glineno, gcolno);
+    return typeid_novalue;
+  case POINTER:
+    // should never come here
+    yyerror("line: %d, col: %d: not implemented the literal for pointer type, should can never come here", glineno, gcolno);
+    return typeid_novalue;
+  default:
+    return inference_primitive_literal_type(lit);
+  }
 }
 
 static bool is_literal_zero_value(CALiteral *lit) {
@@ -1586,7 +1660,6 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
   lit->fixed_type = 1;
 }
 
-std::vector<CALiteral> *arraylit_deref(CAArrayLit obj);
 void determine_array_literal(CALiteral *lit, CADataType *catype) {
   if (lit->littypetok != ARRAY && catype->type != ARRAY) {
     yyerror("array type not identical: %d != %d\n", lit->littypetok, catype->type);
@@ -1709,18 +1782,17 @@ CADataType *catype_make_type_symname(typeid_t name, int type, int size) {
 // i32 + '*' => *i32, *type + '*' => **type, [type;n] + '*' => *[type;n]
 // [[[type1;n1];n2];n3] + '*' => *[[[type1;n1];n2];n3]
 // [*i32;n], [**i32;n], *[*i32;n], [*[*i32;n1];n2], *[[*i32;n1];n2]
-static int form_datatype_signature(CADataType *type, int plus, uint64_t len) {
+static typeid_t form_datatype_signature(CADataType *type, int plus, uint64_t len) {
   char buf[1024];
-  const char *name = symname_get(type->signature);
+  const char *name = catype_get_type_name(type->signature);
   switch (plus) {
   case '*':
     // pointer
-    buf[0] = '*';
-    strcpy(buf + 1, name);
+    sprintf(buf, "t:*%s", name);
     break;
   case '[':
     // array
-    sprintf(buf, "[%s;%lu]", name, len);
+    sprintf(buf, "t:[%s;%lu]", name, len);
     break;
   case 's':
     // structure signature
@@ -1769,8 +1841,9 @@ CADataType *catype_make_pointer_type(CADataType *datatype) {
 // signature test pointer type parsing, realize array type, struct type:
 // [[[i32;2];3];4] <==> [i32;2;3;4], [[*[i32;2];3];4] <==> [*[i32;2];3;4]
 // the array representation using the later which is the compact one
-CADataType *catype_make_array_type(CADataType *datatype, uint64_t len) {
-  int signature = form_datatype_signature(datatype, '[', len);
+CADataType *catype_make_array_type(CADataType *datatype, uint64_t len, bool compact) {
+  typeid_t signature = form_datatype_signature(datatype, '[', len);
+
   // TODO: use type also from symbol
   CADataType *dt = catype_get_primitive_by_name(signature);
   if (dt)
@@ -1779,14 +1852,16 @@ CADataType *catype_make_array_type(CADataType *datatype, uint64_t len) {
   // create new CADataType object here and put it into datatype table
   switch (datatype->type) {
   case ARRAY:
-    // array and struct type can directly append the signature
-    dt = catype_clone_thin(datatype);
-    dt->size = len * datatype->size;
-    dt->formalname = signature;
-    dt->signature = signature;
-    dt->array_layout->dimarray[dt->array_layout->dimension++] = len;
-    catype_put_primitive_by_name(signature, dt);
-    break;
+    if (compact) {
+      // array and struct type can directly append the signature
+      dt = catype_clone_thin(datatype);
+      dt->size = len * datatype->size;
+      dt->formalname = signature;
+      dt->signature = signature;
+      dt->array_layout->dimarray[dt->array_layout->dimension++] = len;
+      catype_put_primitive_by_name(signature, dt);
+      break;
+    }
   case POINTER:
   case STRUCT:
   default:
@@ -2015,6 +2090,11 @@ static double parse_to_double(CALiteral *value) {
 static int can_type_binding(CALiteral *lit, tokenid_t typetok) {
   // TODO: use type also from symbol table, when literal also support array or struct, e.g. AA {d,b}
   CADataType *dt = catype_get_primitive_by_name(lit->datatype);
+  if (!dt) {
+    yyerror("get type failed: type is: `%d`", lit->datatype);
+    return 0;
+  }
+
   switch (dt->type) {
   case I64:
     return !check_i64_value_scope(lit->u.i64value, typetok);
@@ -2076,7 +2156,10 @@ Value *gen_zero_literal_value(CADataType *catype) {
 
 Value *gen_array_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
   // using expand formalized catype object
-  assert(catype->array_layout->dimension == 1);
+  if(catype->array_layout->dimension != 1) {
+    yyerror("(internal) the array dimension is not normalized into 1");
+    return nullptr;
+  }
   assert(lit->littypetok == ARRAY);
   int len = catype->array_layout->dimarray[0];
   std::vector<CALiteral> *lits = arraylit_deref(lit->u.arrayvalue);

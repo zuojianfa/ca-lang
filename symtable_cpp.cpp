@@ -66,6 +66,11 @@ static int symname_insert(const std::string &s) {
 
 using SymTableInner = std::unordered_map<int, std::unique_ptr<STEntry>>;
 
+std::vector<CALiteral> *arraylit_deref(CAArrayLit obj) {
+  auto *v = static_cast<std::vector<CALiteral> *>(obj.data);
+  return v;
+}
+
 BEGIN_EXTERN_C
 int lexical_init() {
   return 0;
@@ -103,11 +108,6 @@ CAArrayLit arraylit_append(CAArrayLit obj, CALiteral *lit) {
   auto *v = static_cast<std::vector<CALiteral> *>(obj.data);
   v->push_back(*lit);
   return obj;
-}
-
-std::vector<CALiteral> *arraylit_deref(CAArrayLit obj) {
-  auto *v = static_cast<std::vector<CALiteral> *>(obj.data);
-  return v;
 }
 
 CAVariable *cavar_create(int name, typeid_t datatype) {
