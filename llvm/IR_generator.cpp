@@ -2,13 +2,18 @@
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constant.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/Alignment.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
@@ -129,7 +134,7 @@ static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load")
   return std::move(o);
 }
 
-static std::pair<Value *, tokenid_t> pop_right_value(const char *name = "load") {
+static std::pair<Value *, CADataType *> pop_right_value(const char *name = "load") {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
   oprand_stack.pop_back();
 
@@ -140,7 +145,7 @@ static std::pair<Value *, tokenid_t> pop_right_value(const char *name = "load") 
     v = o->operand;
   }
 
-  return std::make_pair(v, o->datatypetok);
+  return std::make_pair(v, o->catype);
 }
 
 static int enable_debug_info() { return genv.emit_debug; }
@@ -270,6 +275,24 @@ static void post_make_expr(ASTNode *p) {
 
 static void walk_empty(ASTNode *p) {}
 
+static void aux_copy_llvmvalue_to_store(Type *type, Value *dest, Value *src, const char *name) {
+  Type::TypeID id = type->getTypeID();
+  if (id != Type::ArrayTyID && id != Type::StructTyID) {
+    ir1.builder().CreateStore(src, dest, name);
+    return;
+  }
+
+  Type *pint8type = ir1.intptr_type<int8_t>();
+  // PointerType *pint8type = PointerType::getInt8PtrTy(ir1.ctx());
+  Value *pint8_destvalue = ir1.builder().CreatePointerCast(dest, pint8type);
+  Value *pint8_srcvalue = ir1.builder().CreatePointerCast(src, pint8type);
+
+  TypeSize size = ir1.module().getDataLayout().getTypeAllocSize(type);
+  Align align = (static_cast<AllocaInst *>(dest))->getAlign();
+
+  ir1.builder().CreateMemCpy(pint8_destvalue, align, pint8_srcvalue, align, size);
+}
+
 static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -278,12 +301,19 @@ static Value *walk_literal(ASTNode *p) {
     inference_expr_type(p);
 
   // NEXT TODO: put following 3 line into gen_literal_value function
-  CADataType *dt = catype_get_by_name(p->symtable, p->litn.litv.datatype);
-  CHECK_GET_TYPE_VALUE(p, dt, p->litn.litv.datatype);
+  CADataType *catype = catype_get_by_name(p->symtable, p->litn.litv.datatype);
+  CHECK_GET_TYPE_VALUE(p, catype, p->litn.litv.datatype);
 
-  Value *v = gen_literal_value(&p->litn.litv, dt, p->begloc);
+  Value *v = gen_literal_value(&p->litn.litv, catype, p->begloc);
 
-  auto operands = std::make_unique<CalcOperand>(OT_Const, v, dt->type);
+  if (catype->type == ARRAY || catype->type == STRUCT) {
+    Type *arraytype = gen_llvmtype_from_catype(catype);
+    Type::TypeID id = arraytype->getTypeID();
+    Constant *complexconst = static_cast<Constant *>(v);
+    v = ir1.gen_global_var(arraytype, "constarray", complexconst, true);
+  }
+
+  auto operands = std::make_unique<CalcOperand>(OT_Const, v, catype);
   oprand_stack.push_back(std::move(operands));
 
   return v;
@@ -292,7 +322,7 @@ static Value *walk_literal(ASTNode *p) {
 // generate variable, if in a function then it is a local variable, when not in
 // a function but `-nomain` is specified then generate a global variable else
 // also generate a global variable for other use
-static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
+static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullptr) {
   Value *var;
   const char *name = symname_get(p->idn.i);
   //STEntry *entry = sym_getsym(p->symtable, p->idn.i, 1);
@@ -300,17 +330,18 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
   if (entry->sym_type != Sym_Variable)
     yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
 
+  Type *type = gen_llvmtype_from_catype(idtype);
+
   if (entry->u.var->llvm_value) {
     var = static_cast<Value *>(entry->u.var->llvm_value);
     if (defval)
-      ir1.builder().CreateStore(defval, var, name);
+      aux_copy_llvmvalue_to_store(type, var, defval, name);
   } else {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
-    CADataType *dt = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
-    CHECK_GET_TYPE_VALUE(p, dt, p->entry->u.var->datatype);
+    //CADataType *idtype = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
+    //CHECK_GET_TYPE_VALUE(p, idtype, p->entry->u.var->datatype);
 
-    Type *type = gen_llvmtype_from_catype(dt);
-    const char *typestr = catype_get_type_name(dt->signature); // get_type_string(dt->type);
+    const char *typestr = catype_get_type_name(idtype->signature); // get_type_string(idtype->type);
 
     // here determine if `#[scope(global)]` is specified
     if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
@@ -318,10 +349,13 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
       if (enable_debug_info())
 	emit_global_var_dbginfo(name, typestr, p->endloc.row);
     } else {
-      var = ir1.gen_var(type, name, defval);
+      var = ir1.gen_var(type, name, nullptr);
+      if (defval)
+	aux_copy_llvmvalue_to_store(type, var, defval, name);
       if (enable_debug_info())
 	emit_local_var_dbginfo(curr_fn, name, typestr, var, p->endloc.row);
     }
+
     entry->u.var->llvm_value = static_cast<void *>(var);
   }
 
@@ -329,12 +363,12 @@ static Value *walk_id_defv(ASTNode *p, Value *defval = nullptr) {
 }
 
 static Value *walk_id(ASTNode *p) {
-  Value *var = walk_id_defv(p);
+  CADataType *catype = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
+  CHECK_GET_TYPE_VALUE(p, catype, p->entry->u.var->datatype);
 
-  CADataType *dt = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
-  CHECK_GET_TYPE_VALUE(p, dt, p->entry->u.var->datatype);
+  Value *var = walk_id_defv(p, catype);
 
-  auto operands = std::make_unique<CalcOperand>(OT_Alloc, var, dt->type);
+  auto operands = std::make_unique<CalcOperand>(OT_Alloc, var, catype);
   oprand_stack.push_back(std::move(operands));
   return var;
 }
@@ -419,13 +453,13 @@ static void walk_while(ASTNode *p) {
   walk_stack(p->whilen.cond);
   auto pair = pop_right_value("cond");
   Value *cond = pair.first;
-  if (pair.second != BOOL) {
+  if (pair.second->type != BOOL) {
     // when grammar also support other type compare, here should convert the other
     // type into bool type, like following, but need generate compare with right
     // type not hardcoded `int` type
     //cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
     yyerror("line: %d, col: %d: condition only accept `bool` type, but find `%s`",
-	    p->begloc.row, p->begloc.col, get_type_string(pair.second));
+	    p->begloc.row, p->begloc.col, get_type_string(pair.second->type));
     return;
   }
 
@@ -467,17 +501,19 @@ static void walk_if_common(ASTNode *p) {
   walk_stack(p->ifn.conds[0]);
   auto pair = pop_right_value("cond");
   Value *cond = pair.first;
-  if (pair.second != BOOL) {
+  if (pair.second->type != BOOL) {
     // when grammar also support other type compare, here should convert the other
     // type into bool type, like following, but need generate compare with right
     // type not hardcoded `int` type
     //cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
     yyerror("line: %d, col: %d: condition only accept `bool` type, but find `%s`",
-	    p->begloc.row, p->begloc.col, get_type_string(pair.second));
+	    p->begloc.row, p->begloc.col, get_type_string(pair.second->type));
     return;
   }
 
-  tokenid_t tt1 = 0, tt2 = 0;
+  //tokenid_t tt1 = 0, tt2 = 0;
+  CADataType *tt1 = nullptr;
+  CADataType *tt2 = nullptr;
 
   if (p->ifn.remain) { /* if else */
     elsebb = ir1.gen_bb("elsebb");
@@ -514,7 +550,7 @@ static void walk_if_common(ASTNode *p) {
   
   if (isexpr) {
     // TODO: check if use typeid instead of tokenid
-    if (tt1 != tt2) {
+    if (tt1->type != tt2->type) {
       yyerror("expression type not equal in if ... else ... expression");
       return;
     }
@@ -550,8 +586,8 @@ static void walk_dbgprint(ASTNode *p) {
   const char *format = "%d\n";
 
   // handle expression value transfer
-  format = get_printf_format(pair.second);
-  v = tidy_value_with_arith(v, pair.second);
+  format = get_printf_format(pair.second->type);
+  v = tidy_value_with_arith(v, pair.second->type);
 
   Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
   std::vector<Value *> printf_args(1, format_str);
@@ -719,9 +755,9 @@ static void walk_assign(ASTNode *p) {
     v = gen_zero_literal_value(dt);
   }
  
-  Value *vp = walk_id_defv(idn, v);
+  Value *vp = walk_id_defv(idn, dt, v);
 
-  auto u = std::make_unique<CalcOperand>(OT_Store, vp, dt->type);
+  auto u = std::make_unique<CalcOperand>(OT_Store, vp, dt);
   oprand_stack.push_back(std::move(u));
 }
 
@@ -740,7 +776,7 @@ static void walk_expr_minus(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
   Value *v = ir1.gen_sub(ir1.gen_int(0), pair.first);
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v, type));
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v, dt));
 }
 
 static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
@@ -831,7 +867,7 @@ static void walk_expr_call(ASTNode *p) {
   CADataType *retdt = catype_get_by_name(p->symtable, itr->second->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, itr->second->fndecln.ret);
 
-  auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, retdt->type);
+  auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, retdt);
   oprand_stack.push_back(std::move(operands));
 }
 
@@ -910,7 +946,6 @@ static void walk_expr_op2(ASTNode *p) {
 
   CADataType *dt = catype_get_by_name(p->symtable, typeid1);
   CHECK_GET_TYPE_VALUE(p, dt, typeid1);
-  tokenid_t type1 = dt->type;
 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
@@ -934,15 +969,16 @@ static void walk_expr_op2(ASTNode *p) {
   case LE:
   case NE:
   case EQ:
-    v3 = generate_cmp_op(type1, v1, v2, p->exprn.op);
-    type1 = BOOL; // BOOL for 1 bit of bool type
+    v3 = generate_cmp_op(dt->type, v1, v2, p->exprn.op);
+    // BOOL for 1 bit of bool type
+    dt = catype_get_primitive_by_token(BOOL);
     break;
   default:
     yyerror("unknown expression operands: %d", p->exprn.op);
     break;
   }
 
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v3, type1));
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v3, dt));
 }
 
 static void walk_expr_as(ASTNode *node) {
@@ -979,7 +1015,7 @@ static void walk_expr_as(ASTNode *node) {
     v = ir1.gen_cast_value(castopt, v, stype);
   }
  
-  auto u = std::make_unique<CalcOperand>(calco->type, v, astype->type);
+  auto u = std::make_unique<CalcOperand>(calco->type, v, astype);
   oprand_stack.push_back(std::move(u));
 }
 
@@ -987,8 +1023,8 @@ static void walk_expr_sizeof(ASTNode *id) {
   int typesize = 0;
   typeid_t unwind = catype_unwind_type_signature(id->symtable, id->idn.i, &typesize, nullptr);
   Value *value = ir1.gen_int((uint64_t)typesize);
-
-  auto u = std::make_unique<CalcOperand>(OT_Const, value, U64);
+  CADataType *catype = catype_get_primitive_by_token(U64);
+  auto u = std::make_unique<CalcOperand>(OT_Const, value, catype);
   oprand_stack.push_back(std::move(u));
 }
 

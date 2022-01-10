@@ -255,6 +255,10 @@ is scopeline the real skip function start for debugging? try it
 ```
 
 NEXT TODO:
+- [ ] debug 2 side inference literal array type
+- [ ] debug function `catype_get_by_name` for input `t:[[[i32;2];3];2]`, sometimes it output 2 3 28
+    `[grammar line: 10, token: -2] expected an array with a fixed size of 29 elements, found one with 2 elements`
+
 - [ ] support struct literal
 - [ ] support struct member operation 
 - [ ] support array literal

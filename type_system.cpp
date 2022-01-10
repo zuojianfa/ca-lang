@@ -32,9 +32,11 @@
 #include "type_system_llvm.h"
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Value.h"
 #include "llvm/MC/SubtargetFeature.h"
@@ -58,6 +60,7 @@ END_EXTERN_C
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 extern int glineno;
 extern int gcolno;
@@ -780,6 +783,7 @@ static int catype_unwind_type_array(SymTable *symtable, const char *pchbegin,
     numbuf[i++] = *pch;
     sigbuf[sigi++] = *pch++;
   }
+  numbuf[i] = '\0';
 
   if (i == 0) {
     yyerror("(internal) numeric value expected but not found");
@@ -1594,6 +1598,11 @@ void determine_array_literal(CALiteral *lit, CADataType *catype) {
   int len = catype->array_layout->dimarray[0];
   std::vector<CALiteral> *lits = arraylit_deref(lit->u.arrayvalue);
   if (len != lits->size()) {
+    // [grammar line: 10, token: -2] expected an array with a fixed size of 29 elements, found one with 2 elements
+    int i = 1;
+    while(i)
+      sleep(1);
+
     yyerror("expected an array with a fixed size of %d elements, found one with %d elements",
 	    len, lits->size());
     return;
@@ -1622,6 +1631,16 @@ void determine_array_literal(CALiteral *lit, CADataType *catype) {
 void determine_literal_type(CALiteral *lit, CADataType *catype) {
   if (!catype)
     return;
+
+  if (lit->fixed_type) {
+    if (lit->datatype == catype->signature)
+      return;
+    else {
+      yyerror("conflicting of determining literal type: literal already have a type `%s`, cannot determine into `%s`",
+	      catype_get_type_name(lit->datatype), catype_get_type_name(catype->signature));
+      return;
+    }
+  }
 
   tokenid_t littypetok = lit->littypetok;
   tokenid_t typetok = catype->type;
@@ -2055,6 +2074,52 @@ Value *gen_zero_literal_value(CADataType *catype) {
   return nullptr;
 }
 
+Value *gen_array_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
+  // using expand formalized catype object
+  assert(catype->array_layout->dimension == 1);
+  assert(lit->littypetok == ARRAY);
+  int len = catype->array_layout->dimarray[0];
+  std::vector<CALiteral> *lits = arraylit_deref(lit->u.arrayvalue);
+  assert(len == lits->size());
+
+  std::vector<Constant *> subvalues;
+  CADataType *subtype = catype->array_layout->type;
+  for (int i = 0; i < len; ++i) {
+    CALiteral *sublit = &lits->at(i);
+    Value *subvalue = gen_literal_value(sublit, subtype, loc);
+    subvalues.push_back((Constant *)subvalue);
+  }
+
+  Type *arraytype = gen_llvmtype_from_catype(catype);
+  Constant *arrayconst = ConstantArray::get((ArrayType *)arraytype, subvalues);
+  //GlobalValue *g = ir1.gen_global_var(arraytype, "constarray", arrayconst, true);
+
+  return arrayconst;
+  
+  // AllocaInst::ZExt;
+  // ir1.builder().CreateInst
+  // ConstantStruct::get();
+  //ir1.builder().CreateAlloca();
+  // llvm::ConstantArray
+  //Constant::getOperand();
+
+  // makeArrayRef();
+  // MDStringArray::
+  // MDNodeArray::get();
+  // MDTupleArray;
+    
+
+  // ConstantDataArray::get();
+  // ConstantArray::get(); //(ArrayType *T, ArrayRef<Constant *> V);
+  // TODO:
+  //ConstantArray::get(ArrayType *T, ArrayRef<Constant *> V);
+  //ConstantDataArray;
+  //FeatureBitArray;
+
+  yyerror("the array literal not implemented yet");
+  return nullptr;  
+}
+
 Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
   // TODO: use type also from symbol table, when literal also support array or struct, e.g. AA {d,b}
   Type *type = nullptr;
@@ -2084,38 +2149,8 @@ Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
     }
 
     return llvmvalue;
-  case ARRAY: {
-    // using expand formalized catype object
-    assert(catype->array_layout->dimension == 1);
-    assert(lit->littypetok == ARRAY);
-    int len = catype->array_layout->dimarray[0];
-    std::vector<CALiteral> *lits = arraylit_deref(lit->u.arrayvalue);
-    assert(len == lits->size());
-
-    CADataType *subtype = catype->array_layout->type;
-    for (int i = 0; i < len; ++i) {
-      CALiteral *sublit = &lits->at(i);
-      Value *subvalue = gen_literal_value(sublit, subtype, loc);
-    }
-
-    // llvm::ConstantArray
-
-    // makeArrayRef();
-    // MDStringArray::
-    // MDNodeArray::get();
-    // MDTupleArray;
-    
-
-    // ConstantDataArray::get();
-    // ConstantArray::get(); //(ArrayType *T, ArrayRef<Constant *> V);
-    // TODO:
-    //ConstantArray::get(ArrayType *T, ArrayRef<Constant *> V);
-    //ConstantDataArray;
-    //FeatureBitArray;
-
-    yyerror("the array literal not implemented yet");
-    return nullptr;
-  }
+  case ARRAY:
+    return gen_array_literal_value(lit, catype, loc);
   case STRUCT:
     //ConstantStruct::get();
     // TODO:

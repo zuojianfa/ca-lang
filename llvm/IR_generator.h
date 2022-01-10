@@ -2,6 +2,8 @@
 #define __IR_generator_h__
 
 #include "ca_types.h"
+#include "ca.h"
+#include "symtable.h"
 
 #include <llvm/IR/Value.h>
 
@@ -16,10 +18,11 @@ enum OperandType {
 };
 
 struct CalcOperand{
-CalcOperand(OperandType t, llvm::Value *v, tokenid_t typetok) :
-  type(t), operand(v), datatypetok(typetok) {}
+CalcOperand(OperandType t, llvm::Value *v, CADataType *dt /* tokenid_t typetok */) :
+  type(t), operand(v), catype(dt) /* datatypetok(typetok) */ {}
   OperandType type;
-  tokenid_t datatypetok; // TODO: change it into CADataType object
+  //tokenid_t datatypetok; // TODO: change it into CADataType object
+  CADataType *catype;
   llvm::Value *operand;
 };
 
