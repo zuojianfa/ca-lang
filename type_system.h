@@ -32,7 +32,8 @@ int catype_put_primitive_by_name(typeid_t name, CADataType *datatype);
 CADataType *catype_get_primitive_by_name(typeid_t name);
 int catype_put_primitive_by_token(tokenid_t token, CADataType *datatype);
 CADataType *catype_get_primitive_by_token(tokenid_t token);
-int catype_is_float(tokenid_t typetok);
+bool catype_is_float(tokenid_t typetok);
+bool catype_is_complex_type(tokenid_t typetok);
 CADataType *catype_get_by_name(SymTable *symtable, typeid_t name);
 
 void put_post_function(typeid_t fnname, void *carrier);

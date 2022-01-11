@@ -3,6 +3,7 @@
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constant.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instruction.h"
@@ -20,6 +21,7 @@
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cassert>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -574,6 +576,27 @@ static void walk_expr_ife(ASTNode *p) {
   walk_if_common(p);
 }
 
+static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
+  switch(catype->type) {
+  case ARRAY:
+    assert(catype->array_layout->dimension == 1);
+    for (int i = 0; i < catype->array_layout->dimarray[0]; ++i) {
+      ConstantArray *arrayv = static_cast<ConstantArray *>(v);
+
+      // NEXT TODO:
+      // dbgprint_complex(fn, catype, arrayv->get);
+    }
+  case POINTER:
+    break;
+  case STRUCT:
+    break;
+  default:
+    // output each of primitive type
+    // TODO: distract a common function an use the same one with print related code of walk_dbgprint
+    break;
+  }
+}
+
 static void walk_dbgprint(ASTNode *p) {
   inference_expr_type(p->printn.expr);
   walk_stack(p->printn.expr);
@@ -582,6 +605,11 @@ static void walk_dbgprint(ASTNode *p) {
   Function *printf_fn = ir1.module().getFunction("printf");
   if (!printf_fn)
     yyerror("cannot find declared extern printf function");
+
+  if (catype_is_complex_type(pair.second->type)) {
+    dbgprint_complex(printf_fn, pair.second, v);
+    return;
+  }
 
   const char *format = "%d\n";
 

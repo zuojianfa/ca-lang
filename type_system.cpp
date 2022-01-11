@@ -1497,17 +1497,6 @@ static typeid_t inference_primitive_literal_type(CALiteral *lit) {
   return lit->datatype;
 }
 
-static bool catype_is_complex_type(tokenid_t token) {
-  switch (token) {
-  case ARRAY:
-  case STRUCT:
-  case POINTER:
-    return true;
-  default:
-    return false;
-  }
-}
-
 static typeid_t inference_array_literal(CALiteral *lit) {
   std::vector<CALiteral> *lits = arraylit_deref(lit->u.arrayvalue);
   size_t len = lits->size();
@@ -2772,8 +2761,19 @@ int check_uchar_value_scope(uint8_t lit, tokenid_t typetok) {
   return 0;
 }
 
-int catype_is_float(tokenid_t typetok) {
+bool catype_is_float(tokenid_t typetok) {
   return (typetok == F32 || typetok == F64);
+}
+
+bool catype_is_complex_type(tokenid_t typetok) {
+  switch (typetok) {
+  case ARRAY:
+  case STRUCT:
+  case POINTER:
+    return true;
+  default:
+    return false;
+  }
 }
 
 static CADataType *catype_make_type(const char *name, int type, int size) {

@@ -1,0 +1,10 @@
+fn main() {
+    // Hello CA
+    //let a = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A', '\n'];
+    //let a = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A'];
+    let a = [1, 2, 3];
+    print a;
+    //let b = a as *i8;
+    //print b;
+}
+

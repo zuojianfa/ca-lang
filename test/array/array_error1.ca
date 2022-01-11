@@ -1,0 +1,4 @@
+fn main() {
+    let a: [f32; 2] = [1.1f64, 2.2f64]; // should cannot compiled
+}
+
