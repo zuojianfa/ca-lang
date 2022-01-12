@@ -1,0 +1,11 @@
+fn main() {
+    let a = [1, 2, 3];
+    print a; print '\n';
+    let b = [3.4, 1.2, 2.2];
+    print b; print '\n';
+    let c = [[1,2],[3,4]];
+    print c; print '\n';
+    let d:[[[i32;2];3];2] = [[[1,2],[3,4],[5,6]], [[7,8],[9,10],[11,12]]];
+    print d; print '\n';
+}
+

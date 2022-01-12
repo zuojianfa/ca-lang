@@ -3,8 +3,9 @@ struct D {
 };
 
 void func1() {
-	int a[2][2] = {{1, 2}, {3, 4}};
-	//int b[] = {1,2,3};
+	//int a[2][2] = {{1, 2}, {3, 4}};
+	int b[] = {1,2,3};
+	int eb = b[1];
 
 	//int sa1 = a[1];
 	//int sa2 = a[2];

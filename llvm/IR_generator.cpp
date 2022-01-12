@@ -22,7 +22,9 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
+#include <cstdarg>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -576,23 +578,57 @@ static void walk_expr_ife(ASTNode *p) {
   walk_if_common(p);
 }
 
+static void llvmcode_printf(Function *fn, const char *format, ...) {
+  Constant *llvmformat = ir1.builder().CreateGlobalStringPtr(format);
+  std::vector<Value *> params(1, llvmformat);
+
+  Value *vv = nullptr;
+  va_list ap;
+  va_start(ap, format);
+  while ((vv  = va_arg(ap, Value *)) != nullptr)
+    params.push_back(vv);
+  va_end(ap);
+
+  ir1.builder().CreateCall(fn, params, "n");
+}
+
+static void llvmcode_printf_primitive(Function *fn, CADataType *catype, Value *v) {
+  const char *format = get_printf_format(catype->type);
+  v = tidy_value_with_arith(v, catype->type);
+  llvmcode_printf(fn, format, v, nullptr);
+}
+
 static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
+  int len = 0;
   switch(catype->type) {
   case ARRAY:
     assert(catype->array_layout->dimension == 1);
-    for (int i = 0; i < catype->array_layout->dimarray[0]; ++i) {
-      ConstantArray *arrayv = static_cast<ConstantArray *>(v);
+    llvmcode_printf(fn, "[", nullptr);
+    len = catype->array_layout->dimarray[0];
+    for (int i = 0; i < len; ++i) {
+      //ConstantArray *arrayv = static_cast<ConstantArray *>(v);
+      //Constant *subv = arrayv->getAggregateElement(i);
 
-      // NEXT TODO:
-      // dbgprint_complex(fn, catype, arrayv->get);
+      //Value *idx = ir1.gen_int(i);
+      //Value *subv = ir1.builder().CreateGEP(v, idx, "subv");
+
+      //Type* array_t =  llvm::PointerType::getUnqual(v->getType());
+      Value *subv = ir1.builder().CreateExtractValue(v, i);
+
+      dbgprint_complex(fn, catype->array_layout->type, subv);
+      if (i < len - 1)
+	llvmcode_printf(fn, ", ", nullptr);
     }
+
+    llvmcode_printf(fn, "]", nullptr);
+    break;
   case POINTER:
     break;
   case STRUCT:
     break;
   default:
     // output each of primitive type
-    // TODO: distract a common function an use the same one with print related code of walk_dbgprint
+    llvmcode_printf_primitive(fn, catype, v);
     break;
   }
 }
@@ -611,6 +647,13 @@ static void walk_dbgprint(ASTNode *p) {
     return;
   }
 
+  // handle expression value transfer
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col);
+
+  llvmcode_printf_primitive(printf_fn, pair.second, v);
+
+#if 0
   const char *format = "%d\n";
 
   // handle expression value transfer
@@ -625,6 +668,7 @@ static void walk_dbgprint(ASTNode *p) {
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
   ir1.builder().CreateCall(printf_fn, printf_args, "n");
+#endif
 }
 
 static void walk_dbgprinttype(ASTNode *p) {
