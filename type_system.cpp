@@ -2560,8 +2560,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
-    (ICO)-1,           /* POINTER */
-    (ICO)-1,           /* CSTRING */
+    (ICO)0,            /* POINTER */
+    (ICO)0,            /* CSTRING */
   },                   // ARRAY -> ?
   { // Begin POINTER
     (ICO)-1,           /* VOID */

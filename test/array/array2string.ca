@@ -1,9 +1,11 @@
+extern fn printf(format: *i8, ...) -> i32;
 fn main() {
     // Hello CA
     //let a = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A', '\n'];
     let a = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A'];
-    print a;
+    //print a;
     let b = a as *i8;
     print b;
+    printf(b);
 }
 

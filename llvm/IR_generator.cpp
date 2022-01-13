@@ -124,12 +124,12 @@ static int walk_stack(ASTNode *p);
 extern RootTree *gtree;
 extern std::unordered_map<typeid_t, void *> g_function_post_map;
 
-static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load") {
+static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load", bool load = true) {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
   oprand_stack.pop_back();
 
   Value *v;
-  if (o->type == OT_Alloc) {
+  if (load && o->type == OT_Alloc) {
     v = ir1.builder().CreateLoad(o->operand, name);
     o->type = OT_Load;
     o->operand = v;
@@ -138,12 +138,12 @@ static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load")
   return std::move(o);
 }
 
-static std::pair<Value *, CADataType *> pop_right_value(const char *name = "load") {
+static std::pair<Value *, CADataType *> pop_right_value(const char *name = "load", bool load = true) {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
   oprand_stack.pop_back();
 
   Value *v;
-  if (o->type == OT_Alloc) {
+  if (load && o->type == OT_Alloc) {
     v = ir1.builder().CreateLoad(o->operand, name);
   } else {
     v = o->operand;
@@ -1080,13 +1080,24 @@ static void walk_expr_as(ASTNode *node) {
     return;
   }
 
-  auto calco = pop_right_operand("tmpexpr");
+  bool array2ptr = (exprcatype->type == ARRAY && astype->type == POINTER);
+  auto calco = pop_right_operand("tmpexpr", !array2ptr);
   Value *v = calco->operand;
-  if (castopt != (ICO)0) {
+
+  if (array2ptr) {
     Type *stype = gen_llvmtype_from_catype(astype);
-    v = ir1.gen_cast_value(castopt, v, stype);
+    v = ir1.gen_cast_value(ICO::BitCast, v, stype, "ptrcast");
+    //v = ir1.builder().CreateGEP(v, ir1.gen_int(0), "subv");
+    //v = ir1.builder().CreateInBoundsGEP(stype, v, ir1.gen_int(0), "subv");
+    v = ir1.gen_var(stype, "tmpptr", v);
+    //v = ir1.builder().CreatePointerCast(v, stype, "ptrcast");
+  } else {
+    if (castopt != (ICO)0) {
+      Type *stype = gen_llvmtype_from_catype(astype);
+      v = ir1.gen_cast_value(castopt, v, stype);
+    }
   }
- 
+
   auto u = std::make_unique<CalcOperand>(calco->type, v, astype);
   oprand_stack.push_back(std::move(u));
 }
