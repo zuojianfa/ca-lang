@@ -1,12 +1,11 @@
 extern fn printf(format: *i8, ...) -> i32;
-fn main() -> i32 {
+fn main() {
     // Hello CA
-    let a: [char; 11] = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A', '\n', '\67', '\0'];
+    let a: [char; 12] = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A', '\n', '\67', '\0'];
     //let a = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A', '\0'];
     print a; print '\n';
     let b = a as *i8;
     print b;
-    let n = printf(b);
-    return n;
+    printf(b);
 }
 

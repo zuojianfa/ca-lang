@@ -1,0 +1,19 @@
+extern fn printf(format: *i8, ...) -> i32;
+fn main() -> **i32{
+    let a: [i32; 3] = [101, 102, 111];
+    print a; print '\n';
+    let b = [1, 1, 111];
+    print b; print '\n';
+    let c: [f32; 3] = [2.2, 3.3, 4.3];
+    print c; print '\n';
+    let d: [f64; 3] = [2.20001, 3.300222, 4.3332333];
+    print d; print '\n';
+    
+    printf("Hello CA: %d != %p", 1, 2);
+
+    let e = a as *char;
+    let f = e as **i32;
+
+    return 0;
+}
+

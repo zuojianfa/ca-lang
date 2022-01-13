@@ -40,6 +40,7 @@ void *string_buffer = NULL;
 \-[1-9][0-9]*	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, I64); return LITERAL; }
 \-?0\.[0-9]+	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, F64); return LITERAL; }
 \-?[1-9][0-9]*\.[0-9]+	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, F64); return LITERAL; }
+\'\\[0-9]{1,3}\'	{ ULL(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, UCHAR); return LITERAL; }
 \'\\.\'		{ ULL(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, UCHAR); return LITERAL; }
 \'.\'		{ ULL(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, CHAR); return LITERAL; }
 "true"		{ ULL(); set_litbuf(&yylval.litb, "1", 1, BOOL); return LITERAL; }

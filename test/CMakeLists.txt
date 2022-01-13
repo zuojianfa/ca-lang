@@ -54,4 +54,5 @@ add_subdirectory(cmp)
 add_subdirectory(type)
 add_subdirectory(string)
 add_subdirectory(pointer)
+add_subdirectory(array)
 

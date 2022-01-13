@@ -37,8 +37,12 @@
 #include <sys/time.h>
 #include <utility>
 #include <vector>
-#include "ca.h"
 
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "ca.h"
 #include "ca_types.h"
 #include "type_system.h"
 #include "type_system_llvm.h"
@@ -1482,7 +1486,7 @@ static int llvm_codegen_native(CodeGenFileType type, const char *output = nullpt
   return 0;
 }
 
-static int llvm_codegen_jit() {
+static int llvm_codegen_jit(const char *output = nullptr) {
   do_optimize_pass();
 
   ir1.module().setDataLayout(jit1->get_datalayout());
@@ -1491,7 +1495,31 @@ static int llvm_codegen_jit() {
   exit_on_error(jit1->add_module(std::move(tsm), rt));
   auto func_symbol = exit_on_error(jit1->find("main"));
   int (*func)() = (int (*)())(intptr_t)func_symbol.getAddress();
+
+  int saved_stdout = STDOUT_FILENO;
+  int saved_stderr = STDERR_FILENO;
+  int tofile = output && output[0];
+
+  if (tofile) {
+    // one of the O_RDONLY O_WRONLY O_RDWR must be provided in the flag
+    int fd = open(output, O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, 0666);
+    saved_stdout = dup(STDOUT_FILENO);
+    saved_stderr = dup(STDERR_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    close(fd);
+  }
+
   printf("\nreturn value: %d\n", func());
+  fflush(stdout);
+
+  if (tofile) {
+    dup2(saved_stdout, STDOUT_FILENO);
+    dup2(saved_stderr, STDERR_FILENO);
+    close(saved_stdout);
+    close(saved_stderr);
+  }
+
   exit_on_error(rt->remove());
   return 0;
 }
@@ -1561,7 +1589,7 @@ static int llvm_codegen_end() {
     ret = llvm_codegen_native(CGFT_ObjectFile, genv.outfile);
     break;
   case LGT_JIT:
-    ret = llvm_codegen_jit();
+    ret = llvm_codegen_jit(genv.outfile);
     break;
   case LGT_NATIVE:
     {
@@ -1717,11 +1745,13 @@ static int init_config(int argc, char *argv[]) {
     genv.goutput = stdout;
   } else {
     strcpy(genv.outfile, argv[arg]);
+#if 0
     genv.goutput = fopen(argv[arg], "w+");
     if (!genv.goutput) {
       fprintf(stderr, "Open output file failed: %s, errno=%d\n", argv[arg], errno);
       return -1;
     }
+#endif
   }
 
   genv.code_buffer = (int *)calloc(MAX_OPS, sizeof(int));

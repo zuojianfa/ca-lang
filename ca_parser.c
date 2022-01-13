@@ -790,6 +790,8 @@ int parse_lexical_char(const char *text) {
   if (text[0] != '\\')
     return text[0];
 
+  int n = 0;
+
   switch(text[1]) {
   case 'r':
     return '\r';
@@ -798,6 +800,9 @@ int parse_lexical_char(const char *text) {
   case 't':
     return '\t';
   default:
+    n = atoi(text+1);
+    return n;
+
     yyerror("line: %d, col: %d: unimplemented special character", glineno, gcolno);
     return -1;
   }

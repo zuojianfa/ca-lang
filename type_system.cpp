@@ -1476,7 +1476,7 @@ static typeid_t inference_primitive_literal_type(CALiteral *lit) {
     badscope = check_char_value_scope(lit->u.i64value, CHAR);
     break;
   case UCHAR:
-    intentdeftype = UCHAR;
+    intentdeftype = CHAR;
     lit->u.i64value = (uint8_t)parse_lexical_char(text);
     badscope = check_uchar_value_scope(lit->u.i64value, UCHAR);
     break;
@@ -1660,11 +1660,6 @@ void determine_array_literal(CALiteral *lit, CADataType *catype) {
   int len = catype->array_layout->dimarray[0];
   std::vector<CALiteral> *lits = arraylit_deref(lit->u.arrayvalue);
   if (len != lits->size()) {
-    // [grammar line: 10, token: -2] expected an array with a fixed size of 29 elements, found one with 2 elements
-    int i = 1;
-    while(i)
-      sleep(1);
-
     yyerror("expected an array with a fixed size of %d elements, found one with %d elements",
 	    len, lits->size());
     return;
