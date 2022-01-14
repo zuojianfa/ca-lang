@@ -103,6 +103,10 @@ typedef struct CAStructLit {
   void *data;
 } CAStructLit;
 
+typedef struct CAArrayExpr {
+  void *data;
+} CAArrayExpr;
+
 typedef struct CALiteral {
   // specify if literal type is defined (fixed) with postfix (u32,f64, ...).
   // indicate if the literal type is determined
@@ -233,6 +237,9 @@ void set_litbuf_symname(LitBuffer *litb, int name, int len, int typetok);
 
 CAArrayLit arraylit_new();
 CAArrayLit arraylit_append(CAArrayLit obj, CALiteral *lit);
+
+CAArrayExpr arrayexpr_new();
+CAArrayExpr arrayexpr_append(CAArrayExpr obj, struct ASTNode *expr);
 
 CAVariable *cavar_create(int name, typeid_t datatype);
 void cavar_destroy(CAVariable **var);

@@ -593,6 +593,12 @@ ASTNode *make_literal(CALiteral *litv) {
     return p;
 }
 
+ASTNode *make_array_def(CAArrayExpr expr) {
+  ASTNode *p = new_ASTNode(TTE_ArrayDef);
+  ASTNode *node = make_expr(ARRAY, 1, p);
+  return node;
+}
+
 ASTNode *make_id(int i, IdType idtype) {
     ASTNode *p = new_ASTNode(TTE_Id);
     p->idn.i = i;

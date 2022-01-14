@@ -110,6 +110,18 @@ CAArrayLit arraylit_append(CAArrayLit obj, CALiteral *lit) {
   return obj;
 }
 
+CAArrayExpr arrayexpr_new() {
+  std::vector<ASTNode *> *v = new std::vector<ASTNode *>;
+  CAArrayExpr expr = { static_cast<void *>(v) };
+  return expr;
+}
+
+CAArrayExpr arrayexpr_append(CAArrayExpr obj, ASTNode *expr) {
+  auto *v = static_cast<std::vector<ASTNode *> *>(obj.data);
+  v->push_back(expr);
+  return obj;
+}
+
 CAVariable *cavar_create(int name, typeid_t datatype) {
   CAVariable *var = new CAVariable;
   var->datatype = datatype;

@@ -56,6 +56,7 @@ extern int yychar, yylineno;
   CAVariable *var;
   CALiteral litv;   /* literal value */
   CAArrayLit arraylitv; /* array literal value */
+  CAArrayExpr arrayexpr; /* array expression */
   LitBuffer litb;   /* literal buffer */
     //IdToken idtok;    /* return type token */
   int symnameid;    /* symbol table index */
@@ -78,6 +79,7 @@ extern int yychar, yylineno;
 %nonassoc		UMINUS
 %type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def
 %type	<arraylitv>	lit_array_list lit_array_def
+%type	<arrayexpr>	array_def array_items
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
@@ -227,6 +229,7 @@ label_id:	IDENT		      { dot_emit("label_id", "IDENT"); $$ = $1; }
 		;
 
 expr:     	literal               { $$ = make_literal(&$1); }
+	|	array_def             { $$ = make_array_def(&$1); }
 	|	IDENT                 { $$ = make_ident_expr($1); }
 	|	'-'expr %prec UMINUS  { $$ = make_expr(UMINUS, 1, $2); }
 	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
@@ -301,17 +304,25 @@ ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; 
 literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, $1.typetok, -1); }
 	|	LITERAL IDENT    { create_literal(&$$, $1.text, $1.typetok, sym_primitive_token_from_id($2)); }
 	|	STR_LITERAL      { create_string_literal(&$$, &$1); }
-	|	lit_array_def    { create_array_literal(&$$, $1); }
-	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
+//	|	lit_array_def    { create_array_literal(&$$, $1); }
+//	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
 	;
 
-lit_array_def:	'[' lit_array_list ']' { $$ = $2; }
+//////////////////////
+array_def:	'[' array_items ']' { $$ = $2; }
 	;
 
-lit_array_list:	lit_array_list ',' literal { $$ = arraylit_append($1, &$3); }
-	|	literal { $$ = arraylit_append(arraylit_new(), &$1);}
+array_items:	array_items ',' expr { $$ = arrayexpr_append($1, $3); }
+	|	expr { $$ = arrayexpr_append(arrayexpr_new(), $1); }
 	;
+//////////////////////
 
+//lit_array_def:	'[' lit_array_list ']' { $$ = $2; }
+//	;
+
+//lit_array_list:	lit_array_list ',' literal { $$ = arraylit_append($1, &$3); }
+//	|	literal { $$ = arraylit_append(arraylit_new(), &$1);}
+//	;
 lit_struct_def:	IDENT '{' lit_struct_field_list  '}'
 		{
 		    dot_emit("", "");

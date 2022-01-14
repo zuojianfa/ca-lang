@@ -40,6 +40,7 @@ typedef enum {
   TTE_StmtList,
   TTE_TypeDef,
   TTE_VarDefZeroValue, // the value of `__zero_init__` to specify initial all with 0, carry nothing
+  TTE_ArrayDef,
   TTE_Num,
 } ASTNodeType;
 
