@@ -595,6 +595,7 @@ ASTNode *make_literal(CALiteral *litv) {
 
 ASTNode *make_array_def(CAArrayExpr expr) {
   ASTNode *p = new_ASTNode(TTE_ArrayDef);
+  p->anoden.aexpr = expr;
   ASTNode *node = make_expr(ARRAY, 1, p);
   return node;
 }

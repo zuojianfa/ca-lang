@@ -71,6 +71,11 @@ std::vector<CALiteral> *arraylit_deref(CAArrayLit obj) {
   return v;
 }
 
+std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj) {
+  auto *v = static_cast<std::vector<ASTNode *> *>(obj.data);
+  return v;
+}
+
 BEGIN_EXTERN_C
 int lexical_init() {
   return 0;

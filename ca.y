@@ -78,7 +78,7 @@ extern int yychar, yylineno;
 %left			AS
 %nonassoc		UMINUS
 %type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def
-%type	<arraylitv>	lit_array_list lit_array_def
+//			%type	<arraylitv>	lit_array_list lit_array_def
 %type	<arrayexpr>	array_def array_items
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
@@ -305,7 +305,7 @@ literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, 
 	|	LITERAL IDENT    { create_literal(&$$, $1.text, $1.typetok, sym_primitive_token_from_id($2)); }
 	|	STR_LITERAL      { create_string_literal(&$$, &$1); }
 //	|	lit_array_def    { create_array_literal(&$$, $1); }
-//	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
+	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
 	;
 
 //////////////////////

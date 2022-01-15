@@ -23,6 +23,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstdarg>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -127,6 +128,8 @@ static std::map<Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
 static int walk_stack(ASTNode *p);
 extern RootTree *gtree;
 extern std::unordered_map<typeid_t, void *> g_function_post_map;
+
+std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
 
 static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load", bool load = true) {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
@@ -1115,6 +1118,47 @@ static void walk_expr_sizeof(ASTNode *id) {
   oprand_stack.push_back(std::move(u));
 }
 
+static void walk_expr_array(ASTNode *anode) {
+  std::vector<ASTNode *> *vnodes = arrayexpr_deref(anode->anoden.aexpr);
+  std::vector<Value *> values;
+  Type *lefttype = nullptr;
+  CADataType *leftcatype = nullptr;
+  const CalcOperand *leftco = nullptr;
+  for (size_t i = 0; i < vnodes->size(); ++i) {
+    walk_stack((*vnodes)[i]);
+    std::unique_ptr<CalcOperand> co = pop_right_operand("arritem");
+    if (i == 0)
+      leftco = co.get();
+
+    Type *lefttype = leftco->operand->getType();
+    Type *type = co->operand->getType();
+    if (lefttype != type) {
+      yyerror("line: %d, col: %d: array type have different element type: idx: %d, `%s` != `%s`",
+	      anode->begloc.row, anode->begloc.col, i,
+	      catype_get_type_name(leftco->catype->signature),
+	      catype_get_type_name(co->catype->signature));
+      return;
+    }
+
+    switch(co->type) {
+    OT_Const:
+    OT_Variable:
+    OT_Load:
+    OT_Store:
+    OT_Alloc:
+    OT_CallInst:
+    OT_PHINode:
+    default:
+      break;
+    }
+
+    values.push_back(co->operand);
+    leftco = co.get();
+  }
+
+  
+}
+
 static void walk_expr(ASTNode *p) {
   //post_make_expr(p);
   
@@ -1123,6 +1167,8 @@ static void walk_expr(ASTNode *p) {
     return;
 
   switch (p->exprn.op) {
+  case ARRAY:
+    walk_expr_array(p->exprn.operands[0]);
   case AS:
     walk_stack(p->exprn.operands[0]);
     break;

@@ -76,6 +76,10 @@ typedef struct {
   CALiteral litv; /* value of literal */
 } TLiteralNode;
 
+typedef struct {
+  CAArrayExpr aexpr;
+} TArrayNode;
+
 /* identifiers */
 typedef struct {
   IdType idtype;
@@ -189,6 +193,7 @@ typedef struct ASTNode {
     TAssign assignn;     /* assigment value */
     TArgList arglistn;   /* actual argument list */
     TStmtList stmtlistn; /* statement list */
+    TArrayNode anoden;   /* array expresssion node */
   };
 } ASTNode;
 
