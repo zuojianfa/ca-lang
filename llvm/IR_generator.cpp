@@ -1118,11 +1118,15 @@ static void walk_expr_sizeof(ASTNode *id) {
   oprand_stack.push_back(std::move(u));
 }
 
-static void walk_expr_array(ASTNode *anode) {
+static void walk_expr_array(ASTNode *p) {
+  inference_expr_type(p);
+  ASTNode *anode = p->exprn.operands[0];
+  CADataType *arraycatype = catype_get_by_name(anode->symtable, anode->exprasn.type);
+  CHECK_GET_TYPE_VALUE(anode, arraycatype, anode->exprasn.type);
+
   std::vector<ASTNode *> *vnodes = arrayexpr_deref(anode->anoden.aexpr);
-  std::vector<Value *> values;
+  std::vector<Constant *> values;
   Type *lefttype = nullptr;
-  CADataType *leftcatype = nullptr;
   const CalcOperand *leftco = nullptr;
   for (size_t i = 0; i < vnodes->size(); ++i) {
     walk_stack((*vnodes)[i]);
@@ -1130,7 +1134,7 @@ static void walk_expr_array(ASTNode *anode) {
     if (i == 0)
       leftco = co.get();
 
-    Type *lefttype = leftco->operand->getType();
+    lefttype = leftco->operand->getType();
     Type *type = co->operand->getType();
     if (lefttype != type) {
       yyerror("line: %d, col: %d: array type have different element type: idx: %d, `%s` != `%s`",
@@ -1152,11 +1156,15 @@ static void walk_expr_array(ASTNode *anode) {
       break;
     }
 
-    values.push_back(co->operand);
+    values.push_back((Constant *)co->operand);
     leftco = co.get();
   }
 
+  Type *arraytype = gen_llvmtype_from_catype(arraycatype);
+  Constant *arrayconst = ConstantArray::get((ArrayType *)arraytype, values);
   
+  auto u = std::make_unique<CalcOperand>(OT_Const, arrayconst, arraycatype);
+  oprand_stack.push_back(std::move(u));
 }
 
 static void walk_expr(ASTNode *p) {
@@ -1168,7 +1176,8 @@ static void walk_expr(ASTNode *p) {
 
   switch (p->exprn.op) {
   case ARRAY:
-    walk_expr_array(p->exprn.operands[0]);
+    walk_expr_array(p);
+    break;
   case AS:
     walk_stack(p->exprn.operands[0]);
     break;

@@ -240,6 +240,8 @@ CAArrayLit arraylit_append(CAArrayLit obj, CALiteral *lit);
 
 CAArrayExpr arrayexpr_new();
 CAArrayExpr arrayexpr_append(CAArrayExpr obj, struct ASTNode *expr);
+size_t arrayexpr_size(CAArrayExpr obj);
+struct ASTNode *arrayexpr_get(CAArrayExpr obj, int idx);
 
 CAVariable *cavar_create(int name, typeid_t datatype);
 void cavar_destroy(CAVariable **var);

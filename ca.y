@@ -229,7 +229,7 @@ label_id:	IDENT		      { dot_emit("label_id", "IDENT"); $$ = $1; }
 		;
 
 expr:     	literal               { $$ = make_literal(&$1); }
-	|	array_def             { $$ = make_array_def(&$1); }
+	|	array_def             { $$ = make_array_def($1); }
 	|	IDENT                 { $$ = make_ident_expr($1); }
 	|	'-'expr %prec UMINUS  { $$ = make_expr(UMINUS, 1, $2); }
 	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }

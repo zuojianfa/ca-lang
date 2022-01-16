@@ -1,6 +1,7 @@
 #include "ca.h"
 #include "symtable.h"
 #include "ca.tab.h"
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -125,6 +126,16 @@ CAArrayExpr arrayexpr_append(CAArrayExpr obj, ASTNode *expr) {
   auto *v = static_cast<std::vector<ASTNode *> *>(obj.data);
   v->push_back(expr);
   return obj;
+}
+
+size_t arrayexpr_size(CAArrayExpr obj) {
+  std::vector<ASTNode *> *vs = static_cast<std::vector<ASTNode *> *>(obj.data);
+  size_t size = vs->size();
+  return size;
+}
+
+ASTNode *arrayexpr_get(CAArrayExpr obj, int idx) {
+  return static_cast<std::vector<ASTNode *> *>(obj.data)->at(idx);
 }
 
 CAVariable *cavar_create(int name, typeid_t datatype) {

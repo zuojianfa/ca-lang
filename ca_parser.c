@@ -823,6 +823,28 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     return node->exprn.expr_type;
 
   switch (node->exprn.op) {
+  case ARRAY: {
+    ASTNode *anode = node->exprn.operands[0];
+    size_t size = arrayexpr_size(anode->anoden.aexpr);
+    typeid_t prevtypeid = typeid_novalue;
+    for (int i = 0; i < size; ++i) {
+      ASTNode *node = arrayexpr_get(anode->anoden.aexpr, i);
+      typeid_t typeid = inference_expr_type(node);
+      if (i == 0) prevtypeid = typeid;
+      if (prevtypeid != typeid) {
+	yyerror("line: %d, col: %d: array element `%d` have different type `%s` != `%s`",
+		glineno, gcolno, i, catype_get_type_name(prevtypeid), catype_get_type_name(typeid));
+	return typeid_novalue;
+      }
+
+      prevtypeid = typeid;
+    }
+
+    CADataType *subcatype = catype_get_primitive_by_name(prevtypeid);
+    CADataType *catype = catype_make_array_type(subcatype, size, 0);
+    type1 = catype->signature;
+    break;
+  }
   case FN_CALL: {
     // get function return type
     ASTNode *idn = node->exprn.operands[0];
