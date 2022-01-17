@@ -1121,7 +1121,7 @@ static void walk_expr_sizeof(ASTNode *id) {
 static void walk_expr_array(ASTNode *p) {
   inference_expr_type(p);
   ASTNode *anode = p->exprn.operands[0];
-  CADataType *arraycatype = catype_get_by_name(anode->symtable, anode->exprasn.type);
+  CADataType *arraycatype = catype_get_by_name(anode->symtable, p->exprn.expr_type);
   CHECK_GET_TYPE_VALUE(anode, arraycatype, anode->exprasn.type);
 
   std::vector<ASTNode *> *vnodes = arrayexpr_deref(anode->anoden.aexpr);
@@ -1160,10 +1160,20 @@ static void walk_expr_array(ASTNode *p) {
     leftco = co.get();
   }
 
+  // allocate new array and copy related elements to the array
   Type *arraytype = gen_llvmtype_from_catype(arraycatype);
-  Constant *arrayconst = ConstantArray::get((ArrayType *)arraytype, values);
+  AllocaInst *arr = ir1.gen_var(arraytype);
+  Value *idxv0 = ir1.gen_int(0);
+  std::vector<Value *> idxv(2, idxv0);
+  for (size_t i = 0; i < values.size(); ++i) {
+    // get elements address of arr
+    Value *idxvi = ir1.gen_int(i);
+    idxv[1] = idxvi;
+    Value *dest = ir1.builder().CreateGEP(arr, idxv);
+    aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "tmpsuba");
+  }
   
-  auto u = std::make_unique<CalcOperand>(OT_Const, arrayconst, arraycatype);
+  auto u = std::make_unique<CalcOperand>(OT_Alloc, arr, arraycatype);
   oprand_stack.push_back(std::move(u));
 }
 

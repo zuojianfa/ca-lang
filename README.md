@@ -255,6 +255,7 @@ is scopeline the real skip function start for debugging? try it
 ```
 
 NEXT TODO:
+- [ ] refactor: set default parameter `load=false` of function `pop_right_operand` `pop_right_value`, and make the use of alloc address as default background value type, only load it in the terminal operation
 - [x] debug       ConstantArray *arrayv = static_cast<ConstantArray *>(v); try to get how to get array element
 - [ ] debug array to pointer (c string) (array2string.ca)
 - [ ] support store variable value in array not just literal
