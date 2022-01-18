@@ -326,8 +326,7 @@ array_items:	array_items ',' expr { $$ = arrayexpr_append($1, $3); }
 lit_struct_def:	IDENT '{' lit_struct_field_list  '}'
 		{
 		    dot_emit("", "");
-		    // TODO: define structure
-		    
+		    // TODO: define structure	    
 		}
 	;
 

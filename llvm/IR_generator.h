@@ -9,7 +9,7 @@
 
 enum OperandType {
   OT_Const,
-  OT_Variable,
+  OT_Calc,
   OT_Load,
   OT_Store,
   OT_Alloc,

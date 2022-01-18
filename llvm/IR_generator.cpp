@@ -287,6 +287,7 @@ static void post_make_expr(ASTNode *p) {
 static void walk_empty(ASTNode *p) {}
 
 static void aux_copy_llvmvalue_to_store(Type *type, Value *dest, Value *src, const char *name) {
+  // TODO: how to make the array transfer short
   Type::TypeID id = type->getTypeID();
   if (id != Type::ArrayTyID && id != Type::StructTyID) {
     ir1.builder().CreateStore(src, dest, name);
@@ -817,10 +818,12 @@ static void walk_assign(ASTNode *p) {
   CADataType *dt = catype_get_by_name(p->symtable, idn->entry->u.var->datatype);
   CHECK_GET_TYPE_VALUE(p, dt, idn->entry->u.var->datatype);
 
+  bool iscomplextype = catype_is_complex_type(dt->type);
+
   Value *v = nullptr;
   if (exprn->type != TTE_VarDefZeroValue) {
     walk_stack(exprn);
-    auto pair = pop_right_value("tmpexpr");
+    auto pair = pop_right_value("tmpexpr", !iscomplextype);
     v = pair.first;
   } else {
     typeid_t id = get_expr_type_from_tree(idn);
@@ -836,7 +839,7 @@ static void walk_assign(ASTNode *p) {
  
   Value *vp = walk_id_defv(idn, dt, v);
 
-  auto u = std::make_unique<CalcOperand>(OT_Store, vp, dt);
+  auto u = std::make_unique<CalcOperand>(OT_Alloc, vp, dt);
   oprand_stack.push_back(std::move(u));
 }
 
@@ -855,7 +858,7 @@ static void walk_expr_minus(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
   Value *v = ir1.gen_sub(ir1.gen_int(0), pair.first);
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v, dt));
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v, dt));
 }
 
 static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
@@ -933,7 +936,8 @@ static void walk_expr_call(ASTNode *p) {
     argv.push_back(pair.first);
   }
 
-  bool isvoidty = fn->getReturnType()->isVoidTy();
+  Type *rettype = fn->getReturnType();
+  bool isvoidty = rettype->isVoidTy();
 
   auto itr = function_map.find(fnname);
   if (itr == function_map.end()) {
@@ -946,7 +950,14 @@ static void walk_expr_call(ASTNode *p) {
   CADataType *retdt = catype_get_by_name(p->symtable, itr->second->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, itr->second->fndecln.ret);
 
-  auto operands = std::make_unique<CalcOperand>(OT_CallInst, callret, retdt);
+  OperandType optype = OT_CallInst;
+  Value *newv = callret;
+  if (!isvoidty) {
+    optype = OT_Alloc;
+    newv = ir1.gen_var(rettype, "calltmp", callret);
+  }
+
+  auto operands = std::make_unique<CalcOperand>(optype, newv, retdt);
   oprand_stack.push_back(std::move(operands));
 }
 
@@ -1057,7 +1068,7 @@ static void walk_expr_op2(ASTNode *p) {
     break;
   }
 
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Variable, v3, dt));
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v3, dt));
 }
 
 static void walk_expr_as(ASTNode *node) {
@@ -1094,10 +1105,7 @@ static void walk_expr_as(ASTNode *node) {
   if (array2ptr) {
     Type *stype = gen_llvmtype_from_catype(astype);
     v = ir1.gen_cast_value(ICO::BitCast, v, stype, "ptrcast");
-    //v = ir1.builder().CreateGEP(v, ir1.gen_int(0), "subv");
-    //v = ir1.builder().CreateInBoundsGEP(stype, v, ir1.gen_int(0), "subv");
     v = ir1.gen_var(stype, "tmpptr", v);
-    //v = ir1.builder().CreatePointerCast(v, stype, "ptrcast");
   } else {
     if (castopt != (ICO)0) {
       Type *stype = gen_llvmtype_from_catype(astype);
@@ -1105,7 +1113,9 @@ static void walk_expr_as(ASTNode *node) {
     }
   }
 
-  auto u = std::make_unique<CalcOperand>(calco->type, v, astype);
+  OperandType optype = array2ptr ? OT_Alloc : calco->type;
+
+  auto u = std::make_unique<CalcOperand>(optype, v, astype);
   oprand_stack.push_back(std::move(u));
 }
 
@@ -1125,7 +1135,7 @@ static void walk_expr_array(ASTNode *p) {
   CHECK_GET_TYPE_VALUE(anode, arraycatype, anode->exprasn.type);
 
   std::vector<ASTNode *> *vnodes = arrayexpr_deref(anode->anoden.aexpr);
-  std::vector<Constant *> values;
+  std::vector<Value *> values;
   Type *lefttype = nullptr;
   const CalcOperand *leftco = nullptr;
   for (size_t i = 0; i < vnodes->size(); ++i) {
@@ -1146,7 +1156,7 @@ static void walk_expr_array(ASTNode *p) {
 
     switch(co->type) {
     OT_Const:
-    OT_Variable:
+    OT_Calc:
     OT_Load:
     OT_Store:
     OT_Alloc:
@@ -1156,7 +1166,7 @@ static void walk_expr_array(ASTNode *p) {
       break;
     }
 
-    values.push_back((Constant *)co->operand);
+    values.push_back(co->operand);
     leftco = co.get();
   }
 
