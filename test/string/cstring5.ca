@@ -14,7 +14,7 @@ fn main() {
     puts(h);
     puts(w);
 
-    let buffer: *u8 = malloc(20);
+    let buffer: *i8 = malloc(20) as *i8;
     
     strcpy(buffer, h);
     strcat(buffer, w);
@@ -24,6 +24,6 @@ fn main() {
     let pos = strchr(buffer, 'w');
     puts(pos);
 
-    free(buffer);
+    free(buffer as *void);
 }
 

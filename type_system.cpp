@@ -2251,6 +2251,8 @@ const char *get_printf_format(int type) {
     return "%c";
   case BOOL:
     return "%1d";
+  case POINTER:
+    return "%p";
   default:
     return "\n";
   }
@@ -2764,8 +2766,8 @@ bool catype_is_complex_type(tokenid_t typetok) {
   switch (typetok) {
   case ARRAY:
   case STRUCT:
-  case POINTER:
     return true;
+  case POINTER:
   default:
     return false;
   }

@@ -17,11 +17,12 @@ enum OperandType {
   OT_PHINode,
 };
 
-struct CalcOperand{
-CalcOperand(OperandType t, llvm::Value *v, CADataType *dt /* tokenid_t typetok */) :
-  type(t), operand(v), catype(dt) /* datatypetok(typetok) */ {}
+struct CalcOperand {
+CalcOperand() : type(OT_Alloc), operand(nullptr), catype(nullptr) {}
+
+CalcOperand(OperandType t, llvm::Value *v, CADataType *dt) : type(t), operand(v), catype(dt) {}
+
   OperandType type;
-  //tokenid_t datatypetok; // TODO: change it into CADataType object
   CADataType *catype;
   llvm::Value *operand;
 };

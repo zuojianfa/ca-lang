@@ -1137,37 +1137,34 @@ static void walk_expr_array(ASTNode *p) {
   std::vector<ASTNode *> *vnodes = arrayexpr_deref(anode->anoden.aexpr);
   std::vector<Value *> values;
   Type *lefttype = nullptr;
-  const CalcOperand *leftco = nullptr;
+  CalcOperand leftco;
+  bool iscomplextype = catype_is_complex_type(arraycatype->array_layout->type->type);
+  typeid_t leftsubtypeid = arraycatype->array_layout->type->signature;
   for (size_t i = 0; i < vnodes->size(); ++i) {
-    walk_stack((*vnodes)[i]);
-    std::unique_ptr<CalcOperand> co = pop_right_operand("arritem");
-    if (i == 0)
-      leftco = co.get();
+    ASTNode *subnode = (*vnodes)[i];
+    walk_stack(subnode);
+    typeid_t rightsubtypeid = get_expr_type_from_tree(subnode);
+    if (leftsubtypeid != rightsubtypeid) {
+      yyerror("array element type not identical with variable type");
+      return;
+    }
 
-    lefttype = leftco->operand->getType();
+    std::unique_ptr<CalcOperand> co = pop_right_operand("arritem", !iscomplextype);
+    if (i == 0)
+      leftco = *co;
+
+    lefttype = leftco.operand->getType();
     Type *type = co->operand->getType();
     if (lefttype != type) {
       yyerror("line: %d, col: %d: array type have different element type: idx: %d, `%s` != `%s`",
 	      anode->begloc.row, anode->begloc.col, i,
-	      catype_get_type_name(leftco->catype->signature),
+	      catype_get_type_name(leftco.catype->signature),
 	      catype_get_type_name(co->catype->signature));
       return;
     }
 
-    switch(co->type) {
-    OT_Const:
-    OT_Calc:
-    OT_Load:
-    OT_Store:
-    OT_Alloc:
-    OT_CallInst:
-    OT_PHINode:
-    default:
-      break;
-    }
-
     values.push_back(co->operand);
-    leftco = co.get();
+    leftco = *co;
   }
 
   // allocate new array and copy related elements to the array
@@ -1175,6 +1172,10 @@ static void walk_expr_array(ASTNode *p) {
   AllocaInst *arr = ir1.gen_var(arraytype);
   Value *idxv0 = ir1.gen_int(0);
   std::vector<Value *> idxv(2, idxv0);
+
+  if (lefttype->getTypeID() == Type::PointerTyID)
+    lefttype = static_cast<PointerType *>(lefttype)->getElementType();
+
   for (size_t i = 0; i < values.size(); ++i) {
     // get elements address of arr
     Value *idxvi = ir1.gen_int(i);

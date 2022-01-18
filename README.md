@@ -437,3 +437,21 @@ this should can speed up the find performance
 [i32;3] => [i32id;3]
 struct A {a: i32, b: *A} => {Aid; aid:i32id, bid:*Aid}, Aid == symname_check_insert("t:Aid")
 ```
+
+```
+	130 - string5-cstring5.ca (Failed)
+VS:
+	176 - aux-array1-array.ca.ll.tmp (Failed)
+	177 - array1-array.ca.ll.tmp (Not Run)
+	179 - aux-array2-array_2sideinfer.ca.ll.tmp (SEGFAULT)
+	180 - array2-array_2sideinfer.ca.ll.tmp (Not Run)
+	182 - array3-array_error1.ca (Failed)
+	183 - array4-array_error2.ca (Failed)
+	184 - aux-array5-array_dbgprint1.ca.result.tmp (SEGFAULT)
+	185 - array5-array_dbgprint1.ca.result.tmp (Not Run)
+	188 - array6-array2string.ca.result.tmp (Failed)
+	190 - array7-array2stringbad1.ca (Failed)
+	191 - array8-array2stringbad2.ca (Failed)
+	193 - array9-array2pointer.ca.result.tmp (Failed)
+```
+
