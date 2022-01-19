@@ -1857,6 +1857,8 @@ CADataType *catype_make_array_type(CADataType *datatype, uint64_t len, bool comp
     break;
   }
 
+  catype_put_primitive_by_name(signature, dt);
+
   return dt;
 }
 

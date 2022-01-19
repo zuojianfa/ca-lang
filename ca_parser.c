@@ -1,5 +1,6 @@
 
 #include <alloca.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -949,6 +950,33 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     return 0;
 
   switch (node->exprn.op) {
+  case ARRAY: {
+    // NEXT TODO: most important is check if the inference type and the determine is compatible
+    CADataType *determinedcatype = catype_get_by_name(node->symtable, type);
+    if (determinedcatype->type != ARRAY) {
+      yyerror("line: %d, col: %d: expression type is array type, cannot determined into `%s` type",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(type));
+      return -1;
+    }
+
+    assert(determinedcatype->array_layout->dimension == 1);
+    CAArrayExpr aexpr = node->exprn.operands[0]->anoden.aexpr;
+    size_t size = arrayexpr_size(aexpr);
+    int len = determinedcatype->array_layout->dimarray[0];
+    if (len != size) {
+      yyerror("line: %d, col: %d: determined array size `%d` not match the expression type `%d`",
+	      node->begloc.row, node->begloc.col, len, size);
+      return -1;
+    }
+
+    for (size_t i = 0; i < size; ++i) {
+      ASTNode *subnode = arrayexpr_get(aexpr, i);
+      CADataType *subcatype = determinedcatype->array_layout->type;
+      determine_expr_type(subnode, subcatype->signature);     
+    }
+
+    break;
+  }
   case FN_CALL: {
     // get function return type
     ASTNode *idn = node->exprn.operands[0];

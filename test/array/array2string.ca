@@ -5,7 +5,8 @@ fn main() -> i32 {
     //let a = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A', '\0'];
     print a; print '\n';
     let b = a as *i8;
-    print b;
+    let c = 1234567890 as *i8;
+    print c;
     let n = printf(b);
     return n;
 }

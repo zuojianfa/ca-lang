@@ -825,6 +825,11 @@ static void walk_assign(ASTNode *p) {
     walk_stack(exprn);
     auto pair = pop_right_value("tmpexpr", !iscomplextype);
     v = pair.first;
+    if (!catype_check_identical(dt, pair.second)) {
+      yyerror("expected a type `%s`, but found `%s`",
+	      catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
+      return;
+    }
   } else {
     typeid_t id = get_expr_type_from_tree(idn);
     if (id == typeid_novalue) {
@@ -1145,7 +1150,8 @@ static void walk_expr_array(ASTNode *p) {
     walk_stack(subnode);
     typeid_t rightsubtypeid = get_expr_type_from_tree(subnode);
     if (leftsubtypeid != rightsubtypeid) {
-      yyerror("array element type not identical with variable type");
+      yyerror("array element type not identical with variable type: `%s` != `%s`",
+	      catype_get_type_name(rightsubtypeid), catype_get_type_name(leftsubtypeid));
       return;
     }
 
