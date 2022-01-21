@@ -1,0 +1,11 @@
+fn main() {
+    let a1 = [1, 2, 3];
+    print a1; print '\n';
+    let a2 = [4, 5, 6];
+    print a2; print '\n';
+    let b = a1 as *i8;
+    print b; print '\n';
+    b = a1 as *i8;
+    print b; print '\n';
+}
+

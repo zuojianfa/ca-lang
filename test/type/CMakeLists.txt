@@ -51,7 +51,7 @@ do_test(type "good" ca struct_use1.ca)
 do_test(type "good" ca struct_use2.ca)
 do_test(type "good" ca struct_use3.ca)
 do_test(type "3" ca typedef.ca)
-do_test(type "34" ca typehir.ca)
+do_test(type "type name conflicting: type `A`[(]`i32`[)] with type `i64`[(]`i64`[)]" ca typehir.ca)
 do_test(type "good" ca typeof.ca)
 do_test(type "101" ca typesimple.ca)
 

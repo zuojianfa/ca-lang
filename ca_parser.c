@@ -1157,9 +1157,13 @@ int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenu
 	type1 = expr_types[i];
 	typei = i;
       } else if (!catype_check_identical_in_symtable(nodes[i]->symtable, type1, nodes[i]->symtable, expr_types[i])) {
-	yyerror("line: %d, col: %d: type name conflicting: type '%s' with type '%s'",
+	CADataType *dt1 = catype_get_by_name(nodes[i]->symtable, type1);
+	CADataType *dt2 = catype_get_by_name(nodes[i]->symtable, expr_types[i]);
+
+	yyerror("line: %d, col: %d: type name conflicting: type `%s`(`%s`) with type `%s`(`%s`)",
 		nodes[i]->begloc.row, nodes[i]->begloc.col,
-		symname_get(type1), symname_get(expr_types[i]));
+		catype_get_type_name(type1), catype_get_type_name(dt1->signature),
+		catype_get_type_name(expr_types[i]), catype_get_type_name(dt2->signature));
 	return 0;
       }
     } else {
@@ -1651,6 +1655,10 @@ ASTNode *make_sizeof(typeid_t type) {
   ASTNode *node = make_expr(SIZEOF, 1, p);
   node->exprn.expr_type = sym_form_type_id_from_token(U64);
   return node;
+}
+
+typeid_t make_typeof(ASTNode *node) {
+  
 }
 
 typedef struct ASTNodeList {
