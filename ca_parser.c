@@ -137,15 +137,19 @@ const char *sym_form_array_name(const char *name, int dimension) {
 }
 
 typeid_t sym_form_expr_typeof_id(ASTNode *expr) {
-  char type_buf[1024];
-  sprintf(type_buf, "T:%p", expr);
-  typeid_t id = symname_check_insert(type_buf);
+  char type_buf[32];
+  sprintf(type_buf, "+:%p", expr);
+  typeid_t id = sym_form_type_id_by_str(type_buf);
   return id;
 }
 
-ASTNode *astnode_unwind_from_addr(const char *addr) {
+ASTNode *astnode_unwind_from_addr(const char *addr, int *len) {
   ASTNode *expr = NULL;
-  sscanf(addr, "%p", &expr);
+  //*len = sscanf(addr, "+:%p", &expr);
+  char *end = NULL;
+  long v = strtol(addr+2, &end, 16);
+  *len = end - addr;
+  expr = (ASTNode *)v;
   return expr;
 }
 
@@ -928,7 +932,8 @@ typeid_t inference_expr_type(ASTNode *p) {
       return -1;
     }
     
-    return p->exprasn.type;
+    //return p->exprasn.type;
+    return typedt->signature;
   case TTE_Expr:
     return inference_expr_expr_type(p);
   case TTE_If:
@@ -1059,7 +1064,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     }
 
     if (node->entry->u.var->datatype == typeid_novalue)
-      node->entry->u.var->datatype = type;
+      node->entry->u.var->datatype = catype->signature;
     else if (!catype_check_identical_in_symtable(node->symtable,
 				     node->entry->u.var->datatype,
 				     node->symtable, type)) {

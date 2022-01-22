@@ -1,36 +1,79 @@
 let a: f32 = 0.3;
 let b = 0.4f64;
 
-fn func1() -> typeof(a as typeof(b) + b) {
-    return 0.6 as typeof(b);
-}
-
+// fn func1() -> typeof(a as typeof(b) + b) {
+//     return 0.6 as typeof(b);
+// }
     
 fn main() {
     let a: i64 = 12;
     let b: i32 = 5;
 
-    let c: typeof(a as typeof(b) + b) = 3;
+    let c: typeof(a as typeof(b) + b) = 3432432;
+    print c; print '\n';
+    
     c = 3;
-    let d = 3 as typeof(a as typeof(b) + b);
-    d = 4 as typeof(a as typeof(d) + b);
+    print c; print '\n';
+    let d = 3223 as typeof(a as typeof(b) + b);
+    print d; print '\n';
+    d = 44324 as typeof(a as typeof(d) + b);
+    print d; print '\n';
 
-    let e = 4 as typeof(a as typeof(e) + b);
-    e = 4 as typeof(a as typeof(e) + b);
+    let e = 40 as typeof(a as typeof(b) + b);
+    print e; print '\n';
+    e = 80 as typeof(a as typeof(b) + b);
+    print e; print '\n';
     let f = sizeof(typeof(e));
-    f = sizeof(typeof(e));
+    print f; print '\n';
+    f = sizeof(typeof(f));
+    print f; print '\n';
     let g: [typeof(a); 3] = [1, 2, 3];
+    print g; print '\n';
     g = [4, 5, 6];
+    print g; print '\n';
+    dbgprinttype typeof(e);
+    dbgprinttype typeof(f);
 
     let h = a as typeof(a as typeof(b) + b) + b;
+    print h; print '\n';
     h = a as typeof(a as typeof(b) + b) + b;
+    print h; print '\n';
 
-    let i: typeof(a as typeof(a as typeof(b) + b) + b) = a as typeof(a as typeof(b) + b) + b;
-
+    let i: typeof(a as typeof(a as typeof(b) + b) + b) = a as typeof(a as typeof(b) + b) + b + 432;
+    print i; print '\n';
     let j = 0 as *typeof(a);
-    j = 0 as *typeof(a);
+    print j; print '\n';
+    j = 11111 as *typeof(a);
+    print j; print '\n';
     let k: *typeof(a) = 0 as *typeof(a);
-    let m: [[*typeof(a); 2]; 2] = [[3, 4], [a, b as typeof(a)]];
+    print k; print '\n';
+    dbgprinttype typeof(k);
+    
+    let m: [[typeof(a); 2]; 2] = [[3, 4], [a, b as typeof(a)]];
+    print m; print '\n';
+    dbgprinttype typeof(m);
+
+    let pp = 323424 as *i64;
+    print pp; print '\n';
+    dbgprinttype typeof(pp);
+
+    let pa = 3 as *i64;
+    let pb = 4 as *i64;
+
+    let pmv: [typeof(pa); 2] = [pa, pb];
+    print pmv; print '\n';
+
+    let pm0: [*typeof(a); 2] = [30 as *i64, 40 as *i64];
+    print pm0; print '\n';
+    dbgprinttype typeof(pm0);
+    
+    let pm1: [[*typeof(a); 2]; 2] = [[3 as *i64, 4 as *i64], [a as *i64, b as *i64]];
+    print pm1; print '\n';
+    dbgprinttype typeof(pm1);
+
+    let pm2: [[*typeof(a); 2]; 2] = [[3 as *typeof(a), 4 as *typeof(a)], [a as *typeof(a), b as *typeof(a)]];
+    print pm2; print '\n';
+    dbgprinttype typeof(pm2);
 
     struct AA {
         a: typeof(a),
@@ -38,12 +81,17 @@ fn main() {
     }
 
     type BB = typeof(g);
-    let l: *typeof(BB) = 0;
+    let l: *BB = 0;
+    print l; print '\n';
+    dbgprinttype typeof(l);
 
     type CC = typeof(a + b as typeof(a));
-
     let n: CC = 3;
+    print n; print '\n';
+    dbgprinttype CC;
     n = 4 as CC;
-    let o: typeof(4 as CC + 5) = 321;
+    let o: typeof(4 as CC + 5i64) = 321;
+    print o; print '\n';
+    dbgprinttype typeof(o);
 }
 

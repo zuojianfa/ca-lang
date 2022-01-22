@@ -634,8 +634,10 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
     llvmcode_printf(fn, "]", nullptr);
     break;
   case POINTER:
+    llvmcode_printf_primitive(fn, catype, v);
     break;
   case STRUCT:
+    yyerror("dbgprint for struct type not implmeneted yet");
     break;
   default:
     // output each of primitive type
@@ -893,7 +895,8 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
       STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
       CADataType *dt = catype_get_by_name(name->symtable, paramentry->u.var->datatype);
       CHECK_GET_TYPE_VALUE(param, dt, paramentry->u.var->datatype);
-      formaltype = paramentry->u.var->datatype;
+      //formaltype = paramentry->u.var->datatype;
+      formaltype = dt->signature;
     }
 
     typeid_t realtype = formaltype;

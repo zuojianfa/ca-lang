@@ -1,4 +1,5 @@
 // test for non recursive type
+extern fn printf(format: *char, ...) -> i32;
 fn main() {
     struct AA {}
     struct A1 {a : i32}
@@ -23,35 +24,35 @@ fn main() {
     struct A20{c3: *A18}
     struct A21{c3: [A18;32]}
 
-    print sizeof(AA  );      print('\n');
-    print sizeof(A1  );      print('\n');
-    print sizeof(A2  );      print('\n');
-    print sizeof(A3  );      print('\n');
-    print sizeof(A4  );      print('\n');
-    print sizeof(A5  );      print('\n');
-    print sizeof(A6  );      print('\n');
-    print sizeof(A7  );      print('\n');
-    print sizeof(A8  );      print('\n');
-    print sizeof(A9  );      print('\n');
-    print sizeof(A10 );      print('\n');
-    print sizeof(A11 );      print('\n');
-    print sizeof(A12 );      print('\n');
-    print sizeof(A13 );      print('\n');
-    print sizeof(A14 );      print('\n');
-    print sizeof(A15 );      print('\n');
-    print sizeof(A16 );      print('\n');
-    print sizeof(A17 );      print('\n');
-    print sizeof(A18 );      print('\n');
-    print sizeof(A19 );      print('\n');
-    print sizeof(A20 );      print('\n');
-    print sizeof(A21 );      print('\n');
-    print sizeof(A22 );      print('\n');
-    print sizeof(A23 );      print('\n');
-    print sizeof(A24 );      print('\n');
-    print sizeof(A25 );      print('\n');
-    print sizeof(A26 );      print('\n');
-    print sizeof(*[*A26;6]); print('\n');
-    print sizeof(A28);       print('\n'); 
+    printf("AA  = "); print sizeof(AA  );      print('\n');
+    printf("A1  = "); print sizeof(A1  );      print('\n');
+    printf("A2  = "); print sizeof(A2  );      print('\n');
+    printf("A3  = "); print sizeof(A3  );      print('\n');
+    printf("A4  = "); print sizeof(A4  );      print('\n');
+    printf("A5  = "); print sizeof(A5  );      print('\n');
+    printf("A6  = "); print sizeof(A6  );      print('\n');
+    printf("A7  = "); print sizeof(A7  );      print('\n');
+    printf("A8  = "); print sizeof(A8  );      print('\n');
+    printf("A9  = "); print sizeof(A9  );      print('\n');
+    printf("A10 = "); print sizeof(A10 );      print('\n');
+    printf("A11 = "); print sizeof(A11 );      print('\n');
+    printf("A12 = "); print sizeof(A12 );      print('\n');
+    printf("A13 = "); print sizeof(A13 );      print('\n');
+    printf("A14 = "); print sizeof(A14 );      print('\n');
+    printf("A15 = "); print sizeof(A15 );      print('\n');
+    printf("A16 = "); print sizeof(A16 );      print('\n');
+    printf("A17 = "); print sizeof(A17 );      print('\n');
+    printf("A18 = "); print sizeof(A18 );      print('\n');
+    printf("A19 = "); print sizeof(A19 );      print('\n');
+    printf("A20 = "); print sizeof(A20 );      print('\n');
+    printf("A21 = "); print sizeof(A21 );      print('\n');
+    printf("A22 = "); print sizeof(A22 );      print('\n');
+    printf("A23 = "); print sizeof(A23 );      print('\n');
+    printf("A24 = "); print sizeof(A24 );      print('\n');
+    printf("A25 = "); print sizeof(A25 );      print('\n');
+    printf("A26 = "); print sizeof(A26 );      print('\n');
+    printf("*[*A26;6] = "); print sizeof(*[*A26;6]); print('\n');
+    printf("A28 = "); print sizeof(A28);       print('\n'); 
 
     type A22 = A21;
     type A23 = A22;

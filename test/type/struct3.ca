@@ -1,5 +1,7 @@
 fn main() {
     let a = 0 as *AA;
     struct AA{}
+
+    print a; print '\n';
 }
 

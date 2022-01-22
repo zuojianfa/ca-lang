@@ -237,7 +237,7 @@ typeid_t sym_form_pointer_id(typeid_t type);
 typeid_t sym_form_array_id(typeid_t type, int dimension);
 typeid_t sym_form_type_id_from_token(tokenid_t tok);
 tokenid_t sym_primitive_token_from_id(typeid_t id);
-ASTNode *astnode_unwind_from_addr(const char *addr);
+ASTNode *astnode_unwind_from_addr(const char *addr, int *len);
 
 int determine_expr_type(ASTNode *node, typeid_t type);
 int get_expr_type_from_tree(ASTNode *node);

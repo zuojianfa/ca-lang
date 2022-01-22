@@ -1,0 +1,7 @@
+struct AA {}
+
+fn main () {
+    let v0: AA = 0;
+    print v0;
+}
+

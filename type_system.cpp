@@ -508,6 +508,12 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
   // t:[i32;3]
   // type A = **B; type B = **[*i32;3] t:A => t:**B; t:
 
+  // const char *tname = symname_get(name);
+  // if (tname[0] == 'T' && tname[1] == ':') {
+  //   ASTNode *expr = astnode_unwind_from_addr(tname+2);
+  //   name = inference_expr_type(expr);
+  // }
+
   // the unwinding algorithm according to the upper type definitions
   int i = 0;
   int sigi = 0;
@@ -658,12 +664,14 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     return -1;
   }
 
-  if (*pch != ';') {
-    yyerror("(internal) bad format of struct `%s` != ';'", pch);
-    return -1;
-  }
+  if (*pch != '}') {
+    if (*pch != ';') {
+      yyerror("(internal) bad format of struct `%s` != ';' or '}'", pch);
+      return -1;
+    }
 
-  sigbuf[sigi++] = *pch++; // = ';';
+    sigbuf[sigi++] = *pch++; // = ';';
+  }
 
   std::map<std::string, CADataType *> namemap = prenamemap;
   std::set<std::string> checkset = rcheckset;
@@ -702,7 +710,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     }
 
     if (*pch != ':') {
-      yyerror("(internal) bad format of struct `%s` != ';'", pch);
+      yyerror("(internal) bad format of struct `%s` != ':'", pch);
       return -1;
     }
 
@@ -841,6 +849,15 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
 				   CADataType **retdt)
 {
   *typesize = -1;
+
+  if (pch[0] == '+' && pch[1] == ':') {
+    int len = 0;
+    ASTNode *expr = astnode_unwind_from_addr(pch, &len);
+    typeid_t name = inference_expr_type(expr);
+    pch = catype_get_type_name(name);
+    catype_unwind_type_signature_inner(symtable, pch, prenamemap, rcheckset, sigbuf, buflen, typesize, retdt);
+    return len;
+  }
 
   char namebuf[128];
 
@@ -1003,12 +1020,6 @@ static int catype_calculate_typesize(const char *sigbuf, int len) {
 }
 
 typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *typesize, CADataType **retdt) {
-  const char *tname = symname_get(name);
-  if (tname[0] == 'T' && tname[1] == ':') {
-    ASTNode *expr = astnode_unwind_from_addr(tname+2);
-    name = inference_expr_type(expr);
-  }
-
   char sigbuf[4096] = "t:";
 
   std::map<std::string, CADataType *> prenamemap;
@@ -1024,8 +1035,9 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *ty
 
   sigbuf[len+2] = '\0';
 
+  // fixing the signature, the inner function may not set the signature correctly
   typeid_t signature = symname_check_insert(sigbuf);
-  if (*retdt)
+  if (retdt && *retdt)
     (*retdt)->signature = signature;
   
   return signature;
