@@ -228,6 +228,7 @@ const char *sym_form_type_name(const char *name);
 const char *sym_form_function_name(const char *name);
 const char *sym_form_struct_signature(const char *name, SymTable *st);
 typeid_t sym_form_symtable_type_id(SymTable *st, typeid_t name);
+typeid_t sym_form_expr_typeof_id(ASTNode *expr);
 typeid_t sym_form_type_id(int id);
 typeid_t sym_form_type_id_by_str(const char *idname);
 typeid_t sym_form_label_id(int id);
@@ -236,6 +237,7 @@ typeid_t sym_form_pointer_id(typeid_t type);
 typeid_t sym_form_array_id(typeid_t type, int dimension);
 typeid_t sym_form_type_id_from_token(tokenid_t tok);
 tokenid_t sym_primitive_token_from_id(typeid_t id);
+ASTNode *astnode_unwind_from_addr(const char *addr);
 
 int determine_expr_type(ASTNode *node, typeid_t type);
 int get_expr_type_from_tree(ASTNode *node);

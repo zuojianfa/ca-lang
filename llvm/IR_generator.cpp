@@ -131,6 +131,9 @@ extern std::unordered_map<typeid_t, void *> g_function_post_map;
 
 std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
 
+// for handling function parameter checking
+static std::unordered_map<typeid_t, void *> g_function_post_check_map;
+
 static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load", bool load = true) {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
   oprand_stack.pop_back();
@@ -1240,7 +1243,54 @@ static void walk_expr(ASTNode *p) {
   }
 }
 
+static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, typeid_t rettype) {
+  ST_ArgList *prevargs = prev->u.f.arglists;
+
+  for (int i = 0; i < prevargs->argc; ++i) {
+    STEntry *preventry = sym_getsym(prevargs->symtable, prevargs->argnames[i], 0);
+    STEntry *currentry = sym_getsym(currargs->symtable, currargs->argnames[i], 0);
+    if (!preventry || !currentry || preventry->sym_type != Sym_Variable || currentry->sym_type != Sym_Variable) {
+      yyerror("line: %d, col: %d: function '%s' internal error: symbol table entry error",
+	      glineno, gcolno, catype_get_function_name(fnname));
+      return -1;
+    }
+
+    CADataType *prevcatype = catype_get_by_name(prevargs->symtable, preventry->u.var->datatype);
+    CADataType *currcatype = catype_get_by_name(currargs->symtable, currentry->u.var->datatype);
+
+    if (prevcatype->signature != currcatype->signature) {
+      yyerror("line: %d, col: %d: function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
+	      glineno, gcolno, catype_get_function_name(fnname),
+	      catype_get_type_name(prevcatype->signature),
+	      catype_get_type_name(currcatype->signature),
+	      prev->sloc.row, prev->sloc.col);
+      return -1;
+    }
+  }
+
+  CADataType *prevret = catype_get_by_name(prevargs->symtable, prev->u.f.rettype);
+  CADataType *currret = catype_get_by_name(currargs->symtable, rettype);
+
+  // check if function return type is the same as declared
+  if (prevret->signature != currret->signature) {
+    yyerror("line: %d, col: %d: function '%s' return type not identical, see: line %d, col %d.",
+	    glineno, gcolno, catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
+    return -1;
+  }
+
+  return 0;
+}
+
 static Function *walk_fn_declare(ASTNode *p) {
+  auto fitr = g_function_post_check_map.find(p->fndecln.name);
+  if (fitr != g_function_post_check_map.end()) {
+    // check redeclared function parameter
+    STEntry *preventry = sym_getsym(&g_root_symtable, p->fndecln.name, 0);
+    post_check_fn_proto(preventry, p->fndecln.name, &p->fndecln.args, p->fndecln.ret);
+  } else {
+    g_function_post_check_map[p->fndecln.name] = static_cast<void *>(p);
+  }
+
   const char *fnname = catype_get_function_name(p->fndecln.name);
 
   Function *fn = ir1.module().getFunction(fnname);

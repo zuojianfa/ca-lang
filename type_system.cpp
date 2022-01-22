@@ -72,6 +72,8 @@ std::vector<CALiteral> *arraylit_deref(CAArrayLit obj);
 std::unordered_map<typeid_t, CADataType *> s_symtable_type_map;
 std::unordered_map<typeid_t, CADataType *> s_signature_type_map;
 std::unordered_map<typeid_t, CADataType *> s_type_map;
+
+// for handling post defined functions after the calling
 std::unordered_map<typeid_t, void *> g_function_post_map;
 
 using namespace llvm;
@@ -1001,6 +1003,12 @@ static int catype_calculate_typesize(const char *sigbuf, int len) {
 }
 
 typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *typesize, CADataType **retdt) {
+  const char *tname = symname_get(name);
+  if (tname[0] == 'T' && tname[1] == ':') {
+    ASTNode *expr = astnode_unwind_from_addr(tname+2);
+    name = inference_expr_type(expr);
+  }
+
   char sigbuf[4096] = "t:";
 
   std::map<std::string, CADataType *> prenamemap;

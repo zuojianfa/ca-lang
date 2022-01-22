@@ -136,6 +136,19 @@ const char *sym_form_array_name(const char *name, int dimension) {
   return type_buf;
 }
 
+typeid_t sym_form_expr_typeof_id(ASTNode *expr) {
+  char type_buf[1024];
+  sprintf(type_buf, "T:%p", expr);
+  typeid_t id = symname_check_insert(type_buf);
+  return id;
+}
+
+ASTNode *astnode_unwind_from_addr(const char *addr) {
+  ASTNode *expr = NULL;
+  sscanf(addr, "%p", &expr);
+  return expr;
+}
+
 // id -> (t:)id or (l:)id
 typeid_t sym_form_type_id(int id) {
   //const char *name = symname_get(id);
@@ -1378,7 +1391,7 @@ ASTNode *make_if(int isexpr, int argc, ...) {
 }
 
 // compare if the previous defined function proto is the same as the current defining
-static int check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, typeid_t rettype) {
+static int pre_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, typeid_t rettype) {
   ST_ArgList *prevargs = prev->u.f.arglists;
 
   /* check if function declaration is the same */
@@ -1391,32 +1404,6 @@ static int check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, 
   // check parameter types
   if (prevargs->contain_varg != currargs->contain_varg) {
     yyerror("line: %d, col: %d: function '%s' variable parameter not identical, see: line %d, col %d.",
-	    glineno, gcolno, catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
-    return -1;
-  }
-
-  for (int i = 0; i < prevargs->argc; ++i) {
-    STEntry *preventry = sym_getsym(prevargs->symtable, prevargs->argnames[i], 0);
-    STEntry *currentry = sym_getsym(currargs->symtable, currargs->argnames[i], 0);
-    if (!preventry || !currentry || preventry->sym_type != Sym_Variable || currentry->sym_type != Sym_Variable) {
-      yyerror("line: %d, col: %d: function '%s' internal error: symbol table entry error",
-	      glineno, gcolno, catype_get_function_name(fnname));
-      return -1;
-    }
-
-    if (preventry->u.var->datatype != currentry->u.var->datatype) {
-      yyerror("line: %d, col: %d: function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
-	      glineno, gcolno, catype_get_function_name(fnname),
-	      catype_get_type_name(preventry->u.var->datatype),
-	      catype_get_type_name(currentry->u.var->datatype),
-	      prev->sloc.row, prev->sloc.col);
-      return -1;
-    }
-  }
-
-  // check if function return type is the same as declared
-  if (prev->u.f.rettype != rettype) {
-    yyerror("line: %d, col: %d: function '%s' return type not identical, see: line %d, col %d.",
 	    glineno, gcolno, catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
@@ -1440,7 +1427,7 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (extern_flag) {
     if (entry) {
-      check_fn_proto(entry, fnname, arglist, rettype);
+      pre_check_fn_proto(entry, fnname, arglist, rettype);
     } else {
       entry = sym_check_insert(&g_root_symtable, fnname, Sym_FnDecl);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
@@ -1471,7 +1458,7 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
 	return NULL;
       }
 
-      check_fn_proto(entry, fnname, arglist, rettype);
+      pre_check_fn_proto(entry, fnname, arglist, rettype);
     } else {
       entry = sym_check_insert(&g_root_symtable, fnname, Sym_FnDef); 
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
@@ -1519,7 +1506,7 @@ ASTNode *make_fn_call(int fnid, ASTNode *param) {
 
   typeid_t fnname = sym_form_function_id(fnid);
 
-  #ifdef __SUPPORT_BACK_TYPE__
+#ifdef __SUPPORT_BACK_TYPE__
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (entry) {
     check_fn_define(fnname, param);
@@ -1657,8 +1644,8 @@ ASTNode *make_sizeof(typeid_t type) {
   return node;
 }
 
-typeid_t make_typeof(ASTNode *node) {
-  
+typeid_t make_typeof(ASTNode *expr) {
+  return sym_form_expr_typeof_id(expr);
 }
 
 typedef struct ASTNodeList {

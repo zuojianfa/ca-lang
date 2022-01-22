@@ -1,0 +1,49 @@
+let a: f32 = 0.3;
+let b = 0.4f64;
+
+fn func1() -> typeof(a as typeof(b) + b) {
+    return 0.6 as typeof(b);
+}
+
+    
+fn main() {
+    let a: i64 = 12;
+    let b: i32 = 5;
+
+    let c: typeof(a as typeof(b) + b) = 3;
+    c = 3;
+    let d = 3 as typeof(a as typeof(b) + b);
+    d = 4 as typeof(a as typeof(d) + b);
+
+    let e = 4 as typeof(a as typeof(e) + b);
+    e = 4 as typeof(a as typeof(e) + b);
+    let f = sizeof(typeof(e));
+    f = sizeof(typeof(e));
+    let g: [typeof(a); 3] = [1, 2, 3];
+    g = [4, 5, 6];
+
+    let h = a as typeof(a as typeof(b) + b) + b;
+    h = a as typeof(a as typeof(b) + b) + b;
+
+    let i: typeof(a as typeof(a as typeof(b) + b) + b) = a as typeof(a as typeof(b) + b) + b;
+
+    let j = 0 as *typeof(a);
+    j = 0 as *typeof(a);
+    let k: *typeof(a) = 0 as *typeof(a);
+    let m: [[*typeof(a); 2]; 2] = [[3, 4], [a, b as typeof(a)]];
+
+    struct AA {
+        a: typeof(a),
+        b: typeof(b),
+    }
+
+    type BB = typeof(g);
+    let l: *typeof(BB) = 0;
+
+    type CC = typeof(a + b as typeof(a));
+
+    let n: CC = 3;
+    n = 4 as CC;
+    let o: typeof(4 as CC + 5) = 321;
+}
+

@@ -4,6 +4,7 @@ fn main() {
     let c: A = 100;
 
     let d: typeof(c) = 200;
+    dbgprinttype typeof(a + b as i32);
 
     type A = u64;
 }

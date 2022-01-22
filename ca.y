@@ -252,7 +252,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 data_type:	ident_type            { $$ = $1; }
 	|	pointer_type          { $$ = $1; }
 	|	array_type            { $$ = $1; }
-	|	TYPEOF '(' expr ')'   { $$ = 0; /* TODO: realize it */ }
+	|	TYPEOF '(' expr ')'   { $$ = make_typeof($3); }
 	;
 
 //atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | CHAR | UCHAR
