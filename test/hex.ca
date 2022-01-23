@@ -1,0 +1,10 @@
+fn main() {
+    let a = 0x12345;
+    print a; print ':'; print a as *i8; print '\n';
+    dbgprinttype typeof(a);
+
+    let b = -0x12345;
+    print b; print ':'; print b as *i8; print '\n';
+    dbgprinttype typeof(b);
+}
+

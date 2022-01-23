@@ -1468,18 +1468,30 @@ static typeid_t inference_primitive_literal_type(CALiteral *lit) {
   const char *text = symname_get(lit->textid);
   int badscope = 0;
   tokenid_t intentdeftype = 0;
+  int cmplen = 0;
+  int len = 0;
+  const char *format = nullptr;
+  const char *cmpformat = nullptr;
 
   // handle non-fixed type literal value
   switch (lit->littypetok) {
   case I64:
-    intentdeftype = I32;
-    lit->u.i64value = atoll(text);
-    badscope = check_i64_value_scope(lit->u.i64value, I32);
-    break;
   case U64:
-    intentdeftype = I32;
-    sscanf(text, "%lu", &lit->u.i64value);
-    badscope = check_u64_value_scope((uint64_t)lit->u.i64value, I32);
+    len = strlen(text);
+    cmplen = lit->littypetok == I64 ? 3 : 2;
+    cmpformat = lit->littypetok == I64 ? "-0x" : "0x";
+    if (len > cmplen && !strncmp(cmpformat, text, cmplen)) {
+      intentdeftype = lit->littypetok;
+      format = "%p";
+    } else {
+      intentdeftype = I32;
+      format = "%lu";
+    }
+
+    sscanf(text, format, &lit->u.i64value);
+    badscope = lit->littypetok == I64 ?
+      check_i64_value_scope(lit->u.i64value, I32) :
+      check_u64_value_scope((uint64_t)lit->u.i64value, I32);
     break;
   case F64:
     intentdeftype = F64;
@@ -1605,7 +1617,7 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
       !literal_type_convertable(littypetok, typetok)) {
     yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
 	    glineno, gcolno,
-	    get_type_string(littypetok), get_type_string(typetok));
+	    get_type_string(littypetok), catype_get_type_name(catype->signature));
     return;
   }
 
@@ -1620,7 +1632,7 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
     lit->catype = catype;
     break;
   default:
-	  lit->datatype = sym_form_type_id_from_token(typetok);
+    lit->datatype = sym_form_type_id_from_token(typetok);
     break;
   }
 
@@ -1628,15 +1640,27 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
   const char *text = symname_get(lit->textid);
   int badscope = 0;
 
+  int cmplen = 0;
+  int len = 0;
+  const char *format = nullptr;
+  const char *cmpformat = nullptr;
+
   // check literal value scope
   switch (littypetok) {
   case I64: // I64 stand for positive integer value in lexical
-    lit->u.i64value = atoll(text);
-    badscope = check_i64_value_scope(lit->u.i64value, typetok);
-    break;
   case U64:
-    sscanf(text, "%lu", &lit->u.i64value);
-    badscope = check_u64_value_scope((uint64_t)lit->u.i64value, typetok);
+    len = strlen(text);
+    cmplen = littypetok == I64 ? 3 : 2;
+    cmpformat = littypetok == I64 ? "-0x" : "0x";
+    if (len > cmplen && !strncmp(cmpformat, text, cmplen))
+      format = "%p";
+    else
+      format = "%lu";
+
+    sscanf(text, format, &lit->u.i64value);
+    badscope = littypetok == I64 ?
+      check_i64_value_scope(lit->u.i64value, typetok) :
+      check_u64_value_scope((uint64_t)lit->u.i64value, typetok);
     break;
   case F64:
     lit->u.f64value = atof(text);
