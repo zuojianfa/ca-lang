@@ -969,7 +969,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 
   switch (node->exprn.op) {
   case ARRAY: {
-    // NEXT TODO: most important is check if the inference type and the determine is compatible
+    // most important is check if the inference type and the determined is compatible
     CADataType *determinedcatype = catype_get_by_name(node->symtable, type);
     if (determinedcatype->type != ARRAY) {
       yyerror("line: %d, col: %d: expression type is array type, cannot determined into `%s` type",
@@ -1649,8 +1649,21 @@ ASTNode *make_sizeof(typeid_t type) {
   return node;
 }
 
-typeid_t make_typeof(ASTNode *expr) {
-  return sym_form_expr_typeof_id(expr);
+typeid_t make_typeof(ASTNode *expr) { return sym_form_expr_typeof_id(expr); }
+
+ASTNode *make_deref(ASTNode *expr) {
+  ASTNode *node = make_expr(DEREF, 1, expr);
+  return node;
+}
+
+ASTNode *make_address(ASTNode *expr) {
+  ASTNode *node = make_expr(ADDRESS, 1, expr);
+  return node;
+}
+
+ASTNode *make_element_field(ASTNode *node, int name) {
+  // TODO:
+  return NULL;
 }
 
 typedef struct ASTNodeList {

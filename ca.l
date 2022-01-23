@@ -141,6 +141,7 @@ r\"[^"]*\"	       	{
 <L_COMMENT>\*\/     { BEGIN INITIAL; }
  */
 
+ /* \.		{ ULL(); return DOT; } */
 \/\/.*$         { ULL(); /* return COMMENT; */}
 [-()<>=+*/;{}.:,]	{ ULL(); return *yytext; }
 \#|\[|\]        { ULL(); return *yytext; }
@@ -151,6 +152,8 @@ r\"[^"]*\"	       	{
 "..."		{ ULL(); return VARG; }
 "->"		{ ULL(); return ARROW; }
 "=>"		{ ULL(); return INFER; }
+ /* \&		{ ULL(); return ADDRESS; } */
+ /*'*'		{ ULL(); return DEREF; } */
 
 ({letter}|_)+({letter}|{digit}|_)*	{
 		ULL();

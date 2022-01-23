@@ -69,13 +69,15 @@ extern int yychar, yylineno;
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR
-%token			ARROW INFER TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
+%token			ARROW INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			GE LE EQ NE '>' '<'
 %left			'+' '-'
 %left			'*' '/'
 %left			AS
+%right			'&'
+%left			'.'
 %nonassoc		UMINUS
 %type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def
 //			%type	<arraylitv>	lit_array_list lit_array_def
@@ -247,6 +249,10 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
 	|	expr AS data_type     { $$ = make_as($1, $3); }
 	|	SIZEOF '(' data_type ')'{ $$ = make_sizeof($3); }
+	|	'*' expr %prec UMINUS { $$ = make_deref($2); }
+	|	'&' expr	      { $$ = make_address($2); }
+	|	expr '.' IDENT	      { $$ = make_element_field($1, $3); }
+//	|	expr '[' expr ']'     { $$ = $1; }
 		;
 
 data_type:	ident_type            { $$ = $1; }

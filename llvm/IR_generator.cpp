@@ -1200,6 +1200,35 @@ static void walk_expr_array(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
+static void walk_deref(ASTNode *rexpr) {
+  ASTNode *expr = rexpr->exprn.operands[0];
+  walk_stack(expr);
+  auto pair = pop_right_value("deref");
+  if (pair.second->type != POINTER) {
+    yyerror("line: %d, col: %d:  cannot deref type `%s`",
+	    rexpr->begloc.row, rexpr->begloc.col,
+	    catype_get_type_name(pair.second->signature));
+    return;
+  }
+
+  Value *v = ir1.builder().CreateLoad(pair.first, "deref");
+  auto u = std::make_unique<CalcOperand>(OT_Load, v, pair.second->pointer_layout->type);
+  oprand_stack.push_back(std::move(u));
+}
+
+static void walk_address(ASTNode *aexpr) {
+  ASTNode *expr = aexpr->exprn.operands[0];
+  walk_stack(expr);
+  auto pair = pop_right_operand("addr", false);
+  if (expr->type == TTE_Id) {
+    yyerror("line: %d, col: %d: cannot get address of not a variable, type: `%d`",
+	    aexpr->begloc.row, aexpr->begloc.col, expr->type);
+    return;
+  }
+
+  oprand_stack.push_back(std::move(pair));
+}
+
 static void walk_expr(ASTNode *p) {
   //post_make_expr(p);
   
@@ -1239,6 +1268,12 @@ static void walk_expr(ASTNode *p) {
   case IF_EXPR:
     // TODO: how to assign value of p->expr_type
     walk_expr_ife(p->exprn.operands[0]);
+    break;
+  case DEREF:
+    walk_deref(p);
+    break;
+  case ADDRESS:
+    walk_address(p);
     break;
   default:
     walk_expr_op2(p);

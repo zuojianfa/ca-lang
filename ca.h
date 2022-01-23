@@ -286,6 +286,7 @@ ASTNode *make_assign(int id, ASTNode *exprn);
 ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
+ASTNode *make_array_def(CAArrayExpr expr);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
@@ -294,6 +295,9 @@ ASTNode *make_ident_expr(int id);
 ASTNode *make_as(ASTNode *expr, typeid_t type);
 ASTNode *make_sizeof(typeid_t type);
 typeid_t make_typeof(ASTNode *node);
+ASTNode *make_deref(ASTNode *expr);
+ASTNode *make_address(ASTNode *expr);
+ASTNode *make_element_field(ASTNode *node, int name);
 ASTNode *make_stmt_list_zip();
 int check_fn_define(typeid_t fnname, ASTNode *param);
 // for tree node compress deep into wide, begin for stmt list beginning
