@@ -1262,7 +1262,7 @@ static CADataType *catype_formalize_type_compact(CADataType *datatype) {
 }
 
 // expand compacted * or array [ into separate CADataType object
-static CADataType *catype_formalize_type_expand(CADataType *datatype) {
+static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<CADataType *> &rcheck) {
   CADataType *nextdt = nullptr;
   CADataType *currdt = datatype;
   int dim = 0;
@@ -1299,7 +1299,13 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype) {
     case STRUCT:
       for (int i = 0; i < currdt->struct_layout->fieldnum; ++i) {
 	auto *&type = currdt->struct_layout->fields[i].type;
-	type = catype_formalize_type_expand(type);
+	// when the field already expanded then do nothing
+	if (rcheck.find(type) != rcheck.end())
+	  continue;
+
+	rcheck.insert(type);
+	type = catype_formalize_type_expand(type, rcheck);
+	rcheck.erase(type);
       }
 
       return datatype;
@@ -1314,8 +1320,11 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype) {
 static CADataType *catype_formalize_type(CADataType *datatype, int compact) {
   if (compact)
     return catype_formalize_type_compact(datatype);
-  else
-    return catype_formalize_type_expand(datatype);
+  else {
+    std::set<CADataType *> rcheck;
+    rcheck.insert(datatype);
+    return catype_formalize_type_expand(datatype, rcheck);
+  }
 }
 
 CADataType *catype_create_type_from_unwind(int unwind) {
