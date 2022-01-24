@@ -835,6 +835,7 @@ int parse_lexical_char(const char *text) {
 
 typeid_t inference_expr_type(ASTNode *node);
 typeid_t inference_expr_expr_type(ASTNode *node) {
+  CADataType *catype = NULL;
   typeid_t type1 = typeid_novalue;
 
   if (node->exprn.expr_type != typeid_novalue)
@@ -875,6 +876,22 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     break;
   case SIZEOF:
     type1 = sym_form_type_id_from_token(U64);
+    break;
+  case DEREF:
+    type1 = inference_expr_type(node->exprn.operands[0]);
+    catype = catype_get_by_name(node->symtable, type1);
+    if (catype->type != POINTER) {
+      yyerror("line: %d, col: %d: only an address (pointer) type can do dereference, `%s` type cannot",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(catype->signature));
+      return typeid_novalue;
+    }
+
+    // TODO; check if the pointer signature is already formalized
+    type1 = catype->pointer_layout->type->signature;
+    break;
+  case ADDRESS:
+    yyerror("line: %d, col: %d: inference address type not implemented yet",
+	    node->begloc.row, node->begloc.col);
     break;
   case AS:
   case UMINUS:
@@ -1012,6 +1029,16 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 
       return -1;
     }
+    break;
+  case DEREF:
+    // NEXT TODO:
+    yyerror("line: %d, col: %d: determine dereference type not implemented yet",
+	    node->begloc.row, node->begloc.col);
+    break;
+  case ADDRESS:
+    // NEXT TODO:
+    yyerror("line: %d, col: %d: determine address type not implemented yet",
+	    node->begloc.row, node->begloc.col);
     break;
   case AS:
   case UMINUS:
