@@ -1,5 +1,9 @@
 fn main() {
-    let pa: *i32 = 0x12432 as *i32;
-    let a = *pa;
+    // let pa: *i32 = 0x12432 as *i32;
+    // let a = *pa;
+
+    let a = 1;
+    let pa = &a;
+    let b = *pa;
 }
 

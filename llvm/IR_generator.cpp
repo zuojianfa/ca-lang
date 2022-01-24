@@ -828,10 +828,14 @@ static void walk_assign(ASTNode *p) {
   Value *v = nullptr;
   if (exprn->type != TTE_VarDefZeroValue) {
     walk_stack(exprn);
+    if (exprn->type == TTE_Expr && exprn->exprn.op == ADDRESS)
+      iscomplextype = true;
+
     auto pair = pop_right_value("tmpexpr", !iscomplextype);
     v = pair.first;
     if (!catype_check_identical(dt, pair.second)) {
-      yyerror("expected a type `%s`, but found `%s`",
+      yyerror("line: %d, col: %d: expected a type `%s`, but found `%s`",
+	      p->begloc.row, p->begloc.col,
 	      catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
       return;
     }
@@ -1218,14 +1222,16 @@ static void walk_deref(ASTNode *rexpr) {
 
 static void walk_address(ASTNode *aexpr) {
   ASTNode *expr = aexpr->exprn.operands[0];
-  walk_stack(expr);
-  auto pair = pop_right_operand("addr", false);
-  if (expr->type == TTE_Id) {
+  if (expr->type != TTE_Id) {
     yyerror("line: %d, col: %d: cannot get address of not a variable, type: `%d`",
 	    aexpr->begloc.row, aexpr->begloc.col, expr->type);
     return;
   }
 
+  walk_stack(expr);
+  auto pair = pop_right_operand("addr", false);
+
+  pair->catype = catype_make_pointer_type(pair->catype);
   oprand_stack.push_back(std::move(pair));
 }
 

@@ -890,8 +890,18 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     type1 = catype->pointer_layout->type->signature;
     break;
   case ADDRESS:
-    yyerror("line: %d, col: %d: inference address type not implemented yet",
-	    node->begloc.row, node->begloc.col);
+    // only the variable can have an address
+    // TODO: handle function address
+    if (node->exprn.operands[0]->type != TTE_Id) {
+      yyerror("line: %d, col: %d: only a variable can have an address, but find type `%d`",
+	      node->begloc.row, node->begloc.col, node->exprn.operands[0]->type);
+      return typeid_novalue;
+    }
+
+    type1 = inference_expr_type(node->exprn.operands[0]);
+    catype = catype_get_by_name(node->symtable, type1);
+    catype = catype_make_pointer_type(catype);
+    type1 = catype->signature;
     break;
   case AS:
   case UMINUS:
@@ -984,6 +994,8 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
   if (node->exprn.expr_type != typeid_novalue)
     return 0;
 
+  CADataType *datatype = NULL;
+
   switch (node->exprn.op) {
   case ARRAY: {
     // most important is check if the inference type and the determined is compatible
@@ -1031,9 +1043,9 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     }
     break;
   case DEREF:
-    // NEXT TODO:
-    yyerror("line: %d, col: %d: determine dereference type not implemented yet",
-	    node->begloc.row, node->begloc.col);
+    datatype = catype_get_by_name(node->symtable, type);
+    datatype = catype_make_pointer_type(datatype);
+    determine_expr_type(node->exprn.operands[0], datatype->signature);
     break;
   case ADDRESS:
     // NEXT TODO:

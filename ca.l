@@ -152,7 +152,7 @@ r\"[^"]*\"	       	{
 "..."		{ ULL(); return VARG; }
 "->"		{ ULL(); return ARROW; }
 "=>"		{ ULL(); return INFER; }
- /* \&		{ ULL(); return ADDRESS; } */
+\&		{ ULL(); return '&'; }
  /*'*'		{ ULL(); return DEREF; } */
 
 ({letter}|_)+({letter}|{digit}|_)*	{
