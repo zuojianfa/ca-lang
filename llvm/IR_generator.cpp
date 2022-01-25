@@ -664,6 +664,11 @@ static void walk_dbgprint(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
+  if (p->printn.expr->litn.litv.littypetok == CSTRING) {
+    llvmcode_printf(printf_fn, "%s", v, nullptr);
+    return;
+  }
+
   llvmcode_printf_primitive(printf_fn, pair.second, v);
 
 #if 0
@@ -1232,6 +1237,7 @@ static void walk_address(ASTNode *aexpr) {
   auto pair = pop_right_operand("addr", false);
 
   pair->catype = catype_make_pointer_type(pair->catype);
+  pair->type = OT_Calc; // make it not loadable value
   oprand_stack.push_back(std::move(pair));
 }
 

@@ -305,10 +305,13 @@ int catype_init() {
   catype_put_primitive_by_name(name, datatype); // double
 
   catype_make_type("t:bool", BOOL, 1);          // bool
-  catype_make_type("t:char", CHAR, 1);          // char
-  catype_make_type("t:uchar", UCHAR, 1);        // uchar
-  catype_make_type("t:i8", CHAR, 1);            // char
-  catype_make_type("t:u8", UCHAR, 1);           // uchar
+  datatype = catype_make_type("t:i8", CHAR, 1); // i8
+  name = symname_check_insert("t:char");
+  catype_put_primitive_by_name(name, datatype); // char
+
+  datatype = catype_make_type("t:u8", UCHAR, 1);// u8
+  name = symname_check_insert("t:uchar");
+  catype_put_primitive_by_name(name, datatype); // uchar
 
   return 0;
 }
@@ -1261,6 +1264,22 @@ static CADataType *catype_formalize_type_compact(CADataType *datatype) {
   }
 }
 
+static typeid_t typeid_decrease_pointer(typeid_t type) {
+  const char *name = catype_get_type_name(type);
+  assert(name[0] == '*');
+  typeid_t id = sym_form_type_id_by_str(name+1);
+  return id;
+}
+
+static typeid_t typeid_increase_pointer(typeid_t type) {
+  char buf[1024];
+  const char *name = catype_get_type_name(type);
+  buf[0] = '*';
+  strcpy(buf+1, name);
+  typeid_t id = sym_form_type_id_by_str(buf);
+  return id;
+}
+
 // expand compacted * or array [ into separate CADataType object
 static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<CADataType *> &rcheck) {
   CADataType *nextdt = nullptr;
@@ -1276,6 +1295,8 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<C
       currdt->pointer_layout->dimension = 1;
       for (int i = 1; i < dim; ++i) {
 	CADataType *dt = catype_clone_thin(currdt);
+	dt->signature = typeid_decrease_pointer(currdt->signature);
+	dt->status = CADT_Expand;
 	currdt->pointer_layout->type = dt;
 	currdt = dt;
       }
@@ -1283,6 +1304,7 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<C
       currdt = currdt->pointer_layout->type;
       break;
     case ARRAY:
+      // NEXT TODO: handle catype status
       // TODO: make the expanded (use clone following) signature formalname to correct one
       dim = currdt->array_layout->dimension;
       parray = currdt->array_layout->dimarray;
@@ -1465,6 +1487,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // step 4: create type object
   // NEXT TODO: implement following 2 type
   //dt = catype_create_type_from_unwind(unwind);
+  dt->status = CADT_Expand;
   dt = catype_formalize_type(dt, 0);
 
   // step 5: update symtable type table
@@ -1774,6 +1797,7 @@ void determine_literal_type(CALiteral *lit, CADataType *catype) {
 
 CADataType *catype_clone_thin(const CADataType *type) {
   auto dt = new CADataType;
+  dt->status = type->status;
   dt->formalname = type->formalname;
   dt->type = type->type;
   dt->size = type->size;
@@ -1806,6 +1830,7 @@ CADataType *catype_clone_thin(const CADataType *type) {
 
 CADataType *catype_make_type_symname(typeid_t name, int type, int size) {
   auto dt = new CADataType;
+  dt->status = CADT_None;
   dt->formalname = name;
   dt->type = type;
   dt->size = size;
@@ -2831,6 +2856,7 @@ bool catype_is_complex_type(tokenid_t typetok) {
 static CADataType *catype_make_type(const char *name, int type, int size) {
   auto datatype = new CADataType;
   int formalname = symname_check_insert(name);
+  datatype->status = CADT_Orig;
   datatype->formalname = formalname;
   datatype->type = type;
   datatype->size = size;

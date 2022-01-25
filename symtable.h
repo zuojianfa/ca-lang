@@ -31,11 +31,19 @@ typedef enum SymType {
 
 #define MAX_ARGS 16
 
+typedef enum CADTStatus {
+  CADT_None,    // not normalized
+  CADT_Orig,    // primitive type, no need expanding or compacting
+  CADT_Expand,  // normalized by expanding
+  CADT_Compact, // normalized by compacting
+} CADTStatus;
+
 typedef struct CADataType {
   tokenid_t type;       // type type: I32 I64 ... STRUCT ARRAY
   typeid_t formalname; // type name symname_xxx
   int size;       // type size
   typeid_t signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table
+  CADTStatus status;   // only when status is not None, the signature can be used directly
   union {
     struct CAStruct *struct_layout;  // when type is STRUCT
     struct CAArray *array_layout;    // when type is ARRAY
