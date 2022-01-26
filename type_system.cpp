@@ -48,6 +48,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <string.h>
 #include <utility>
 #include <vector>
 
@@ -507,7 +508,7 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 					      CADataType **retdt = nullptr)
 {
   // t:i32 => return
-  // t:*i32 t:**i32 => 
+  // t:*i32 t:**i32 =>
   // t:[i32;3]
   // type A = **B; type B = **[*i32;3] t:A => t:**B; t:
 
@@ -596,7 +597,7 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 	ret = catype_unwind_type_name(symtable, pch, prenamemap, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt);
 	break;
       }
-      
+
       if (ret == -1) {
 	yyerror("unwind type name `%s` failed", pch);
 	return -1;
@@ -720,7 +721,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     sigbuf[sigi++] = *pch++; // = ':';
 
     int tbuflen = buflen - sigi;
-    
+
     CADataType **outdt = retdt ? &dt : nullptr;
     int ret = catype_unwind_type_signature_inner(symtable, pch, namemap, checkset, sigbuf+sigi, tbuflen, &tsize, outdt);
     if (ret == -1) {
@@ -738,7 +739,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
       sizeerror = 1;
     else if (tsize == -2)
       calcing = 1;
-    else 
+    else
       tmptypesize += tsize;
 
     if (retdt)
@@ -829,7 +830,7 @@ static int catype_unwind_type_array(SymTable *symtable, const char *pchbegin,
     addrdt->array_layout->dimarray[0] = elesize;
     *retdt = addrdt;
   }
-  
+
   return pch - pchbegin;
 }
 
@@ -919,7 +920,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   const char *caname = catype_get_type_name(entry->u.datatype.id);
 
   // when type is not a structure type directly
-  if (!entry->u.datatype.members) {    
+  if (!entry->u.datatype.members) {
     int tbuflen = buflen;
 
     // when ever retdt is null, it still use this
@@ -993,7 +994,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
       sizeerror = 1;
     else if (tsize == -2)
       calcing = 1;
-    else 
+    else
       tmptypesize += tsize;
 
     if (retdt)
@@ -1042,7 +1043,7 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *ty
   typeid_t signature = symname_check_insert(sigbuf);
   if (retdt && *retdt)
     (*retdt)->signature = signature;
-  
+
   return signature;
 }
 
@@ -1208,14 +1209,14 @@ static int catype_compare_type_by_signature(std::map<std::string, std::string> &
 // typeid(BB) == typeid(A)
 // when input is 'struct A' it related to type B and C, so here calculate
 // all the typeid of A B and C and finally put them into s_type_map
-// 
+//
 void catype_make_type_closure(SymTable *symtable, typeid_t id) {
   // NEXT TODO:
   //catype_get_by_name();
-  
+
 }
 
-// compact CADataType object of pointer * or array [ into one object 
+// compact CADataType object of pointer * or array [ into one object
 static CADataType *catype_formalize_type_compact(CADataType *datatype) {
   switch(datatype->type) {
   case POINTER:
@@ -1264,6 +1265,7 @@ static CADataType *catype_formalize_type_compact(CADataType *datatype) {
   }
 }
 
+// t:**type => t:*type
 static typeid_t typeid_decrease_pointer(typeid_t type) {
   const char *name = catype_get_type_name(type);
   assert(name[0] == '*');
@@ -1271,6 +1273,7 @@ static typeid_t typeid_decrease_pointer(typeid_t type) {
   return id;
 }
 
+// t:*type => t:**type
 static typeid_t typeid_increase_pointer(typeid_t type) {
   char buf[1024];
   const char *name = catype_get_type_name(type);
@@ -1278,6 +1281,94 @@ static typeid_t typeid_increase_pointer(typeid_t type) {
   strcpy(buf+1, name);
   typeid_t id = sym_form_type_id_by_str(buf);
   return id;
+}
+
+// t:[[type;num1];num2] => t:[type;num1]
+static typeid_t typeid_decrease_array(typeid_t type) {
+  const char *name = catype_get_type_name(type);
+  int len = strlen(name);
+  assert(name[0] == '[' && name[len-1] == ']');
+  const char *lastsemi = strchr(name, ';');
+  assert(lastsemi != nullptr);
+  char buf[1024];
+  len = lastsemi - name - 1;
+  strncpy(buf, name+1, len);
+  buf[len] = 0;
+  typeid_t id = sym_form_type_id_by_str(buf);
+  return id;
+}
+
+// t:[type;num1] => t:[[type;num1];num2]
+static typeid_t typeid_increase_array(typeid_t type, int num) {
+  const char *name = catype_get_type_name(type);
+  char buf[1024];
+  sprintf(buf, "[%s;%d]", name, num);
+  typeid_t id = sym_form_type_id_by_str(buf);
+  return id;
+}
+
+static typeid_t typeid_get_bottom_up(CADataType *catype) {
+}
+
+// only need get the top level signature
+static typeid_t typeid_get_top_down(CADataType *catype) {
+  if (catype->status != CADT_None)
+    return catype->signature;
+
+  typeid_t subid = typeid_novalue;
+  typeid_t id = typeid_novalue;
+  const char *subname = nullptr;
+  char buf[1024];
+  int i = 0;
+  int len = 0;
+
+  switch (catype->type) {
+  case CSTRING:
+  case POINTER:
+    subid = typeid_get_top_down(catype->pointer_layout->type);
+    subname = catype_get_type_name(subid);
+    for (i = 0; i < catype->pointer_layout->dimension; ++i)
+      buf[i++] = '*';
+
+    strcpy(buf + i, subname);
+    catype->signature = sym_form_type_id_by_str(buf);
+    catype->status = CADT_Expand;
+    return catype->signature;
+  case ARRAY:
+    subid = typeid_get_top_down(catype->array_layout->type);
+    subname = catype_get_type_name(subid);
+    for (i = 0; i < catype->array_layout->dimension; ++i)
+      buf[i++] = '[';
+
+    len = strlen(subname);
+    strcpy(buf + i, subname);
+    len += i;
+    for (i = catype->array_layout->dimension - 1; i >= 0; --i)
+      len += sprintf(buf+len, ";%d]", catype->array_layout->dimarray[i]);
+
+    catype->signature = sym_form_type_id_by_str(buf);
+    catype->status = CADT_Expand;
+    return catype->signature;
+  case STRUCT:
+    // NEXT TODO:
+    break;
+  case VOID:
+  case I32:
+  case I64:
+  case U32:
+  case U64:
+  case F32:
+  case F64:
+  case BOOL:
+  case CHAR:
+  case UCHAR:
+  default:
+    return catype->signature;
+  }
+}
+
+static typeid_t typeid_from_catype(CADataType *catype) {
+  return typeid_get_top_down(catype);
 }
 
 // expand compacted * or array [ into separate CADataType object
@@ -1300,17 +1391,18 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<C
 	currdt->pointer_layout->type = dt;
 	currdt = dt;
       }
-      
+
       currdt = currdt->pointer_layout->type;
       break;
     case ARRAY:
-      // NEXT TODO: handle catype status
       // TODO: make the expanded (use clone following) signature formalname to correct one
       dim = currdt->array_layout->dimension;
       parray = currdt->array_layout->dimarray;
       currdt->array_layout->dimension = 1;
       for (int i = 1; i < dim; ++i) {
 	CADataType *dt = catype_clone_thin(currdt);
+	dt->signature = typeid_decrease_array(currdt->signature);
+	dt->status = CADT_Expand;
 	dt->array_layout->dimarray[0] = parray[i];
 	currdt->array_layout->type = dt;
 	currdt = dt;
@@ -1319,6 +1411,7 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<C
       currdt = currdt->array_layout->type;
       break;
     case STRUCT:
+      // NEXT TODO: handle catype status
       for (int i = 0; i < currdt->struct_layout->fieldnum; ++i) {
 	auto *&type = currdt->struct_layout->fields[i].type;
 	// when the field already expanded then do nothing
@@ -1326,7 +1419,11 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<C
 	  continue;
 
 	rcheck.insert(type);
-	type = catype_formalize_type_expand(type, rcheck);
+	if (type->status == CADT_None)
+	  type->signature = typeid_from_catype(type);
+
+        // type =
+	catype_formalize_type_expand(type, rcheck);
 	rcheck.erase(type);
       }
 
@@ -1345,6 +1442,7 @@ static CADataType *catype_formalize_type(CADataType *datatype, int compact) {
   else {
     std::set<CADataType *> rcheck;
     rcheck.insert(datatype);
+    datatype->status = CADT_Expand;
     return catype_formalize_type_expand(datatype, rcheck);
   }
 }
@@ -1447,8 +1545,8 @@ CADataType *catype_create_type_from_unwind(int unwind) {
 // nameA-1, nameB-1 in both signature, create map nameA-1 => nameB-1 and nameB-1
 // => nameA-1, later when encounter another pair names then search in the map to
 // see if they already exists and if they are the same, if so then the name are
-// identical, else they are not identical 
-// 
+// identical, else they are not identical
+//
 
 CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // put the primitive type table and the table by signature into together, so the step will become
@@ -1597,7 +1695,7 @@ static typeid_t inference_array_literal(CALiteral *lit) {
   }
 
   catype = catype_make_array_type(catype, len, 0);
-    
+
   lit->catype = catype;
   lit->datatype = lit->catype->signature;
   lit->fixed_type = 1;
@@ -1606,7 +1704,7 @@ static typeid_t inference_array_literal(CALiteral *lit) {
 }
 
 // inference and set the literal type for the literal, when the literal have no
-// a determined type, different from `determine_literal_type`, the later is used by passing a defined type  
+// a determined type, different from `determine_literal_type`, the later is used by passing a defined type
 typeid_t inference_literal_type(CALiteral *lit) {
   if (lit->fixed_type) {
     // no need inference, may should report an error
@@ -1809,7 +1907,7 @@ CADataType *catype_clone_thin(const CADataType *type) {
     dt->pointer_layout->dimension = type->pointer_layout->dimension;
     break;
   case STRUCT:
-    // TODO: 
+    // TODO:
     dt->struct_layout = type->struct_layout;
     break;
   case ARRAY:
@@ -2128,7 +2226,7 @@ Type *gen_llvmtype_from_catype(CADataType *catype) {
       Type *fieldtype = gen_llvmtype_from_catype(catype->struct_layout->fields[i].type);
       fields.push_back(fieldtype);
     }
-    
+
     StructType *sttype = StructType::get(ir1.ctx(), fields, pack);
     return sttype;
   }
@@ -2242,7 +2340,7 @@ Value *gen_array_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
   //GlobalValue *g = ir1.gen_global_var(arraytype, "constarray", arrayconst, true);
 
   return arrayconst;
-  
+
   // AllocaInst::ZExt;
   // ir1.builder().CreateInst
   // ConstantStruct::get();
@@ -2254,7 +2352,7 @@ Value *gen_array_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
   // MDStringArray::
   // MDNodeArray::get();
   // MDTupleArray;
-    
+
 
   // ConstantDataArray::get();
   // ConstantArray::get(); //(ArrayType *T, ArrayRef<Constant *> V);
@@ -2264,7 +2362,7 @@ Value *gen_array_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
   //FeatureBitArray;
 
   yyerror("the array literal not implemented yet");
-  return nullptr;  
+  return nullptr;
 }
 
 Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
@@ -2282,11 +2380,11 @@ Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
     }
 
     type = gen_llvmtype_from_catype(catype);
-    
+
     if (lit->u.i64value == 0) {
       llvmvalue = ConstantPointerNull::get(static_cast<PointerType *>(type));
 
-      // TODO: other pointer literal value should not supported 
+      // TODO: other pointer literal value should not supported
       //yyerror("other pointer literal not implemented yet");
       //return nullptr;
     } else {
@@ -2339,7 +2437,7 @@ const char *get_printf_format(int type) {
 }
 
 int is_unsigned_type(tokenid_t type) {
-  
+
   return type == U32 || type == U64 || type == UCHAR;
 }
 
@@ -2695,7 +2793,7 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
 Instruction::CastOps gen_cast_ops(CADataType *fromtype, CADataType *totype) {
   if (fromtype->signature == totype->signature)
     return (Instruction::CastOps)0;
-  
+
   tokenid_t fromtok = fromtype->type;
   tokenid_t totok = totype->type;
   return llvmtype_cast_table[fromtok-VOID][totok-VOID];
@@ -2713,9 +2811,9 @@ static int s_literal_type_convertable_table[ATOMTYPE_END - VOID + 1][CSTRING - A
   {0, }, // VOID -> other-type, means convert from VOID type to other type
   {0, },   // I32 -> other-type
   {0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // I64 ->
-  {0, }, // U32 ->						  
+  {0, }, // U32 ->
   {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // U64 ->
-  {0, }, // F32 ->						  
+  {0, }, // F32 ->
   {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 0,}, // F64 ->
   {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 0,}, // BOOL ->
   {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // CHAR ->
@@ -2817,7 +2915,7 @@ int check_f64_value_scope(double lit, tokenid_t typetok) {
       return 1;
     return 0;
   case F64:
-    return 0;    
+    return 0;
   default:
     yyerror("f64 lexcial value incompatible with %s", get_type_string(typetok));
     return -1;
@@ -2865,4 +2963,3 @@ static CADataType *catype_make_type(const char *name, int type, int size) {
   catype_put_primitive_by_name(formalname, datatype);
   return datatype;
 }
-
