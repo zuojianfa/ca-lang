@@ -1041,8 +1041,10 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *ty
 
   // fixing the signature, the inner function may not set the signature correctly
   typeid_t signature = symname_check_insert(sigbuf);
-  if (retdt && *retdt)
+  if (retdt && *retdt) {
     (*retdt)->signature = signature;
+    (*retdt)->status = CADT_Expand;
+  }
 
   return signature;
 }
@@ -1307,11 +1309,8 @@ static typeid_t typeid_increase_array(typeid_t type, int num) {
   return id;
 }
 
-static typeid_t typeid_get_bottom_up(CADataType *catype) {
-}
-
 // only need get the top level signature
-static typeid_t typeid_get_top_down(CADataType *catype) {
+static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &rcheck) {
   if (catype->status != CADT_None)
     return catype->signature;
 
@@ -1325,7 +1324,7 @@ static typeid_t typeid_get_top_down(CADataType *catype) {
   switch (catype->type) {
   case CSTRING:
   case POINTER:
-    subid = typeid_get_top_down(catype->pointer_layout->type);
+    subid = typeid_get_top_down(catype->pointer_layout->type, rcheck);
     subname = catype_get_type_name(subid);
     for (i = 0; i < catype->pointer_layout->dimension; ++i)
       buf[i++] = '*';
@@ -1335,7 +1334,7 @@ static typeid_t typeid_get_top_down(CADataType *catype) {
     catype->status = CADT_Expand;
     return catype->signature;
   case ARRAY:
-    subid = typeid_get_top_down(catype->array_layout->type);
+    subid = typeid_get_top_down(catype->array_layout->type, rcheck);
     subname = catype_get_type_name(subid);
     for (i = 0; i < catype->array_layout->dimension; ++i)
       buf[i++] = '[';
@@ -1350,8 +1349,21 @@ static typeid_t typeid_get_top_down(CADataType *catype) {
     catype->status = CADT_Expand;
     return catype->signature;
   case STRUCT:
-    // NEXT TODO:
-    break;
+    // NEXT TODO: t:{BB;a:f32}, t:{AA;a:i32,b:i64,c:{BB;a:f32}}
+    buf[0] = '{';
+    for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
+      auto *&type = catype->struct_layout->fields[i].type;
+
+      // when find a type circle then do nothing
+      if (rcheck.find(type) != rcheck.end())
+	continue;
+
+      rcheck.insert(type);
+      subid = typeid_get_top_down(type, rcheck);
+      rcheck.erase(type);
+    }
+    
+    return catype->signature;
   case VOID:
   case I32:
   case I64:
@@ -1368,7 +1380,9 @@ static typeid_t typeid_get_top_down(CADataType *catype) {
 }
 
 static typeid_t typeid_from_catype(CADataType *catype) {
-  return typeid_get_top_down(catype);
+  // used for check circle when contains struct type
+  std::set<CADataType *> rcheck;
+  return typeid_get_top_down(catype, rcheck);
 }
 
 // expand compacted * or array [ into separate CADataType object
@@ -1442,7 +1456,6 @@ static CADataType *catype_formalize_type(CADataType *datatype, int compact) {
   else {
     std::set<CADataType *> rcheck;
     rcheck.insert(datatype);
-    datatype->status = CADT_Expand;
     return catype_formalize_type_expand(datatype, rcheck);
   }
 }
@@ -1585,7 +1598,6 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // step 4: create type object
   // NEXT TODO: implement following 2 type
   //dt = catype_create_type_from_unwind(unwind);
-  dt->status = CADT_Expand;
   dt = catype_formalize_type(dt, 0);
 
   // step 5: update symtable type table

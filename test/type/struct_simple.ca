@@ -1,0 +1,14 @@
+fn main() {
+	struct BB {
+		a: f32
+	}
+
+	struct AA {
+		a: i32,
+		b: i64,
+		c: BB
+	}
+	dbgprinttype BB;
+	dbgprinttype AA;
+}
+
