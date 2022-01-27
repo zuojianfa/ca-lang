@@ -688,6 +688,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     int nameid = symname_check_insert(namebuf);
     addrdt = catype_make_type_symname(nameid, STRUCT, *typesize);
     castruct = new CAStruct;
+    castruct->name = nameid;
     castruct->fieldnum = 0;
     castruct->capacity = 10;
     castruct->fields = new CAStructField[castruct->capacity];
@@ -951,6 +952,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     int nameid = symname_check_insert(namebuf);
     addrdt = catype_make_type_symname(nameid, STRUCT, *typesize);
     castruct = new CAStruct;
+    castruct->name = nameid;
     castruct->fieldnum = 0;
     castruct->capacity = 10;
     castruct->fields = new CAStructField[castruct->capacity];
@@ -1270,7 +1272,10 @@ static CADataType *catype_formalize_type_compact(CADataType *datatype) {
 // t:**type => t:*type
 static typeid_t typeid_decrease_pointer(typeid_t type) {
   const char *name = catype_get_type_name(type);
-  assert(name[0] == '*');
+  if(name[0] != '*') {
+    yyerror("Assertion `name[0] == '*'' failed");
+    return typeid_novalue;
+  }
   typeid_t id = sym_form_type_id_by_str(name+1);
   return id;
 }
@@ -1316,7 +1321,9 @@ static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &
 
   typeid_t subid = typeid_novalue;
   typeid_t id = typeid_novalue;
+  const char *structname = nullptr;
   const char *subname = nullptr;
+  const char *varname = nullptr;
   char buf[1024];
   int i = 0;
   int len = 0;
@@ -1327,7 +1334,7 @@ static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &
     subid = typeid_get_top_down(catype->pointer_layout->type, rcheck);
     subname = catype_get_type_name(subid);
     for (i = 0; i < catype->pointer_layout->dimension; ++i)
-      buf[i++] = '*';
+      buf[i] = '*';
 
     strcpy(buf + i, subname);
     catype->signature = sym_form_type_id_by_str(buf);
@@ -1337,7 +1344,7 @@ static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &
     subid = typeid_get_top_down(catype->array_layout->type, rcheck);
     subname = catype_get_type_name(subid);
     for (i = 0; i < catype->array_layout->dimension; ++i)
-      buf[i++] = '[';
+      buf[i] = '[';
 
     len = strlen(subname);
     strcpy(buf + i, subname);
@@ -1349,20 +1356,36 @@ static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &
     catype->status = CADT_Expand;
     return catype->signature;
   case STRUCT:
-    // NEXT TODO: t:{BB;a:f32}, t:{AA;a:i32,b:i64,c:{BB;a:f32}}
+    // t:{BB;a:f32}, t:{AA;a:i32,b:i64,c:{BB;a:f32}}
+    if (rcheck.find(catype) != rcheck.end()) {
+      return sym_form_type_id(catype->struct_layout->name);
+    }
+
+    rcheck.insert(catype);
+
     buf[0] = '{';
+    structname = symname_get(catype->struct_layout->name);
+    len = strlen(structname) + 1;
+    strcpy(buf+1, structname);
+    buf[len++] = ';';
     for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
       auto *&type = catype->struct_layout->fields[i].type;
 
-      // when find a type circle then do nothing
-      if (rcheck.find(type) != rcheck.end())
-	continue;
-
-      rcheck.insert(type);
+      //rcheck.insert(catype);
       subid = typeid_get_top_down(type, rcheck);
-      rcheck.erase(type);
+      //rcheck.erase(catype);
+
+      varname = symname_get(catype->struct_layout->fields[i].name);
+      subname = catype_get_type_name(subid);
+      len += sprintf(buf+len, "%s:%s,", varname, subname);
     }
-    
+
+    rcheck.erase(catype);
+
+    buf[len-1] = '}';
+    buf[len] = '\0';
+    catype->signature = sym_form_type_id_by_str(buf);
+    catype->status = CADT_Expand;
     return catype->signature;
   case VOID:
   case I32:

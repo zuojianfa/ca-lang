@@ -58,6 +58,7 @@ typedef struct CAStructField {
 } CAStructField;
 
 typedef struct CAStruct {
+  int name;
   int fieldnum;
   int capacity;
   struct CAStructField *fields;
