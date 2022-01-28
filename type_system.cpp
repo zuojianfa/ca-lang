@@ -2165,21 +2165,14 @@ const char *catype_get_type_name(typeid_t type) {
   return symname_get(type) + 2;
 }
 
-CADataType *catype_unwind_type_object(SymTable *symtable, STEntry *entry) {
-  if (!entry->u.datatype.members)
-    return catype_get_by_name(symtable, entry->u.datatype.id);
-
-  // NEXT TODO: unwind the type into type object, when have object like members
-  // e.g.
-  // example 1:
-  // t:AA; type AA = *[*[*BB;3];4]; type BB = *CC; type CC = [*i32;6];
-  // after unwind: *[*[**[*i32;6];3];4]
-  // example 2:
-  // t:AA; type AA = *[*[*BB;3];4]; struct BB { a: CC }; type CC = *[i32;6];
-  // after unwind, it becomes: *[*[*BB;3];4]
-  return nullptr;
-}
-
+// unwind the type into type object, when have object like members
+// e.g.
+// example 1:
+// t:AA; type AA = *[*[*BB;3];4]; type BB = *CC; type CC = [*i32;6];
+// after unwind: *[*[**[*i32;6];3];4]
+// example 2:
+// t:AA; type AA = *[*[*BB;3];4]; struct BB { a: CC }; type CC = *[i32;6];
+// after unwind, it becomes: *[*[*{BB;a:*[i32;6]};3];4]
 END_EXTERN_C
 
 Value *tidy_value_with_arith(Value *v, int typetok) {

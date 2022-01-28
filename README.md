@@ -256,6 +256,10 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] find all function like `catype_make_pointer_type` that make CADataType type, and implemented them with expand style, not compact style
+  CADataType *catype_make_pointer_type(CADataType *datatype);
+  CADataType *catype_make_array_type(CADataType *type, uint64_t len, bool compact);
+  CADataType *catype_make_struct_type(int symname, ST_ArgList *arglist);
+
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
 - [x] refactor: set default parameter `load=false` of function `pop_right_operand` `pop_right_value`, and make the use of alloc address as default background value type, only load it in the terminal operation
 - [x] debug       ConstantArray *arrayv = static_cast<ConstantArray *>(v); try to get how to get array element

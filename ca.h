@@ -103,7 +103,6 @@ typedef struct {
 typedef struct TFnDeclNode {
   int is_extern;   // is extern function
   typeid_t ret;    // specify the return type of the function, typeid_novalue stand for no return value
-  //CADataType *ret; 
   typeid_t name;        // function name subscript to sym array
   ST_ArgList args;
 } TFnDeclNode;
@@ -133,7 +132,6 @@ typedef struct TIfNode {
 
 typedef struct TExprAsNode {
   struct ASTNode *expr;
-  //CADataType *type;
   typeid_t type;
 } TExprAsNode;
 
@@ -263,12 +261,9 @@ ASTNode *make_stmt_ret_expr(ASTNode *expr);
 ASTNode *make_stmt_ret();
 ASTNode *make_stmtexpr_list_block(ASTNode *exprblockbody);
 ASTNode *make_stmtexpr_list(ASTNode *stmts, ASTNode *expr);
-//CADataType *make_instance_type_atomic(int atomictype);
 typeid_t make_pointer_type(typeid_t datatype);
 typeid_t make_array_type(typeid_t type, LitBuffer *size);
-CADataType *get_datatype_by_ident(int name);
 ASTNode *make_type_def(int name, typeid_t type);
-CADataType *make_instance_type_struct(int structtype);
 typeid_t make_ret_type_void();
 void make_type_postfix(IdToken *idt, int id, int typetok);
 
@@ -277,8 +272,6 @@ ASTNode *make_goto_node(int i);
 ASTNode *make_empty();
 ASTNode *make_expr(int op, int noperands, ...);
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
-//ASTNode *make_fn_decl(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
-//ASTNode *make_fn_define(int name, ST_ArgList *al, CADataType *rettype, SLoc beg, SLoc end);
 ASTNode *make_id(int id, IdType idtype);
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global);
 ASTNode *make_vardef_zero_value();

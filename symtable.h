@@ -157,7 +157,6 @@ typedef struct IdToken {
 } IdToken;
 
 typedef struct CAVariable {
-  //CADataType *datatype;
   typeid_t datatype;
   SLoc loc;
   int name;
@@ -200,7 +199,6 @@ typedef struct STEntry {
   union {
     struct {
       ST_ArgList *arglists; // when type is Sym_ArgList
-      //CADataType *rettype;
       typeid_t rettype;
     } f;                // when type is Sym_ArgList and contains return type
     CAVariable *var;    // when sym_type are Sym_Variable Sym_Member

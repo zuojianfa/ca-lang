@@ -422,14 +422,6 @@ ASTNode *make_type_def(int id, typeid_t type) {
   return p;
 }
 
-CADataType *make_instance_type_struct(int structtype) {
-  dot_emit("instance_type", "struct_type");
-  yyerror("line: %d, col: %d: cannot find type: %s",
-	  glineno, gcolno, symname_get(structtype));
-
-  return NULL;
-}
-
 typeid_t make_ret_type_void() {
   dot_emit("ret_type", "");
   typeid_t typesym = sym_form_type_id_from_token(VOID);
