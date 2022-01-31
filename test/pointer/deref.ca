@@ -3,51 +3,57 @@ fn main() {
     let pa = &a;
     let ppa = &pa;
     let pppa = &ppa;
-    // dbgprinttype typeof(a);
-    // dbgprinttype typeof(pa);
-    // dbgprinttype typeof(ppa);
-    // dbgprinttype typeof(pppa);
 
-    //dbgprinttype typeof(*a);
-    //dbgprinttype typeof(*pa);
-    //dbgprinttype typeof(*ppa);
+    dbgprinttype typeof(a);
+    dbgprinttype typeof(pa);
+    dbgprinttype typeof(ppa);
+    dbgprinttype typeof(pppa);
+    print "deref:\n";
+    dbgprinttype typeof(*pa);
+    dbgprinttype typeof(*ppa);
     dbgprinttype typeof(*pppa);
     print *pppa; print '\n';
+    print "deref2:\n";
+    dbgprinttype typeof(**ppa);
+    dbgprinttype typeof(**pppa);
+    print **pppa; print '\n';
+    print "deref3:\n";
+    dbgprinttype typeof(***pppa);
+    print ***pppa; print '\n';
 
+    print "BBBBBBBBBBBBBBBBBB\n";
 
-    // let a = 1;
-    // print &a; print '\n';
-    // dbgprinttype typeof(&a);
+    print "&a: "; print &a; print '\n';
+    dbgprinttype typeof(&a);
 
-    // // print a; print '\n';
-    // let pa = &a;
-    // print pa; print '\n';
-    // let b = *pa;
-    // print b; print '\n';
-    // b = 2;
-    // print a; print '\n';
-    // a = 2;
-    // print a; print '\n';
-    // let pb = pa;
-    // print pb; print '\n';
-    // print *pb; print '\n';
-    // dbgprinttype typeof(*pb);
+    print a; print '\n';
+    pa = &a;
+    print "pa: "; print pa; print '\n';
+    let b = *pa;
+    print b; print '\n';
+    b = 2;
+    print a; print '\n';
+    a = 2;
+    print a; print '\n';
+    let pb = pa;
+    print "pb: "; print pb; print '\n';
+    print *pb; print '\n';
+    dbgprinttype typeof(*pb);
 
-    // print "\n2 dimension pointer:\n\n";
+    print "\n2 dimension pointer:\n\n";
 
-    // let ppa = &pa;
-    // print ppa; print '\n';
-    // dbgprinttype typeof(ppa);
-    // print &pa; print '\n';
-    // dbgprinttype typeof(&pa);
-    // print "ppp: "; print *ppa; print '\n';
-    // dbgprinttype typeof(*ppa);
+    ppa = &pa;
+    print "ppa: "; print ppa; print '\n';
+    dbgprinttype typeof(ppa);
+    print "&pa: "; print &pa; print '\n';
+    dbgprinttype typeof(&pa);
+    print "*ppa: "; print *ppa; print '\n';
+    dbgprinttype typeof(*ppa);
 
-    // let pppa = &ppa;
-    // dbgprinttype typeof(pppa);
-    // dbgprinttype typeof(*pppa);
-    // print pppa; print '\n';
-    // print *ppa;
-
+    pppa = &ppa;
+    dbgprinttype typeof(pppa);
+    dbgprinttype typeof(*pppa);
+    print "pppa: "; print pppa; print '\n';
+    print "*ppa: "; print *ppa; print '\n';
 }
 

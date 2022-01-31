@@ -1039,11 +1039,34 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     datatype = catype_make_pointer_type(datatype);
     determine_expr_type(node->exprn.operands[0], datatype->signature);
     break;
-  case ADDRESS:
-    // NEXT TODO:
-    yyerror("line: %d, col: %d: determine address type not implemented yet",
-	    node->begloc.row, node->begloc.col);
+  case ADDRESS: {
+    // check if right side is a variable and it's address type the same as determined one
+    // only the variable can have an address
+    // TODO: handle function address
+    ASTNode *idnode = node->exprn.operands[0];
+    if (idnode->type != TTE_Id) {
+      yyerror("line: %d, col: %d: only a variable can have an address, but find type `%d`",
+	      node->begloc.row, node->begloc.col, idnode->type);
+      return -1;
+    }
+
+    datatype = catype_get_by_name(node->symtable, type);
+    if (datatype->type != POINTER) {
+      yyerror("line: %d, col: %d: a pointer type cannot determined into `%s` type",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(datatype->signature));
+      return -1;
+    }
+
+    if (idnode->entry->u.var->datatype != datatype->pointer_layout->type->signature) {
+      yyerror("line: %d, col: %d: variable address type `%s` cannot be type of `%s`",
+	      node->begloc.row, node->begloc.col,
+	      catype_get_type_name(idnode->entry->u.var->datatype),
+	      catype_get_type_name(datatype->pointer_layout->type->signature));
+      return -1;
+    }
+
     break;
+  }
   case AS:
   case UMINUS:
   case IF_EXPR:

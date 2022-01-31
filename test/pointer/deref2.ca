@@ -1,0 +1,12 @@
+fn main() {
+    let a = 1;
+    let pa = &a;
+    pa = &a;
+    print "pa: "; print pa; print '\n';
+    let pb: *i8 = 0;
+    pb = &a as *i8;
+    print "pb: "; print pb; print '\n';
+    dbgprinttype typeof(pa);
+    dbgprinttype typeof(pb);
+}
+

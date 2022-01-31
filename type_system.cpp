@@ -2013,8 +2013,13 @@ CADataType *catype_make_pointer_type(CADataType *datatype) {
     type = catype_clone_thin(datatype);
     type->formalname = signature;
     type->signature = signature;
+
+#if 0 // if using compact
     type->pointer_layout->dimension++;
-    catype_put_primitive_by_name(signature, type);
+#else
+    type->pointer_layout->dimension = 1;
+    type->pointer_layout->type = datatype;
+#endif
     break;
   case ARRAY:
     // array's pointer
@@ -2024,10 +2029,13 @@ CADataType *catype_make_pointer_type(CADataType *datatype) {
     // array and struct type can directly append the signature
     type = catype_make_type_symname(signature, POINTER, sizeof(void *));
     type->pointer_layout = new CAPointer;
-    type->pointer_layout->type = datatype;
     type->pointer_layout->dimension = 1;
+    type->pointer_layout->type = datatype;
     break;
   }
+
+  type->status = CADT_Expand;
+  catype_put_primitive_by_name(signature, type);
 
   return type;
 }
@@ -2047,27 +2055,32 @@ CADataType *catype_make_array_type(CADataType *datatype, uint64_t len, bool comp
   // create new CADataType object here and put it into datatype table
   switch (datatype->type) {
   case ARRAY:
+    dt = catype_clone_thin(datatype);
+    dt->size = len * datatype->size;
+    dt->formalname = signature;
+    dt->signature = signature;
+
     if (compact) {
       // array and struct type can directly append the signature
-      dt = catype_clone_thin(datatype);
-      dt->size = len * datatype->size;
-      dt->formalname = signature;
-      dt->signature = signature;
       dt->array_layout->dimarray[dt->array_layout->dimension++] = len;
-      catype_put_primitive_by_name(signature, dt);
-      break;
+    } else {
+      dt->array_layout->dimension = 1;
+      dt->array_layout->dimarray[0] = len;
+      dt->array_layout->type = datatype;
     }
+    break;
   case POINTER:
   case STRUCT:
   default:
     dt = catype_make_type_symname(signature, ARRAY, len * datatype->size);
     dt->array_layout = new CAArray;
-    dt->array_layout->type = datatype;
     dt->array_layout->dimension = 1;
     dt->array_layout->dimarray[0] = len;
+    dt->array_layout->type = datatype;
     break;
   }
 
+  dt->status = CADT_Expand;
   catype_put_primitive_by_name(signature, dt);
 
   return dt;
