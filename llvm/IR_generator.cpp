@@ -334,6 +334,21 @@ static Value *walk_literal(ASTNode *p) {
   return v;
 }
 
+static Value *get_deref_expr_value(ASTNode *expr) {
+  STEntry *entry = expr->entry;
+  if (entry) {
+    assert(entry->u.var->llvm_value != nullptr);
+    Value *var = static_cast<Value *>(entry->u.var->llvm_value);
+    var = ir1.builder().CreateLoad(var, "derefo");
+    return var;
+  }
+
+  walk_stack(expr);
+  auto pair = pop_right_value("po", true);
+  Value *var = pair.first;
+  return var;
+}
+
 // generate variable, if in a function then it is a local variable, when not in
 // a function but `-nomain` is specified then generate a global variable else
 // also generate a global variable for other use
@@ -368,15 +383,12 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullp
       if (p->type == TTE_Id) {
 	var = ir1.gen_var(type, name, nullptr);
       } else { // TTE_DerefLeft condition
-	entry = p->deleftn.expr->entry;
-	assert(entry != nullptr);
-	assert(entry->u.var->llvm_value != nullptr);
-	var = static_cast<Value *>(entry->u.var->llvm_value);
+	var = get_deref_expr_value(p->deleftn.expr);
 	// Value *idxv0 = ir1.gen_int(0);
 	// std::vector<Value *> idxv(p->deleftn.derefcount, idxv0);
 	// Value *dest = ir1.builder().CreateGEP(var, idxv);
 
-	for (int i = 0; i < p->deleftn.derefcount; ++i)
+	for (int i = 0; i < p->deleftn.derefcount - 1; ++i)
 	  var = ir1.builder().CreateLoad(var, "deref");
       }
 
@@ -387,7 +399,7 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullp
 	emit_local_var_dbginfo(curr_fn, name, typestr, var, p->endloc.row);
     }
 
-    if (p->type != TTE_DerefLeft)
+    if (p->type == TTE_Id)
       entry->u.var->llvm_value = static_cast<void *>(var);
   }
 

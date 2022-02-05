@@ -175,6 +175,7 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	let_stmt                { $$ = $1; }
 	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
 	|	deref_left '=' expr ';' { $$ = make_deref_left_assign($1, $3); }
+//	|	arrayitem_left '=' expr ';' { $$ = make_arrayitem_left_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { dot_emit("stmt", "ifstmt"); $$ = $1; }
@@ -187,6 +188,9 @@ stmt:		';'			{ $$ = make_empty(); }
 
 deref_left:	'*' expr                { $$ = (DerefLeft) {1, $2}; }
 	|	'*' deref_left          { $$ = (DerefLeft) {1 + $2.derefcount, $2.expr}; }
+	;
+
+arrayitem_left:	IDENT '[' expr ']'      { /* TODO:  */ }
 	;
 
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }

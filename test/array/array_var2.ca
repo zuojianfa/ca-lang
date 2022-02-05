@@ -1,0 +1,20 @@
+fn main() {
+    let a = 1;
+    let b = 2;
+    let c = 3;
+    let arr = [a, b, c];
+    let d = 4;
+    let e = 5;
+    let f = 6;
+    let arr2 = [d, e, f];
+    let arr3 = [arr, arr2];
+    let arr4 = [[arr, arr2], [arr, arr2], [arr, arr2]];
+    let arr5 = [[arr4], [arr4]];
+
+    print arr; print '\n';
+    print arr2; print '\n';
+    print arr3; print '\n';
+    print arr4; print '\n';
+    print arr5; print '\n';
+}
+

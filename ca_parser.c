@@ -1224,7 +1224,9 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     break;
   case TTE_DerefLeft: {
     ASTNode *expr = node->deleftn.expr;
+    typeid_t exprid = inference_expr_type(expr);
     typeid_t innerid = get_expr_type_from_tree(expr);
+    assert(exprid == innerid);
     if (innerid == typeid_novalue) {
       yyerror("line: %d, col: %d: dereference left operation must be fixed type to: `%s`, but find non-fixed",
 	      expr->begloc.row, expr->begloc.col, catype_get_type_name(type));
@@ -1233,7 +1235,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
 
     CADataType *catype = catype_get_by_name(expr->symtable, innerid);
     for (int i = 0; i < node->deleftn.derefcount; ++i) {
-      if (catype->type != ARRAY) {
+      if (catype->type != POINTER) {
 	yyerror("line: %d, col: %d: non array type `%s` cannot do dereference, index: `%d`",
 		expr->begloc.row, expr->begloc.col, catype_get_type_name(catype->signature), i);
 	return -1;

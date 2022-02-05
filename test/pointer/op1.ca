@@ -1,0 +1,16 @@
+extern fn printf(fmt: *i8, ...) -> i32;
+extern fn strlen(s: *i8) -> i32;
+fn main() {
+    let str: *char = "Hello world!\n";
+    printf(str);
+
+    let len = strlen(str);
+    print len; print '\n';
+    let i = 0;
+    while(i < len) {
+	print *str;
+	str = str + 1;
+	i = i + 1;
+    }
+}
+

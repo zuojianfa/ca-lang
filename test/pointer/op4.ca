@@ -1,0 +1,29 @@
+extern fn printf(fmt: *i8, ...) -> i32;
+extern fn strlen(s: *i8) -> i32;
+fn main() {
+    let a = [1,1,1,1];
+    let pa = &a as *i32;
+    let ppa = &pa;
+    print pa; print '\n';
+    pa = pa - 1;
+    print pa; print '\n';
+    print pa; print '\n';
+    *(pa + 1 + 2) = 4;
+    print pa; print '\n';
+    *(pa+3) = 4;
+    print a; print '\n';
+    print pa; print '\n';
+    print pa; print '\n';
+    let c = *(pa + 1);
+    print *(pa + 1); print '\n';
+    print c; print '\n';
+
+    let d = *(pa + 1 + 2);
+    print *(pa + 1 + 2); print '\n';
+    print d; print '\n';
+    let e = *ppa;
+    print *ppa; print '\n';
+    let f = *((*ppa) + 1);
+    print f; print '\n';
+}
+

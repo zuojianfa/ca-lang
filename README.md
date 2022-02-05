@@ -153,7 +153,12 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [ ] support layered variable definition
 - [ ] add other atomic type
 - [ ] add record (struct) type
-- [ ] add pointer type
+- [x] support pointer type
+- [x] support array type
+- [x] support addressing operator '&'
+- [x] add pointer type
+- [x] support store variable value in array not just literal
+- [x] support array literal
 - [x] add type convertion `as` keyword
 - [ ] support multiple compile unit and link them together
 - [ ] support rust grammar
@@ -164,6 +169,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [ ] immutable
   - [ ] mutable
   - [ ] support attribute grammar like `#[derive(Clone)]`
+- [x] implement deref_left operation
+- [x] implement array to pointer as (may already implemented)
+- [x] implement pointer add sub operation
 - [ ] support never return type `!` like rust
 - [x] support invoke extern c function
   now directly support the extern c function, the `libc` is automatically added into the linker, so all the `libc` function can be used directly 
@@ -255,39 +263,23 @@ is scopeline the real skip function start for debugging? try it
 ```
 
 NEXT TODO:
-- [ ] implement deref_left in function `walk_assign(ASTNode *p)`
-- [ ] implement array to pointer as (may already implemented)
-- [ ] implement pointer add sub operation
 - [ ] implement array [] value operation
 - [ ] implement array [] left value operation e.g. in `walk_assign` function
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
-- [x] refactor: set default parameter `load=false` of function `pop_right_operand` `pop_right_value`, and make the use of alloc address as default background value type, only load it in the terminal operation
-- [x] debug       ConstantArray *arrayv = static_cast<ConstantArray *>(v); try to get how to get array element
-- [x] support store variable value in array not just literal
 - [ ] support struct literal
 - [ ] support struct member operation 
-- [x] support array literal
 - [ ] support array element operation
-- [ ] support addressing operator '&'
 - [ ] implement `gen_zero_literal_value` ``
 - [ ] UCHAR -> U8, CHAR -> I8
 - [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
 - [ ] implement following functions: 
   `catype_compare_type_signature`, 
   `catype_make_type_closure`,
-  `catype_formalize_type_compact`
-  `catype_formalize_type_expand`
   `catype_create_type_from_unwind`
-  part `catype_get_by_name`
-- [ ] debug unwinding type id (maybe by debugging all kinds of type: pointer, array), create CADataType object from ful id
 - [ ] remove entry object in ASTNode
-- [ ] handle `check_fn_proto` check if it can check some item when post type definitions
 - [ ] handle pointer struct type
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
-- [ ] handle logical operation type convert, in function `IR1::gen_sub` ..., and case '<', etc
 - [ ] support other atomic type
-- [ ] support point type
-- [ ] support array type
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] debug support inner field scope, 
 

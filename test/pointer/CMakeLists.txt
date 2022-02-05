@@ -25,4 +25,8 @@ do_testf(pointer "deref5.ca.ll" "deref5.ca.ll.tmp" ca -ll deref5.ca deref5.ca.ll
 do_testf(pointer "deref6.ca.ll" "deref6.ca.ll.tmp" ca -ll deref6.ca deref6.ca.ll.tmp)
 do_test(pointer "0x2\n0x2a\n0x26\n0x32\n" ca deref7.ca)
 do_test(pointer "0x2\n0x2a\n0x26\n0x32\n" ca deref7.ca)
+do_test(pointer "Hello world!\n13\nHello world!\n" ca op1.ca)
+do_test(pointer "7\nworld!\n" ca op2.ca)
+do_test(pointer "0x.*\n0x.*\n3\n3\n4\n4\n" ca op3.ca)
+do_testf(pointer "op4.ca.ll" "op4.ca.ll.tmp" ca -ll op4.ca op4.ca.ll.tmp)
 
