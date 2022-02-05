@@ -1,0 +1,13 @@
+fn main() {
+    let pc = 2 as *i32;
+    print pc; print '\n';
+
+    pc = pc + 16 - 1 + 1 - 2 * 3;
+    print pc; print '\n';
+
+    let pd = pc + 1 - 2;
+    print pd; print '\n';
+    pd = pc + 2;
+    print pd; print '\n';
+}
+

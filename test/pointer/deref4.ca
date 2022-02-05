@@ -1,0 +1,22 @@
+fn main() {
+    let a: i32 = 1;
+    let pa = &a;
+    print &a; print '\n';
+    print *&a; print '\n';
+    a = 2;
+    //print pa; print '\n';
+    print *pa; print '\n';
+    *pa = 3;
+    print a; print '\n';
+    let ppa = &pa;
+    **ppa = 4;
+    print a; print '\n';
+    let pppa = &ppa;
+    ***pppa = 5;
+    print a; print '\n';
+
+    let b1 = *pa + a;
+    print b1; print '\n';
+    print *pa + a + 33; print '\n';
+}
+

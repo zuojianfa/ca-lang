@@ -1,0 +1,40 @@
+fn main() {
+    let a: i32 = 1;
+    let pa = &a;
+    a = 2;
+    print pa; print '\n';
+    let pb = pa + 1;
+    print pa; print '\n';
+    print pb; print '\n';
+    print pa + 2; print '\n';
+    let pc = pa + 1 + 2;
+    print pc; print '\n';
+    let pd = pa + 2 + 2 * 3;
+    print pd; print '\n';
+    let pe = pa + 2 + 2 * 3;
+    print pe; print '\n';
+    let pf0 = pa + -1;
+    print pf0; print '\n';
+
+    let b = 3i64;
+    print pa; print '\n';
+
+    let pf1 = pa + -b;
+    print pf1; print '\n';
+
+    let pf = pa - 2;
+    print pf; print '\n';
+
+    let pf11 = pa - b;
+    print pf11; print '\n';
+
+    let pf2 = pa - b + 1;
+    print pf2; print '\n';
+
+    let pg = pa + 3 - 1;
+    print pg; print '\n';
+
+    let ph = pa + 1;
+    print ph; print '\n';
+}
+

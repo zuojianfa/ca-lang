@@ -1,0 +1,26 @@
+fn main() {
+    let a: i32 = 2;
+    let pa = &a;
+    print pa; print '\n';
+    let pb = pa + 1;
+    print pb; print '\n';
+
+    pb = pa + 1;
+    print pb; print '\n';
+
+    pa = pa + 1;
+    print pa; print '\n';
+
+    pb = pa + 2;
+    print pb; print '\n';
+
+    pb = pb - 2;
+    print pb; print '\n';
+
+    pb = pa + -2;
+    print pb; print '\n';
+
+    let pc = pa + 2 - 1;
+    print pc; print '\n';
+}
+

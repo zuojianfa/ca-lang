@@ -338,16 +338,16 @@ static Value *walk_literal(ASTNode *p) {
 // a function but `-nomain` is specified then generate a global variable else
 // also generate a global variable for other use
 static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullptr) {
-  Value *var;
+  Value *var = nullptr;
   const char *name = symname_get(p->idn.i);
   //STEntry *entry = sym_getsym(p->symtable, p->idn.i, 1);
-  STEntry *entry = p->entry;
-  if (entry->sym_type != Sym_Variable)
+  STEntry *entry = p->type == TTE_Id ? p->entry : nullptr;
+  if (entry && entry->sym_type != Sym_Variable)
     yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
 
   Type *type = gen_llvmtype_from_catype(idtype);
 
-  if (entry->u.var->llvm_value) {
+  if (entry && entry->u.var->llvm_value) {
     var = static_cast<Value *>(entry->u.var->llvm_value);
     if (defval)
       aux_copy_llvmvalue_to_store(type, var, defval, name);
@@ -360,18 +360,35 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullp
 
     // here determine if `#[scope(global)]` is specified
     if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
+      // global variable not allow dereference operation, so not consider TTE_DerefLeft here
       var = ir1.gen_global_var(type, name, defval);
       if (enable_debug_info())
 	emit_global_var_dbginfo(name, typestr, p->endloc.row);
     } else {
-      var = ir1.gen_var(type, name, nullptr);
+      if (p->type == TTE_Id) {
+	var = ir1.gen_var(type, name, nullptr);
+      } else { // TTE_DerefLeft condition
+	entry = p->deleftn.expr->entry;
+	assert(entry != nullptr);
+	assert(entry->u.var->llvm_value != nullptr);
+	var = static_cast<Value *>(entry->u.var->llvm_value);
+	// Value *idxv0 = ir1.gen_int(0);
+	// std::vector<Value *> idxv(p->deleftn.derefcount, idxv0);
+	// Value *dest = ir1.builder().CreateGEP(var, idxv);
+
+	for (int i = 0; i < p->deleftn.derefcount; ++i)
+	  var = ir1.builder().CreateLoad(var, "deref");
+      }
+
       if (defval)
 	aux_copy_llvmvalue_to_store(type, var, defval, name);
+
       if (enable_debug_info())
 	emit_local_var_dbginfo(curr_fn, name, typestr, var, p->endloc.row);
     }
 
-    entry->u.var->llvm_value = static_cast<void *>(var);
+    if (p->type != TTE_DerefLeft)
+      entry->u.var->llvm_value = static_cast<void *>(var);
   }
 
   return var;
@@ -816,6 +833,7 @@ static void inference_assign_type(ASTNode *idn, ASTNode *exprn) {
 }
 
 static void walk_assign(ASTNode *p) {
+  // idn can be type of TTE_Id or TTE_DerefLeft
   ASTNode *idn = p->assignn.id;
   ASTNode *exprn = p->assignn.expr;
 
@@ -825,8 +843,15 @@ static void walk_assign(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
-  CADataType *dt = catype_get_by_name(p->symtable, idn->entry->u.var->datatype);
-  CHECK_GET_TYPE_VALUE(p, dt, idn->entry->u.var->datatype);
+  CADataType *dt = nullptr;
+  if (idn->type == TTE_Id) {
+    dt = catype_get_by_name(p->symtable, idn->entry->u.var->datatype);
+    CHECK_GET_TYPE_VALUE(p, dt, idn->entry->u.var->datatype);
+  } else {
+    typeid_t id = get_expr_type_from_tree(idn);
+    dt = catype_get_by_name(idn->deleftn.expr->symtable, id);
+    CHECK_GET_TYPE_VALUE(p, dt, id);
+  }
 
   bool iscomplextype = catype_is_complex_type(dt->type);
 
@@ -858,6 +883,8 @@ static void walk_assign(ASTNode *p) {
  
   Value *vp = walk_id_defv(idn, dt, v);
 
+  // in fact the pushed value should not used, because value assignment syntax is
+  // not an expresssion ande have no a value
   auto u = std::make_unique<CalcOperand>(OT_Alloc, vp, dt);
   oprand_stack.push_back(std::move(u));
 }
@@ -876,7 +903,10 @@ static void walk_expr_minus(ASTNode *p) {
   auto pair = pop_right_value();
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
-  Value *v = ir1.gen_sub(ir1.gen_int(0), pair.first);
+
+  Value *z = ir1.gen_int((uint8_t)0);
+  z = ir1.builder().CreateSExt(z, pair.first->getType());
+  Value *v = ir1.gen_sub(z, pair.first);
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v, dt));
 }
 
@@ -1048,17 +1078,45 @@ static void walk_expr_op2(ASTNode *p) {
   typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0]);
   typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1]);
 
-  if (!catype_check_identical_in_symtable(p->symtable, typeid1, p->symtable, typeid2)) {
-    yyerror("operation have 2 different types: '%s', '%s'",
-	    symname_get(typeid1), symname_get(typeid2));
-    return;
-  }
-
   CADataType *dt = catype_get_by_name(p->symtable, typeid1);
   CHECK_GET_TYPE_VALUE(p, dt, typeid1);
 
+  CADataType *dt2 = catype_get_by_name(p->symtable, typeid2);
+  CHECK_GET_TYPE_VALUE(p, dt2, typeid2);
+
+  bool pointer_op = false;
+  if (dt->type == POINTER && is_integer_type(dt2->type))
+    pointer_op = true;
+
+  if (!pointer_op && !catype_check_identical_in_symtable(p->symtable, typeid1, p->symtable, typeid2)) {
+    yyerror("line: %d, column: %d, operation have 2 different types: '%s', '%s'",
+	    p->begloc.row, p->begloc.col, symname_get(typeid1), symname_get(typeid2));
+    return;
+  }
+
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
+
+  if (pointer_op) {
+    Value *z = nullptr;
+    switch (p->exprn.op) {
+    case '-':
+      // v3 = ir1.builder().CreateGEP(v1, v2, "pop");
+      z = ir1.gen_int((int64_t)0);
+      v2 = ir1.builder().CreateSExt(v2, ir1.int_type<int64_t>());
+      v2 = ir1.gen_sub(z, v2, "m");
+    case '+':
+      v3 = ir1.builder().CreateGEP(v1, v2, "pop");
+      break;
+    default:
+      yyerror("line: %d, column: %d, pointer operation only support `+` and `-`, but find `%c`",
+	      p->begloc.row, p->begloc.col, p->exprn.op);
+      return;
+    }
+
+    oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v3, dt));
+    return;
+  }
 
   switch (p->exprn.op) {
   case '+':
@@ -1219,6 +1277,9 @@ static void walk_deref(ASTNode *rexpr) {
 	    catype_get_type_name(pair.second->signature));
     return;
   }
+
+  assert(pair.second->pointer_layout->dimension == 1);
+  rexpr->exprn.expr_type = pair.second->pointer_layout->type->signature;
 
   Value *v = ir1.builder().CreateLoad(pair.first, "deref");
   auto u = std::make_unique<CalcOperand>(OT_Load, v, pair.second->pointer_layout->type);
@@ -1501,6 +1562,8 @@ static void walk_typedef(ASTNode *node) {
 
 static void walk_vardefvalue(ASTNode *node) {}
 
+static void walk_derefleft(ASTNode *node) {}
+
 typedef void (*walk_fn_t)(ASTNode *p);
 static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_empty,
@@ -1523,6 +1586,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_stmtlist,
   (walk_fn_t)walk_typedef,
   (walk_fn_t)walk_vardefvalue,
+  (walk_fn_t)walk_derefleft,
 };
 
 static int walk_stack(ASTNode *p) {

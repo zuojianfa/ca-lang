@@ -619,6 +619,14 @@ ASTNode *make_id(int i, IdType idtype) {
     return p;
 }
 
+ASTNode *make_deref_left(DerefLeft deleft) {
+  ASTNode *p = new_ASTNode(TTE_DerefLeft);
+  p->deleftn = deleft;
+
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  return p; 
+}
+
 int make_attrib_scope(int attrfn, int attrparam) {
   const char *scope = symname_get(attrfn);
   const char *global = symname_get(attrparam);
@@ -711,6 +719,17 @@ ASTNode *make_assign(int id, ASTNode *exprn) {
   return p;
 }
 
+ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn) {
+  ASTNode *derefln = make_deref_left(deleft);
+  ASTNode *p = new_ASTNode(TTE_Assign);
+  p->assignn.id = derefln;
+  p->assignn.expr = exprn;
+  p->begloc = derefln->begloc;
+  p->endloc = exprn->endloc;
+  p->symtable = curr_symtable;
+  return p;
+}
+
 ASTNode *make_goto(int labelid) {
   dot_emit("stmt", "GOTO label_id");
   /* because the label name can using the same name as other names (variable, function, etc)
@@ -781,6 +800,25 @@ typeid_t get_expr_type_from_tree(ASTNode *node) {
     }
 
     return node->entry->u.var->datatype;
+  case TTE_DerefLeft: {
+    ASTNode *expr = node->deleftn.expr;
+    typeid_t innerid = get_expr_type_from_tree(expr);
+    if (innerid == typeid_novalue)
+      return typeid_novalue;
+
+    CADataType *catype = catype_get_by_name(expr->symtable, innerid);
+    for (int i = 0; i < node->deleftn.derefcount; ++i) {
+      if (catype->type != POINTER) {
+	yyerror("line: %d, col: %d: non pointer type `%s` cannot do dereference, index: `%d`",
+		expr->begloc.row, expr->begloc.col, catype_get_type_name(catype->signature), i);
+	return typeid_novalue;
+      }
+      assert(catype->pointer_layout->dimension == 1);
+      catype = catype->pointer_layout->type;
+    }
+
+    return catype->signature;
+  }
   case TTE_As:
     return node->exprasn.type;
   case TTE_Expr:
@@ -829,6 +867,8 @@ typeid_t inference_expr_type(ASTNode *node);
 typeid_t inference_expr_expr_type(ASTNode *node) {
   CADataType *catype = NULL;
   typeid_t type1 = typeid_novalue;
+  int possible_pointer_op = 0;
+  int pointer_op = 0;
 
   if (node->exprn.expr_type != typeid_novalue)
     return node->exprn.expr_type;
@@ -895,6 +935,10 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     catype = catype_make_pointer_type(catype);
     type1 = catype->signature;
     break;
+  case '+':
+  case '-':
+    assert(node->exprn.noperand == 2);
+    possible_pointer_op = 1;
   case AS:
   case UMINUS:
   case IF_EXPR:
@@ -904,9 +948,17 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       if (type1 == typeid_novalue) {
 	type1 = type;
       } else if (!catype_check_identical_in_symtable(node->symtable, type1, node->symtable, type)) {
-	yyerror("line: %d, column: %d, expected `%s`, found `%s`",
-		node->begloc.row, node->begloc.col, symname_get(type1), symname_get(type));
-	return typeid_novalue;
+	if (possible_pointer_op) {
+	  CADataType *catype1 = catype_get_by_name(node->symtable, type1);
+	  CADataType *catype2 = catype_get_by_name(node->symtable, type);
+	  pointer_op = (catype1->type == POINTER && is_integer_type(catype2->type));
+	}
+
+	if (!pointer_op) {
+	  yyerror("line: %d, column: %d, expected `%s`, found `%s`",
+		  node->begloc.row, node->begloc.col, symname_get(type1), symname_get(type));
+	  return typeid_novalue;
+	}
       }
     }
     break;
@@ -1067,6 +1119,46 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 
     break;
   }
+  case '+':
+  case '-':
+    assert(node->exprn.noperand == 2);
+    datatype = catype_get_by_name(node->symtable, type);
+    if (datatype->type == POINTER) {
+      if (node->exprn.operands[0]->type == TTE_Expr)
+	determine_expr_type(node->exprn.operands[0], type);
+
+      typeid_t firstid = get_expr_type_from_tree(node->exprn.operands[0]);
+      if (firstid == typeid_novalue) {
+	yyerror("line: %d, col: %d: when determining pointer type, right value should already determined, but here cannot find a determined type",
+		node->begloc.row, node->begloc.col);
+	return -1;
+      }
+
+      CADataType *firstca = catype_get_by_name(node->symtable, firstid);
+      if (firstca->type != POINTER) {
+	yyerror("line: %d, col: %d: should only can determined into pointer type, but find `%s` type",
+		node->begloc.row, node->begloc.col, catype_get_type_name(firstid));
+	return -1;
+      }
+
+      if (datatype->signature != firstca->signature) {
+	yyerror("line: %d, col: %d: determined type `%s` not equal to determining type `%s`",
+		node->begloc.row, node->begloc.col, catype_get_type_name(datatype->signature),
+		catype_get_type_name(firstca->signature));
+	return -1;
+      }
+
+      typeid_t secondid = inference_expr_type(node->exprn.operands[1]);
+      CADataType *secondca = catype_get_by_name(node->symtable, secondid);
+      if (!is_integer_type(secondca->type)) {
+	yyerror("line: %d, col: %d: the 2nd pointer operand not support non-integer type, but find `%s`",
+		node->begloc.row, node->begloc.col, catype_get_type_name(secondca->signature));
+	return -1;
+      }
+
+      node->exprn.operands[1]->exprn.expr_type = secondca->signature;
+      break;
+    }
   case AS:
   case UMINUS:
   case IF_EXPR:
@@ -1130,6 +1222,35 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     }
 
     break;
+  case TTE_DerefLeft: {
+    ASTNode *expr = node->deleftn.expr;
+    typeid_t innerid = get_expr_type_from_tree(expr);
+    if (innerid == typeid_novalue) {
+      yyerror("line: %d, col: %d: dereference left operation must be fixed type to: `%s`, but find non-fixed",
+	      expr->begloc.row, expr->begloc.col, catype_get_type_name(type));
+      return typeid_novalue;
+    }
+
+    CADataType *catype = catype_get_by_name(expr->symtable, innerid);
+    for (int i = 0; i < node->deleftn.derefcount; ++i) {
+      if (catype->type != ARRAY) {
+	yyerror("line: %d, col: %d: non array type `%s` cannot do dereference, index: `%d`",
+		expr->begloc.row, expr->begloc.col, catype_get_type_name(catype->signature), i);
+	return -1;
+      }
+      assert(catype->pointer_layout->dimension == 1);
+      catype = catype->pointer_layout->type;
+    }
+
+    if (catype->signature != type) {
+      yyerror("line: %d, col: %d: determined type `%s` not compatible with `%s`",
+	      expr->begloc.row, expr->begloc.col, catype_get_type_name(type),
+	      catype_get_type_name(catype->signature));
+      return -1;
+    }
+
+    break;
+  }
   case TTE_As:
     exprcatype = catype_get_by_name(node->symtable, node->exprasn.type);
     CHECK_GET_TYPE_VALUE(node, exprcatype, node->exprasn.type);

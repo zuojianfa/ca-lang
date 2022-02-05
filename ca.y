@@ -62,6 +62,7 @@ extern int yychar, yylineno;
   int symnameid;    /* symbol table index */
   typeid_t tid;
   ASTNode *astnode; /* node pointer */
+  DerefLeft deleft; /* represent dereference left value */
 };
 
 %token	<litb>		LITERAL STR_LITERAL
@@ -93,6 +94,7 @@ extern int yychar, yylineno;
 //			%type	<idtok>		type_postfix
 //			%type	<datatype>	data_type pointer_type array_type ident_type
 %type	<tid>		data_type pointer_type array_type ident_type
+%type	<deleft>	deref_left
 
 %start program
 
@@ -172,6 +174,7 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	RET ';'		        { $$ = make_stmt_ret(); }
 	|	let_stmt                { $$ = $1; }
 	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
+	|	deref_left '=' expr ';' { $$ = make_deref_left_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { dot_emit("stmt", "ifstmt"); $$ = $1; }
@@ -181,6 +184,10 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	struct_type_def         { $$ = $1; }
 	|	type_def                { $$ = $1; }
 		;
+
+deref_left:	'*' expr                { $$ = (DerefLeft) {1, $2}; }
+	|	'*' deref_left          { $$ = (DerefLeft) {1 + $2.derefcount, $2.expr}; }
+	;
 
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
 	;

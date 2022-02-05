@@ -41,6 +41,7 @@ typedef enum {
   TTE_TypeDef,
   TTE_VarDefZeroValue, // the value of `__zero_init__` to specify initial all with 0, carry nothing
   TTE_ArrayDef,
+  TTE_DerefLeft,
   TTE_Num,
 } ASTNodeType;
 
@@ -167,6 +168,13 @@ typedef struct TStmtList {
   struct ASTNode **stmts;
 } TStmtList;
 
+typedef struct DerefLeft {
+  int derefcount;
+  struct ASTNode *expr;
+} DerefLeft;
+
+typedef DerefLeft TDerefLeft;
+
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
@@ -192,6 +200,7 @@ typedef struct ASTNode {
     TArgList arglistn;   /* actual argument list */
     TStmtList stmtlistn; /* statement list */
     TArrayNode anoden;   /* array expresssion node */
+    TDerefLeft deleftn;  /* dereference left node */
   };
 } ASTNode;
 
@@ -276,6 +285,7 @@ ASTNode *make_id(int id, IdType idtype);
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global);
 ASTNode *make_vardef_zero_value();
 ASTNode *make_assign(int id, ASTNode *exprn);
+ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn);
 ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);

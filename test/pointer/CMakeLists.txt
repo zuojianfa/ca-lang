@@ -19,5 +19,10 @@ do_test(pointer "only an address \\(pointer\\) type can do dereference, `i32` ty
 do_test(pointer "only an address \\(pointer\\) type can do dereference, `i32` type cannot" ca deref_error3.ca)
 do_test(pointer "i32\n\\*i32\n\\*\\*i32\n\\*\\*\\*i32\ni32\n\\*i32\n\\*\\*i32\ni32\n\\*i32\ni32\n\\*i32\ni32\n\\*\\*i32\n\\*\\*i32\n\\*i32\n\\*\\*\\*i32\n\\*\\*i32\nsize = 4, type: t:i32\nsize = 8, type: t:\\*i32\nsize = 8, type: t:\\*\\*i32\nsize = 8, type: t:\\*\\*\\*i32\nderef:\nsize = 4, type: t:i32\nsize = 8, type: t:\\*i32\nsize = 8, type: t:\\*\\*i32\n0x.*\nderef2:\nsize = 4, type: t:i32\nsize = 8, type: t:\\*i32\n0x.*\nderef3:\nsize = 4, type: t:i32\n1\nBBBBBBBBBBBBBBBBBB\n&a: 0x.*\nsize = 8, type: t:\\*i32\n1\npa: 0x.*\n1\n1\n2\npb: 0x.*\n2\nsize = 4, type: t:i32\n\n2 dimension pointer:\n\nppa: 0x.*\nsize = 8, type: t:\\*\\*i32\n&pa: 0x.*\nsize = 8, type: t:\\*\\*i32\n\\*ppa: 0x.*\nsize = 8, type: t:\\*i32\nsize = 8, type: t:\\*\\*\\*i32\nsize = 8, type: t:\\*\\*i32\npppa: 0x.*\n\\*ppa: 0x.*" ca deref.ca)
 do_test(pointer "\\*i32\n\\*i8\npa: 0x.*\npb: 0x.*\nsize = 8, type: t:\\*i32\nsize = 8, type: t:\\*i8" ca deref2.ca)
-
+do_test(pointer "\\*i32\n\\*i8\npa: 0x.*\npb: 0x.*\nsize = 8, type: t:\\*i32\nsize = 8, type: t:\\*i8" ca deref3.ca)
+do_test(pointer "0x.*\n1\n2\n3\n4\n5\n10\n43\n" ca deref4.ca)
+do_testf(pointer "deref5.ca.ll" "deref5.ca.ll.tmp" ca -ll deref5.ca deref5.ca.ll.tmp)
+do_testf(pointer "deref6.ca.ll" "deref6.ca.ll.tmp" ca -ll deref6.ca deref6.ca.ll.tmp)
+do_test(pointer "0x2\n0x2a\n0x26\n0x32\n" ca deref7.ca)
+do_test(pointer "0x2\n0x2a\n0x26\n0x32\n" ca deref7.ca)
 

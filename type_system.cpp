@@ -2478,8 +2478,11 @@ const char *get_printf_format(int type) {
 }
 
 int is_unsigned_type(tokenid_t type) {
-
   return type == U32 || type == U64 || type == UCHAR;
+}
+
+int is_integer_type(tokenid_t type) {
+  return type == I32 || type == I64 || type == CHAR || type == U32 || type == U64 || type == UCHAR;
 }
 
 // row: VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER
