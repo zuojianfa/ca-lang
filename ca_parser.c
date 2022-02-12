@@ -610,6 +610,11 @@ ASTNode *make_array_def(CAArrayExpr expr) {
   return node;
 }
 
+ASTNode *make_arrayitem_right(ASTNode *aitem) {
+  // TODO:
+  return NULL;
+}
+
 ASTNode *make_id(int i, IdType idtype) {
     ASTNode *p = new_ASTNode(TTE_Id);
     p->idn.i = i;
@@ -728,6 +733,11 @@ ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn) {
   p->endloc = exprn->endloc;
   p->symtable = curr_symtable;
   return p;
+}
+
+ASTNode *make_arrayitem_left_assign(ASTNode *left, ASTNode *expr) {
+  // TODO:
+  return NULL;
 }
 
 ASTNode *make_goto(int labelid) {

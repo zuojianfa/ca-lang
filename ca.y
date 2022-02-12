@@ -94,7 +94,8 @@ extern int yychar, yylineno;
 //			%type	<idtok>		type_postfix
 //			%type	<datatype>	data_type pointer_type array_type ident_type
 %type	<tid>		data_type pointer_type array_type ident_type
-%type	<deleft>	deref_left
+%type	<deleft>	deref_left deref_right deref_item derefitem
+%type	<astnode>	arrayitem_left arrayitem_right arrayitem
 
 %start program
 
@@ -175,7 +176,7 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	let_stmt                { $$ = $1; }
 	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
 	|	deref_left '=' expr ';' { $$ = make_deref_left_assign($1, $3); }
-//	|	arrayitem_left '=' expr ';' { $$ = make_arrayitem_left_assign($1, $3); }
+	|	arrayitem_left '=' expr ';' { $$ = make_arrayitem_left_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { dot_emit("stmt", "ifstmt"); $$ = $1; }
@@ -186,11 +187,32 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	type_def                { $$ = $1; }
 		;
 
-deref_left:	'*' expr                { $$ = (DerefLeft) {1, $2}; }
-	|	'*' deref_left          { $$ = (DerefLeft) {1 + $2.derefcount, $2.expr}; }
+deref_left:	deref_item              { $$ = $1; }
 	;
 
-arrayitem_left:	IDENT '[' expr ']'      { /* TODO:  */ }
+deref_right:	deref_item              { $$ = $1; }
+	;
+
+/* deref_item:	'*' expr                { $$ = (DerefLeft) {1, $2}; } */
+/* 	|	'*' deref_item          { $$ = (DerefLeft) {1 + $2.derefcount, $2.expr}; } */
+/* 	; */
+
+deref_item:	'*' derefitem           { $$ = $2; }
+	;
+
+derefitem:	expr { $$ = (DerefLeft) {1, $1}; }
+	|	deref_item { $$ = $1; }
+	;
+
+arrayitem_left:	arrayitem               { $$ = $1; /* TODO:  */ }
+	;
+
+arrayitem_right:
+		arrayitem               { $$ = $1; /* TODO: */ }
+	;
+
+arrayitem:	IDENT '[' expr ']'      { $$ = $3; /* TODO: */ }
+	|	arrayitem '[' expr ']'  { $$ = $3; /* TODO: */ }
 	;
 
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
@@ -243,6 +265,7 @@ label_id:	IDENT		      { dot_emit("label_id", "IDENT"); $$ = $1; }
 
 expr:     	literal               { $$ = make_literal(&$1); }
 	|	array_def             { $$ = make_array_def($1); }
+	|	arrayitem_right       { $$ = make_arrayitem_right($1); }
 	|	IDENT                 { $$ = make_ident_expr($1); }
 	|	'-'expr %prec UMINUS  { $$ = make_expr(UMINUS, 1, $2); }
 	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
@@ -260,7 +283,8 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
 	|	expr AS data_type     { $$ = make_as($1, $3); }
 	|	SIZEOF '(' data_type ')'{ $$ = make_sizeof($3); }
-	|	'*' expr %prec UDEREF { $$ = make_deref($2); }
+//	|	'*' expr %prec UDEREF { $$ = make_deref($2); }
+	|	deref_right           { $$ = make_deref($1.expr); }
 	|	'&' expr %prec UADDR  { $$ = make_address($2); }
 	|	expr '.' IDENT	      { $$ = make_element_field($1, $3); }
 //	|	expr '[' expr ']'     { $$ = $1; }
