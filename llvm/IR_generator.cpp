@@ -1286,7 +1286,7 @@ static void walk_expr_arrayitem(ASTNode *p) {
 
   inference_expr_type(p);
   CADataType *arrayitemcatype = catype_get_by_name(anode->symtable, p->exprn.expr_type);
-  CHECK_GET_TYPE_VALUE(anode, arrayitemcatype, anode->exprasn.type);
+  CHECK_GET_TYPE_VALUE(anode, arrayitemcatype, p->exprn.expr_type);
 
   STEntry *entry = sym_getsym(anode->symtable, anode->aitemn.varname, 1);
   CADataType *arraycatype = catype_get_by_name(anode->symtable, entry->u.var->datatype);
@@ -1294,6 +1294,13 @@ static void walk_expr_arrayitem(ASTNode *p) {
   size_t size = vec_size(indices);
   std::vector<Value *> vindices;
   CADataType *catype = arraycatype;
+  vindices.push_back(ir1.gen_int(0));
+
+  // TODO: how to check the index is in scope of an array?
+  // answer: when the index is not constant, only can through runtime checking, e.g.
+  // insert index scope checking code into generated code, (convert array bound into
+  // llvm::Value object, and insert code to compare the index value and the bound value
+  // print error or exit when out of bound
   for (int i = 0; i < size; ++i) {
     if (catype->type != ARRAY) {
       yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
@@ -1302,6 +1309,7 @@ static void walk_expr_arrayitem(ASTNode *p) {
     }
 
     ASTNode *expr = (ASTNode *)vec_at(indices, i);
+    inference_expr_type(expr);
     walk_stack(expr);
     std::pair<Value *, CADataType *> pair = pop_right_value("item", 1);
     if (!is_integer_type(pair.second->type)) {
@@ -1315,11 +1323,9 @@ static void walk_expr_arrayitem(ASTNode *p) {
   }
 
   Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
-  Value *arrayitemvalue = ir1.builder().CreateGEP(arrayvalue, vindices);
+  Value *arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
 
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Load, arrayitemvalue, arrayitemcatype));
-
-  // NEXT TODO: debug this function
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, arrayitemvalue, arrayitemcatype));
 }
 
 static void walk_deref(ASTNode *rexpr) {

@@ -1,0 +1,33 @@
+fn main() {
+    let a = [1, 2, 3, 4, 5, 6];
+    let i = 0;
+    let v1 = a[1+1+1];
+    print v1; print ' ';
+    v1 = a[1+1+2];
+    print v1; print ' ';
+    v1 = a[1+1+i];
+    print v1; print ' ';
+    i = 1;
+    v1 = a[1+1+i];
+    print v1; print ' ';
+    v1 = a[1+1+i+1];
+    print v1; print ' ';
+    v1 = a[(1+1)+i+1];
+    print v1; print ' ';
+    v1 = a[1+1+(i+1)];
+    print v1; print ' ';
+    v1 = a[(1+1)+(i+1)];
+    print v1; print ' ';
+    v1 = a[((1+1)+(i+1))];
+    print v1; print ' ';
+    v1 = a[((1+1)+(i*1))];
+    print v1; print ' ';
+    v1 = a[(1+1+i*1)];
+    print v1; print ' ';
+    print '\n';
+
+    let b = [[[1,2], [3,4]], [[5,6], [7,8]]];
+    let v2 = b[-1+2][-2+2+1][-1+1];
+    print v2; print '\n';
+}
+
