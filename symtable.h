@@ -290,6 +290,11 @@ void buffer_append_char(void *handle, int ch);
 const char *buffer_end(void *handle, int *len);
 int buffer_binary_end(void *handle, int *len);
 
+void *vec_new();
+void vec_append(void *handle, void *item);
+size_t vec_size(void *handle);
+void *vec_at(void *handle, int index);
+
 #ifdef __cplusplus
 END_EXTERN_C
 #endif

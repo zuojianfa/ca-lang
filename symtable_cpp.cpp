@@ -357,5 +357,25 @@ const char *buffer_end(void *handle, int *len) {
   return symname_get(name);
 }
 
+void *vec_new() {
+  std::vector<void *> *vec = new std::vector<void *>;
+  return static_cast<void *>(vec);
+}
+
+void vec_append(void *handle, void *item) {
+  std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
+  vec->push_back(item);
+}
+
+size_t vec_size(void *handle) {
+  std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
+  return vec->size();
+}
+
+void *vec_at(void *handle, int index) {
+  std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
+  return vec->at(index);
+}
+
 END_EXTERN_C
 

@@ -42,6 +42,8 @@ typedef enum {
   TTE_VarDefZeroValue, // the value of `__zero_init__` to specify initial all with 0, carry nothing
   TTE_ArrayDef,
   TTE_DerefLeft,
+  TTE_ArrayItemLeft,
+  TTE_ArrayItemRight,
   TTE_Num,
 } ASTNodeType;
 
@@ -171,9 +173,12 @@ typedef struct TStmtList {
 typedef struct DerefLeft {
   int derefcount;
   struct ASTNode *expr;
-} DerefLeft;
+} DerefLeft, TDerefLeft;
 
-typedef DerefLeft TDerefLeft;
+typedef struct ArrayItem {
+  int varname;
+  void *indices;
+} ArrayItem, TArrayItem;
 
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
@@ -201,6 +206,7 @@ typedef struct ASTNode {
     TStmtList stmtlistn; /* statement list */
     TArrayNode anoden;   /* array expresssion node */
     TDerefLeft deleftn;  /* dereference left node */
+    TArrayItem aitemn;   /* array item operation: left or right */
   };
 } ASTNode;
 
@@ -286,12 +292,12 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global);
 ASTNode *make_vardef_zero_value();
 ASTNode *make_assign(int id, ASTNode *exprn);
 ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn);
-ASTNode *make_arrayitem_left_assign(ASTNode *left, ASTNode *expr);
+ASTNode *make_arrayitem_left_assign(ArrayItem ai, ASTNode *expr);
 ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_array_def(CAArrayExpr expr);
-ASTNode *make_arrayitem_right(ASTNode *aitem);
+ASTNode *make_arrayitem_right(ArrayItem ai);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
@@ -304,6 +310,8 @@ ASTNode *make_deref(ASTNode *expr);
 ASTNode *make_address(ASTNode *expr);
 ASTNode *make_element_field(ASTNode *node, int name);
 ASTNode *make_stmt_list_zip();
+ArrayItem arrayitem_begin(int varname, ASTNode *expr);
+ArrayItem arrayitem_append(ArrayItem ai, ASTNode *expr);
 int check_fn_define(typeid_t fnname, ASTNode *param);
 // for tree node compress deep into wide, begin for stmt list beginning
 void put_astnode_into_list(ASTNode *stmt, int begin);

@@ -1,0 +1,16 @@
+fn main() {
+    let a = 1;
+    let pa = &a;
+    let ppa = &pa;
+    let pppa = &ppa;
+
+    print a; print '\n';
+    ***pppa = 2;
+    print a; print '\n';
+
+    dbgprinttype typeof(***pppa);
+    dbgprinttype typeof(**pppa);
+    dbgprinttype typeof(*pppa);
+    dbgprinttype typeof(pppa);
+}
+

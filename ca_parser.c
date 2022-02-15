@@ -606,13 +606,17 @@ ASTNode *make_literal(CALiteral *litv) {
 ASTNode *make_array_def(CAArrayExpr expr) {
   ASTNode *p = new_ASTNode(TTE_ArrayDef);
   p->anoden.aexpr = expr;
+  p->symtable = curr_symtable;
   ASTNode *node = make_expr(ARRAY, 1, p);
   return node;
 }
 
-ASTNode *make_arrayitem_right(ASTNode *aitem) {
-  // TODO:
-  return NULL;
+ASTNode *make_arrayitem_right(ArrayItem ai) {
+  ASTNode *p = new_ASTNode(TTE_ArrayItemRight);
+  p->aitemn = ai;
+  p->symtable = curr_symtable;
+  ASTNode *node = make_expr(ARRAYITEM, 1, p);
+  return node;
 }
 
 ASTNode *make_id(int i, IdType idtype) {
@@ -703,6 +707,16 @@ ASTNode *make_vardef_zero_value() {
   return p;
 }
 
+static ASTNode *make_assign_common(ASTNode *left, ASTNode *right) {
+  ASTNode *p = new_ASTNode(TTE_Assign);
+  p->assignn.id = left;
+  p->assignn.expr = right;
+  p->begloc = left->begloc;
+  p->endloc = right->endloc;
+  p->symtable = curr_symtable;
+  return p;
+}
+
 ASTNode *make_assign(int id, ASTNode *exprn) {
   dot_emit("stmt", "varassign");
 
@@ -715,29 +729,24 @@ ASTNode *make_assign(int id, ASTNode *exprn) {
   ASTNode *idn = make_id(id, TTEId_VarAssign);
   idn->entry = entry;
 
-  ASTNode *p = new_ASTNode(TTE_Assign);
-  p->assignn.id = idn;
-  p->assignn.expr = exprn;
-  p->begloc = idn->begloc;
-  p->endloc = exprn->endloc;
-  p->symtable = curr_symtable;
+  ASTNode *p = make_assign_common(idn, exprn);
   return p;
 }
 
 ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn) {
   ASTNode *derefln = make_deref_left(deleft);
-  ASTNode *p = new_ASTNode(TTE_Assign);
-  p->assignn.id = derefln;
-  p->assignn.expr = exprn;
-  p->begloc = derefln->begloc;
-  p->endloc = exprn->endloc;
-  p->symtable = curr_symtable;
+  ASTNode *p = make_assign_common(derefln, exprn);
   return p;
 }
 
-ASTNode *make_arrayitem_left_assign(ASTNode *left, ASTNode *expr) {
-  // TODO:
-  return NULL;
+ASTNode *make_arrayitem_left_assign(ArrayItem ai, ASTNode *exprn) {
+  // NEXT TODO: realize the array item left walk
+  ASTNode *aitemn = new_ASTNode(TTE_ArrayItemLeft);
+  aitemn->aitemn = ai;
+  set_address(aitemn, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+
+  ASTNode *p = make_assign_common(aitemn, exprn);
+  return p;
 }
 
 ASTNode *make_goto(int labelid) {
@@ -903,6 +912,27 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
 
     CADataType *subcatype = catype_get_primitive_by_name(prevtypeid);
     CADataType *catype = catype_make_array_type(subcatype, size, 0);
+    type1 = catype->signature;
+    break;
+  }
+  case ARRAYITEM: {
+    assert(node->exprn.noperand == 1);
+    ASTNode *right = node->exprn.operands[0];
+    assert(right->type == TTE_ArrayItemRight);
+    STEntry *entry = sym_getsym(right->symtable, right->aitemn.varname, 1);
+    CADataType *catype = catype_get_by_name(right->symtable, entry->u.var->datatype);
+    void *indices = right->aitemn.indices;
+    size_t size = vec_size(indices);
+    for (int i = 0; i < size; ++i) {
+      if (catype->type != ARRAY) {
+	yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
+		node->begloc.row, node->begloc.col, catype->type, i);
+	return typeid_novalue;
+      }
+
+      catype = catype->array_layout->type;
+    }
+
     type1 = catype->signature;
     break;
   }
@@ -1074,6 +1104,38 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
       ASTNode *subnode = arrayexpr_get(aexpr, i);
       CADataType *subcatype = determinedcatype->array_layout->type;
       determine_expr_type(subnode, subcatype->signature);     
+    }
+
+    break;
+  }
+  case ARRAYITEM: {
+    //yyerror("line: %d, col: %d: arrayitem operation should not determine the type, the array type should already be determined",
+    //	    node->begloc.row, node->begloc.col);
+    //return -1;
+
+    // or using following checking
+    assert(node->exprn.noperand == 1);
+    ASTNode *right = node->exprn.operands[0];
+    assert(right->type == TTE_ArrayItemRight);
+    STEntry *entry = sym_getsym(right->symtable, right->aitemn.varname, 1);
+    CADataType *catype = catype_get_by_name(right->symtable, entry->u.var->datatype);
+    void *indices = right->aitemn.indices;
+    size_t size = vec_size(indices);
+    for (int i = 0; i < size; ++i) {
+      if (catype->type != ARRAY) {
+	yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
+		node->begloc.row, node->begloc.col, catype->type, i);
+	return typeid_novalue;
+      }
+
+      catype = catype->array_layout->type;
+    }
+
+    CADataType *determinedcatype = catype_get_by_name(node->symtable, type);
+    if (determinedcatype->signature != catype->signature) {
+      yyerror("line: %d, col: %d: determined type on arrayitem operation not equal the array's nature type `%s` != `%s`",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(determinedcatype->signature), catype_get_type_name(catype->signature));
+      return -1;
     }
 
     break;
@@ -1933,6 +1995,17 @@ ASTNode *make_stmt_list_zip() {
   p->symtable = curr_symtable;
 
   return p;
+}
+
+ArrayItem arrayitem_begin(int varname, ASTNode *expr) {
+   void *handle = vec_new();
+   vec_append(handle, expr);
+   return (ArrayItem) {varname, handle};
+}
+
+ArrayItem arrayitem_append(ArrayItem ai, ASTNode *expr) {
+  vec_append(ai.indices, expr);
+  return ai;
 }
 
 void freeNode(ASTNode *p) {

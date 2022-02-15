@@ -1279,6 +1279,49 @@ static void walk_expr_array(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
+static void walk_expr_arrayitem(ASTNode *p) {
+  assert(p->exprn.noperand == 1);
+  ASTNode *anode = p->exprn.operands[0];
+  assert(anode->type == TTE_ArrayItemRight);
+
+  inference_expr_type(p);
+  CADataType *arrayitemcatype = catype_get_by_name(anode->symtable, p->exprn.expr_type);
+  CHECK_GET_TYPE_VALUE(anode, arrayitemcatype, anode->exprasn.type);
+
+  STEntry *entry = sym_getsym(anode->symtable, anode->aitemn.varname, 1);
+  CADataType *arraycatype = catype_get_by_name(anode->symtable, entry->u.var->datatype);
+  void *indices = anode->aitemn.indices;
+  size_t size = vec_size(indices);
+  std::vector<Value *> vindices;
+  CADataType *catype = arraycatype;
+  for (int i = 0; i < size; ++i) {
+    if (catype->type != ARRAY) {
+      yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
+	      p->begloc.row, p->begloc.col, catype->type, i);
+      return;
+    }
+
+    ASTNode *expr = (ASTNode *)vec_at(indices, i);
+    walk_stack(expr);
+    std::pair<Value *, CADataType *> pair = pop_right_value("item", 1);
+    if (!is_integer_type(pair.second->type)) {
+      yyerror("line: %d, col: %d: array index type must be integer, but find `%s` on `%d`",
+	      p->begloc.row, p->begloc.col, catype_get_type_name(pair.second->signature), i);
+      return;
+    }
+
+    vindices.push_back(pair.first);
+    catype = catype->array_layout->type;
+  }
+
+  Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
+  Value *arrayitemvalue = ir1.builder().CreateGEP(arrayvalue, vindices);
+
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Load, arrayitemvalue, arrayitemcatype));
+
+  // NEXT TODO: debug this function
+}
+
 static void walk_deref(ASTNode *rexpr) {
   ASTNode *expr = rexpr->exprn.operands[0];
   walk_stack(expr);
@@ -1324,6 +1367,9 @@ static void walk_expr(ASTNode *p) {
   switch (p->exprn.op) {
   case ARRAY:
     walk_expr_array(p);
+    break;
+  case ARRAYITEM:
+    walk_expr_arrayitem(p);
     break;
   case AS:
     walk_stack(p->exprn.operands[0]);
