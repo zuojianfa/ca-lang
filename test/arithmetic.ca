@@ -1,0 +1,7 @@
+fn main() {
+    let a = -1i32;
+    dbgprinttype typeof(a);
+    let b = 1 + 1 + 1 -2 -1;
+    print b;
+}
+

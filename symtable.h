@@ -122,6 +122,9 @@ typedef struct CALiteral {
   // if need remove this field, just use datatype null or not null for the existance
   int fixed_type;
 
+  // -1 when have no postfix type, else have postfix type, like 33u32
+  tokenid_t postfixtypetok;
+
   // the literal I64 for negative integer value, U64 for positive integer value,
   // F64 for floating point value, BOOL is true false value, CHAR is 'x' value,
   // UCHAR is '\x' value

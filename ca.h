@@ -303,6 +303,7 @@ ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
 ASTNode *make_fn_call(int fnid, ASTNode *param);
 ASTNode *make_ident_expr(int id);
+ASTNode *make_uminus_expr(ASTNode *expr);
 ASTNode *make_as(ASTNode *expr, typeid_t type);
 ASTNode *make_sizeof(typeid_t type);
 typeid_t make_typeof(ASTNode *node);

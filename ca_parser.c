@@ -488,15 +488,17 @@ void check_return_type(typeid_t fnrettype) {
 void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t postfixtypetok) {
   lit->textid = textid;
   lit->littypetok = littypetok;
-  if (postfixtypetok == -1) {
+  lit->postfixtypetok = postfixtypetok;
+  if (postfixtypetok == tokenid_novalue) {
     lit->fixed_type = 0;
     lit->datatype = typeid_novalue;
   } else {
-    lit->fixed_type = 1;
+    lit->fixed_type = 0;
+    lit->datatype = typeid_novalue;
 
     // here can directly determine literal type, it is postfixtypetok
-    CADataType *catype = catype_get_primitive_by_token(postfixtypetok);
-    determine_primitive_literal_type(lit, catype);
+    //CADataType *catype = catype_get_primitive_by_token(postfixtypetok);
+    //determine_primitive_literal_type(lit, catype);
   }
 }
 
@@ -597,6 +599,13 @@ ASTNode *make_literal(CALiteral *litv) {
     dot_emit("expr", "literal");
 
     ASTNode *p = new_ASTNode(TTE_Literal);
+    // if (litv->postfixtypetok != -1 && !litv->fixed_type) {
+    //   // here can directly determine literal type, it is postfixtypetok
+    //   CADataType *catype = catype_get_primitive_by_token(litv->postfixtypetok);
+    //   determine_primitive_literal_type(litv, catype);
+    //   litv->fixed_type = 1;
+    // }
+
     p->litn.litv = *litv;
     set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
 
@@ -1018,10 +1027,20 @@ typeid_t inference_expr_type(ASTNode *p) {
   typeid_t type1 = typeid_novalue;
   CADataType *typedt, *exprdt;
   switch (p->type) {
-  case TTE_Literal:
-    type1 = inference_literal_type(&p->litn.litv);
-    p->litn.litv.fixed_type = 1;
+  case TTE_Literal: {
+    CALiteral *litv = &p->litn.litv;
+    if (litv->postfixtypetok != tokenid_novalue && !litv->fixed_type) {
+      // when literal carry a postfix like i32 u64 etc, determine them directly
+      CADataType *catype = catype_get_primitive_by_token(litv->postfixtypetok);
+      determine_primitive_literal_type(litv, catype);
+      type1 = catype->signature;
+    } else {
+      type1 = inference_literal_type(litv);
+    }
+
+    litv->fixed_type = 1;
     return type1;
+  }
   case TTE_Id:
     if (p->idn.idtype == TTEId_FnName)
       return typeid_novalue;
@@ -1250,18 +1269,26 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 int determine_expr_type(ASTNode *node, typeid_t type) {
   // TODO: handle when complex type
   CADataType *catype = catype_get_by_name(node->symtable, type);
-  //CHECK_GET_TYPE_VALUE(node, catype, type);
-  tokenid_t typetok = catype ? catype->type : tokenid_novalue;
+  CHECK_GET_TYPE_VALUE(node, catype, type);
   typeid_t id;
   CADataType *exprcatype = NULL;
   switch(node->type) {
-  case TTE_Literal:
-    if (node->litn.litv.fixed_type)
+  case TTE_Literal: {
+    CALiteral *litv = &node->litn.litv;
+    if (litv->postfixtypetok != tokenid_novalue && !litv->fixed_type) {
+      // when literal carry a postfix like i32 u64 etc, determine them directly
+      CADataType *catype = catype_get_primitive_by_token(litv->postfixtypetok);
+      determine_primitive_literal_type(litv, catype);
+      litv->fixed_type = 1;
+    }
+
+    if (litv->fixed_type)
       return 0;
 
     // here determine the literal type in this place compare to when create literal node
-    determine_literal_type(&node->litn.litv, catype);
+    determine_literal_type(litv, catype);
     break;
+  }
   case TTE_Id:
     if (!node->entry) {
       STEntry *entry = sym_getsym(node->symtable, node->idn.i, 1);
@@ -1786,6 +1813,34 @@ ASTNode *make_ident_expr(int id) {
   ASTNode *node = make_id(id, TTEId_VarUse);
   node->entry = entry;
   return node;
+}
+
+ASTNode *make_uminus_expr(ASTNode *expr) {
+  // only U64 literal type can combinate '-' here, when littypetok is I64,
+  // it means the literal already combined with '-' so here no need combined
+  // again, when littypetok is other type like BOOL CHAR UCHAR etc, they are
+  // not support combine with '-' so just walk with a UMINUS operator
+  if (expr->type != TTE_Literal || expr->litn.litv.littypetok != U64)
+    return make_expr(UMINUS, 1, expr);
+
+  // handle uminus literal combining, to patch the lexier cannot coping with
+  // uminus value
+  CALiteral *lit = &expr->litn.litv;
+  const char *littext = symname_get(lit->textid);
+  char buffer[1024] = "-";
+  strcpy(buffer+1, littext);
+
+  lit->textid = symname_check_insert(buffer);
+  lit->littypetok = I64;
+
+  // if (lit->postfixtypetok != tokenid_novalue && !lit->fixed_type) {
+  //   // here can directly determine literal type, it is postfixtypetok
+  //   CADataType *catype = catype_get_primitive_by_token(lit->postfixtypetok);
+  //   determine_primitive_literal_type(lit, catype);
+  //   lit->fixed_type = 1;
+  // }
+
+  return expr;
 }
 
 int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var) {

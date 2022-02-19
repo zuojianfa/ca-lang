@@ -276,7 +276,7 @@ tokenid_t sym_primitive_token_from_id(typeid_t id) {
     return itr->second;
 
   yyerror("line: %d, col: %d: get primitive type token failed", glineno, gcolno);
-  return -1;
+  return tokenid_novalue;
 }
 
 int catype_init() {

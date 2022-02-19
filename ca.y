@@ -250,7 +250,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	array_def             { $$ = make_array_def($1); }
 	|	array_item            { $$ = make_arrayitem_right($1); }
 	|	IDENT                 { $$ = make_ident_expr($1); }
-	|	'-'expr %prec UMINUS  { $$ = make_expr(UMINUS, 1, $2); }
+	|	'-' expr %prec UMINUS { $$ = make_uminus_expr($2); }
 	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
 	|	expr '-' expr         { $$ = make_expr('-', 2, $1, $3); }
 	|	expr '*' expr         { $$ = make_expr('*', 2, $1, $3); }
@@ -325,7 +325,7 @@ ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; 
 	|	{ $$ = make_ret_type_void(); }
 		;
 
-literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, $1.typetok, -1); }
+literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, $1.typetok, tokenid_novalue); }
 	|	LITERAL IDENT    { create_literal(&$$, $1.text, $1.typetok, sym_primitive_token_from_id($2)); }
 	|	STR_LITERAL      { create_string_literal(&$$, &$1); }
 //	|	lit_array_def    { create_array_literal(&$$, $1); }

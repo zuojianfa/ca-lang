@@ -10,6 +10,7 @@ add_test(NAME CanRun COMMAND ca ${CMAKE_SOURCE_DIR}/test/goto2.ca)
 # batch of test cases
 # when exists main function
 set(test_case_seq 1)
+do_test(t "i32\nsize = 4, type: t:i32\n0" ca arithmetic.ca)
 do_test(t "define void @timestamp()" ca -ll extern_call1.ca)
 do_test(t "56e" ca extern_call2.ca)
 do_test(t "from line 3, to line 5: function verify failed: Call parameter type does not match function signature!" ca -ll extern_printf.ca)
