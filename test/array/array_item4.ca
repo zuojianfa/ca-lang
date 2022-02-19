@@ -1,0 +1,52 @@
+fn main() {
+    let a = [[[[1, 2, 3, 4, 5, 6, 7, 8]]],
+             [[[2, 3, 4, 5, 6, 7, 8, 9]]]];
+    print a; print '\n';
+
+    let b = a[1][0][0][3];
+    print b; print ' ';
+    let c = a[1][0][0][6];
+    print c; print ' ';
+
+    let d = a[0][0][0][4];
+    print d; print ' ';
+    let e = a[0][0][0][7];
+    print e; print '\n';
+
+    let f = a[0][0][0];
+    print f; print '\n';
+
+    let g = a[1][0][0];
+    print g; print '\n';
+
+    let a2 = [[[1,2],[3,4]],[[5,6],[7,8]]];
+    print a2; print '\n';
+    print a2[0]; print '\n';
+    print a2[1]; print '\n';
+    print a2[0][1]; print '\n';
+    print a2[0][0]; print '\n';
+    print a2[1][0]; print '\n';
+    print a2[1][1]; print '\n';
+    print a2[0][1][0]; print ' ';
+    print a2[0][0][1]; print ' ';
+    print a2[1][0][0]; print ' ';
+    print a2[1][1][1]; print ' ';
+    print a2[0][1][1]; print ' ';
+    print a2[0][0][0]; print ' ';
+    print a2[1][0][1]; print ' ';
+    print a2[1][1][0]; print '\n';
+
+    print a2[1-1+0-1+1][1+0-2+2][0]; print ' ';
+    let i = 0;
+    let j = 1;
+    let k = 2;
+    print a2[i][i][j]; print ' ';
+    print a2[j][i][i]; print ' ';
+    print a2[j][j][j]; print ' ';
+    print a2[i][j][j]; print ' ';
+    print a2[i][i][i]; print ' ';
+    print a2[k-j][i][j]; print ' ';
+    print a2[(k-j) + (k-j-j)][j][i]; print '\n';
+
+}
+

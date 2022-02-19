@@ -263,7 +263,7 @@ is scopeline the real skip function start for debugging? try it
 ```
 
 NEXT TODO:
-- [ ] implement array [] value operation
+- [x] implement array [] value operation
 - [ ] implement array [] left value operation e.g. in `walk_assign` function
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
 - [ ] support struct literal
