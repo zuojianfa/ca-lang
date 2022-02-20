@@ -184,7 +184,7 @@ typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
   SymTable *symtable;    /* the scoped symbol table */
-  STEntry *entry;
+  STEntry *entry;        /* when type is TTE_Id, it can speed up lookup, may can be removed later */
   SLoc begloc;           /* the source code begin location of code unit */
   SLoc endloc;           /* the source code end location of code unit */
   int seq;

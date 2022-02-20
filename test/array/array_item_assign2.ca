@@ -1,0 +1,53 @@
+fn main() {
+    let a = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
+    print a; print '\n';
+
+    let a3 = a;
+    let a4 = a;
+
+    let i = 0;
+    while (i < 2) {
+	a[i] = [[1+1+i, 2+1+i], [3+1+i, 4+1+i]];
+	i = i + 1;
+    }
+    print a; print '\n';
+
+    let a2 = a;
+    i = 0;
+    while (i < 2) {
+	a2[i] = [[5 + i * 2, 6 + i * 2], [7 + i * 2, 8 + i * 2]];
+	i = i + 1;
+    }
+    print a2; print '\n';
+
+    i = 0;
+    while (i < 2) {
+	let j = 0;
+	while (j < 2) {
+	    print a3[i][j]; print '\n';
+	    a3[i][j] = [i+j, i*j];
+	    j = j + 1;
+	}
+	i = i + 1;
+    }
+    print a3; print '\n';
+
+    i = 0;
+    while (i < 2) {
+	let j = 0;
+	while (j < 2) {
+	    let k = 0;
+	    while (k < 2) {
+		print a4[i][j][k]; print ' ';
+		a4[i][j][k] = a4[i][j][k] + i+j+k;
+		k = k + 1;
+	    }
+	    j = j + 1;
+	}
+	i = i + 1;
+    }
+
+    print '\n';
+    print a4; print '\n';
+}
+

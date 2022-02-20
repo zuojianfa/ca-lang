@@ -315,7 +315,6 @@ static Value *walk_literal(ASTNode *p) {
   if (!p->litn.litv.fixed_type)
     inference_expr_type(p);
 
-  // NEXT TODO: put following 3 line into gen_literal_value function
   CADataType *catype = catype_get_by_name(p->symtable, p->litn.litv.datatype);
   CHECK_GET_TYPE_VALUE(p, catype, p->litn.litv.datatype);
 
@@ -352,7 +351,8 @@ static Value *get_deref_expr_value(ASTNode *expr) {
 // generate variable, if in a function then it is a local variable, when not in
 // a function but `-nomain` is specified then generate a global variable else
 // also generate a global variable for other use
-static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullptr) {
+// `arrayleftvalue` for TTE_ArrayItemLeft type
+static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullptr, Value *arrayleftvalue = nullptr) {
   Value *var = nullptr;
   const char *name = symname_get(p->idn.i);
   //STEntry *entry = sym_getsym(p->symtable, p->idn.i, 1);
@@ -396,7 +396,8 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullp
 
         break;
       case TTE_ArrayItemLeft:
-	// NEXT TODO: implement it
+	assert(arrayleftvalue);
+	var = arrayleftvalue;
 	break;
       default:
 	break;
@@ -855,9 +856,10 @@ static void inference_assign_type(ASTNode *idn, ASTNode *exprn) {
 }
 
 static void walk_assign(ASTNode *p) {
-  // idn can be type of TTE_Id or TTE_DerefLeft
+  // idn can be type of TTE_Id or TTE_DerefLeft or TTE_ArrayItemLeft
   ASTNode *idn = p->assignn.id;
   ASTNode *exprn = p->assignn.expr;
+  Value *arrayitemvalue = nullptr;
 
   if (exprn->type != TTE_VarDefZeroValue)
     inference_assign_type(idn, exprn);
@@ -878,8 +880,6 @@ static void walk_assign(ASTNode *p) {
     break;
   }
   case TTE_ArrayItemLeft: {
-    // NEXT TODO: realize the array item left walk
-
     // TODO: distract following code into a function, `walk_expr_arrayitem` also used following
     // code segment
     STEntry *entry = sym_getsym(idn->symtable, idn->aitemn.varname, 1);
@@ -911,7 +911,7 @@ static void walk_assign(ASTNode *p) {
     }
 
     Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
-    Value *arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
+    arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
     //oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, arrayitemvalue, arrayitemcatype));
     // arrayitemvalue: is an alloc memory address, so following can store value into it
     dt = catype;    
@@ -952,7 +952,7 @@ static void walk_assign(ASTNode *p) {
     v = gen_zero_literal_value(dt);
   }
  
-  Value *vp = walk_id_defv(idn, dt, v);
+  Value *vp = walk_id_defv(idn, dt, v, arrayitemvalue);
 
   // in fact the pushed value should not used, because value assignment syntax is
   // not an expresssion ande have no a value
@@ -1457,8 +1457,8 @@ static void walk_expr(ASTNode *p) {
     {
       std::unique_ptr<CalcOperand> &o = oprand_stack.back();
 
-      // NEXT TODO: here and 
-      //p->expr_type = o.type;
+      // TODO: here and 
+      // p->expr_type = o.type;
     }
     break;
   case IF_EXPR:

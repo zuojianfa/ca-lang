@@ -1,7 +1,38 @@
 fn main() {
     let a = [1, 2, 3];
     print a; print '\n';
-    a[0] = 2;
+
+    let i = 0;
+    while (i < 3) {
+	a[i] = a[i] + 1;
+	i = i + 1;
+    }
     print a; print '\n';
+
+    let a2 = a;
+    i = 0;
+    while (i < 3) {
+	a2[i] = a2[i] * 2;
+	i = i + 1;
+    }
+    print a2; print '\n';
+
+    let af = [1.1, 2.2, 3.3];
+    print af; print '\n';
+
+    i = 0;
+    while (i < 3) {
+	af[i] = af[i] + 1.1;
+	i = i + 1;
+    }
+    print af; print '\n';
+
+    let af2 = af;
+    i = 0;
+    while (i < 3) {
+	af2[i] = af2[i] * 3.0;
+	i = i + 1;
+    }
+    print af2; print '\n';
 }
 

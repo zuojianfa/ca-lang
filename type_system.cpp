@@ -1215,7 +1215,7 @@ static int catype_compare_type_by_signature(std::map<std::string, std::string> &
 // all the typeid of A B and C and finally put them into s_type_map
 //
 void catype_make_type_closure(SymTable *symtable, typeid_t id) {
-  // NEXT TODO:
+  // TODO:
   //catype_get_by_name();
 
 }
@@ -1484,7 +1484,7 @@ static CADataType *catype_formalize_type(CADataType *datatype, int compact) {
 }
 
 CADataType *catype_create_type_from_unwind(int unwind) {
-  // NEXT TODO:
+  // TODO:
   const char *unwindstr = symname_get(unwind);
 #if 0
   int i = 0;
@@ -1619,8 +1619,6 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // end testing
 
   // step 4: create type object
-  // NEXT TODO: implement following 2 type
-  //dt = catype_create_type_from_unwind(unwind);
   dt = catype_formalize_type(dt, 0);
 
   // step 5: update symtable type table

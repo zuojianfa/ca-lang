@@ -198,7 +198,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support raw string literal
 - [x] support multiple line string literal
 - [x] support pointer cast from integer and any other pointer
-- [ ] support array literal
+- [x] support array literal
+- [x] support array entire left value assignment for any part of array item at least for primitive type
+- [x] support array element operation
 - [ ] support struct literal
 
 ## Makefile
@@ -262,15 +264,10 @@ is scopeline the real skip function start for debugging? try it
 #13 0x000000000041caec in main (argc=2, argv=0x7fffffffdba8) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1619
 ```
 
-NEXT TODO: left array reference
 NEXT TODO:
-- [x] implement array [] value operation
-- [ ] implement array [] left value operation e.g. in `walk_assign` function
-- [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
+- [ ] implement `gen_zero_literal_value` `when exprn->type == TTE_VarDefZeroValue` condition
 - [ ] support struct literal
 - [ ] support struct member operation 
-- [ ] support array element operation
-- [ ] implement `gen_zero_literal_value` ``
 - [ ] UCHAR -> U8, CHAR -> I8
 - [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
 - [ ] implement following functions: 
@@ -283,6 +280,7 @@ NEXT TODO:
 - [ ] support other atomic type
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] debug support inner field scope, 
+- [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
 
 detailed TODO LIST:
 

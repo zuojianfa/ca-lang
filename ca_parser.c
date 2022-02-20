@@ -1614,7 +1614,6 @@ ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
 }
 
 ASTNode *make_if(int isexpr, int argc, ...) {
-  // NEXT TODO:
     dot_emit("stmt", "if");
     // or
     dot_emit("ifstmt", "ifelse");
