@@ -489,17 +489,8 @@ void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t 
   lit->textid = textid;
   lit->littypetok = littypetok;
   lit->postfixtypetok = postfixtypetok;
-  if (postfixtypetok == tokenid_novalue) {
-    lit->fixed_type = 0;
-    lit->datatype = typeid_novalue;
-  } else {
-    lit->fixed_type = 0;
-    lit->datatype = typeid_novalue;
-
-    // here can directly determine literal type, it is postfixtypetok
-    //CADataType *catype = catype_get_primitive_by_token(postfixtypetok);
-    //determine_primitive_literal_type(lit, catype);
-  }
+  lit->fixed_type = 0;
+  lit->datatype = typeid_novalue;
 }
 
 void create_string_literal(CALiteral *lit, const LitBuffer *litb) {
@@ -599,13 +590,6 @@ ASTNode *make_literal(CALiteral *litv) {
     dot_emit("expr", "literal");
 
     ASTNode *p = new_ASTNode(TTE_Literal);
-    // if (litv->postfixtypetok != -1 && !litv->fixed_type) {
-    //   // here can directly determine literal type, it is postfixtypetok
-    //   CADataType *catype = catype_get_primitive_by_token(litv->postfixtypetok);
-    //   determine_primitive_literal_type(litv, catype);
-    //   litv->fixed_type = 1;
-    // }
-
     p->litn.litv = *litv;
     set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
 
@@ -749,7 +733,6 @@ ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn) {
 }
 
 ASTNode *make_arrayitem_left_assign(ArrayItem ai, ASTNode *exprn) {
-  // NEXT TODO: realize the array item left walk
   ASTNode *aitemn = new_ASTNode(TTE_ArrayItemLeft);
   aitemn->aitemn = ai;
   set_address(aitemn, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
@@ -1832,13 +1815,6 @@ ASTNode *make_uminus_expr(ASTNode *expr) {
 
   lit->textid = symname_check_insert(buffer);
   lit->littypetok = I64;
-
-  // if (lit->postfixtypetok != tokenid_novalue && !lit->fixed_type) {
-  //   // here can directly determine literal type, it is postfixtypetok
-  //   CADataType *catype = catype_get_primitive_by_token(lit->postfixtypetok);
-  //   determine_primitive_literal_type(lit, catype);
-  //   lit->fixed_type = 1;
-  // }
 
   return expr;
 }

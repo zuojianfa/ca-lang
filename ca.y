@@ -266,11 +266,9 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
 	|	expr AS data_type     { $$ = make_as($1, $3); }
 	|	SIZEOF '(' data_type ')'{ $$ = make_sizeof($3); }
-//	|	deref_pointer %prec UDEREF   { $$ = make_deref($1.expr); }
 	|	deref_pointer         { $$ = make_deref($1.expr); }
 	|	'&' expr %prec UADDR  { $$ = make_address($2); }
 	|	expr '.' IDENT	      { $$ = make_element_field($1, $3); }
-//	|	expr '[' expr ']'     { $$ = $1; }
 		;
 
 data_type:	ident_type            { $$ = $1; }

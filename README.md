@@ -262,6 +262,7 @@ is scopeline the real skip function start for debugging? try it
 #13 0x000000000041caec in main (argc=2, argv=0x7fffffffdba8) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1619
 ```
 
+NEXT TODO: left array reference
 NEXT TODO:
 - [x] implement array [] value operation
 - [ ] implement array [] left value operation e.g. in `walk_assign` function

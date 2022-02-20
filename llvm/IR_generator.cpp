@@ -375,14 +375,17 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullp
 
     // here determine if `#[scope(global)]` is specified
     if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
-      // global variable not allow dereference operation, so not consider TTE_DerefLeft here
+      // global variable not allow dereference operation, so not consider TTE_DerefLeft and
+      // TTE_ArrayItemLeft here
       var = ir1.gen_global_var(type, name, defval);
       if (enable_debug_info())
 	emit_global_var_dbginfo(name, typestr, p->endloc.row);
     } else {
-      if (p->type == TTE_Id) {
+      switch (p->type) {
+      case TTE_Id:
 	var = ir1.gen_var(type, name, nullptr);
-      } else { // TTE_DerefLeft condition
+	break;
+      case TTE_DerefLeft:
 	var = get_deref_expr_value(p->deleftn.expr);
 	// Value *idxv0 = ir1.gen_int(0);
 	// std::vector<Value *> idxv(p->deleftn.derefcount, idxv0);
@@ -390,6 +393,13 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullp
 
 	for (int i = 0; i < p->deleftn.derefcount - 1; ++i)
 	  var = ir1.builder().CreateLoad(var, "deref");
+
+        break;
+      case TTE_ArrayItemLeft:
+	// NEXT TODO: implement it
+	break;
+      default:
+	break;
       }
 
       if (defval)
@@ -856,13 +866,61 @@ static void walk_assign(ASTNode *p) {
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
   CADataType *dt = nullptr;
-  if (idn->type == TTE_Id) {
+  switch (idn->type) {
+  case TTE_Id:
     dt = catype_get_by_name(p->symtable, idn->entry->u.var->datatype);
     CHECK_GET_TYPE_VALUE(p, dt, idn->entry->u.var->datatype);
-  } else {
+    break;
+  case TTE_DerefLeft: {
     typeid_t id = get_expr_type_from_tree(idn);
     dt = catype_get_by_name(idn->deleftn.expr->symtable, id);
     CHECK_GET_TYPE_VALUE(p, dt, id);
+    break;
+  }
+  case TTE_ArrayItemLeft: {
+    // NEXT TODO: realize the array item left walk
+
+    // TODO: distract following code into a function, `walk_expr_arrayitem` also used following
+    // code segment
+    STEntry *entry = sym_getsym(idn->symtable, idn->aitemn.varname, 1);
+    CADataType *arraycatype = catype_get_by_name(idn->symtable, entry->u.var->datatype);
+    void *indices = idn->aitemn.indices;
+    size_t size = vec_size(indices);
+    std::vector<Value *> vindices;
+    CADataType *catype = arraycatype;
+    vindices.push_back(ir1.gen_int(0));
+    for (int i = 0; i < size; ++i) {
+      if (catype->type != ARRAY) {
+	yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
+		p->begloc.row, p->begloc.col, catype->type, i);
+	return;
+      }
+
+      ASTNode *expr = (ASTNode *)vec_at(indices, i);
+      inference_expr_type(expr);
+      walk_stack(expr);
+      std::pair<Value *, CADataType *> pair = pop_right_value("item", 1);
+      if (!is_integer_type(pair.second->type)) {
+	yyerror("line: %d, col: %d: array index type must be integer, but find `%s` on `%d`",
+		p->begloc.row, p->begloc.col, catype_get_type_name(pair.second->signature), i);
+	return;
+      }
+
+      vindices.push_back(pair.first);
+      catype = catype->array_layout->type;
+    }
+
+    Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
+    Value *arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
+    //oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, arrayitemvalue, arrayitemcatype));
+    // arrayitemvalue: is an alloc memory address, so following can store value into it
+    dt = catype;    
+    break;
+  }
+  default:
+    yyerror("line: %d, col: %d: wrong type `%d` of left value assignment",
+	    p->begloc.row, p->begloc.col, idn->type);
+    break;
   }
 
   bool iscomplextype = catype_is_complex_type(dt->type);
@@ -881,7 +939,8 @@ static void walk_assign(ASTNode *p) {
 	      catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
       return;
     }
-  } else {
+  } else { // zero initial value
+    // TODO: handle left value type of TTE_Id, TTE_DerefLeft, TTE_ArrayItemLeft
     typeid_t id = get_expr_type_from_tree(idn);
     if (id == typeid_novalue) {
       yyerror("line: %d, col: %d: the variable '%s' have not specified a type",
