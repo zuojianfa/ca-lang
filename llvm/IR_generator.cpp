@@ -289,6 +289,16 @@ static void post_make_expr(ASTNode *p) {
 
 static void walk_empty(ASTNode *p) {}
 
+static Value *aux_set_zero_to_store(Type *type, Value *var) {
+  Type *i8type = ir1.intptr_type<int8_t>();
+  Value *i8var = ir1.builder().CreatePointerCast(var, i8type);
+  TypeSize size = ir1.module().getDataLayout().getTypeAllocSize(type);
+  Align align = (static_cast<AllocaInst *>(var))->getAlign();
+
+  CallInst *ci = ir1.builder().CreateMemSet(i8var, ir1.gen_int((int8_t)0), size, align);
+  return var;
+}
+
 static void aux_copy_llvmvalue_to_store(Type *type, Value *dest, Value *src, const char *name) {
   // TODO: how to make the array transfer short
   Type::TypeID id = type->getTypeID();
@@ -348,14 +358,56 @@ static Value *get_deref_expr_value(ASTNode *expr) {
   return var;
 }
 
+static Value *extract_value_from_array(ASTNode *node) {
+  assert(node->type == TTE_ArrayItemLeft || node->type == TTE_ArrayItemRight);
+  STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
+  CADataType *arraycatype = catype_get_by_name(node->symtable, entry->u.var->datatype);
+  void *indices = node->aitemn.indices;
+  size_t size = vec_size(indices);
+  std::vector<Value *> vindices;
+  CADataType *catype = arraycatype;
+  vindices.push_back(ir1.gen_int(0));
+
+  // TODO: how to check the index is in scope of an array?
+  // answer: when the index is not constant, only can through runtime checking, e.g.
+  // insert index scope checking code into generated code, (convert array bound into
+  // llvm::Value object, and insert code to compare the index value and the bound value
+  // print error or exit when out of bound
+  for (int i = 0; i < size; ++i) {
+    if (catype->type != ARRAY) {
+      yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
+	      node->begloc.row, node->begloc.col, catype->type, i);
+      return nullptr;
+    }
+
+    ASTNode *expr = (ASTNode *)vec_at(indices, i);
+    inference_expr_type(expr);
+    walk_stack(expr);
+    std::pair<Value *, CADataType *> pair = pop_right_value("item", 1);
+    if (!is_integer_type(pair.second->type)) {
+      yyerror("line: %d, col: %d: array index type must be integer, but find `%s` on `%d`",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(pair.second->signature), i);
+      return nullptr;
+    }
+
+    vindices.push_back(pair.first);
+    catype = catype->array_layout->type;
+  }
+
+  Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
+
+  // arrayitemvalue: is an alloc memory address, so following can store value into it
+  Value *arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
+  return arrayitemvalue;
+}
+
 // generate variable, if in a function then it is a local variable, when not in
 // a function but `-nomain` is specified then generate a global variable else
 // also generate a global variable for other use
 // `arrayleftvalue` for TTE_ArrayItemLeft type
-static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullptr, Value *arrayleftvalue = nullptr) {
+static Value *walk_id_defv(ASTNode *p, CADataType *idtype, bool zeroinitial = false, Value *defval = nullptr) {
   Value *var = nullptr;
   const char *name = symname_get(p->idn.i);
-  //STEntry *entry = sym_getsym(p->symtable, p->idn.i, 1);
   STEntry *entry = p->type == TTE_Id ? p->entry : nullptr;
   if (entry && entry->sym_type != Sym_Variable)
     yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
@@ -364,20 +416,22 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullp
 
   if (entry && entry->u.var->llvm_value) {
     var = static_cast<Value *>(entry->u.var->llvm_value);
-    if (defval)
+    if (zeroinitial) {
+      yyerror("assignment not support assigning zero value");
+      return nullptr;
+    } else if (defval) {
       aux_copy_llvmvalue_to_store(type, var, defval, name);
+    }
   } else {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
-    //CADataType *idtype = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
-    //CHECK_GET_TYPE_VALUE(p, idtype, p->entry->u.var->datatype);
-
-    const char *typestr = catype_get_type_name(idtype->signature); // get_type_string(idtype->type);
+    const char *typestr = catype_get_type_name(idtype->signature);;
 
     // here determine if `#[scope(global)]` is specified
     if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
       // global variable not allow dereference operation, so not consider TTE_DerefLeft and
       // TTE_ArrayItemLeft here
-      var = ir1.gen_global_var(type, name, defval);
+      var = ir1.gen_global_var(type, name, defval, false, zeroinitial);
+
       if (enable_debug_info())
 	emit_global_var_dbginfo(name, typestr, p->endloc.row);
     } else {
@@ -387,23 +441,19 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, Value *defval = nullp
 	break;
       case TTE_DerefLeft:
 	var = get_deref_expr_value(p->deleftn.expr);
-	// Value *idxv0 = ir1.gen_int(0);
-	// std::vector<Value *> idxv(p->deleftn.derefcount, idxv0);
-	// Value *dest = ir1.builder().CreateGEP(var, idxv);
-
 	for (int i = 0; i < p->deleftn.derefcount - 1; ++i)
 	  var = ir1.builder().CreateLoad(var, "deref");
-
         break;
       case TTE_ArrayItemLeft:
-	assert(arrayleftvalue);
-	var = arrayleftvalue;
+	var = extract_value_from_array(p);
 	break;
       default:
 	break;
       }
 
-      if (defval)
+      if (zeroinitial)
+	aux_set_zero_to_store(type, var);
+      else if (defval)
 	aux_copy_llvmvalue_to_store(type, var, defval, name);
 
       if (enable_debug_info())
@@ -859,7 +909,6 @@ static void walk_assign(ASTNode *p) {
   // idn can be type of TTE_Id or TTE_DerefLeft or TTE_ArrayItemLeft
   ASTNode *idn = p->assignn.id;
   ASTNode *exprn = p->assignn.expr;
-  Value *arrayitemvalue = nullptr;
 
   if (exprn->type != TTE_VarDefZeroValue)
     inference_assign_type(idn, exprn);
@@ -880,41 +929,9 @@ static void walk_assign(ASTNode *p) {
     break;
   }
   case TTE_ArrayItemLeft: {
-    // TODO: distract following code into a function, `walk_expr_arrayitem` also used following
-    // code segment
-    STEntry *entry = sym_getsym(idn->symtable, idn->aitemn.varname, 1);
-    CADataType *arraycatype = catype_get_by_name(idn->symtable, entry->u.var->datatype);
-    void *indices = idn->aitemn.indices;
-    size_t size = vec_size(indices);
-    std::vector<Value *> vindices;
-    CADataType *catype = arraycatype;
-    vindices.push_back(ir1.gen_int(0));
-    for (int i = 0; i < size; ++i) {
-      if (catype->type != ARRAY) {
-	yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
-		p->begloc.row, p->begloc.col, catype->type, i);
-	return;
-      }
-
-      ASTNode *expr = (ASTNode *)vec_at(indices, i);
-      inference_expr_type(expr);
-      walk_stack(expr);
-      std::pair<Value *, CADataType *> pair = pop_right_value("item", 1);
-      if (!is_integer_type(pair.second->type)) {
-	yyerror("line: %d, col: %d: array index type must be integer, but find `%s` on `%d`",
-		p->begloc.row, p->begloc.col, catype_get_type_name(pair.second->signature), i);
-	return;
-      }
-
-      vindices.push_back(pair.first);
-      catype = catype->array_layout->type;
-    }
-
-    Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
-    arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
-    //oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, arrayitemvalue, arrayitemcatype));
-    // arrayitemvalue: is an alloc memory address, so following can store value into it
-    dt = catype;    
+    typeid_t id = get_expr_type_from_tree(idn);
+    dt = catype_get_by_name(idn->symtable, id);
+    CHECK_GET_TYPE_VALUE(p, dt, id);
     break;
   }
   default:
@@ -925,7 +942,11 @@ static void walk_assign(ASTNode *p) {
 
   bool iscomplextype = catype_is_complex_type(dt->type);
 
+  // when zero_initialize is true, it means to initialize the new allocated
+  // variable of specified type with all zero value
+  bool zero_initialize = false;
   Value *v = nullptr;
+  Value *vp = nullptr;
   if (exprn->type != TTE_VarDefZeroValue) {
     walk_stack(exprn);
     if (exprn->type == TTE_Expr && exprn->exprn.op == ADDRESS)
@@ -940,19 +961,19 @@ static void walk_assign(ASTNode *p) {
       return;
     }
   } else { // zero initial value
-    // TODO: handle left value type of TTE_Id, TTE_DerefLeft, TTE_ArrayItemLeft
+    // handle left value type of TTE_Id for zero initialized value
+    assert(idn->type == TTE_Id);
     typeid_t id = get_expr_type_from_tree(idn);
     if (id == typeid_novalue) {
-      yyerror("line: %d, col: %d: the variable '%s' have not specified a type",
+      yyerror("line: %d, col: %d: type of variable '%s' must be determined for zero initialized value",
 	      idn->begloc.col, idn->begloc.row, symname_get(idn->idn.i));
       return;
     }
 
-    // TODO: initial all zero value with specified type
-    v = gen_zero_literal_value(dt);
+    zero_initialize = true;
   }
- 
-  Value *vp = walk_id_defv(idn, dt, v, arrayitemvalue);
+  
+  vp = walk_id_defv(idn, dt, zero_initialize, v);
 
   // in fact the pushed value should not used, because value assignment syntax is
   // not an expresssion ande have no a value
@@ -1347,43 +1368,7 @@ static void walk_expr_arrayitem(ASTNode *p) {
   CADataType *arrayitemcatype = catype_get_by_name(anode->symtable, p->exprn.expr_type);
   CHECK_GET_TYPE_VALUE(anode, arrayitemcatype, p->exprn.expr_type);
 
-  STEntry *entry = sym_getsym(anode->symtable, anode->aitemn.varname, 1);
-  CADataType *arraycatype = catype_get_by_name(anode->symtable, entry->u.var->datatype);
-  void *indices = anode->aitemn.indices;
-  size_t size = vec_size(indices);
-  std::vector<Value *> vindices;
-  CADataType *catype = arraycatype;
-  vindices.push_back(ir1.gen_int(0));
-
-  // TODO: how to check the index is in scope of an array?
-  // answer: when the index is not constant, only can through runtime checking, e.g.
-  // insert index scope checking code into generated code, (convert array bound into
-  // llvm::Value object, and insert code to compare the index value and the bound value
-  // print error or exit when out of bound
-  for (int i = 0; i < size; ++i) {
-    if (catype->type != ARRAY) {
-      yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
-	      p->begloc.row, p->begloc.col, catype->type, i);
-      return;
-    }
-
-    ASTNode *expr = (ASTNode *)vec_at(indices, i);
-    inference_expr_type(expr);
-    walk_stack(expr);
-    std::pair<Value *, CADataType *> pair = pop_right_value("item", 1);
-    if (!is_integer_type(pair.second->type)) {
-      yyerror("line: %d, col: %d: array index type must be integer, but find `%s` on `%d`",
-	      p->begloc.row, p->begloc.col, catype_get_type_name(pair.second->signature), i);
-      return;
-    }
-
-    vindices.push_back(pair.first);
-    catype = catype->array_layout->type;
-  }
-
-  Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
-  Value *arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
-
+  Value *arrayitemvalue = extract_value_from_array(anode);
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, arrayitemvalue, arrayitemcatype));
 }
 

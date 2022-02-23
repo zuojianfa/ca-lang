@@ -1,0 +1,31 @@
+struct AA {
+    a: f32,
+    b: f64,
+    c: i32,
+    d: u64,
+}
+
+struct A1 {
+    a1: AA,
+    b: i32,
+}
+
+struct A2 {
+    a2: A1,
+    b: f64,
+}
+
+struct A3 {
+    a3: A2,
+    cc: bool,
+}
+
+let aa: AA = __zero_init__;
+let a1: A1 = __zero_init__;
+let a2: A2 = __zero_init__;
+let a3: A3 = __zero_init__;
+
+fn main() {
+    print "good\n";
+}
+

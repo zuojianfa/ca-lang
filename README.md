@@ -266,6 +266,11 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] implement `gen_zero_literal_value` `when exprn->type == TTE_VarDefZeroValue` condition
+  ```
+	120 - type46-struct_empty.ca (Failed)
+	123 - type49-struct_use2.ca (Failed)
+	124 - type50-struct_use3.ca (SEGFAULT)
+  ```
 - [ ] support struct literal
 - [ ] support struct member operation 
 - [ ] UCHAR -> U8, CHAR -> I8

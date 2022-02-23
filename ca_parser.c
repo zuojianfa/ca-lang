@@ -830,6 +830,22 @@ typeid_t get_expr_type_from_tree(ASTNode *node) {
 
     return catype->signature;
   }
+  case TTE_ArrayItemLeft: {
+    STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
+    CADataType *catype = catype_get_by_name(node->symtable, entry->u.var->datatype);
+    size_t size = vec_size(node->aitemn.indices);
+    for (int i = 0; i < size; ++i) {
+      if (catype->type != ARRAY) {
+	yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
+		node->begloc.row, node->begloc.col, catype->type, i);
+	return typeid_novalue;
+      }
+
+      catype = catype->array_layout->type;
+    }
+
+    return catype->signature;
+  }
   case TTE_As:
     return node->exprasn.type;
   case TTE_Expr:

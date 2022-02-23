@@ -94,15 +94,15 @@ fn func1() {
 fn main() {
     func1();
     
-    let v0: AA = 0;
-    let v1: A1 = 0;
-    let v2: A2 = 0;
-    let v3: A3 = 0;
-    let v4: A4 = 0;
-    let v5: A5 = 0;
-    let v6: AC = 0;
-    let v7: pAC = 0;
-    let v8: **[*[*[*[A2;3];4];5];6] = 0;
+    let v0: AA  = __zero_init__;
+    let v1: A1  = __zero_init__;
+    let v2: A2  = __zero_init__;
+    let v3: A3  = __zero_init__;
+    let v4: A4  = __zero_init__;
+    let v5: A5  = __zero_init__;
+    let v6: AC  = __zero_init__;
+    let v7: pAC = __zero_init__;
+    let v8: **[*[*[*[A2;3];4];5];6] = __zero_init__;
 
     struct AA {
     }

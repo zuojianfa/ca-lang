@@ -1,0 +1,50 @@
+struct SS {
+    a: [f32;3],
+    b: [f64;4],
+    c: i32,
+    d: u64,
+}
+
+struct S1 {
+    a1: [SS;33],
+    b: [i32;2],
+}
+
+struct S2 {
+    a2: [S1; 2],
+    b: *[f64; 3],
+}
+
+struct S3 {
+    a3: ***S2,
+    a3fds: [***S2; 9],
+    cc: [***bool; 3],
+}
+
+struct S4 {
+    a2: [[[S1; 2];3];4],
+    b: [*[[*[f64; 3];6];7];8],
+}
+
+type AA = [SS;  3];
+type A1 = [S1;  33];
+type A2 = [S2; 2];
+type A3 = ***S3;
+type A4 = [***S3; 9];
+type A5 = [***S2; 3];
+type A6 = [[[S4; 3]; 2];6];
+type A7 = [[S4; 3];2];
+
+let aa: AA = __zero_init__;
+let a1: A1 = __zero_init__;
+let a2: A2 = __zero_init__;
+let a3: A3 = __zero_init__;
+let a4: A4 = __zero_init__;
+let a5: A5 = __zero_init__;
+let a6: A6 = __zero_init__;
+let a71: A7 = __zero_init__;
+
+let a7: [A6; 33] = __zero_init__;
+let a8: [[A6; 33]; 1] = __zero_init__;
+let a9: [[[A6; 33]; 1];7] = __zero_init__;
+

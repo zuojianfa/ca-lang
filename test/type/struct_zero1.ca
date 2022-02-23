@@ -1,0 +1,52 @@
+struct AA {
+}
+
+struct A1 {
+    a: i32
+}
+
+struct A2 {
+    a: i32,
+    b: i64,
+}
+
+struct A3 {
+    a: AA,
+    b: A1,
+    c: A2,
+    d: f32,
+}
+
+struct A4 {
+    b: A3,
+    h: **A2,
+}
+
+struct A5 {
+    a: A4,
+    b: *A4,
+}
+
+struct A6 {
+    a: [i32;3],
+    b: *[[i32;3];4],
+}
+
+type AC = A5;
+type pAC = *A5;
+
+fn main() {
+    let v0: AA  = __zero_init__;
+    let v1: A1  = __zero_init__;
+    let v2: A2  = __zero_init__;
+    let v3: A3  = __zero_init__;
+    let v4: A4  = __zero_init__;
+    let v5: A5  = __zero_init__;
+    let v6: AC  = __zero_init__;
+    let v7: pAC = __zero_init__;
+    let v8: **[*[*[*[A2;3];4];5];6] = __zero_init__;
+    let v9: A6 = __zero_init__;
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

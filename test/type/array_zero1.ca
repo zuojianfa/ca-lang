@@ -1,0 +1,14 @@
+fn main() {
+    let a1:  A1  = __zero_init__;
+    let a2:  A2  = __zero_init__;
+    let a3:  A3  = __zero_init__;
+    let a4:  A4  = __zero_init__;
+
+    type A1 = [i32; 4];
+    type A2 = [A1; 3];  // [[i32; 4]; 3]
+    type A3 = [A2; 5];  // [[[i32; 4]; 3]; 5]
+    type A4 = [A3; 5];  // [[[[i32; 4]; 3]; 5] 5]
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

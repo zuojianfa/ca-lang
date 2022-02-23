@@ -18,19 +18,19 @@ fn main() {
     let aa: AA = 0;
     type AA = i64;
 
-    let a1: A1 = 0;
-    let a2: A2 = 0;
-    let a3: A3 = 0;
-    let a4: A4 = 0;
-    let a5: A5 = 0;
-    let a6: A6 = 0;
-    let a7: A7 = 0;
-    let a8: A8 = 0;
-    let a9: A9 = 0;
-    let a10: A10 = 0;
-    let a11: A11 = 0;
-    let a12: A12 = 0;
-    let a13: A13 = 0;
+    let a1:  A1  = __zero_init__;
+    let a2:  A2  = __zero_init__;
+    let a3:  A3  = __zero_init__;
+    let a4:  A4  = __zero_init__;
+    let a5:  A5  = __zero_init__;
+    let a6:  A6  = __zero_init__;
+    let a7:  A7  = __zero_init__;
+    let a8:  A8  = __zero_init__;
+    let a9:  A9  = __zero_init__;
+    let a10: A10 = __zero_init__;
+    let a11: A11 = __zero_init__;
+    let a12: A12 = __zero_init__;
+    let a13: A13 = __zero_init__;
 
     type A1 = [i32; 4];
     type A2 = [A1; 3];  // [[i32; 4]; 3]
@@ -60,21 +60,20 @@ fn main() {
 	type A12 = [[[[[[i32;4];3];5];5];3];5];
 	type A13 = [[[[[[[i32;4];3];5];5];3];5];5];
 
-        let a1: A1 = 0;
-        let a2: A2 = 0;
-        let a3: A3 = 0;
-        let a4: A4 = 0;
-	let a5: A5 = 0;
-        let a6: A6 = 0;
-        let a7: A7 = 0;
-        let a8: A8 = 0;
-        let a9: A9 = 0;
-        let a10: A10 = 0;
-        let a11: A11 = 0;
-        let a12: A12 = 0;
-        let a13: A13 = 0;
+        let a1:  A1  = __zero_init__;
+        let a2:  A2  = __zero_init__;
+        let a3:  A3  = __zero_init__;
+        let a4:  A4  = __zero_init__;
+	let a5:  A5  = __zero_init__;
+        let a6:  A6  = __zero_init__;
+        let a7:  A7  = __zero_init__;
+        let a8:  A8  = __zero_init__;
+        let a9:  A9  = __zero_init__;
+        let a10: A10 = __zero_init__;
+        let a11: A11 = __zero_init__;
+        let a12: A12 = __zero_init__;
+        let a13: A13 = __zero_init__;
     }
-    
 
     print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
 }

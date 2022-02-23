@@ -1,0 +1,28 @@
+fn main() {
+    let a1: i8  = __zero_init__;
+    let a2: i32 = __zero_init__;
+    let a3: i64 = __zero_init__;
+    let a4: u8  = __zero_init__;
+    let a5: u32 = __zero_init__;
+    let a6: u64 = __zero_init__;
+    let a7: f32 = __zero_init__;
+    let a8: f64 = __zero_init__;
+    let a9: bool = __zero_init__;
+    let a10: char = __zero_init__;
+    let a11: uchar = __zero_init__;
+
+    print a1; print ' ';
+    print a2; print ' ';
+    print a3; print ' ';
+    print a4; print ' ';
+    print a5; print ' ';
+    print a6; print ' ';
+    print a7; print ' ';
+    print a8; print ' ';
+    print a9; print ' ';
+    print a10; print ' ';
+    print a11; print ' ';
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

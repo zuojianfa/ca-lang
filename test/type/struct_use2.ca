@@ -23,36 +23,35 @@ fn main() {
     struct A20{c3: *A18}
     struct A21{c3: [A18;32]}
 
-    let v0:  AA  = 0;
-    let v1:  A1  = 0;
-    let v2:  A2  = 0;
-    let v3:  A3  = 0;
-    let v4:  A4  = 0;
-    let v5:  A5  = 0;
-    let v6:  A6  = 0;
-    let v7:  A7  = 0;
-    let v8:  A8  = 0;
-    let v9:  A9  = 0;
-    let v10: A10 = 0;
-    let v11: A11 = 0;
-    let v12: A12 = 0;
-    let v13: A13 = 0;
-    let v14: A14 = 0;
-    let v15: A15 = 0;
-    let v16: A16 = 0;
-    let v17: A17 = 0;
-    let v18: A18 = 0;
-    let v19: A19 = 0;
-    let v20: A20 = 0;
-    let v21: A21 = 0;
-
-    let v22: A22 = 0;
-    let v23: A23 = 0;
-    let v24: A24 = 0;
-    let v25: A25 = 0;
-    let v26: A26 = 0;
-    let v27: *[*A26;6] = 0;
-    let v28: A28 = 0;
+    let v0:  AA  = __zero_init__;
+    let v1:  A1  = __zero_init__;
+    let v2:  A2  = __zero_init__;
+    let v3:  A3  = __zero_init__;
+    let v4:  A4  = __zero_init__;
+    let v5:  A5  = __zero_init__;
+    let v6:  A6  = __zero_init__;
+    let v7:  A7  = __zero_init__;
+    let v8:  A8  = __zero_init__;
+    let v9:  A9  = __zero_init__;
+    let v10: A10 = __zero_init__;
+    let v11: A11 = __zero_init__;
+    let v12: A12 = __zero_init__;
+    let v13: A13 = __zero_init__;
+    let v14: A14 = __zero_init__;
+    let v15: A15 = __zero_init__;
+    let v16: A16 = __zero_init__;
+    let v17: A17 = __zero_init__;
+    let v18: A18 = __zero_init__;
+    let v19: A19 = __zero_init__;
+    let v20: A20 = __zero_init__;
+    let v21: A21 = __zero_init__;
+    let v22: A22 = __zero_init__;
+    let v23: A23 = __zero_init__;
+    let v24: A24 = __zero_init__;
+    let v25: A25 = __zero_init__;
+    let v26: A26 = __zero_init__;
+    let v27: *[*A26;6] = __zero_init__;
+    let v28: A28 = __zero_init__;
 
     type A22 = A21;
     type A23 = A22;

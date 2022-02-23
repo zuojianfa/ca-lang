@@ -1,0 +1,20 @@
+type AA = [f32;  3];
+type A1 = [AA;  33];
+type A2 = [A1; 2];
+type A3 = ***A2;
+type A4 = [***A2; 9];
+type A5 = [***bool; 3];
+type A6 = [[[A4; 3]; 2];6];
+
+let aa: AA = __zero_init__;
+let a1: A1 = __zero_init__;
+let a2: A2 = __zero_init__;
+let a3: A3 = __zero_init__;
+let a4: A4 = __zero_init__;
+let a5: A5 = __zero_init__;
+let a6: A6 = __zero_init__;
+
+let a7: [A6; 33] = __zero_init__;
+let a8: [[A6; 33]; 1] = __zero_init__;
+let a9: [[[A6; 33]; 1];7] = __zero_init__;
+
