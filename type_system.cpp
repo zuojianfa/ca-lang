@@ -2258,7 +2258,7 @@ Type *gen_llvmtype_from_catype(CADataType *catype) {
     // create llvm struct type
     size_t fieldnum = catype->struct_layout->fieldnum;
     std::vector<Type *> fields;
-    StringRef name;
+    StringRef name = symname_get(catype->formalname);
     bool pack = false;
 
     for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
@@ -2266,6 +2266,19 @@ Type *gen_llvmtype_from_catype(CADataType *catype) {
       fields.push_back(fieldtype);
     }
 
+/*
+    StructType::create(ir1.ctx(), name);
+
+    static StructType *create(LLVMContext &Context, StringRef Name);
+    static StructType *create(LLVMContext &Context);
+
+    static StructType *create(ArrayRef<Type *> Elements, StringRef Name,
+			      bool isPacked = false);
+    static StructType *create(ArrayRef<Type *> Elements);
+    static StructType *create(LLVMContext &Context, ArrayRef<Type *> Elements,
+			      StringRef Name, bool isPacked = false);
+    static StructType *create(LLVMContext &Context, ArrayRef<Type *> Elements);
+*/
     StructType *sttype = StructType::get(ir1.ctx(), fields, pack);
     return sttype;
   }
