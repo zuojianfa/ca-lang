@@ -1,0 +1,92 @@
+// test for non recursive type
+fn main() {
+    struct AA {}
+    struct A1 {a : i32}
+    struct A2 {a : *f64}
+    struct A3 {a : [f32;64]}
+    struct A4 {b1: A1}
+    struct A5 {b1: *A1}
+    struct A6 {b1: [A1;32]}
+    struct A7 {b2: A2}
+    struct A8 {b2: *A2}
+    struct A9 {b2: [A2;32]}
+    struct A10{b3: A3}
+    struct A11{b3: *A3}
+    struct A12{b3: [A3;32]}
+    struct A13{c3: A6}
+    struct A14{c3: *A6}
+    struct A15{c3: [A6;32]}
+    struct A16{c3: A12}
+    struct A17{c3: *A12}
+    struct A18{c3: [A12;32]}
+    struct A19{c3: A18}
+    struct A20{c3: *A18}
+    struct A21{c3: [A18;32]}
+
+    let v0:  AA  = __zero_init__;
+    let v1:  A1  = __zero_init__;
+    let v2:  A2  = __zero_init__;
+    let v3:  A3  = __zero_init__;
+    let v4:  A4  = __zero_init__;
+    let v5:  A5  = __zero_init__;
+    let v6:  A6  = __zero_init__;
+    let v7:  A7  = __zero_init__;
+    let v8:  A8  = __zero_init__;
+    let v9:  A9  = __zero_init__;
+    let v10: A10 = __zero_init__;
+    let v11: A11 = __zero_init__;
+    let v12: A12 = __zero_init__;
+    let v13: A13 = __zero_init__;
+    let v14: A14 = __zero_init__;
+    let v15: A15 = __zero_init__;
+    let v16: A16 = __zero_init__;
+    let v17: A17 = __zero_init__;
+    let v18: A18 = __zero_init__;
+    let v19: A19 = __zero_init__;
+    let v20: A20 = __zero_init__;
+    let v21: A21 = __zero_init__;
+    let v22: A22 = __zero_init__;
+    let v23: A23 = __zero_init__;
+    let v24: A24 = __zero_init__;
+    let v25: A25 = __zero_init__;
+    let v26: A26 = __zero_init__;
+    let v27: *[*A26;6] = __zero_init__;
+    let v28: A28 = __zero_init__;
+
+    print v0; print '\n';
+    print v1; print '\n';
+    print v2; print '\n';
+    print v3; print '\n';
+    print v4; print '\n';
+    print v5; print '\n';
+    print v6; print '\n';
+    print v7; print '\n';
+    print v8; print '\n';
+    print v9; print '\n';
+    print v10; print '\n';
+    print v11; print '\n';
+    print v12; print '\n';
+    print v13; print '\n';
+    print v14; print '\n';
+    print v15; print '\n';
+    print v16; print '\n';
+    print v17; print '\n';
+    print v18; print '\n';
+    print v19; print '\n';
+    print v20; print '\n';
+    print v21; print '\n';
+    print v22; print '\n';
+    print v23; print '\n';
+    print v24; print '\n';
+    print v25; print '\n';
+    print v26; print '\n';
+    print v27; print '\n';
+    print v28; print '\n';
+
+    type A22 = A21;
+    type A23 = A22;
+    struct A24{v1: A10, v2: A21}
+    struct A25{v1: *A10, v2: **[A21;3]}
+    struct A26{v1: [A10;3], v2: *[*A25;4]}
+    struct A28{v1: [A10;3], v2: *[*A25;4], v3: A10, v4: *A10, v5: A25}
+}

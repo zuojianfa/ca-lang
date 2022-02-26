@@ -49,6 +49,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string.h>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -58,6 +59,7 @@ void yyerror(const char *s, ...);
 END_EXTERN_C
 
 #include <unordered_map>
+#include <map>
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -76,6 +78,10 @@ std::unordered_map<typeid_t, CADataType *> s_type_map;
 
 // for handling post defined functions after the calling
 std::unordered_map<typeid_t, void *> g_function_post_map;
+
+// storing type signature to llvm type map for shorten the generation of named
+// struct and speedup the map performance
+std::unordered_map<typeid_t, llvm::Type *> g_llvmtype_map;
 
 using namespace llvm;
 std::unordered_map<std::string, int> s_token_primitive_map {
@@ -891,6 +897,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   if (rcheckset.find(namebuf) != rcheckset.end()) {
     // this is the recursive a type definition, type size is recursive, so may have unlimited size
     // TODO: return error number and the upper logic can print different error message
+    fprintf(stderr, "type name `%s` is recursively defined: ", namebuf);
     return -1;
   }
 
@@ -918,7 +925,8 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   std::set<std::string> checkset = rcheckset;
   checkset.insert(namebuf);
 
-  const char *caname = catype_get_type_name(entry->u.datatype.id);
+  std::string scaname = catype_get_type_name(entry->u.datatype.id);
+  const char *caname = scaname.c_str();
 
   // when type is not a structure type directly
   if (!entry->u.datatype.members) {
@@ -1295,7 +1303,7 @@ static typeid_t typeid_decrease_array(typeid_t type) {
   const char *name = catype_get_type_name(type);
   int len = strlen(name);
   assert(name[0] == '[' && name[len-1] == ']');
-  const char *lastsemi = strchr(name, ';');
+  const char *lastsemi = strrchr(name, ';');
   assert(lastsemi != nullptr);
   char buf[1024];
   len = lastsemi - name - 1;
@@ -1429,7 +1437,13 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<C
 	currdt = dt;
       }
 
-      currdt = currdt->pointer_layout->type;
+      nextdt = currdt->pointer_layout->type;
+      if (nextdt->status == CADT_None) {
+	nextdt->signature = typeid_decrease_pointer(currdt->signature);
+	nextdt->status = CADT_Expand;
+      }
+
+      currdt = nextdt;
       break;
     case ARRAY:
       // TODO: make the expanded (use clone following) signature formalname to correct one
@@ -1445,7 +1459,13 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<C
 	currdt = dt;
       }
 
-      currdt = currdt->array_layout->type;
+      nextdt = currdt->array_layout->type;
+      if (nextdt->status == CADT_None) {
+	nextdt->signature = typeid_decrease_array(currdt->signature);
+	nextdt->status = CADT_Expand;
+      }
+
+      currdt = nextdt;
       break;
     case STRUCT:
       // NEXT TODO: handle catype status
@@ -2220,11 +2240,17 @@ Type *gen_llvmtype_from_token(int tok) {
   }
 }
 
-Type *gen_llvmtype_from_catype(CADataType *catype) {
+static Type *gen_llvmtype_from_catype_inner(CADataType *catype, std::map<CADataType *, Type *> &rcheck) {
   switch (catype->type) {
   case POINTER: {
     // create llvm pointer type
-    Type *kerneltype = gen_llvmtype_from_catype(catype->pointer_layout->type);
+    Type *kerneltype = nullptr;
+    auto itr = rcheck.find(catype->pointer_layout->type);
+    if (itr != rcheck.end())
+      kerneltype = itr->second;
+    else
+      kerneltype = gen_llvmtype_from_catype_inner(catype->pointer_layout->type, rcheck);
+
     if (!kerneltype) {
       fprintf(stderr, "create kernel type for pointer failed: %s\n",
 	      symname_get(catype->pointer_layout->type->signature));
@@ -2240,7 +2266,12 @@ Type *gen_llvmtype_from_catype(CADataType *catype) {
   }
   case ARRAY: {
     // create llvm array type
-    Type *kerneltype = gen_llvmtype_from_catype(catype->array_layout->type);
+    // it seems here no need to do type checking, because the array kernel type
+    // should cannot be recursively defined, or the size is unlimited, the checking
+    // should already blocked by the type system analyze
+    assert(rcheck.find(catype->pointer_layout->type) == rcheck.end());
+    Type *kerneltype = gen_llvmtype_from_catype_inner(catype->array_layout->type, rcheck);
+
     if (!kerneltype) {
       fprintf(stderr, "create kernel type for array failed: %s\n",
 	      symname_get(catype->array_layout->type->signature));
@@ -2261,30 +2292,45 @@ Type *gen_llvmtype_from_catype(CADataType *catype) {
     StringRef name = symname_get(catype->formalname);
     bool pack = false;
 
-    for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
-      Type *fieldtype = gen_llvmtype_from_catype(catype->struct_layout->fields[i].type);
-      fields.push_back(fieldtype);
+    StructType *sttype = nullptr;
+    auto itr = g_llvmtype_map.find(catype->signature);
+    if (itr != g_llvmtype_map.end()) {
+      sttype = static_cast<StructType *>(itr->second);
+    } else {
+      sttype = StructType::create(ir1.ctx(), name);
+      g_llvmtype_map.insert(std::make_pair(catype->signature, static_cast<Type *>(sttype)));
     }
 
-/*
-    StructType::create(ir1.ctx(), name);
+    rcheck.insert(std::make_pair(catype, sttype));
+    for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
+      Type *fieldtype = gen_llvmtype_from_catype_inner(catype->struct_layout->fields[i].type, rcheck);
+      fields.push_back(fieldtype);
+    }
+    rcheck.erase(catype);
+    sttype->setBody(fields, pack);
 
-    static StructType *create(LLVMContext &Context, StringRef Name);
-    static StructType *create(LLVMContext &Context);
+    // static StructType *create(LLVMContext &Context, StringRef Name);
+    // static StructType *create(LLVMContext &Context);
 
-    static StructType *create(ArrayRef<Type *> Elements, StringRef Name,
-			      bool isPacked = false);
-    static StructType *create(ArrayRef<Type *> Elements);
-    static StructType *create(LLVMContext &Context, ArrayRef<Type *> Elements,
-			      StringRef Name, bool isPacked = false);
-    static StructType *create(LLVMContext &Context, ArrayRef<Type *> Elements);
-*/
-    StructType *sttype = StructType::get(ir1.ctx(), fields, pack);
+    // static StructType *create(ArrayRef<Type *> Elements, StringRef Name,
+    // 			      bool isPacked = false);
+    // static StructType *create(ArrayRef<Type *> Elements);
+    // static StructType *create(LLVMContext &Context, ArrayRef<Type *> Elements,
+    // 			      StringRef Name, bool isPacked = false);
+    // static StructType *create(LLVMContext &Context, ArrayRef<Type *> Elements);
+
+    //StructType *sttype = StructType::get(ir1.ctx(), fields, pack);
     return sttype;
   }
   default:
     return gen_llvmtype_from_token(catype->type);
   }
+}
+
+Type *gen_llvmtype_from_catype(CADataType *catype) {
+  std::map<CADataType *, Type *> rcheck;
+  Type *type = gen_llvmtype_from_catype_inner(catype, rcheck);
+  return type;
 }
 
 static int64_t parse_to_int64(CALiteral *value) {

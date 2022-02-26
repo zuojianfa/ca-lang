@@ -25,5 +25,15 @@ fn main() {
     let v6:  A6  = __zero_init__;
     let v7:  A7  = __zero_init__;
 
+    print pv0; print '\n';
+    print v0; print '\n';
+    print v1; print '\n';
+    print v2; print '\n';
+    print v3; print '\n';
+    print v4; print '\n';
+    print v5; print '\n';
+    print v6; print '\n';
+    print v7; print '\n';
+
     print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
 }

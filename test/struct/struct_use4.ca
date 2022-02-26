@@ -1,0 +1,42 @@
+struct A1 {}
+
+struct A2 {
+    e: f64,
+    f: bool,
+    g: char,
+    h: uchar,
+}
+
+struct A4 {
+    e: *A1,
+    g: *A1,
+    f: **A1,
+    h: **A2,
+}
+
+struct A5 {
+    a: A4,
+    b: *A4,
+    c: **A4,
+    d: ***A4,
+    e: ****A4,
+}
+
+type pAC = *A5;
+
+fn main() {
+    let v5: A5  = __zero_init__;
+    struct A5 {
+	a: A4,
+	b: *A4,
+	c: **A4,
+	d: ***A4,
+	e: ****A4,
+	f: bool,
+    }
+
+    type pAC = *A5;
+
+    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
+}
+

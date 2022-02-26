@@ -265,11 +265,10 @@ is scopeline the real skip function start for debugging? try it
 ```
 
 NEXT TODO:
-- [ ] implement `gen_zero_literal_value` `when exprn->type == TTE_VarDefZeroValue` condition
+- [ ] test/struct struct dbgprint function to test, implement struct members fetch store functionality
   ```
 	120 - type46-struct_empty.ca (Failed)
-	123 - type49-struct_use2.ca (Failed)
-	124 - type50-struct_use3.ca (SEGFAULT)
+	123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
   ```
 - [ ] support struct literal
 - [ ] support struct member operation 

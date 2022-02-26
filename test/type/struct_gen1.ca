@@ -1,0 +1,11 @@
+// test for recursive type
+struct AA { a: *AA, }
+
+fn main() {
+    let aa: AA = __zero_init__;
+    let bb: AA = __zero_init__;
+    {
+        struct AA { a: *AA, b: i32}
+        let bb: AA = __zero_init__;
+    }
+}

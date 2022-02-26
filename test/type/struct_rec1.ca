@@ -1,0 +1,5 @@
+// test for recursive type
+fn main() {
+    struct AA { a: AA, }
+    let v0:  AA  = __zero_init__;
+}

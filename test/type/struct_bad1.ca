@@ -1,0 +1,6 @@
+// test for recursive type
+fn main() {
+    struct A1 { a: A1, b: i32, }
+    // when not use type A1, compiler should can also detect the recursive error of A1
+    //let v0:  A1  = __zero_init__;
+}

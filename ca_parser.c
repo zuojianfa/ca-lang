@@ -1884,7 +1884,6 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
     return NULL;
   }
 
-#if 1
   ASTNode *p = new_ASTNode(TTE_Struct);
   entry = sym_insert(curr_symtable, structtype, Sym_DataType);
   entry->u.datatype.id = structtype;
@@ -1895,31 +1894,6 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
   *entry->u.datatype.members = *arglist;
   entry->sloc = (SLoc){glineno, gcolno};
   p->entry = entry;
-  
-#else
-  // 1. get the struct signature and check if it already exists in catype caches
-  // when already exists then just use the type and skip step 2.
-  const char *signature = sym_form_struct_signature(structname, curr_symtable);
-  int symname = symname_check_insert(signature);
-
-  // TODO: handle struct definition, should not need get type here directly
-  CADataType *dt = catype_get_primitive_by_name(symname);
-  if (!dt) {
-    // 2. form a struct CADataType object when have no such cache
-    // 2.a. put the CADataType into catype cache
-    dt = catype_make_struct_type(symname, arglist);
-  }
-
-  // 3. put the struct CADataType into current scope Symbol table for later use
-  entry = sym_insert(curr_symtable, structtype, Sym_DataType);
-  entry->sloc = (SLoc){glineno, gcolno};
-  entry->u.datatype = dt;
-  
-  // 4. create ASTNode object and set the object type as the datatype type
-  // and set the CADataType object
-  ASTNode *p = new_ASTNode(TTE_Struct);
-  p->entry = entry;
-#endif
 
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &entry->sloc);
   return p;

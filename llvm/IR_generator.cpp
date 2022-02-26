@@ -726,9 +726,36 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
   case POINTER:
     llvmcode_printf_primitive(fn, catype, v);
     break;
-  case STRUCT:
-    yyerror("dbgprint for struct type not implmeneted yet");
+  case STRUCT: {
+    const char *name = symname_get(catype->struct_layout->name);
+    Constant *sname = ir1.builder().CreateGlobalStringPtr(name);
+    CAStructField *fields = catype->struct_layout->fields;
+    len = catype->struct_layout->fieldnum;
+
+    llvmcode_printf(fn, "%s { ", sname, nullptr);
+    for (int i = 0; i < len; ++i) {
+      //ConstantArray *arrayv = static_cast<ConstantArray *>(v);
+      //Constant *subv = arrayv->getAggregateElement(i);
+
+      //Value *idx = ir1.gen_int(i);
+      //Value *subv = ir1.builder().CreateGEP(v, idx, "subv");
+
+      //Type* array_t =  llvm::PointerType::getUnqual(v->getType());
+      name = symname_get(fields[i].name); // field name
+      sname = ir1.builder().CreateGlobalStringPtr(name);
+      llvmcode_printf(fn, "%s: ", sname, nullptr);
+
+      Value *subv = ir1.builder().CreateExtractValue(v, i);
+      dbgprint_complex(fn, fields[i].type, subv);
+
+      if (i < len - 1)
+	llvmcode_printf(fn, ", ", nullptr);
+    }
+
+    llvmcode_printf(fn, " }", nullptr);
+    //yyerror("dbgprint for struct type not implmeneted yet");
     break;
+  }
   default:
     // output each of primitive type
     llvmcode_printf_primitive(fn, catype, v);
@@ -1654,9 +1681,12 @@ static Function *walk_fn_define(ASTNode *p) {
 static void walk_struct(ASTNode *node) {
   STEntry *entry = node->entry;
   //CADataType *dt = entry->u.datatype;
-  typeid_t dt = entry->u.datatype.id;
+  typeid_t id = entry->u.datatype.id;
+  
+  CADataType *dt = catype_get_by_name(node->symtable, id);
+  CHECK_GET_TYPE_VALUE(node, dt, id);
 
-  // TODO: may need generate struct llvm code here
+  // NEXT TODO: may need generate struct llvm code here
 }
 
 static void walk_typedef(ASTNode *node) {

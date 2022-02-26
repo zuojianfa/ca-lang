@@ -11,7 +11,7 @@ fn main() {
 
     struct BB { a: B1, b: i32 }
     struct B1 { a: B2, }
-    struct B2 { a: *B2, b: *A7, }
+    struct B2 { a: *B2, b: A7, }
 
     type PAA = *AA;
 
@@ -24,6 +24,4 @@ fn main() {
     let v5:  A5  = __zero_init__;
     let v6:  A6  = __zero_init__;
     let v7:  A7  = __zero_init__;
-
-    print 'g'; print 'o'; print 'o'; print 'd'; print '\n';
 }
