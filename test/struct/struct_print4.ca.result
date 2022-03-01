@@ -1,0 +1,4 @@
+A5 { a: A4 { e: (nil), g: (nil), f: (nil), h: (nil) }, b: (nil), c: (nil), d: (nil), e: (nil), f: 0 }
+good
+
+return value: 1

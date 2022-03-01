@@ -64,16 +64,18 @@ extern int yychar, yylineno;
   ASTNode *astnode; /* node pointer */
   DerefLeft deleft; /* represent dereference left value */
   ArrayItem aitem;  /* array item */
+  StructFieldOp structfieldop; /* struct field operation */
 };
 
 %token	<litb>		LITERAL STR_LITERAL
 %token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
-%token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM
-%token			ARROW INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
+%token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM
+%token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
 %nonassoc		IFX
 %nonassoc		ELSE
+%left			ARROW
 %left			GE LE EQ NE '>' '<'
 %left			'+' '-'
 %left			'*' '/'
@@ -97,6 +99,7 @@ extern int yychar, yylineno;
 %type	<tid>		data_type pointer_type array_type ident_type
 %type	<deleft>	deref_pointer
 %type	<aitem>		array_item
+%type	<structfieldop>	structfield_op
 
 %start program
 
@@ -178,6 +181,7 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
 	|	deref_pointer '=' expr ';' { $$ = make_deref_left_assign($1, $3); }
 	|	array_item '=' expr ';' { $$ = make_arrayitem_left_assign($1, $3); }
+	|	structfield_op '=' expr ';' { $$ = make_structfield_left_assign($1, $3); }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { dot_emit("stmt", "ifstmt"); $$ = $1; }
@@ -268,8 +272,12 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	SIZEOF '(' data_type ')'{ $$ = make_sizeof($3); }
 	|	deref_pointer         { $$ = make_deref($1.expr); }
 	|	'&' expr %prec UADDR  { $$ = make_address($2); }
-	|	expr '.' IDENT	      { $$ = make_element_field($1, $3); }
+	|	structfield_op        { $$ = make_structfield_right($1); }
 		;
+
+structfield_op:	expr '.' IDENT	      { $$ = make_element_field($1, $3, 1); }
+	|	expr ARROW IDENT      { $$ = make_element_field($1, $3, 0); }
+	;
 
 data_type:	ident_type            { $$ = $1; }
 	|	pointer_type          { $$ = $1; }

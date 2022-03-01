@@ -1,0 +1,12 @@
+(nil)
+AA { a: (nil) }
+A1 { a: (nil), b: 0 }
+A2 { a: A1 { a: (nil), b: 0 }, b: (nil) }
+A3 { a: (nil), b: A2 { a: A1 { a: (nil), b: 0 }, b: (nil) } }
+A4 { a: A3 { a: (nil), b: A2 { a: A1 { a: (nil), b: 0 }, b: (nil) } }, b: (nil) }
+A5 { a: (nil), b: A4 { a: A3 { a: (nil), b: A2 { a: A1 { a: (nil), b: 0 }, b: (nil) } }, b: (nil) } }
+A6 { a: A5 { a: (nil), b: A4 { a: A3 { a: (nil), b: A2 { a: A1 { a: (nil), b: 0 }, b: (nil) } }, b: (nil) } }, b: (nil) }
+A7 { a: (nil), b: BB { a: B1 { a: B2 { a: (nil), b: (nil) } }, b: 0 } }
+good
+
+return value: 1

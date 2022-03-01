@@ -44,6 +44,8 @@ typedef enum {
   TTE_DerefLeft,
   TTE_ArrayItemLeft,
   TTE_ArrayItemRight,
+  TTE_StructFieldOpLeft,
+  TTE_StructFieldOpRight,
   TTE_Num,
 } ASTNodeType;
 
@@ -180,6 +182,12 @@ typedef struct ArrayItem {
   void *indices;
 } ArrayItem, TArrayItem;
 
+typedef struct StructFieldOp {
+  struct ASTNode *expr;
+  int fieldname;
+  int direct; // direct: . op, indirect: -> op
+} StructFieldOp, TStructFieldOp;
+
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
@@ -207,6 +215,7 @@ typedef struct ASTNode {
     TArrayNode anoden;   /* array expresssion node */
     TDerefLeft deleftn;  /* dereference left node */
     TArrayItem aitemn;   /* array item operation: left or right */
+    TStructFieldOp sfopn;/* struct field operation */
   };
 } ASTNode;
 
@@ -293,11 +302,13 @@ ASTNode *make_vardef_zero_value();
 ASTNode *make_assign(int id, ASTNode *exprn);
 ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn);
 ASTNode *make_arrayitem_left_assign(ArrayItem ai, ASTNode *expr);
+ASTNode *make_structfield_left_assign(StructFieldOp sfop, ASTNode *exprn);
 ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_array_def(CAArrayExpr expr);
 ASTNode *make_arrayitem_right(ArrayItem ai);
+ASTNode *make_structfield_right(StructFieldOp sfop);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
@@ -309,7 +320,7 @@ ASTNode *make_sizeof(typeid_t type);
 typeid_t make_typeof(ASTNode *node);
 ASTNode *make_deref(ASTNode *expr);
 ASTNode *make_address(ASTNode *expr);
-ASTNode *make_element_field(ASTNode *node, int name);
+StructFieldOp make_element_field(ASTNode *node, int fieldname, int direct);
 ASTNode *make_stmt_list_zip();
 ArrayItem arrayitem_begin(int varname, ASTNode *expr);
 ArrayItem arrayitem_append(ArrayItem ai, ASTNode *expr);

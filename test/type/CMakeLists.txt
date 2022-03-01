@@ -46,7 +46,7 @@ do_test(type "good" ca struct1.ca)
 do_test(type "good" ca struct2.ca)
 do_test(type "(nil)" ca struct3.ca)
 do_test(type "good" ca struct4.ca)
-do_test(type "AA {}" ca struct_empty.ca)
+do_test(type "AA {  }" ca struct_empty.ca)
 do_test(type "AA  = 0\nA1  = 4\nA2  = 8\nA3  = 256\nA4  = 4\nA5  = 8\nA6  = 128\nA7  = 8\nA8  = 8\nA9  = 256\nA10 = 256\nA11 = 8\nA12 = 8192\nA13 = 128\nA14 = 8\nA15 = 4096\nA16 = 8192\nA17 = 8\nA18 = 262144\nA19 = 262144\nA20 = 8\nA21 = 8388608\nA22 = 8388608\nA23 = 8388608\nA24 = 8388864\nA25 = 16\nA26 = 776\n[*][\[][*]A26;6[\]] = 8\nA28 = 1056\n" ca struct_size2.ca)
 do_test(type "good" ca struct_use1.ca)
 do_test(type "good" ca struct_use2.ca) # the test will failed when not increase the stack size, using example: `ulimit -s 65536`

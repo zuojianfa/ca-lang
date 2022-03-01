@@ -1468,7 +1468,6 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<C
       currdt = nextdt;
       break;
     case STRUCT:
-      // NEXT TODO: handle catype status
       for (int i = 0; i < currdt->struct_layout->fieldnum; ++i) {
 	auto *&type = currdt->struct_layout->fields[i].type;
 	// when the field already expanded then do nothing
@@ -2210,6 +2209,9 @@ Value *tidy_value_with_arith(Value *v, int typetok) {
   if (typetok == F32)
     v = ir1.builder().CreateFPExt(v, ir1.float_type<double>());
 
+  if (typetok == BOOL)
+    v = ir1.builder().CreateZExt(v, ir1.int_type<int>());
+
   return v;
 }
 
@@ -2309,16 +2311,7 @@ static Type *gen_llvmtype_from_catype_inner(CADataType *catype, std::map<CADataT
     rcheck.erase(catype);
     sttype->setBody(fields, pack);
 
-    // static StructType *create(LLVMContext &Context, StringRef Name);
-    // static StructType *create(LLVMContext &Context);
-
-    // static StructType *create(ArrayRef<Type *> Elements, StringRef Name,
-    // 			      bool isPacked = false);
-    // static StructType *create(ArrayRef<Type *> Elements);
-    // static StructType *create(LLVMContext &Context, ArrayRef<Type *> Elements,
-    // 			      StringRef Name, bool isPacked = false);
-    // static StructType *create(LLVMContext &Context, ArrayRef<Type *> Elements);
-
+    // following code generated unnamed struct, but not used yet
     //StructType *sttype = StructType::get(ir1.ctx(), fields, pack);
     return sttype;
   }
@@ -2438,29 +2431,6 @@ Value *gen_array_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
   //GlobalValue *g = ir1.gen_global_var(arraytype, "constarray", arrayconst, true);
 
   return arrayconst;
-
-  // AllocaInst::ZExt;
-  // ir1.builder().CreateInst
-  // ConstantStruct::get();
-  //ir1.builder().CreateAlloca();
-  // llvm::ConstantArray
-  //Constant::getOperand();
-
-  // makeArrayRef();
-  // MDStringArray::
-  // MDNodeArray::get();
-  // MDTupleArray;
-
-
-  // ConstantDataArray::get();
-  // ConstantArray::get(); //(ArrayType *T, ArrayRef<Constant *> V);
-  // TODO:
-  //ConstantArray::get(ArrayType *T, ArrayRef<Constant *> V);
-  //ConstantDataArray;
-  //FeatureBitArray;
-
-  yyerror("the array literal not implemented yet");
-  return nullptr;
 }
 
 Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {

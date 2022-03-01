@@ -607,8 +607,16 @@ ASTNode *make_array_def(CAArrayExpr expr) {
 ASTNode *make_arrayitem_right(ArrayItem ai) {
   ASTNode *p = new_ASTNode(TTE_ArrayItemRight);
   p->aitemn = ai;
-  p->symtable = curr_symtable;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   ASTNode *node = make_expr(ARRAYITEM, 1, p);
+  return node;
+}
+
+ASTNode *make_structfield_right(StructFieldOp sfop) {
+  ASTNode *p = new_ASTNode(TTE_StructFieldOpRight);
+  p->sfopn = sfop;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  ASTNode *node = make_expr(STRUCTITEM, 1, p);
   return node;
 }
 
@@ -741,6 +749,15 @@ ASTNode *make_arrayitem_left_assign(ArrayItem ai, ASTNode *exprn) {
   return p;
 }
 
+ASTNode *make_structfield_left_assign(StructFieldOp sfop, ASTNode *exprn) {
+  ASTNode *sfopn = new_ASTNode(TTE_StructFieldOpLeft);
+  sfopn->sfopn = sfop;
+  set_address(sfopn, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+
+  ASTNode *p = make_assign_common(sfopn, exprn);
+  return p;
+}
+
 ASTNode *make_goto(int labelid) {
   dot_emit("stmt", "GOTO label_id");
   /* because the label name can using the same name as other names (variable, function, etc)
@@ -798,7 +815,39 @@ ASTNode *make_label_def(int labelid) {
   return make_label_node(lpos);
 }
 
-// TODO: check if these should return typeid_t or tokenid_t
+static typeid_t get_structfield_expr_type_from_tree(ASTNode *node) {
+  typeid_t objtype = get_expr_type_from_tree(node->sfopn.expr);
+  if (objtype == typeid_novalue)
+    return typeid_novalue;
+
+  CADataType *catype = catype_get_by_name(node->symtable, objtype);
+  CHECK_GET_TYPE_VALUE(node, catype, objtype);
+  // it's a pointer type
+  if (!node->sfopn.direct) {
+    if (catype->type != POINTER) {
+      yyerror("line: %d, col: %d: member reference `%s` is not a pointer type; try '.'?",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(catype->signature));
+      return typeid_novalue;
+    }
+
+    assert(catype->pointer_layout->dimension == 1);
+    catype = catype->pointer_layout->type;
+  }
+
+  if (catype->type != STRUCT) {
+    yyerror("line: %d, col: %d: member reference `%s` is not a struct type",
+	    node->begloc.row, node->begloc.col, catype_get_type_name(catype->signature));
+    return typeid_novalue;
+  }
+
+  for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
+    if (catype->struct_layout->fields[i].name == node->sfopn.fieldname)
+      return catype->struct_layout->fields[i].type->signature;
+  }
+
+  return typeid_novalue;
+}
+
 typeid_t get_expr_type_from_tree(ASTNode *node) {
   switch (node->type) {
   case TTE_Literal:
@@ -846,6 +895,8 @@ typeid_t get_expr_type_from_tree(ASTNode *node) {
 
     return catype->signature;
   }
+  case TTE_StructFieldOpLeft:
+    return get_structfield_expr_type_from_tree(node);
   case TTE_As:
     return node->exprasn.type;
   case TTE_Expr:
@@ -942,6 +993,14 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     }
 
     type1 = catype->signature;
+    break;
+  }
+  case STRUCTITEM: {
+    assert(node->exprn.noperand == 1);
+    ASTNode *p = node->exprn.operands[0];
+    assert(p->type == TTE_StructFieldOpRight);
+    inference_expr_type(p->sfopn.expr);
+    type1 = get_structfield_expr_type_from_tree(p);
     break;
   }
   case FN_CALL: {
@@ -1127,11 +1186,8 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     break;
   }
   case ARRAYITEM: {
-    //yyerror("line: %d, col: %d: arrayitem operation should not determine the type, the array type should already be determined",
-    //	    node->begloc.row, node->begloc.col);
-    //return -1;
-
-    // or using following checking
+    // arrayitem operation should not determine the type, the array type should already be determined
+    // following just do some checks
     assert(node->exprn.noperand == 1);
     ASTNode *right = node->exprn.operands[0];
     assert(right->type == TTE_ArrayItemRight);
@@ -1156,6 +1212,22 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
       return -1;
     }
 
+    break;
+  }
+  case STRUCTITEM: {
+    // structitem operation should not determine the type, the struct type should already be determined
+    // following just do some checks
+    assert(node->exprn.noperand == 1);
+    ASTNode *p = node->exprn.operands[0];
+    assert(p->type == TTE_StructFieldOpRight);
+    inference_expr_type(p->sfopn.expr);
+    typeid_t origtype = get_structfield_expr_type_from_tree(p);
+    if (origtype != type) {
+      yyerror("line: %d, col: %d: determined type `%s` not compatible with original one `%s`",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(type), catype_get_type_name(origtype));
+
+      return -1;
+    }
     break;
   }
   case FN_CALL: {
@@ -1930,9 +2002,9 @@ ASTNode *make_address(ASTNode *expr) {
   return node;
 }
 
-ASTNode *make_element_field(ASTNode *node, int name) {
-  // TODO:
-  return NULL;
+StructFieldOp make_element_field(ASTNode *expr, int fieldname, int direct) {
+  StructFieldOp sfop = {expr, fieldname, direct};
+  return sfop;
 }
 
 typedef struct ASTNodeList {

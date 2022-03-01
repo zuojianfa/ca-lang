@@ -362,14 +362,16 @@ static Value *extract_value_from_array(ASTNode *node) {
   assert(node->type == TTE_ArrayItemLeft || node->type == TTE_ArrayItemRight);
   STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
   CADataType *arraycatype = catype_get_by_name(node->symtable, entry->u.var->datatype);
+  CHECK_GET_TYPE_VALUE(node, arraycatype, entry->u.var->datatype);
+
   void *indices = node->aitemn.indices;
   size_t size = vec_size(indices);
   std::vector<Value *> vindices;
   CADataType *catype = arraycatype;
   vindices.push_back(ir1.gen_int(0));
 
-  // TODO: how to check the index is in scope of an array?
-  // answer: when the index is not constant, only can through runtime checking, e.g.
+  // Question: how to check the index is in scope of an array?
+  // Answer: when the index is not constant, only can through runtime checking, e.g.
   // insert index scope checking code into generated code, (convert array bound into
   // llvm::Value object, and insert code to compare the index value and the bound value
   // print error or exit when out of bound
@@ -401,6 +403,64 @@ static Value *extract_value_from_array(ASTNode *node) {
   return arrayitemvalue;
 }
 
+static Value *extract_value_from_struct(ASTNode *node) {
+  assert(node->type == TTE_StructFieldOpLeft || node->type == TTE_StructFieldOpRight);
+  typeid_t structtype = get_expr_type_from_tree(node->sfopn.expr);
+  //typeid_t fieldtype = get_expr_type_from_tree(node);
+  CADataType *structcatype = catype_get_by_name(node->symtable, structtype);
+  CHECK_GET_TYPE_VALUE(node, structcatype, structtype);
+
+  if (!node->sfopn.direct) {
+    if (structcatype->type != POINTER) {
+      yyerror("line: %d, col: %d: get struct field indirectly need a pointer to struct type, but find `%s`",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(structcatype->signature));
+      return nullptr;
+    }
+
+    assert(structcatype->pointer_layout->dimension == 1);
+    structcatype = structcatype->pointer_layout->type;
+  }
+
+  if (structcatype->type != STRUCT) {
+    yyerror("line: %d, col: %d: get struct field directly need a struct type, but find `%s`",
+	    node->begloc.row, node->begloc.col, catype_get_type_name(structcatype->signature));
+    return nullptr;
+  }
+
+  int fieldindex = 0;
+  for (; fieldindex < structcatype->struct_layout->fieldnum; ++fieldindex) {
+    if (structcatype->struct_layout->fields[fieldindex].name == node->sfopn.fieldname)
+      break;
+  }
+
+  if (fieldindex == structcatype->struct_layout->fieldnum) {
+    yyerror("line: %d, col: %d: cannot find field `%s` of struct `%s`",
+	    node->begloc.row, node->begloc.col, symname_get(node->sfopn.fieldname),
+	    catype_get_type_name(structcatype->signature));
+    return nullptr;   
+  }
+
+  walk_stack(node->sfopn.expr);
+  auto pair = pop_right_value("sf", !node->sfopn.direct);
+  if (!node->sfopn.direct)
+    assert(pair.second->type == POINTER && pair.second->pointer_layout->type->signature == structcatype->signature);
+  else
+    assert(pair.second->signature == structcatype->signature);
+  
+  // extract field value from struct value
+  std::vector<Value *> vindices;
+  vindices.push_back(ir1.gen_int(0));
+  // if (!node->sfopn.direct)
+  //   vindices.push_back(ir1.gen_int(0));
+
+  vindices.push_back(ir1.gen_int(fieldindex));
+
+  //Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
+  // structfieldvalue: is an alloc memory address, so following can store value into it
+  Value *structfieldvalue = ir1.builder().CreateInBoundsGEP(pair.first, vindices);
+  return structfieldvalue;
+}
+
 // generate variable, if in a function then it is a local variable, when not in
 // a function but `-nomain` is specified then generate a global variable else
 // also generate a global variable for other use
@@ -424,7 +484,7 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, bool zeroinitial = fa
     }
   } else {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
-    const char *typestr = catype_get_type_name(idtype->signature);;
+    const char *typestr = catype_get_type_name(idtype->signature);
 
     // here determine if `#[scope(global)]` is specified
     if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
@@ -446,6 +506,9 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, bool zeroinitial = fa
         break;
       case TTE_ArrayItemLeft:
 	var = extract_value_from_array(p);
+	break;
+      case TTE_StructFieldOpLeft:
+	var = extract_value_from_struct(p);
 	break;
       default:
 	break;
@@ -946,16 +1009,9 @@ static void walk_assign(ASTNode *p) {
   CADataType *dt = nullptr;
   switch (idn->type) {
   case TTE_Id:
-    dt = catype_get_by_name(p->symtable, idn->entry->u.var->datatype);
-    CHECK_GET_TYPE_VALUE(p, dt, idn->entry->u.var->datatype);
-    break;
-  case TTE_DerefLeft: {
-    typeid_t id = get_expr_type_from_tree(idn);
-    dt = catype_get_by_name(idn->deleftn.expr->symtable, id);
-    CHECK_GET_TYPE_VALUE(p, dt, id);
-    break;
-  }
-  case TTE_ArrayItemLeft: {
+  case TTE_DerefLeft:
+  case TTE_ArrayItemLeft:
+  case TTE_StructFieldOpLeft: {
     typeid_t id = get_expr_type_from_tree(idn);
     dt = catype_get_by_name(idn->symtable, id);
     CHECK_GET_TYPE_VALUE(p, dt, id);
@@ -1399,6 +1455,19 @@ static void walk_expr_arrayitem(ASTNode *p) {
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, arrayitemvalue, arrayitemcatype));
 }
 
+static void walk_expr_structitemop(ASTNode *p) {
+  assert(p->exprn.noperand == 1);
+  ASTNode *anode = p->exprn.operands[0];
+  assert(anode->type == TTE_StructFieldOpRight);
+
+  inference_expr_type(p);
+  CADataType *arrayitemcatype = catype_get_by_name(anode->symtable, p->exprn.expr_type);
+  CHECK_GET_TYPE_VALUE(anode, arrayitemcatype, p->exprn.expr_type);
+
+  Value *arrayitemvalue = extract_value_from_struct(anode);
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, arrayitemvalue, arrayitemcatype));
+}
+
 static void walk_deref(ASTNode *rexpr) {
   ASTNode *expr = rexpr->exprn.operands[0];
   walk_stack(expr);
@@ -1447,6 +1516,9 @@ static void walk_expr(ASTNode *p) {
     break;
   case ARRAYITEM:
     walk_expr_arrayitem(p);
+    break;
+  case STRUCTITEM:
+    walk_expr_structitemop(p);
     break;
   case AS:
     walk_stack(p->exprn.operands[0]);
@@ -1679,14 +1751,13 @@ static Function *walk_fn_define(ASTNode *p) {
 }
 
 static void walk_struct(ASTNode *node) {
+  // only check struct definition, but not generate Type object
+
   STEntry *entry = node->entry;
-  //CADataType *dt = entry->u.datatype;
   typeid_t id = entry->u.datatype.id;
   
   CADataType *dt = catype_get_by_name(node->symtable, id);
   CHECK_GET_TYPE_VALUE(node, dt, id);
-
-  // NEXT TODO: may need generate struct llvm code here
 }
 
 static void walk_typedef(ASTNode *node) {

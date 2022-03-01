@@ -57,4 +57,5 @@ add_subdirectory(type)
 add_subdirectory(string)
 add_subdirectory(pointer)
 add_subdirectory(array)
+add_subdirectory(struct)
 
