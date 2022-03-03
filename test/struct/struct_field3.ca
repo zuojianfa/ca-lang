@@ -1,0 +1,47 @@
+struct AA {
+    nn1: i32,
+    nn2: bool,
+}
+
+struct A1 {
+    bbb: AA,
+    aaa: i32,
+}
+
+struct A2 {
+    bbb: A1,
+    aab: f32,
+}
+
+struct A3 {
+    cca: A2,
+    def: f32,
+}
+
+type AC = A3;
+type pAC = *A3;
+
+fn main() {
+    let aa: AA = __zero_init__;
+    let a1: A1 = __zero_init__;
+    let a2: A2 = __zero_init__;
+    let a3: A3 = __zero_init__;
+
+    aa.nn1 = 33;
+    aa.nn2 = false;
+    print aa; print '\n';
+
+    a1.aaa = 34;
+    a1.bbb = aa;
+    print a1; print '\n';
+
+    a2.aab = 3.1415926;
+    a2.bbb = a1;
+    print a2; print '\n';
+
+    a3.cca = a2;
+    a3.def = 9394.556;
+    print a3; print '\n';
+    
+}
+

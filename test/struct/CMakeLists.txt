@@ -5,5 +5,7 @@ do_testf(struct "struct_print3.ca.result" "struct_print3.ca.result.tmp" ca struc
 do_testf(struct "struct_print4.ca.result" "struct_print4.ca.result.tmp" ca struct_print4.ca struct_print4.ca.result.tmp)
 do_testf(struct "struct_print5.ca.result" "struct_print5.ca.result.tmp" ca struct_print5.ca struct_print5.ca.result.tmp)
 do_test(struct "AA { n1: 111, n2: 222, n3: 333 }\n111 222 333 \nA2 { a: 32, b: 64, c: 32, d: 32.220001, e: 64.640000, f: 1, g: A, h: 3 }\nA4 { aa: 88, b: 0x32, c: 0x3232, d: 0x123453232, h: 0x123453232 }\nA4 { aa: 88, b: 0x32, c: 0x3232, d: 0x123453232, h: 0x133453232 }\n0x3232" ca struct_field1.ca)
-do_test(struct "good" ca struct_field2.ca)
+do_test(struct "AA { n1: 111, n2: 222, n3: 333 }\n111 222 333 \nA2 { a: 32, b: 64, c: 32, d: 32.220001, e: 64.640000, f: 1, g: A, h: 3 }\nA2 { a: 32, b: 64, c: 32, d: 32.220001, e: 160.639999, f: 1, g: A, h: 3 }\nA4 { aa: 88, b: 0x32, c: 0x3232, d: 0x123453232, h: 0x123453232 }\nA4 { aa: 88, b: 0x32, c: 0x3232, d: 0x123453232, h: 0x133453232 }\n0x3232\n" ca struct_field2.ca)
+do_test(struct "AA { nn1: 33, nn2: 0 }\nA1 { bbb: AA { nn1: 33, nn2: 0 }, aaa: 34 }\nA2 { bbb: A1 { bbb: AA { nn1: 33, nn2: 0 }, aaa: 34 }, aab: 3.141593 }\nA3 { cca: A2 { bbb: A1 { bbb: AA { nn1: 33, nn2: 0 }, aaa: 34 }, aab: 3.141593 }, def: 9394.555664 }\n" ca struct_field3.ca)
+do_test(struct "AA { n1: 33 }\nA1 { a: AA { n1: 33 } }\n\n33\nAA { n1: 33 }\nA1 { a: AA { n1: 33 } }\n33\nAA { n1: 33 }\nA1 { a: AA { n1: 33 } }\n" ca struct_field4.ca)
 

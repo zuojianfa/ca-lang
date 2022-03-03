@@ -75,13 +75,12 @@ extern int yychar, yylineno;
 %token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
 %nonassoc		IFX
 %nonassoc		ELSE
-%left			ARROW
 %left			GE LE EQ NE '>' '<'
 %left			'+' '-'
 %left			'*' '/'
 %left			AS
 %right			'&'
-%left			'.'
+%left			'.' ARROW
 %nonassoc		UMINUS UDEREF UADDR
 %type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def
 //			%type	<arraylitv>	lit_array_list lit_array_def
