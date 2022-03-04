@@ -3,13 +3,25 @@ struct A1 {  a: AA,  }
 struct A2 {  b: *AA, }
 
 fn main() {
-    //let aa: AA = __zero_init__;
+    let aa: AA = __zero_init__;
     let a1: A1 = __zero_init__;
-    // aa.n1 = 33;
-    // a1.a = aa;
-    // print a1; print "\n";
+    aa.n1 = 33;
+    a1.a = aa;
+    print a1; print "\n";
 
     a1.a.n1 = 66;
-//    print a1; print "\n";
+    print a1; print "\n";
+
+    let va1 = a1.a.n1;
+    va1 = a1.a.n1 * 2;
+    print va1; print "\n";
+    a1.a.n1 = va1 + 1;
+    let pa1 = &a1;
+    print *pa1; print "\n";
+    pa1->a.n1 = 3;
+    print *pa1; print "\n";
+    (*pa1).a = aa;
+    let va = (*pa1).a;
+    print va;
 }
 

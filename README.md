@@ -266,12 +266,19 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] test/struct struct dbgprint function to test, implement struct members fetch store functionality
+  - [ ] struct literal, construct
+  - [ ] multiple deep struct element
+  - [ ] struct with array element
+  - [ ] array of struct element
+  `static Value *extract_value_from_struct(ASTNode *node)` handle right left/right llvm::Value *
   ```
-	120 - type46-struct_empty.ca (Failed)
 	123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
   ```
 - [ ] support struct literal
 - [ ] support struct member operation 
+- [ ] function with array parameter
+- [ ] function with pointer parameter
+- [ ] function with struct parameter
 - [ ] UCHAR -> U8, CHAR -> I8
 - [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
 - [ ] implement following functions: 

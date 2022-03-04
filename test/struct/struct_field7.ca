@@ -1,0 +1,39 @@
+struct AA { n1: i32, }
+struct A1 {  a: AA,  }
+struct A2 {  b: *AA, }
+
+fn main() {
+    let aa: AA = __zero_init__;
+    let a1: A1 = __zero_init__;
+    aa.n1 = 33;
+    a1.a = aa;
+    print a1; print "\n";
+
+    a1.a = aa;
+    a1.a.n1 = 4326;
+    aa = a1.a;
+    print aa; print "\n";
+    print a1; print "\n";
+
+    let a2: A2 = __zero_init__;
+    print a2; print "\n";
+
+    a2.b = 0x1234567890u64 as *AA;
+    print a2; print "\n";
+    a2.b = &aa;
+    print *a2.b; print "\n";
+    let pa2 = &a2;
+    print *pa2->b; print "\n";
+    print *(pa2->b); print "\n";
+    aa.n1 = 0x10000;
+    *(pa2->b) = aa;
+    print *(pa2->b); print "\n";
+    print pa2->b->n1; print ' ';
+    pa2->b->n1 = 1;
+    print pa2->b->n1; print ' ';
+    (*pa2).b->n1 = 336;
+    print pa2->b->n1; print ' ';
+    (*pa2).b->n1 = (*pa2).b->n1 * 2;
+    print pa2->b->n1; print ' ';
+}
+

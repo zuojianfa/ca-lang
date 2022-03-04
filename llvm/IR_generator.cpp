@@ -252,41 +252,6 @@ static int is_valued_expr(int op) {
   return (op != DBGPRINT && op != RET && op != DBGPRINTTYPE);
 }
 
-#if 0
-static void post_make_expr(ASTNode *p) {
-  int i = 0;
-  int op = p->exprn.op;
-  int check_type = is_valued_expr(op);
-  int noperands = p->exprn.noperand;
-  if (!check_type)
-    return;
-
-  int expr_len = noperands;
-  typeid_t *expr_types = (int *)alloca(noperands * sizeof(typeid_t));
-
-  switch(op) {
-  case FN_CALL: {
-    ASTNode *idn = p->exprn.operands[0];
-    STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-    expr_types[0] = entry->u.f.rettype;
-    expr_len = 1;
-    break;
-  }
-  default:
-    for (i = 0; i < noperands; i++) {
-      if (p->exprn.operands[i]->type == TTE_Expr &&
-	  p->exprn.operands[i]->exprn.expr_type == typeid_novalue)
-	post_make_expr(p->exprn.operands[i]);
-
-      expr_types[i] = get_expr_type_from_tree(p->exprn.operands[i]);
-    }
-    break;
-  }
-
-  p->exprn.expr_type = reduce_node_and_type(p, expr_types, expr_len);
-}
-#endif
-
 static void walk_empty(ASTNode *p) {}
 
 static Value *aux_set_zero_to_store(Type *type, Value *var) {
@@ -984,12 +949,30 @@ static void inference_assign_type(ASTNode *idn, ASTNode *exprn) {
   expr_types[0] = get_expr_type_from_tree(idn);
   expr_types[1] = get_expr_type_from_tree(exprn);
 
+  if (expr_types[0] != typeid_novalue) {
+    CADataType *idncatype = catype_get_by_name(idn->symtable, expr_types[0]);
+    CHECK_GET_TYPE_VALUE(idn, idncatype, expr_types[0]);
+    expr_types[0] = idncatype->signature;
+  }
+
+  if (expr_types[1] != typeid_novalue) {
+    CADataType *idncatype = catype_get_by_name(exprn->symtable, expr_types[1]);
+    CHECK_GET_TYPE_VALUE(idn, idncatype, expr_types[1]);
+    expr_types[1] = idncatype->signature;
+  }
+
   if (expr_types[0] == typeid_novalue && expr_types[1] == typeid_novalue) {
     expr_types[1] = inference_expr_type(exprn);
     if (expr_types[1] == typeid_novalue) {
       yyerror("line: %d, column: %d, inference expression type failed",
 	      exprn->begloc.row, exprn->begloc.col);
     }
+
+    // if (expr_types[1] != typeid_novalue) {
+    //   CADataType *idncatype = catype_get_by_name(idn->symtable, expr_types[1]);
+    //   CHECK_GET_TYPE_VALUE(idn, idncatype, expr_types[1]);
+    //   expr_types[1] = idncatype->signature;
+    // }
   }
   
   reduce_node_and_type_group(group, expr_types, 2);
@@ -1122,8 +1105,10 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
       determine_expr_type(expr, formaltype);
 
     realtype = get_expr_type_from_tree(expr);
-    if (formaltype == typeid_novalue)
-      formaltype = realtype;    
+    if (formaltype == typeid_novalue && realtype != typeid_novalue) {
+      CADataType *catype = catype_get_by_name(expr->symtable, realtype);
+      formaltype = catype->signature;
+    }
 
     // check the formal parameter and actual parameter type
     if (!catype_check_identical_in_symtable(name->symtable, realtype, param->symtable, formaltype)) {
@@ -1193,8 +1178,9 @@ static void walk_ret(ASTNode *p) {
   if (p->retn.expr) {
     ASTNode *retn = p->retn.expr;
     typeid_t retid = curr_fn_node->fndefn.fn_decl->fndecln.ret;
-
-    determine_expr_type(retn, retid);
+    CADataType *retcatype = catype_get_by_name(p->symtable, retid);
+    CHECK_GET_TYPE_VALUE(p, retcatype, retid);
+    determine_expr_type(retn, retcatype->signature);
     if (retn->type == TTE_Literal && !retn->litn.litv.fixed_type) {
       auto itr = function_map.find(curr_fn->getName().str());
       CADataType *retdt = catype_get_by_name(p->symtable, itr->second->fndecln.ret);
@@ -1468,10 +1454,10 @@ static void walk_expr_structitemop(ASTNode *p) {
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, arrayitemvalue, arrayitemcatype));
 }
 
-static void walk_deref(ASTNode *rexpr) {
+static void walk_expr_deref(ASTNode *rexpr) {
   ASTNode *expr = rexpr->exprn.operands[0];
   walk_stack(expr);
-  auto pair = pop_right_value("deref");
+  auto pair = pop_right_value("deref", false);
   if (pair.second->type != POINTER) {
     yyerror("line: %d, col: %d:  cannot deref type `%s`",
 	    rexpr->begloc.row, rexpr->begloc.col,
@@ -1483,11 +1469,15 @@ static void walk_deref(ASTNode *rexpr) {
   rexpr->exprn.expr_type = pair.second->pointer_layout->type->signature;
 
   Value *v = ir1.builder().CreateLoad(pair.first, "deref");
-  auto u = std::make_unique<CalcOperand>(OT_Load, v, pair.second->pointer_layout->type);
+  OperandType ot = OT_Alloc;
+  if (!v->getType()->isPointerTy())
+      ot = OT_Calc;
+
+  auto u = std::make_unique<CalcOperand>(ot, v, pair.second->pointer_layout->type);
   oprand_stack.push_back(std::move(u));
 }
 
-static void walk_address(ASTNode *aexpr) {
+static void walk_expr_address(ASTNode *aexpr) {
   ASTNode *expr = aexpr->exprn.operands[0];
   if (expr->type != TTE_Id) {
     yyerror("line: %d, col: %d: cannot get address of not a variable, type: `%d`",
@@ -1504,8 +1494,6 @@ static void walk_address(ASTNode *aexpr) {
 }
 
 static void walk_expr(ASTNode *p) {
-  //post_make_expr(p);
-  
   // not allow global assign value, global variable definition is not assign
   if (!curr_fn)
     return;
@@ -1550,10 +1538,10 @@ static void walk_expr(ASTNode *p) {
     walk_expr_ife(p->exprn.operands[0]);
     break;
   case DEREF:
-    walk_deref(p);
+    walk_expr_deref(p);
     break;
   case ADDRESS:
-    walk_address(p);
+    walk_expr_address(p);
     break;
   default:
     walk_expr_op2(p);

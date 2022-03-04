@@ -235,7 +235,6 @@ typedef struct RootTree {
   int count;
 } RootTree;
 
-int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands);
 int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum);
 int parse_lexical_char(const char *text);
 int enable_emit_main();

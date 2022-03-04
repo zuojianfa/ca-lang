@@ -305,18 +305,14 @@ void add_fn_args_p(ST_ArgList *arglist, int varg) {
 ASTNode *make_stmt_print(ASTNode *expr) {
   ASTNode *p = new_ASTNode(TTE_DbgPrint);
   p->printn.expr = expr;
-  p->begloc = expr->begloc;
-  p->endloc = expr->endloc;
-  p->symtable = curr_symtable;
+  set_address(p, &expr->begloc, &expr->endloc);
   return p;
 }
 
 ASTNode *make_stmt_print_datatype(typeid_t tid) {
   ASTNode *p = new_ASTNode(TTE_DbgPrintType);
   p->printtypen.type = tid;
-  p->begloc = (SLoc){glineno, gcolno};
-  p->endloc = (SLoc){glineno, gcolno};
-  p->symtable = curr_symtable;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   return p;  
 }
 
@@ -336,6 +332,7 @@ ASTNode *make_stmt_ret_expr(ASTNode *expr) {
 
   ASTNode *p = new_ASTNode(TTE_Ret);
   p->retn.expr = expr;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   return p;
 }
 
@@ -345,6 +342,7 @@ ASTNode *make_stmt_ret() {
 
   ASTNode *p = new_ASTNode(TTE_Ret);
   p->retn.expr = NULL;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   return p;
 }
 
@@ -600,6 +598,7 @@ ASTNode *make_array_def(CAArrayExpr expr) {
   ASTNode *p = new_ASTNode(TTE_ArrayDef);
   p->anoden.aexpr = expr;
   p->symtable = curr_symtable;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   ASTNode *node = make_expr(ARRAY, 1, p);
   return node;
 }
@@ -694,17 +693,14 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global) {
   ASTNode *p = new_ASTNode(TTE_Assign);
   p->assignn.id = idn;
   p->assignn.expr = exprn;
-  p->begloc = idn->begloc;
-  p->endloc = exprn->endloc;
+  set_address(p, &idn->begloc, &exprn->endloc);
   p->symtable = symtable;
   return p;
 }
 
 ASTNode *make_vardef_zero_value() {
   ASTNode *p = new_ASTNode(TTE_VarDefZeroValue);
-  p->begloc = (SLoc){glineno, gcolno};
-  p->endloc = (SLoc){glineno, gcolno};
-  p->symtable = curr_symtable;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   return p;
 }
 
@@ -712,9 +708,7 @@ static ASTNode *make_assign_common(ASTNode *left, ASTNode *right) {
   ASTNode *p = new_ASTNode(TTE_Assign);
   p->assignn.id = left;
   p->assignn.expr = right;
-  p->begloc = left->begloc;
-  p->endloc = right->endloc;
-  p->symtable = curr_symtable;
+  set_address(p, &left->begloc, &right->endloc);
   return p;
 }
 
@@ -816,6 +810,7 @@ ASTNode *make_label_def(int labelid) {
 }
 
 static typeid_t get_structfield_expr_type_from_tree(ASTNode *node) {
+  inference_expr_type(node->sfopn.expr);
   typeid_t objtype = get_expr_type_from_tree(node->sfopn.expr);
   if (objtype == typeid_novalue)
     return typeid_novalue;
@@ -1180,7 +1175,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     for (size_t i = 0; i < size; ++i) {
       ASTNode *subnode = arrayexpr_get(aexpr, i);
       CADataType *subcatype = determinedcatype->array_layout->type;
-      determine_expr_type(subnode, subcatype->signature);     
+      determine_expr_type(subnode, subcatype->signature);
     }
 
     break;
@@ -1271,10 +1266,12 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
       return -1;
     }
 
-    if (idnode->entry->u.var->datatype != datatype->pointer_layout->type->signature) {
+    CADataType *idcatype = catype_get_by_name(idnode->symtable, idnode->entry->u.var->datatype);
+
+    if (idcatype->signature != datatype->pointer_layout->type->signature) {
       yyerror("line: %d, col: %d: variable address type `%s` cannot be type of `%s`",
 	      node->begloc.row, node->begloc.col,
-	      catype_get_type_name(idnode->entry->u.var->datatype),
+	      catype_get_type_name(idcatype->signature),
 	      catype_get_type_name(datatype->pointer_layout->type->signature));
       return -1;
     }
@@ -1466,45 +1463,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
 // expression, when all part are not determined then not determine the type
 // when in walk stage the assignment statement will determine the variable's
 // type and the right expression's type when the expression's type not
-// determined
-int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands) {
-  // check if exist type in the each node and type is conflicting for each node
-  // but here cannot create literal value when the value not determined a type
-  // because it may be a tree, or can make the type by tranverlling the tree?
-  // The answer is yes, here can determine the literal type when the expression
-  // exists an fixed type part
-  typeid_t type1 = typeid_novalue;
-  int typei = 0;
-  int notypeid = 0;
-  int *nonfixed_node = (int *)alloca(noperands * sizeof(int));
-  for (int i = 0; i < noperands; ++i) {
-    if (expr_types[i] != typeid_novalue) {
-      nonfixed_node[i] = 0;
-      if (type1 == typeid_novalue) {
-	type1 = expr_types[i];
-	typei = i;
-      } else if (!catype_check_identical_in_symtable(p->symtable, type1, p->symtable, expr_types[i])) {
-	yyerror("line: %d, col: %d: type name conflicting: '%s' of type '%s', '%s' of type '%s'",
-		p->begloc.col, p->begloc.row,
-		get_node_name_or_value(p->exprn.operands[typei]), symname_get(type1),
-		get_node_name_or_value(p->exprn.operands[i]), symname_get(expr_types[i]));
-	return 0;
-      }
-    } else {
-      nonfixed_node[i] = 1;
-    }
-  }
-
-  // when the expression have any fixed type node
-  for (int i = 0; i < noperands; ++i) {
-    if (nonfixed_node[i]) {
-      determine_expr_type(p->exprn.operands[i], type1);
-    }
-  }
-
-  return type1;
-}
-
+// determined: int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands)
 int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum) {
   // check if exist type in the each node and type is conflicting for each node
   // but here cannot create literal value when the value not determined a type
@@ -1662,9 +1621,11 @@ ASTNode *build_mock_main_fn_node() {
   
   decl->fndecln.is_extern = 0;
 
+  set_address(decl, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   ASTNode *p = new_ASTNode(TTE_FnDef);
   p->fndefn.fn_decl = decl;
   p->fndefn.stmts = NULL;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
 
   return p;
 }

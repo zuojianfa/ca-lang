@@ -11,10 +11,10 @@ enum OperandType {
   OT_Const,
   OT_Calc,
   OT_Load,
-  OT_Store,
+  OT_Store,    // not used yet
   OT_Alloc,
-  OT_CallInst,
-  OT_PHINode,
+  OT_CallInst, // use as return value
+  OT_PHINode,  // not used yet
 };
 
 struct CalcOperand {

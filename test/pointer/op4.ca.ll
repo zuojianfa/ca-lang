@@ -132,22 +132,22 @@ entry:
   %n54 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @28, i32 0, i32 0), i32 %load53)
   %n55 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @29, i32 0, i32 0), i8 10)
   %deref56 = load i32**, i32*** %ppa, align 8
-  %deref57 = load i32*, i32** %deref56, align 8
+  %tmpexpr = load i32*, i32** %deref56, align 8
   %e = alloca i32*, align 8
-  store volatile i32* %deref57, i32** %e, align 8
-  %deref58 = load i32**, i32*** %ppa, align 8
-  %deref59 = load i32*, i32** %deref58, align 8
-  %n60 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @30, i32 0, i32 0), i32* %deref59)
-  %n61 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @31, i32 0, i32 0), i8 10)
-  %deref62 = load i32**, i32*** %ppa, align 8
-  %deref63 = load i32*, i32** %deref62, align 8
-  %pop64 = getelementptr i32, i32* %deref63, i32 1
-  %deref65 = load i32, i32* %pop64, align 4
+  store volatile i32* %tmpexpr, i32** %e, align 8
+  %deref57 = load i32**, i32*** %ppa, align 8
+  %load58 = load i32*, i32** %deref57, align 8
+  %n59 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @30, i32 0, i32 0), i32* %load58)
+  %n60 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @31, i32 0, i32 0), i8 10)
+  %deref61 = load i32**, i32*** %ppa, align 8
+  %v162 = load i32*, i32** %deref61, align 8
+  %pop63 = getelementptr i32, i32* %v162, i32 1
+  %deref64 = load i32, i32* %pop63, align 4
   %f = alloca i32, align 4
-  store volatile i32 %deref65, i32* %f, align 4
-  %load66 = load i32, i32* %f, align 4
-  %n67 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @32, i32 0, i32 0), i32 %load66)
-  %n68 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @33, i32 0, i32 0), i8 10)
+  store volatile i32 %deref64, i32* %f, align 4
+  %load65 = load i32, i32* %f, align 4
+  %n66 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @32, i32 0, i32 0), i32 %load65)
+  %n67 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @33, i32 0, i32 0), i8 10)
   br label %ret
 
 ret:                                              ; preds = %entry
