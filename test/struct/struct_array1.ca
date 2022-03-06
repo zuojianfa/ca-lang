@@ -1,0 +1,12 @@
+struct AA {
+    aa_f1: i32,
+    aa_f2: [bool;6],
+}
+
+fn main() {
+    let aa: AA = __zero_init__;
+    //aa.aa_f1 = 332;
+    aa.aa_f2[0] = true;
+    //print aa; print "\n";
+}
+

@@ -663,7 +663,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
   *typesize = -1;
 
   char namebuf[128];
-  while(isalnum(*pch)) {
+  while(isalnum(*pch) || *pch == '_') {
     sigbuf[sigi++] = *pch;
     namebuf[i++] = *pch++;
   }
@@ -708,10 +708,9 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
   while (*pch != '}') {
     int tsize = 0;
     i = 0;
-    while(isalnum(*pch)) {
-      namebuf[i] = *pch;
-      sigbuf[sigi++] = *pch++;
-      ++i;
+    while(isalnum(*pch) || *pch == '_') {
+      sigbuf[sigi++] = *pch;
+      namebuf[i++] = *pch++;
     }
     namebuf[i] = 0;
 

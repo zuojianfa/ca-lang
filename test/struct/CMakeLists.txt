@@ -11,4 +11,6 @@ do_test(struct "AA { n1: 33 }\nA1 { a: AA { n1: 33 } }\n\n33\nAA { n1: 33 }\nA1 
 do_test(struct "A1 { a: AA { n1: 33 } }\nA1 { a: AA { n1: 66 } }\n132\nA1 { a: AA { n1: 133 } }\nA1 { a: AA { n1: 3 } }\nAA { n1: 33 }\n" ca struct_field5.ca)
 do_test(struct "A1 { a: AA { n1: 33 } }\nA1 { a: AA { n1: 66 } }\n132\nA1 { a: AA { n1: 133 } }\nA1 { a: AA { n1: 3 } }\nAA { n1: 33 }\n" ca struct_field6.ca)
 do_test(struct "A1 { a: AA { n1: 33 } }\nAA { n1: 4326 }\nA1 { a: AA { n1: 4326 } }\nA2 { b: \\(nil\\) }\nA2 { b: 0x1234567890 }\nAA { n1: 4326 }\nAA { n1: 4326 }\nAA { n1: 4326 }\nAA { n1: 65536 }\n65536 1 336 672" ca struct_field7.ca)
+do_test(struct "AA { aa_f1: 332 }\nA1 { a1_f1: AA { aa_f1: 332 }, a1_f2: 789 }\nA2 { a2_f1: 3.141593, a2_f2: 0xf32dbcaa }\nA3 { a3_f1: A2 { a2_f1: 3.141593, a2_f2: 0xf32dbcaa }, a3_f2: 1 }\nA3 { a3_f1: A2 { a2_f1: 3.141593, a2_f2: 0x32dfbcaa }, a3_f2: 1 }\nA4 { a4_f1: C, a4_f2: A3 { a3_f1: A2 { a2_f1: 3.141593, a2_f2: 0xf32dbcaa }, a3_f2: 1 } }\nA1 { a1_f1: AA { aa_f1: 332 }, a1_f2: 789 }\n2147483647\n\n" ca struct_field8.ca)
+
 

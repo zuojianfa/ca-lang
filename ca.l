@@ -36,7 +36,8 @@ void *string_buffer = NULL;
 %%
 
 (0x)?0	        { ULL(); set_litbuf(&yylval.litb, yytext, yyleng, U64); return LITERAL; }
-(0x)?[1-9][0-9]*	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, U64); return LITERAL; }
+(0x)[a-fA-F1-9][a-fA-F0-9]*	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, U64); return LITERAL; }
+[1-9][0-9]*	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, U64); return LITERAL; }
  /* (0x)?[1-9][0-9]*	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, I64); return LITERAL; }*/
 0\.[0-9]+	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, F64); return LITERAL; }
 [1-9][0-9]*\.[0-9]+	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, F64); return LITERAL; }

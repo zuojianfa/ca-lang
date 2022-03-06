@@ -267,7 +267,6 @@ is scopeline the real skip function start for debugging? try it
 NEXT TODO:
 - [ ] test/struct struct dbgprint function to test, implement struct members fetch store functionality
   - [ ] struct literal, construct
-  - [ ] multiple deep struct element
   - [ ] struct with array element
   - [ ] array of struct element
   `static Value *extract_value_from_struct(ASTNode *node)` handle right left/right llvm::Value *

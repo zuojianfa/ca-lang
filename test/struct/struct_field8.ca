@@ -1,0 +1,34 @@
+struct AA {  aa_f1: i32, }
+struct A1 {  a1_f1: AA,  a1_f2: i32, }
+struct A2 {  a2_f1: f32, a2_f2: *A1, }
+struct A3 {  a3_f1: A2,  a3_f2: bool, }
+struct A4 {  a4_f1: char,a4_f2: A3, }
+
+fn main() {
+    let aa: AA = __zero_init__;
+    let a1: A1 = __zero_init__;
+    let a2: A2 = __zero_init__;
+    let a3: A3 = __zero_init__;
+    let a4: A4 = __zero_init__;
+    aa.aa_f1 = 332;
+    a1.a1_f1 = aa;
+    a1.a1_f2 = 789;
+    a2.a2_f1 = 3.1415926;
+    a2.a2_f2 = 0xf32dbcaau64 as *A1;
+    a3.a3_f1 = a2;
+    a3.a3_f2 = true;
+    a4.a4_f1 = 'C';
+    a4.a4_f2 = a3;
+    print aa; print "\n";
+    print a1; print "\n";
+    print a2; print "\n";
+    print a3; print "\n";
+    a3.a3_f1.a2_f2 = 0x32dfbcaau64 as *A1;
+    print a3; print "\n";
+    print a4; print "\n";
+    a4.a4_f2.a3_f1.a2_f2 = &a1;
+    print *a4.a4_f2.a3_f1.a2_f2; print "\n";
+    a4.a4_f2.a3_f1.a2_f2->a1_f1.aa_f1 = 0x7fffffff;
+    print a4.a4_f2.a3_f1.a2_f2->a1_f1.aa_f1; print "\n";
+}
+
