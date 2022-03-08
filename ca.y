@@ -50,6 +50,7 @@ extern int yychar, yylineno;
 %}/* symbol table */
 
 %define parse.error verbose
+//			%glr-parser
 
 %union {
   CADataType *datatype;
@@ -75,13 +76,14 @@ extern int yychar, yylineno;
 %token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
 %nonassoc		IFX
 %nonassoc		ELSE
-%left			GE LE EQ NE '>' '<'
+%left			GE LE EQ NE '>' '<' '['
 %left			'+' '-'
 %left			'*' '/'
 %left			AS
-%right			'&'
+%left			'&'
 %left			'.' ARROW
 %nonassoc		UMINUS UDEREF UADDR
+%left			UARRAY
 %type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def
 //			%type	<arraylitv>	lit_array_list lit_array_def
 %type	<arrayexpr>	array_def array_def_items
@@ -97,7 +99,7 @@ extern int yychar, yylineno;
 //			%type	<datatype>	data_type pointer_type array_type ident_type
 %type	<tid>		data_type pointer_type array_type ident_type
 %type	<deleft>	deref_pointer
-%type	<aitem>		array_item
+%type	<aitem>		array_item array_item_r
 %type	<structfieldop>	structfield_op
 
 %start program
@@ -197,8 +199,25 @@ deref_pointer: '*' expr { $$ = (DerefLeft) {1, $2}; }
 /* 	|	'*' deref_left          { $$ = (DerefLeft) {1 + $2.derefcount, $2.expr}; } */
 /* 	; */
 
-array_item:	IDENT '[' expr ']'      { $$ = arrayitem_begin($1, $3); }
-	|	array_item '[' expr ']' { $$ = arrayitem_append($1, $3); }
+/* array_item:	expr '[' expr ']'      { $$ = arrayitem_begin($1, $3); } */
+/* 	|	array_item '[' expr ']' { $$ = arrayitem_append($1, $3); } */
+/* 	; */
+
+/* array_item:	expr '[' expr ']' %prec UARRAY {} */
+/* 		; */
+
+/* array_item:	expr '[' expr ']' array_item_r {} */
+/* 	; */
+
+/* array_item_r: 	'['expr ']' array_item_r {} */
+/* 	|	{} */
+/* 	; */
+
+array_item:	expr array_item_r {}
+	;
+
+array_item_r: 	'['expr ']' {}
+	|	'['expr ']' array_item_r {}
 	;
 
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
