@@ -178,7 +178,8 @@ typedef struct DerefLeft {
 } DerefLeft, TDerefLeft;
 
 typedef struct ArrayItem {
-  int varname;
+  //int varname;
+  struct ASTNode *arraynode;
   void *indices;
 } ArrayItem, TArrayItem;
 
@@ -321,8 +322,9 @@ ASTNode *make_deref(ASTNode *expr);
 ASTNode *make_address(ASTNode *expr);
 StructFieldOp make_element_field(ASTNode *node, int fieldname, int direct);
 ASTNode *make_stmt_list_zip();
-ArrayItem arrayitem_begin(int varname, ASTNode *expr);
+ArrayItem arrayitem_begin(ASTNode *expr);
 ArrayItem arrayitem_append(ArrayItem ai, ASTNode *expr);
+ArrayItem arrayitem_end(ArrayItem ai, ASTNode *arraynode);
 int check_fn_define(typeid_t fnname, ASTNode *param);
 // for tree node compress deep into wide, begin for stmt list beginning
 void put_astnode_into_list(ASTNode *stmt, int begin);

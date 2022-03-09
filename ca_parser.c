@@ -875,9 +875,13 @@ typeid_t get_expr_type_from_tree(ASTNode *node) {
     return catype->signature;
   }
   case TTE_ArrayItemLeft: {
-    STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
-    CADataType *catype = catype_get_by_name(node->symtable, entry->u.var->datatype);
-    size_t size = vec_size(node->aitemn.indices);
+    //STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
+    //CADataType *catype = catype_get_by_name(node->symtable, entry->u.var->datatype);
+    inference_expr_type(node->aitemn.arraynode);
+    typeid_t arraytype = get_expr_type_from_tree(node->aitemn.arraynode);
+    CADataType *catype = catype_get_by_name(node->symtable, arraytype);
+    void *indices = node->aitemn.indices;
+    size_t size = vec_size(indices);
     for (int i = 0; i < size; ++i) {
       if (catype->type != ARRAY) {
 	yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
@@ -973,8 +977,11 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     assert(node->exprn.noperand == 1);
     ASTNode *right = node->exprn.operands[0];
     assert(right->type == TTE_ArrayItemRight);
-    STEntry *entry = sym_getsym(right->symtable, right->aitemn.varname, 1);
-    CADataType *catype = catype_get_by_name(right->symtable, entry->u.var->datatype);
+    //STEntry *entry = sym_getsym(right->symtable, right->aitemn.varname, 1);
+    //CADataType *catype = catype_get_by_name(right->symtable, entry->u.var->datatype);
+    inference_expr_type(right->aitemn.arraynode);
+    typeid_t arraytype = get_expr_type_from_tree(right->aitemn.arraynode);
+    CADataType *catype = catype_get_by_name(right->symtable, arraytype);
     void *indices = right->aitemn.indices;
     size_t size = vec_size(indices);
     for (int i = 0; i < size; ++i) {
@@ -1186,8 +1193,11 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     assert(node->exprn.noperand == 1);
     ASTNode *right = node->exprn.operands[0];
     assert(right->type == TTE_ArrayItemRight);
-    STEntry *entry = sym_getsym(right->symtable, right->aitemn.varname, 1);
-    CADataType *catype = catype_get_by_name(right->symtable, entry->u.var->datatype);
+    //STEntry *entry = sym_getsym(right->symtable, right->aitemn.varname, 1);
+    //CADataType *catype = catype_get_by_name(right->symtable, entry->u.var->datatype);
+    inference_expr_type(right->aitemn.arraynode);
+    typeid_t arraytype = get_expr_type_from_tree(right->aitemn.arraynode);
+    CADataType *catype = catype_get_by_name(right->symtable, arraytype);
     void *indices = right->aitemn.indices;
     size_t size = vec_size(indices);
     for (int i = 0; i < size; ++i) {
@@ -2050,14 +2060,20 @@ ASTNode *make_stmt_list_zip() {
   return p;
 }
 
-ArrayItem arrayitem_begin(int varname, ASTNode *expr) {
+ArrayItem arrayitem_begin(ASTNode *expr) {
    void *handle = vec_new();
    vec_append(handle, expr);
-   return (ArrayItem) {varname, handle};
+   return (ArrayItem) {NULL, handle};
 }
 
 ArrayItem arrayitem_append(ArrayItem ai, ASTNode *expr) {
   vec_append(ai.indices, expr);
+  return ai;
+}
+
+ArrayItem arrayitem_end(ArrayItem ai, ASTNode *arraynode) {
+  ai.arraynode = arraynode;
+  vec_reverse(ai.indices);
   return ai;
 }
 

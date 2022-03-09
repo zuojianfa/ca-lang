@@ -1,6 +1,7 @@
 #include "ca.h"
 #include "symtable.h"
 #include "ca.tab.h"
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -375,6 +376,11 @@ size_t vec_size(void *handle) {
 void *vec_at(void *handle, int index) {
   std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
   return vec->at(index);
+}
+
+void vec_reverse(void *handle) {
+  std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
+  std::reverse(vec->begin(), vec->end());
 }
 
 END_EXTERN_C

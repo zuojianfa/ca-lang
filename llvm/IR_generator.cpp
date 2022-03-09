@@ -325,9 +325,12 @@ static Value *get_deref_expr_value(ASTNode *expr) {
 
 static Value *extract_value_from_array(ASTNode *node) {
   assert(node->type == TTE_ArrayItemLeft || node->type == TTE_ArrayItemRight);
-  STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
-  CADataType *arraycatype = catype_get_by_name(node->symtable, entry->u.var->datatype);
-  CHECK_GET_TYPE_VALUE(node, arraycatype, entry->u.var->datatype);
+  //STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
+  //CADataType *arraycatype = catype_get_by_name(node->symtable, entry->u.var->datatype);
+  walk_stack(node->aitemn.arraynode);
+  auto pair = pop_right_value("aname", false);
+  CADataType *arraycatype = pair.second;
+  //CHECK_GET_TYPE_VALUE(node, arraycatype, entry->u.var->datatype);
 
   void *indices = node->aitemn.indices;
   size_t size = vec_size(indices);
@@ -361,10 +364,11 @@ static Value *extract_value_from_array(ASTNode *node) {
     catype = catype->array_layout->type;
   }
 
-  Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
+  //Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
+  //Value *arrayvalue = pair.first;
 
   // arrayitemvalue: is an alloc memory address, so following can store value into it
-  Value *arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
+  Value *arrayitemvalue = ir1.builder().CreateInBoundsGEP(pair.first, vindices);
   return arrayitemvalue;
 }
 
@@ -1238,7 +1242,6 @@ static void walk_expr_op2(ASTNode *p) {
   // TODO: here should can use pair1.second pair2.second
   typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0]);
   typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1]);
-
   CADataType *dt = catype_get_by_name(p->symtable, typeid1);
   CHECK_GET_TYPE_VALUE(p, dt, typeid1);
 

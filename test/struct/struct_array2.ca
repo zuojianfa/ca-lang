@@ -1,0 +1,28 @@
+struct AA {
+    aa_f1: i32,
+    aa_f2: [bool;6],
+}
+
+struct A1 {
+    a1_f1: f32,
+    a1_f2: AA,
+}
+
+struct A2 {
+    arr: [[AA;2];2],
+}
+
+fn main() {
+    let aa: AA = __zero_init__;
+    //let paa = &aa;
+    let pf1 = &aa.aa_f1;
+    //let pf2 = &(aa.aa_f1);
+    // let a1: A1 = __zero_init__;
+    // let a2: A2 = __zero_init__;
+    // let ii = [1, 0, 1];
+    // let ii2 = [[0, 1], [1, 0]];
+    // let psa2 = &(a2.arr[ii2[0][0]][ii[ii2[1][0] + 1]].aa_f1);
+    // print psa2; print "\n";
+
+}
+

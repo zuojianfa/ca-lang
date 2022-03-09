@@ -265,6 +265,7 @@ is scopeline the real skip function start for debugging? try it
 ```
 
 NEXT TODO:
+- [ ] debug struct_array2.ca
 - [ ] test/struct struct dbgprint function to test, implement struct members fetch store functionality
   - [ ] struct literal, construct
   - [ ] struct with array element

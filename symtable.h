@@ -297,6 +297,7 @@ void *vec_new();
 void vec_append(void *handle, void *item);
 size_t vec_size(void *handle);
 void *vec_at(void *handle, int index);
+void vec_reverse(void *handle);
 
 #ifdef __cplusplus
 END_EXTERN_C

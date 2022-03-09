@@ -76,12 +76,12 @@ extern int yychar, yylineno;
 %token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
 %nonassoc		IFX
 %nonassoc		ELSE
-%left			GE LE EQ NE '>' '<' '['
+%left			GE LE EQ NE '>' '<' '[' ']'
 %left			'+' '-'
 %left			'*' '/'
 %left			AS
-%left			'&'
 %left			'.' ARROW
+%left			'&'
 %nonassoc		UMINUS UDEREF UADDR
 %left			UARRAY
 %type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def
@@ -203,21 +203,11 @@ deref_pointer: '*' expr { $$ = (DerefLeft) {1, $2}; }
 /* 	|	array_item '[' expr ']' { $$ = arrayitem_append($1, $3); } */
 /* 	; */
 
-/* array_item:	expr '[' expr ']' %prec UARRAY {} */
-/* 		; */
-
-/* array_item:	expr '[' expr ']' array_item_r {} */
-/* 	; */
-
-/* array_item_r: 	'['expr ']' array_item_r {} */
-/* 	|	{} */
-/* 	; */
-
-array_item:	expr array_item_r {}
+array_item:	expr array_item_r { $$ = arrayitem_end($2, $1); }
 	;
 
-array_item_r: 	'['expr ']' {}
-	|	'['expr ']' array_item_r {}
+array_item_r: 	'['expr ']' { $$ = arrayitem_begin($2); }
+	|	'['expr ']' array_item_r { $$ = arrayitem_append($4, $2); }
 	;
 
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
