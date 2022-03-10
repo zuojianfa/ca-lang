@@ -1,0 +1,49 @@
+struct AA {
+    f1: i32,
+    f2: bool,
+}
+
+struct A1 {
+    af1: [AA; 2],
+}
+
+fn main() {
+    let aaa: [AA; 3] = __zero_init__;
+    print aaa; print '\n';
+    aaa[0].f1 = 99;
+    aaa[0].f2 = true;
+    aaa[1].f1 = 88;
+    aaa[1].f2 = true;
+    aaa[2].f1 = 77;
+    print aaa; print '\n';
+
+    let pa = &aaa[2].f1;
+    print *pa;
+    *pa = 82;
+    print *pa; print '\n';
+    print aaa; print '\n';
+
+    let aa1: [A1; 2] = __zero_init__;
+    print aa1; print '\n';
+    aa1[1].af1[1].f1 = 897;
+    aa1[1].af1[1].f2 = true;
+    aa1[1].af1[0].f1 = 732;
+    aa1[1].af1[0].f2 = true;
+    aa1[0].af1[1].f1 = 555;
+    aa1[0].af1[1].f2 = true;
+    aa1[0].af1[0].f1 = 666;
+    aa1[0].af1[0].f2 = false;
+    print aa1; print '\n';
+
+    print aa1[1].af1[1].f1; print ' ';
+    print aa1[1].af1[1].f2; print ' ';
+    print aa1[1].af1[0].f1; print ' ';
+    print aa1[1].af1[0].f2; print ' ';
+    print aa1[0].af1[1].f1; print ' ';
+    print aa1[0].af1[1].f2; print ' ';
+    print aa1[0].af1[0].f1; print ' ';
+    print aa1[0].af1[0].f2; print '\n';
+    
+    
+}
+

@@ -1482,12 +1482,6 @@ static void walk_expr_deref(ASTNode *rexpr) {
 
 static void walk_expr_address(ASTNode *aexpr) {
   ASTNode *expr = aexpr->exprn.operands[0];
-  if (expr->type != TTE_Id) {
-    yyerror("line: %d, col: %d: cannot get address of not a variable, type: `%d`",
-	    aexpr->begloc.row, aexpr->begloc.col, expr->type);
-    return;
-  }
-
   walk_stack(expr);
   auto pair = pop_right_operand("addr", false);
 

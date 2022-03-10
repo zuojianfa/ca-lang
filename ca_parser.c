@@ -1031,14 +1031,6 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     type1 = catype->pointer_layout->type->signature;
     break;
   case ADDRESS:
-    // only the variable can have an address
-    // TODO: handle function address
-    if (node->exprn.operands[0]->type != TTE_Id) {
-      yyerror("line: %d, col: %d: only a variable can have an address, but find type `%d`",
-	      node->begloc.row, node->begloc.col, node->exprn.operands[0]->type);
-      return typeid_novalue;
-    }
-
     type1 = inference_expr_type(node->exprn.operands[0]);
     catype = catype_get_by_name(node->symtable, type1);
     catype = catype_make_pointer_type(catype);

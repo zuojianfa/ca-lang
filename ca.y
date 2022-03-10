@@ -76,14 +76,14 @@ extern int yychar, yylineno;
 %token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
 %nonassoc		IFX
 %nonassoc		ELSE
-%left			GE LE EQ NE '>' '<' '[' ']'
+%left			GE LE EQ NE '>' '<'
 %left			'+' '-'
 %left			'*' '/'
 %left			AS
-%left			'.' ARROW
 %left			'&'
-%nonassoc		UMINUS UDEREF UADDR
-%left			UARRAY
+%left			'.' ARROW '[' ']'
+%nonassoc		UMINUS
+%left			UARRAY UDEREF UADDR
 %type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def
 //			%type	<arraylitv>	lit_array_list lit_array_def
 %type	<arrayexpr>	array_def array_def_items
@@ -279,7 +279,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	expr AS data_type     { $$ = make_as($1, $3); }
 	|	SIZEOF '(' data_type ')'{ $$ = make_sizeof($3); }
 	|	deref_pointer         { $$ = make_deref($1.expr); }
-	|	'&' expr %prec UADDR  { $$ = make_address($2); }
+	|	'&' expr  { $$ = make_address($2); }
 	|	structfield_op        { $$ = make_structfield_right($1); }
 		;
 

@@ -14,15 +14,38 @@ struct A2 {
 
 fn main() {
     let aa: AA = __zero_init__;
-    //let paa = &aa;
-    let pf1 = &aa.aa_f1;
-    //let pf2 = &(aa.aa_f1);
-    // let a1: A1 = __zero_init__;
-    // let a2: A2 = __zero_init__;
-    // let ii = [1, 0, 1];
-    // let ii2 = [[0, 1], [1, 0]];
-    // let psa2 = &(a2.arr[ii2[0][0]][ii[ii2[1][0] + 1]].aa_f1);
-    // print psa2; print "\n";
+    // let paa = &aa;
+    // print *paa; print '\n';
+    // let pf2 = &(aa.aa_f1);
+    // *pf2 = 1000;
+    // print *pf2; print '\n';
+    // print aa; print '\n';
 
+    // let pf3 = &(aa.aa_f2);
+    // print *pf3; print '\n';
+    // (*pf3)[0] = true;
+    // (*pf3)[3] = true;
+    // print *pf3; print '\n';
+    // print aa; print '\n';
+
+    let pf4 = &aa.aa_f1;
+    *pf4 = 321;
+    print *pf4; print '\n';
+    let pf5 = &aa.aa_f2;
+    (*pf5)[1] = true;
+    (*pf5)[2] = true;
+    print *pf5; print '\n';
+
+    let a1: A1 = __zero_init__;
+    let a2: A2 = __zero_init__;
+    let ii = [1, 0, 1];
+    let ii2 = [[0, 1], [1, 0]];
+    a2.arr[ii2[0][0]][ii[ii2[1][0] + 1]].aa_f1 = 0xcca;
+    let psa2 = &(a2.arr[ii2[0][0]][ii[ii2[1][0] + 1]].aa_f1);
+    print *psa2; print " ";
+    a2.arr[ii2[0][0]][ii[ii2[1][0] + 1]].aa_f1 = 0xccb;
+    let psa3 = &a2.arr[ii2[0][0]][ii[ii2[1][0] + 1]].aa_f1;
+    print *psa3; print "\n";
+    print a2;
 }
 

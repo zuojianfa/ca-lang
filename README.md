@@ -201,6 +201,12 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support array literal
 - [x] support array entire left value assignment for any part of array item at least for primitive type
 - [x] support array element operation
+- [x] struct with array element
+- [x] support struct member operation
+- [x] array of struct element
+- [x] function with array parameter
+- [x] function with pointer parameter
+- [x] function with struct parameter
 - [ ] support struct literal
 
 ## Makefile
@@ -245,8 +251,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 is scopeline the real skip function start for debugging? try it
 
 
-```
+123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
+```
 (gdb) bt
 #0  yyerror (s=0x46a4a8 "bad type token: %d") at /home/xrsh/git/compiler/ca/ca_parser.c:1702
 #1  0x000000000044604b in get_type_string_common (tok=273, forid=false) at /home/xrsh/git/compiler/ca/type_system.cpp:233
@@ -265,20 +272,7 @@ is scopeline the real skip function start for debugging? try it
 ```
 
 NEXT TODO:
-- [ ] debug struct_array2.ca
-- [ ] test/struct struct dbgprint function to test, implement struct members fetch store functionality
-  - [ ] struct literal, construct
-  - [ ] struct with array element
-  - [ ] array of struct element
-  `static Value *extract_value_from_struct(ASTNode *node)` handle right left/right llvm::Value *
-  ```
-	123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
-  ```
 - [ ] support struct literal
-- [ ] support struct member operation 
-- [ ] function with array parameter
-- [ ] function with pointer parameter
-- [ ] function with struct parameter
 - [ ] UCHAR -> U8, CHAR -> I8
 - [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
 - [ ] implement following functions: 
@@ -286,7 +280,6 @@ NEXT TODO:
   `catype_make_type_closure`,
   `catype_create_type_from_unwind`
 - [ ] remove entry object in ASTNode
-- [ ] handle pointer struct type
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
 - [ ] support other atomic type
 - [ ] add graphviz (dot graph) option for outputing the grammar tree

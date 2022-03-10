@@ -1,0 +1,61 @@
+fn sum(v: [i32; 6], rv: *i32) {
+    let i = 0;
+    let s = 0;
+    while(i < 6) {
+        s = s + v[i];
+        i = i + 1;
+    }
+
+    *rv = s;
+}
+
+struct AA {
+    f1: i32,
+    f2: i32,
+    af3: [i32; 2],
+}
+
+fn sfield(a: AA, i: i32, j: i32) -> i32 {
+    if (i == 1) {
+        return a.f1;
+    }
+
+    if (i == 2) {
+        return a.f2;
+    }
+
+    if (i == 3) {
+        if (j > -1) {
+            if (j < 2) {
+                return a.af3[j];
+            }
+        }
+    }
+
+    return -1;
+}
+
+fn main() {
+    let v = [1, 2, 3, 4, 5, 6];
+    let rv = 0;
+    sum(v, &rv);
+    print rv; print '\n';
+
+    let aa: AA = __zero_init__;
+    aa.f1 = 12345;
+    aa.f2 = 67890;
+    aa.af3[0] = 7768;
+    aa.af3[1] = 8677;
+    print aa; print '\n';
+    let f1 = sfield(aa, 1, 0);
+    let f2 = sfield(aa, 2, 0);
+    let sf31 = sfield(aa, 3, 0);
+    let sf32 = sfield(aa, 3, 1);
+    let sf33 = sfield(aa, 3, 2);
+    print f1; print ' ';
+    print f2; print ' ';
+    print sf31; print ' ';
+    print sf32; print ' ';
+    print sf33; print '\n';
+}
+
