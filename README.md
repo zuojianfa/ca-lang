@@ -273,7 +273,6 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] support struct literal
-- [ ] UCHAR -> U8, CHAR -> I8
 - [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
 - [ ] implement following functions: 
   `catype_compare_type_signature`, 
@@ -282,8 +281,8 @@ NEXT TODO:
 - [ ] remove entry object in ASTNode
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
 - [ ] support other atomic type
-- [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] debug support inner field scope, 
+- [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
 
 detailed TODO LIST:

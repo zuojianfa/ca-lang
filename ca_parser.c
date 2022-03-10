@@ -447,13 +447,13 @@ void check_return_type(typeid_t fnrettype) {
 // I64 stand for positive integer value in lexical
 // F64 stand for floating point number in lexical
 // BOOL stand for boolean point number in lexical
-// UCHAR stand for \. transfermation value in lexical
-// CHAR stand for any character value in lexical
+// U8 stand for \. transfermation value in lexical
+// I8 stand for any character value in lexical
 
 // literal type depends on the input of
 // 1) littypetok: it's the literal type by itself, I64 for negative integer
 // value, U64 for positive integer value, F64 for floating point value, BOOL is
-// true false value, CHAR is 'x' value, UCHAR is '\x' value.
+// true false value, I8 is 'x' value, U8 is '\x' value.
 // 2) postfixtypetok: it's the literal type in the postfix of the literal, e.g.
 // 43243u32 4343243.432f32 43243.343f64 -4332i64 3f64 ..., the scope or type of
 // postfixtypetok must compitable with the littypetok type. e.g. when literal
@@ -1851,7 +1851,7 @@ ASTNode *make_ident_expr(int id) {
 ASTNode *make_uminus_expr(ASTNode *expr) {
   // only U64 literal type can combinate '-' here, when littypetok is I64,
   // it means the literal already combined with '-' so here no need combined
-  // again, when littypetok is other type like BOOL CHAR UCHAR etc, they are
+  // again, when littypetok is other type like BOOL I8 U8 etc, they are
   // not support combine with '-' so just walk with a UMINUS operator
   if (expr->type != TTE_Literal || expr->litn.litv.littypetok != U64)
     return make_expr(UMINUS, 1, expr);

@@ -99,10 +99,10 @@ std::unordered_map<std::string, int> s_token_primitive_map {
   {"double", F64},
   {"f64",    F64},
   {"bool",   BOOL},
-  {"i8",     CHAR},
-  {"char",   CHAR},
-  {"u8",     UCHAR},
-  {"uchar",  UCHAR},
+  {"i8",     I8},
+  {"char",   I8},
+  {"u8",     U8},
+  {"uchar",  U8},
 };
 
 std::unordered_map<std::string, std::string> s_token_primitive_inner_map {
@@ -141,10 +141,10 @@ std::unordered_map<std::string, int> s_token_map = {
   {"double", F64},
   {"f64",    F64},
   {"bool",   BOOL},
-  {"i8",     CHAR},
-  {"char",   CHAR},
-  {"u8",     UCHAR},
-  {"uchar",  UCHAR},
+  {"i8",     I8},
+  {"char",   I8},
+  {"u8",     U8},
+  {"uchar",  U8},
 #endif
 
   {">=",     GE},
@@ -210,10 +210,10 @@ TypeDB g_typedb[] = {
   {"f64",   0, 6, 8, F64,  TT_Primitive},
   {"double",0, 6, 8, F64,  TT_Alias},
   {"bool",  0, 7, 1, BOOL, TT_Primitive},
-  {"i8",    0, 8, 1, CHAR, TT_Primitive},
-  {"char",  0, 8, 1, CHAR, TT_Alias},
-  {"u8",    0, 9, 1, UCHAR,TT_Primitive},
-  {"uchar", 0, 9, 1, UCHAR,TT_Alias},
+  {"i8",    0, 8, 1, I8, TT_Primitive},
+  {"char",  0, 8, 1, I8, TT_Alias},
+  {"u8",    0, 9, 1, U8,TT_Primitive},
+  {"uchar", 0, 9, 1, U8,TT_Alias},
 };
 
 const char *get_inner_type_string_by_str(const char *name) {
@@ -247,10 +247,10 @@ static const char *get_type_string_common(int tok, bool forid) {
     return "f64";
   case BOOL:
     return "bool";
-  case CHAR:
+  case I8:
     // TODO: for all above using following one
     return forid ? get_inner_type_string_by_str("char") : "char";
-  case UCHAR:
+  case U8:
     return forid ? get_inner_type_string_by_str("uchar") : "uchar";
   case CSTRING:
     return "*i8";
@@ -312,11 +312,11 @@ int catype_init() {
   catype_put_primitive_by_name(name, datatype); // double
 
   catype_make_type("t:bool", BOOL, 1);          // bool
-  datatype = catype_make_type("t:i8", CHAR, 1); // i8
+  datatype = catype_make_type("t:i8", I8, 1); // i8
   name = symname_check_insert("t:char");
   catype_put_primitive_by_name(name, datatype); // char
 
-  datatype = catype_make_type("t:u8", UCHAR, 1);// u8
+  datatype = catype_make_type("t:u8", U8, 1);// u8
   name = symname_check_insert("t:uchar");
   catype_put_primitive_by_name(name, datatype); // uchar
 
@@ -1402,8 +1402,8 @@ static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &
   case F32:
   case F64:
   case BOOL:
-  case CHAR:
-  case UCHAR:
+  case I8:
+  case U8:
   default:
     return catype->signature;
   }
@@ -1683,15 +1683,15 @@ static typeid_t inference_primitive_literal_type(CALiteral *lit) {
     intentdeftype = BOOL;
     lit->u.i64value = atoll(text) ? 1 : 0;
     break;
-  case CHAR:
-    intentdeftype = CHAR;
+  case I8:
+    intentdeftype = I8;
     lit->u.i64value = (char)parse_lexical_char(text);
-    badscope = check_char_value_scope(lit->u.i64value, CHAR);
+    badscope = check_char_value_scope(lit->u.i64value, I8);
     break;
-  case UCHAR:
-    intentdeftype = CHAR;
+  case U8:
+    intentdeftype = I8;
     lit->u.i64value = (uint8_t)parse_lexical_char(text);
-    badscope = check_uchar_value_scope(lit->u.i64value, UCHAR);
+    badscope = check_uchar_value_scope(lit->u.i64value, U8);
     break;
   default:
     yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
@@ -1851,11 +1851,11 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
     lit->u.i64value = atoll(text) ? 1 : 0;
     badscope = (typetok != BOOL);
     break;
-  case CHAR:
+  case I8:
     lit->u.i64value = (char)parse_lexical_char(text);
     badscope = check_char_value_scope(lit->u.i64value, typetok);
     break;
-  case UCHAR:
+  case U8:
     lit->u.i64value = (uint8_t)parse_lexical_char(text);
     badscope = check_uchar_value_scope(lit->u.i64value, typetok);
     break;
@@ -2232,9 +2232,9 @@ Type *gen_llvmtype_from_token(int tok) {
     return ir1.float_type<double>();
   case BOOL:
     return ir1.bool_type();
-  case CHAR:
+  case I8:
     return ir1.int_type<int8_t>();
-  case UCHAR:
+  case U8:
     return ir1.int_type<uint8_t>();
   default:
     return nullptr;
@@ -2356,9 +2356,9 @@ static int can_type_binding(CALiteral *lit, tokenid_t typetok) {
     return !check_f64_value_scope(lit->u.f64value, typetok);
   case BOOL:
     return (typetok == BOOL);
-  case CHAR:
+  case I8:
     return !check_char_value_scope(lit->u.i64value, typetok);
-  case UCHAR:
+  case U8:
     return !check_uchar_value_scope(lit->u.i64value, typetok);
   default:
     yyerror("bad lexical literal type: '%s'", get_type_string(dt->type));
@@ -2392,9 +2392,9 @@ Value *gen_primitive_literal_value(CALiteral *value, tokenid_t typetok, SLoc loc
     return ir1.gen_float(parse_to_double(value));
   case BOOL:
     return ir1.gen_bool(!!parse_to_int64(value));
-  case CHAR:
+  case I8:
     return ir1.gen_int((char)parse_to_int64(value));
-  case UCHAR:
+  case U8:
     return ir1.gen_int((uint8_t)parse_to_int64(value));
   default:
     return nullptr;
@@ -2490,9 +2490,9 @@ const char *get_printf_format(int type) {
     return "%f";
   case F64:
     return "%lf";
-  case CHAR:
+  case I8:
     return "%c";
-  case UCHAR:
+  case U8:
     return "%c";
   case BOOL:
     return "%1d";
@@ -2504,14 +2504,14 @@ const char *get_printf_format(int type) {
 }
 
 int is_unsigned_type(tokenid_t type) {
-  return type == U32 || type == U64 || type == UCHAR;
+  return type == U32 || type == U64 || type == U8;
 }
 
 int is_integer_type(tokenid_t type) {
-  return type == I32 || type == I64 || type == CHAR || type == U32 || type == U64 || type == UCHAR;
+  return type == I32 || type == I64 || type == I8 || type == U32 || type == U64 || type == U8;
 }
 
-// row: VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER
+// row: VOID I32 I64 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER
 // col: < > GE LE NE EQ
 CmpInst::Predicate s_cmp_predicate[ATOMTYPE_END-VOID][6] = {
   {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // VOID
@@ -2522,8 +2522,8 @@ CmpInst::Predicate s_cmp_predicate[ATOMTYPE_END-VOID][6] = {
   {CmpInst::FCMP_OLT, CmpInst::FCMP_OGT, CmpInst::FCMP_OGE, CmpInst::FCMP_OLE, CmpInst::FCMP_ONE, CmpInst::FCMP_OEQ}, // F32
   {CmpInst::FCMP_OLT, CmpInst::FCMP_OGT, CmpInst::FCMP_OGE, CmpInst::FCMP_OLE, CmpInst::FCMP_ONE, CmpInst::FCMP_OEQ}, // F64
   {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // BOOL
-  {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // CHAR
-  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // UCHAR
+  {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // I8
+  {CmpInst::ICMP_ULT, CmpInst::ICMP_UGT, CmpInst::ICMP_UGE, CmpInst::ICMP_ULE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // U8
   //  {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // STRUCT
 };
 
@@ -2559,10 +2559,10 @@ Value *create_def_value(int typetok) {
   case U64:
     return ir1.gen_int<uint64_t>(0);
     break;
-  case CHAR:
+  case I8:
     return ir1.gen_int<int8_t>(0);
     break;
-  case UCHAR:
+  case U8:
     return ir1.gen_int<uint8_t>(0);
     break;
   case BOOL:
@@ -2582,7 +2582,7 @@ Value *create_def_value(int typetok) {
 }
 
 // used for `as` value convertion
-// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
+// VOID I32 I64 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 // Trunc ZExt SExt FPToUI FPToSI UIToFP SIToFP FPTrunc FPExt PtrToInt IntToPtr BitCast AddrSpaceCast
 // CastOpsBegin stand for no need convert, CastOpsEnd stand for cannot convert
 static Instruction::CastOps
@@ -2596,8 +2596,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* F32 */
     (ICO)-1,           /* F64 */
     (ICO)-1,           /* BOOL */
-    (ICO)-1,           /* CHAR */
-    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* I8 */
+    (ICO)-1,           /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2613,8 +2613,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     ICO::SIToFP,       /* F32 */
     ICO::SIToFP,       /* F64 */
     (ICO)-1,           /* BOOL */
-    ICO::Trunc,        /* CHAR */
-    ICO::Trunc,        /* UCHAR */
+    ICO::Trunc,        /* I8 */
+    ICO::Trunc,        /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2630,8 +2630,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     ICO::SIToFP,       /* F32 */
     ICO::SIToFP,       /* F64 */
     (ICO)-1,           /* BOOL */
-    ICO::Trunc,	       /* CHAR */
-    ICO::Trunc,	       /* UCHAR */
+    ICO::Trunc,	       /* I8 */
+    ICO::Trunc,	       /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2647,8 +2647,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     ICO::UIToFP,       /* F32 */
     ICO::UIToFP,       /* F64 */
     (ICO)-1,           /* BOOL */
-    ICO::Trunc,	       /* CHAR */
-    ICO::Trunc,	       /* UCHAR */
+    ICO::Trunc,	       /* I8 */
+    ICO::Trunc,	       /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2664,8 +2664,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     ICO::UIToFP,       /* F32 */
     ICO::UIToFP,       /* F64 */
     (ICO)-1,           /* BOOL */
-    ICO::Trunc,	       /* CHAR */
-    ICO::Trunc,	       /* UCHAR */
+    ICO::Trunc,	       /* I8 */
+    ICO::Trunc,	       /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2681,8 +2681,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)0,            /* F32 */
     ICO::FPExt,	       /* F64 */
     (ICO)-1,           /* BOOL */
-    ICO::FPToSI,       /* CHAR */
-    ICO::FPToUI,       /* UCHAR */
+    ICO::FPToSI,       /* I8 */
+    ICO::FPToUI,       /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2698,8 +2698,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     ICO::FPTrunc,      /* F32 */
     (ICO)0,            /* F64 */
     (ICO)-1,           /* BOOL */
-    ICO::FPToSI,       /* CHAR */
-    ICO::FPToUI,       /* UCHAR */
+    ICO::FPToSI,       /* I8 */
+    ICO::FPToUI,       /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2715,15 +2715,15 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* F32 */
     (ICO)-1,           /* F64 */
     (ICO)0,            /* BOOL */
-    ICO::ZExt,	       /* CHAR */
-    ICO::ZExt,	       /* UCHAR */
+    ICO::ZExt,	       /* I8 */
+    ICO::ZExt,	       /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
     (ICO)-1,           /* POINTER */
     (ICO)-1,           /* CSTRING */
   },                   // BOOL ->
-  { // Begin CHAR
+  { // Begin I8
     (ICO)-1,           /* VOID */
     ICO::SExt,	       /* I32 */
     ICO::SExt,	       /* I64 */
@@ -2732,15 +2732,15 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     ICO::SIToFP,       /* F32 */
     ICO::SIToFP,       /* F64 */
     (ICO)-1 ,          /* BOOL */
-    (ICO)0,            /* CHAR */
-    ICO::BitCast,      /* UCHAR */
+    (ICO)0,            /* I8 */
+    ICO::BitCast,      /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
     (ICO)-1,           /* POINTER */
     (ICO)-1,           /* CSTRING */
-  },                   // CHAR ->
-  { // Begin UCHAR
+  },                   // I8 ->
+  { // Begin U8
     (ICO)-1,           /* VOID */
     ICO::ZExt,	       /* I32 */
     ICO::ZExt,	       /* I64 */
@@ -2749,14 +2749,14 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     ICO::UIToFP,       /* F32 */
     ICO::UIToFP,       /* F64 */
     (ICO)-1,           /* BOOL */
-    ICO::BitCast,      /* CHAR */
-    (ICO)0,            /* UCHAR */
+    ICO::BitCast,      /* I8 */
+    (ICO)0,            /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
     (ICO)-1,           /* POINTER */
     (ICO)-1,           /* CSTRING */
-  },                   // UCHAR ->
+  },                   // U8 ->
   { // Begin ATOMTYPE_END
     (ICO)-1,           /* VOID */
     (ICO)-1,           /* I32 */
@@ -2766,8 +2766,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* F32 */
     (ICO)-1,           /* F64 */
     (ICO)-1,           /* BOOL */
-    (ICO)-1,           /* CHAR */
-    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* I8 */
+    (ICO)-1,           /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2783,8 +2783,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* F32 */
     (ICO)-1,           /* F64 */
     (ICO)-1,           /* BOOL */
-    (ICO)-1,           /* CHAR */
-    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* I8 */
+    (ICO)-1,           /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2800,8 +2800,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* F32 */
     (ICO)-1,           /* F64 */
     (ICO)-1,           /* BOOL */
-    (ICO)-1,           /* CHAR */
-    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* I8 */
+    (ICO)-1,           /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2817,8 +2817,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* F32 */
     (ICO)-1,           /* F64 */
     (ICO)-1,           /* BOOL */
-    (ICO)-1,           /* CHAR */
-    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* I8 */
+    (ICO)-1,           /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2834,8 +2834,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* F32 */
     (ICO)-1,           /* F64 */
     (ICO)-1,           /* BOOL */
-    (ICO)-1,           /* CHAR */
-    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* I8 */
+    (ICO)-1,           /* U8 */
     (ICO)-1,           /* ATOMTYPE_END */
     (ICO)-1,           /* STRUCT */
     (ICO)-1,           /* ARRAY */
@@ -2853,8 +2853,8 @@ llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
     (ICO)-1,           /* F32 */
     (ICO)-1,           /* F64 */
     (ICO)-1,           /* BOOL */
-    (ICO)-1,           /* CHAR */
-    (ICO)-1,           /* UCHAR */
+    (ICO)-1,           /* I8 */
+    (ICO)-1,           /* U8 */
     (ICO)-1,           /* STRUCT */
   },                   // STRUCT ->
 #endif
@@ -2876,7 +2876,7 @@ Instruction::CastOps gen_cast_ops(CADataType *fromtype, CADataType *totype) {
 //   right side is real literal value
 // 2. for the type that after ATOMTYPE_END, it use different regulars:
 //   they are have no scope checking, because they are non-primitive type
-// VOID I32 I64 U32 U64 F32 F64 BOOL CHAR UCHAR ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
+// VOID I32 I64 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 static int s_literal_type_convertable_table[ATOMTYPE_END - VOID + 1][CSTRING - ATOMTYPE_END + ATOMTYPE_END - VOID + 1] = {
   {0, }, // VOID -> other-type, means convert from VOID type to other type
   {0, },   // I32 -> other-type
@@ -2886,8 +2886,8 @@ static int s_literal_type_convertable_table[ATOMTYPE_END - VOID + 1][CSTRING - A
   {0, }, // F32 ->
   {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 0,}, // F64 ->
   {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 /* ATOMTYPE_END */, 0, 0, 0, 0,}, // BOOL ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // CHAR ->
-  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // UCHAR ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // I8 ->
+  {0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0 /* ATOMTYPE_END */, 0, 0, 0, 1,}, // U8 ->
   {0, }, // ATOMTYPE_END
   // {0, }, // STRUCT, these 4 should just is stub, they should not come here
   // {0, }, // ARRAY ->
@@ -2958,11 +2958,11 @@ int check_u64_value_scope(uint64_t lit, tokenid_t typetok) {
     if (lit > std::numeric_limits<uint32_t>::max())
       return -1;
     return 0;
-  case CHAR:
+  case I8:
     if (lit > std::numeric_limits<char>::max())
       return -1;
     return 0;
-  case UCHAR:
+  case U8:
     if (lit > std::numeric_limits<uint8_t>::max())
       return -1;
     return 0;
@@ -2993,14 +2993,14 @@ int check_f64_value_scope(double lit, tokenid_t typetok) {
 }
 
 int check_char_value_scope(char lit, tokenid_t typetok) {
-  if (typetok == UCHAR && lit < 0)
+  if (typetok == U8 && lit < 0)
     return 1;
 
   return 0;
 }
 
 int check_uchar_value_scope(uint8_t lit, tokenid_t typetok) {
-  if (typetok == CHAR && lit > 127)
+  if (typetok == I8 && lit > 127)
     return -1;
 
   return 0;

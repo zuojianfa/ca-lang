@@ -126,8 +126,8 @@ typedef struct CALiteral {
   tokenid_t postfixtypetok;
 
   // the literal I64 for negative integer value, U64 for positive integer value,
-  // F64 for floating point value, BOOL is true false value, CHAR is 'x' value,
-  // UCHAR is '\x' value
+  // F64 for floating point value, BOOL is true false value, I8 is 'x' value,
+  // U8 is '\x' value
   tokenid_t littypetok;
 
   // text id in symname table, text is used for latering literal type inference
