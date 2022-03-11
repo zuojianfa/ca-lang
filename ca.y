@@ -261,6 +261,7 @@ label_id:	IDENT		      { dot_emit("label_id", "IDENT"); $$ = $1; }
 expr:     	literal               { $$ = make_literal(&$1); }
 	|	array_def             { $$ = make_array_def($1); }
 	|	array_item            { $$ = make_arrayitem_right($1); }
+	|	struct_def            { $$ = make_struct_def($1); }
 	|	IDENT                 { $$ = make_ident_expr($1); }
 	|	'-' expr %prec UMINUS { $$ = make_uminus_expr($2); }
 	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
@@ -343,7 +344,7 @@ literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, 
 	|	LITERAL IDENT    { create_literal(&$$, $1.text, $1.typetok, sym_primitive_token_from_id($2)); }
 	|	STR_LITERAL      { create_string_literal(&$$, &$1); }
 //	|	lit_array_def    { create_array_literal(&$$, $1); }
-	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
+//	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
 	;
 
 //////////////////////
@@ -361,25 +362,19 @@ array_def_items:array_def_items ',' expr { $$ = arrayexpr_append($1, $3); }
 //lit_array_list:	lit_array_list ',' literal { $$ = arraylit_append($1, &$3); }
 //	|	literal { $$ = arraylit_append(arraylit_new(), &$1);}
 //	;
-lit_struct_def:	IDENT '{' lit_struct_field_list  '}'
-		{
-		    dot_emit("", "");
-		    // TODO: define structure	    
-		}
-	;
 
-lit_struct_field_list:
-		lit_struct_field_list ',' lit_struct_field
-		{
-		    dot_emit("", "");
-		    // TODO: define structure 
-		}
-	|	lit_struct_field        { dot_emit("", ""); $$ = $1; }
-	;
+//lit_struct_def:	IDENT '{' lit_struct_field_list  '}' { } ;
+//lit_struct_field_list: lit_struct_field_list ',' lit_struct_field { }
+//	|	lit_struct_field        { dot_emit("", ""); $$ = $1; } ;
+//lit_struct_field: literal          { dot_emit("", ""); $$ = $1; } ;
 
-lit_struct_field:
-		literal          { dot_emit("", ""); $$ = $1; }
-	;
+struct_def:	IDENT '{' struct_def_fields  '}'
+		{}
+		;
+
+struct_def_fields: struct_def_fields ',' expr { $$ = structexpr_append($1, $3); }
+	|	expr { $$ = structexpr_append(structexpr_new(), $1);	}
+		;
 
 %%
 
