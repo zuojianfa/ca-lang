@@ -1456,12 +1456,12 @@ static void walk_expr_struct(ASTNode *p) {
 
   std::vector<Value *> values;
   //CalcOperand leftco;
-  //bool iscomplextype = catype_is_complex_type(structcatype->array_layout->type->type);
   //typeid_t leftsubtypeid = structcatype->array_layout->type->signature;
   for (size_t i = 0; i < vnodes->size(); ++i) {
     ASTNode *fieldnode = static_cast<ASTNode *>((*vnodes)[i]);
     walk_stack(fieldnode);
-    auto pair = pop_right_value("field");
+    bool iscomplextype = catype_is_complex_type(fields[0].type->type);
+    auto pair = pop_right_value("field", !iscomplextype);
     if (pair.second->signature != fields[i].type->signature) {
       yyerror("line: %d, col: %d: the `%d` field type `%s` of struct expression is different from the struct definition: `%s`",
 	      snode->begloc.row, snode->begloc.col, catype_get_type_name(pair.second->signature),

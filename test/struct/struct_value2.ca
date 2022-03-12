@@ -10,19 +10,16 @@ struct A1 {
 }
 
 fn main() {
-    let aa1 = AA {0x123456789i64, 3.1415926, true};
+    let aa1 = AA {f1: 0x123456789i64, f2: 3.1415926, f3: true};
     print aa1; print '\n';
-    let aa3: AA = AA {0x123456789i64, 3.1415926, true};
+    let aa3: AA = AA {f1: 0x123456789i64, f2: 3.1415926, f3: true};
     print aa3; print '\n';
 
-    let a11 = A1 {aa1, 'C'};
+    let a11 = A1 {f1: aa1, f2: 'C'};
     print a11; print '\n';
     a11.f1.f1 = 100;
     a11.f1.f2 = a11.f1.f2 * 2;
     a11.f1.f3 = a11.f1.f3 != true;
     print a11; print '\n';
-
-    //let aa2 = AA {f1: 0x123456789i64, f2: 3.1415926, f3: true};
-    //let aa4: AA = AA {f1: 0x123456789i64, f2: 3.1415926, f3: true};
 }
 
