@@ -56,8 +56,8 @@ extern int yychar, yylineno;
   CADataType *datatype;
   CAVariable *var;
   CALiteral litv;   /* literal value */
-  CAArrayLit arraylitv; /* array literal value */
   CAArrayExpr arrayexpr; /* array expression */
+  CAStructExpr structexpr;
   LitBuffer litb;   /* literal buffer */
     //IdToken idtok;    /* return type token */
   int symnameid;    /* symbol table index */
@@ -84,9 +84,9 @@ extern int yychar, yylineno;
 %left			'.' ARROW '[' ']'
 %nonassoc		UMINUS
 %left			UARRAY UDEREF UADDR
-%type	<litv>		literal lit_struct_field lit_struct_field_list lit_struct_def
-//			%type	<arraylitv>	lit_array_list lit_array_def
+%type	<litv>		literal
 %type	<arrayexpr>	array_def array_def_items
+%type	<structexpr>	struct_expr struct_expr_fields
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
@@ -95,8 +95,6 @@ extern int yychar, yylineno;
 %type	<var>		iddef iddef_typed
 %type	<symnameid>	label_id attrib_scope ret_type
 //			%type	<symnameid>	atomic_type
-//			%type	<idtok>		type_postfix
-//			%type	<datatype>	data_type pointer_type array_type ident_type
 %type	<tid>		data_type pointer_type array_type ident_type
 %type	<deleft>	deref_pointer
 %type	<aitem>		array_item array_item_r
@@ -261,7 +259,7 @@ label_id:	IDENT		      { dot_emit("label_id", "IDENT"); $$ = $1; }
 expr:     	literal               { $$ = make_literal(&$1); }
 	|	array_def             { $$ = make_array_def($1); }
 	|	array_item            { $$ = make_arrayitem_right($1); }
-	|	struct_def            { $$ = make_struct_def($1); }
+	|	struct_expr           { $$ = make_struct_expr($1); }
 	|	IDENT                 { $$ = make_ident_expr($1); }
 	|	'-' expr %prec UMINUS { $$ = make_uminus_expr($2); }
 	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
@@ -282,7 +280,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	deref_pointer         { $$ = make_deref($1.expr); }
 	|	'&' expr  { $$ = make_address($2); }
 	|	structfield_op        { $$ = make_structfield_right($1); }
-		;
+	;
 
 structfield_op:	expr '.' IDENT	      { $$ = make_element_field($1, $3, 1); }
 	|	expr ARROW IDENT      { $$ = make_element_field($1, $3, 0); }
@@ -309,8 +307,6 @@ struct_type_def: STRUCT IDENT
 
 struct_members_dot: struct_members | struct_members ','
 
-// "struct_members: iddef_typed ',' struct_members" support last ',' expression
-// but "struct_members: struct_members ',' iddef_typed" not support last ','
 struct_members: struct_members ',' iddef_typed   { add_struct_member(&curr_arglist, curr_symtable, $3); }
 	|	iddef_typed                      { add_struct_member(&curr_arglist, curr_symtable, $1); }
 	|	
@@ -338,7 +334,7 @@ iddef_typed:	IDENT ':' data_type { dot_emit("iddef_typed", "IDENT ':' data_type"
 
 ret_type:	ARROW data_type   { dot_emit("ret_type", "ARROW data_type"); $$ = $2; }
 	|	{ $$ = make_ret_type_void(); }
-		;
+	;
 
 literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, $1.typetok, tokenid_novalue); }
 	|	LITERAL IDENT    { create_literal(&$$, $1.text, $1.typetok, sym_primitive_token_from_id($2)); }
@@ -347,34 +343,19 @@ literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, 
 //	|	lit_struct_def   { dot_emit("literal", "lit_struct_def"); $$ = $1; }
 	;
 
-//////////////////////
 array_def:	'[' array_def_items ']' { $$ = $2; }
 	;
 
 array_def_items:array_def_items ',' expr { $$ = arrayexpr_append($1, $3); }
 	|	expr { $$ = arrayexpr_append(arrayexpr_new(), $1); }
 	;
-//////////////////////
 
-//lit_array_def:	'[' lit_array_list ']' { $$ = $2; }
-//	;
+struct_expr:	IDENT '{' struct_expr_fields  '}' { $$ = structexpr_end($3, $1); }
+	;
 
-//lit_array_list:	lit_array_list ',' literal { $$ = arraylit_append($1, &$3); }
-//	|	literal { $$ = arraylit_append(arraylit_new(), &$1);}
-//	;
-
-//lit_struct_def:	IDENT '{' lit_struct_field_list  '}' { } ;
-//lit_struct_field_list: lit_struct_field_list ',' lit_struct_field { }
-//	|	lit_struct_field        { dot_emit("", ""); $$ = $1; } ;
-//lit_struct_field: literal          { dot_emit("", ""); $$ = $1; } ;
-
-struct_def:	IDENT '{' struct_def_fields  '}'
-		{}
-		;
-
-struct_def_fields: struct_def_fields ',' expr { $$ = structexpr_append($1, $3); }
-	|	expr { $$ = structexpr_append(structexpr_new(), $1);	}
-		;
+struct_expr_fields: struct_expr_fields ',' expr { $$ = structexpr_append($1, $3); }
+	|	expr { $$ = structexpr_append(structexpr_new(), $1); }
+	;
 
 %%
 

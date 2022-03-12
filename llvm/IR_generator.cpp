@@ -130,6 +130,7 @@ extern RootTree *gtree;
 extern std::unordered_map<typeid_t, void *> g_function_post_map;
 
 std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
+std::vector<void *> *structexpr_deref(CAStructExpr obj);
 
 // for handling function parameter checking
 static std::unordered_map<typeid_t, void *> g_function_post_check_map;
@@ -1431,6 +1432,66 @@ static void walk_expr_array(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
+static void walk_expr_struct(ASTNode *p) {
+  typeid_t structid = inference_expr_type(p);
+  ASTNode *snode = p->exprn.operands[0];
+  CADataType *structcatype = catype_get_by_name(snode->symtable, structid);
+  CHECK_GET_TYPE_VALUE(snode, structcatype, snode->exprasn.type);
+  if (structcatype->type != STRUCT) {
+    yyerror("line: %d, col: %d: type `%s` is not a struct type",
+	    snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->signature));
+    return;
+  }
+
+  std::vector<void *> *vnodes = structexpr_deref(snode->snoden); 
+  if (structcatype->struct_layout->fieldnum != vnodes->size()) {
+    yyerror("line: %d, col: %d: struct type `%s` expression field number `%d` not equal to it's definition `%d`",
+	    snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->signature),
+	    structcatype->struct_layout->fieldnum, vnodes->size());
+    return;
+  }
+
+  //structcatype->struct_layout->name;
+  CAStructField *fields = structcatype->struct_layout->fields;
+
+  std::vector<Value *> values;
+  //CalcOperand leftco;
+  //bool iscomplextype = catype_is_complex_type(structcatype->array_layout->type->type);
+  //typeid_t leftsubtypeid = structcatype->array_layout->type->signature;
+  for (size_t i = 0; i < vnodes->size(); ++i) {
+    ASTNode *fieldnode = static_cast<ASTNode *>((*vnodes)[i]);
+    walk_stack(fieldnode);
+    auto pair = pop_right_value("field");
+    if (pair.second->signature != fields[i].type->signature) {
+      yyerror("line: %d, col: %d: the `%d` field type `%s` of struct expression is different from the struct definition: `%s`",
+	      snode->begloc.row, snode->begloc.col, catype_get_type_name(pair.second->signature),
+	      catype_get_type_name(fields[i].type->signature));
+      return;
+    }
+
+    //fields[i].name;
+    values.push_back(pair.first);
+  }
+
+  // allocate new array and copy related elements to the array
+  StructType *structype = static_cast<StructType *>(gen_llvmtype_from_catype(structcatype));
+  AllocaInst *structure = ir1.gen_var(structype);
+  Value *idxv0 = ir1.gen_int((int)0);
+  std::vector<Value *> idxv(2, idxv0);
+
+  for (size_t i = 0; i < values.size(); ++i) {
+    // get elements address of structure
+    Value *idxvi = ir1.gen_int((int)i);
+    idxv[1] = idxvi;
+    Value *dest = ir1.builder().CreateGEP(structure, idxv);
+    Type *lefttype = structype->getStructElementType(i);
+    aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "field");
+  }
+  
+  auto u = std::make_unique<CalcOperand>(OT_Alloc, structure, structcatype);
+  oprand_stack.push_back(std::move(u)); 
+}
+
 static void walk_expr_arrayitem(ASTNode *p) {
   assert(p->exprn.noperand == 1);
   ASTNode *anode = p->exprn.operands[0];
@@ -1498,6 +1559,9 @@ static void walk_expr(ASTNode *p) {
   switch (p->exprn.op) {
   case ARRAY:
     walk_expr_array(p);
+    break;
+  case STRUCT:
+    walk_expr_struct(p);
     break;
   case ARRAYITEM:
     walk_expr_arrayitem(p);
@@ -1756,7 +1820,15 @@ static void walk_typedef(ASTNode *node) {
 
 static void walk_vardefvalue(ASTNode *node) {}
 
+static void walk_arraydef(ASTNode *node) {}
+
 static void walk_derefleft(ASTNode *node) {}
+
+static void walk_arrayitemleft(ASTNode *node) {}
+static void walk_arrayitemright(ASTNode *node) {}
+static void walk_structfieldopleft(ASTNode *node) {}
+static void walk_structfieldopright(ASTNode *node) {}
+static void walk_structexpr(ASTNode *node) {}
 
 typedef void (*walk_fn_t)(ASTNode *p);
 static walk_fn_t walk_fn_array[TTE_Num] = {
@@ -1780,7 +1852,13 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_stmtlist,
   (walk_fn_t)walk_typedef,
   (walk_fn_t)walk_vardefvalue,
+  (walk_fn_t)walk_arraydef,
   (walk_fn_t)walk_derefleft,
+  (walk_fn_t)walk_arrayitemleft,
+  (walk_fn_t)walk_arrayitemright,
+  (walk_fn_t)walk_structfieldopleft,
+  (walk_fn_t)walk_structfieldopright,
+  (walk_fn_t)walk_structexpr,
 };
 
 static int walk_stack(ASTNode *p) {

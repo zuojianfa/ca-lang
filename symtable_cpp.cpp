@@ -78,6 +78,11 @@ std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj) {
   return v;
 }
 
+std::vector<void *> *structexpr_deref(CAStructExpr obj) {
+  auto *v = static_cast<std::vector<void *> *>(obj.data);
+  return v;
+}
+
 BEGIN_EXTERN_C
 int lexical_init() {
   return 0;
@@ -103,18 +108,6 @@ void set_litbuf_symname(LitBuffer *litb, int name, int len, int typetok) {
   litb->typetok = typetok;
   litb->len = len;
   litb->text = name;
-}
-
-CAArrayLit arraylit_new() {
-  std::vector<CALiteral> *v = new std::vector<CALiteral>;
-  CAArrayLit lit = { static_cast<void *>(v) };
-  return lit;
-}
-
-CAArrayLit arraylit_append(CAArrayLit obj, CALiteral *lit) {
-  auto *v = static_cast<std::vector<CALiteral> *>(obj.data);
-  v->push_back(*lit);
-  return obj;
 }
 
 CAArrayExpr arrayexpr_new() {

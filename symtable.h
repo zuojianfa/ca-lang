@@ -116,6 +116,11 @@ typedef struct CAArrayExpr {
   void *data;
 } CAArrayExpr;
 
+typedef struct CAStructExpr {
+  typeid_t name;
+  void *data;
+} CAStructExpr;
+
 typedef struct CALiteral {
   // specify if literal type is defined (fixed) with postfix (u32,f64, ...).
   // indicate if the literal type is determined
@@ -244,9 +249,6 @@ int as_type_convertable(tokenid_t from, tokenid_t to);
 
 void set_litbuf(LitBuffer *litb, const char *text, int len, int typetok);
 void set_litbuf_symname(LitBuffer *litb, int name, int len, int typetok);
-
-CAArrayLit arraylit_new();
-CAArrayLit arraylit_append(CAArrayLit obj, CALiteral *lit);
 
 CAArrayExpr arrayexpr_new();
 CAArrayExpr arrayexpr_append(CAArrayExpr obj, struct ASTNode *expr);

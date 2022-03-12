@@ -1,0 +1,23 @@
+struct AA {
+    f1: i64,
+    f2: f64,
+    f3: bool,
+}
+
+struct A1 {
+    f1: AA,
+    f2: char,
+}
+
+fn main() {
+    let aa1 = AA {0x123456789i64, 3.1415926, true};
+    print aa1; print '\n';
+    //let aa2 = AA {f1: 0x123456789i64, f2: 3.1415926, f3: true};
+    let aa3: AA = AA {0x123456789i64, 3.1415926, true};
+    print aa3; print '\n';
+    //let aa4: AA = AA {f1: 0x123456789i64, f2: 3.1415926, f3: true};
+
+    let a11 = A1 {aa1, 'C'};
+    print a11; print '\n';
+}
+

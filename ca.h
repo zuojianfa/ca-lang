@@ -46,6 +46,7 @@ typedef enum {
   TTE_ArrayItemRight,
   TTE_StructFieldOpLeft,
   TTE_StructFieldOpRight,
+  TTE_StructExpr,
   TTE_Num,
 } ASTNodeType;
 
@@ -217,6 +218,7 @@ typedef struct ASTNode {
     TDerefLeft deleftn;  /* dereference left node */
     TArrayItem aitemn;   /* array item operation: left or right */
     TStructFieldOp sfopn;/* struct field operation */
+    CAStructExpr snoden; /* struct expression definition */
   };
 } ASTNode;
 
@@ -266,7 +268,6 @@ int get_expr_type_from_tree(ASTNode *node);
 typeid_t inference_expr_type(ASTNode *p);
 void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t postfixtypetok);
 void create_string_literal(CALiteral *lit, const LitBuffer *litb);
-void create_array_literal(CALiteral *lit, CAArrayLit arraylit);
 const char *get_node_name_or_value(ASTNode *node);
 
 ASTNode *build_mock_main_fn_node();
@@ -307,6 +308,7 @@ ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_array_def(CAArrayExpr expr);
+ASTNode *make_struct_expr(CAStructExpr expr);
 ASTNode *make_arrayitem_right(ArrayItem ai);
 ASTNode *make_structfield_right(StructFieldOp sfop);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
@@ -325,6 +327,10 @@ ASTNode *make_stmt_list_zip();
 ArrayItem arrayitem_begin(ASTNode *expr);
 ArrayItem arrayitem_append(ArrayItem ai, ASTNode *expr);
 ArrayItem arrayitem_end(ArrayItem ai, ASTNode *arraynode);
+CAStructExpr structexpr_new();
+CAStructExpr structexpr_append(CAStructExpr sexpr, ASTNode *expr);
+CAStructExpr structexpr_end(CAStructExpr sexpr, int name);
+
 int check_fn_define(typeid_t fnname, ASTNode *param);
 // for tree node compress deep into wide, begin for stmt list beginning
 void put_astnode_into_list(ASTNode *stmt, int begin);

@@ -500,15 +500,6 @@ void create_string_literal(CALiteral *lit, const LitBuffer *litb) {
   lit->u.strvalue.len = litb->len;
 }
 
-void create_array_literal(CALiteral *lit, CAArrayLit arraylit) {
-  lit->fixed_type = 0;
-  lit->littypetok = ARRAY;
-  lit->textid = -1;
-  lit->datatype = typeid_novalue;
-  lit->catype = NULL;
-  lit->u.arrayvalue = arraylit;
-}
-
 SymTable *push_new_symtable() {
     SymTable *st = (SymTable *)malloc(sizeof(SymTable));
     sym_init(st, curr_symtable);
@@ -600,6 +591,15 @@ ASTNode *make_array_def(CAArrayExpr expr) {
   p->symtable = curr_symtable;
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   ASTNode *node = make_expr(ARRAY, 1, p);
+  return node;
+}
+
+ASTNode *make_struct_expr(CAStructExpr expr) {
+  ASTNode *p = new_ASTNode(TTE_StructExpr);
+  p->snoden = expr;
+  p->symtable = curr_symtable;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  ASTNode *node = make_expr(STRUCT, 1, p);
   return node;
 }
 
@@ -994,6 +994,13 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       catype = catype->array_layout->type;
     }
 
+    type1 = catype->signature;
+    break;
+  }
+  case STRUCT: {
+    ASTNode *anode = node->exprn.operands[0];
+    CADataType *catype = catype_get_by_name(anode->symtable, anode->snoden.name);
+    CHECK_GET_TYPE_VALUE(anode, catype, anode->snoden.name);
     type1 = catype->signature;
     break;
   }
@@ -2067,6 +2074,22 @@ ArrayItem arrayitem_end(ArrayItem ai, ASTNode *arraynode) {
   ai.arraynode = arraynode;
   vec_reverse(ai.indices);
   return ai;
+}
+
+CAStructExpr structexpr_new() {
+  CAStructExpr o = {typeid_novalue, vec_new()};
+  return o;
+}
+
+CAStructExpr structexpr_append(CAStructExpr sexpr, ASTNode *expr) {
+  vec_append(sexpr.data, expr);
+  return sexpr;
+}
+
+CAStructExpr structexpr_end(CAStructExpr sexpr, int name) {
+  typeid_t structtype = sym_form_type_id(name);
+  sexpr.name = structtype;
+  return sexpr;
 }
 
 void freeNode(ASTNode *p) {
