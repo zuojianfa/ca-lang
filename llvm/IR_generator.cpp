@@ -1456,7 +1456,7 @@ static void walk_expr_struct(ASTNode *p) {
 
   std::vector<void *> *vnodes = structexpr_deref(snode->snoden); 
   if (structcatype->struct_layout->fieldnum != vnodes->size()) {
-    yyerror("line: %d, col: %d: struct type `%s` expression field number `%d` not equal to it's definition `%d`",
+    yyerror("line: %d, col: %d: struct type `%s` expression field size: `%d` not equal to the struct field size: `%d`",
 	    snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->signature),
 	    structcatype->struct_layout->fieldnum, vnodes->size());
     return;
@@ -1511,7 +1511,7 @@ static void walk_expr_struct(ASTNode *p) {
       if (copy[i-1] == copy[i]) {
 	yyerror("line: %d, col: %d: multiple expression specified for field `%s` in struct `%s`",
 		snode->begloc.row, snode->begloc.col, symname_get(fields[i].type->signature),
-		catype_get_type_name(structcatype->struct_layout->name));
+		symname_get(structcatype->struct_layout->name));
 	return;
       }
     }
