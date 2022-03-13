@@ -329,7 +329,8 @@ ArrayItem arrayitem_append(ArrayItem ai, ASTNode *expr);
 ArrayItem arrayitem_end(ArrayItem ai, ASTNode *arraynode);
 CAStructExpr structexpr_new();
 CAStructExpr structexpr_append(CAStructExpr sexpr, ASTNode *expr);
-CAStructExpr structexpr_end(CAStructExpr sexpr, int name);
+CAStructExpr structexpr_append_named(CAStructExpr sexpr, ASTNode *expr, int name);
+CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named);
 
 int check_fn_define(typeid_t fnname, ASTNode *param);
 // for tree node compress deep into wide, begin for stmt list beginning

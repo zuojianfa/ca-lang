@@ -116,9 +116,15 @@ typedef struct CAArrayExpr {
   void *data;
 } CAArrayExpr;
 
+typedef struct CAStructNamed {
+  int name;
+  struct ASTNode *expr;
+} CAStructNamed;
+
 typedef struct CAStructExpr {
-  typeid_t name;
-  void *data;
+  typeid_t name; // struct name
+  int named;    // true: named field expression, false: unnamed expression
+  void *data;    // struct fields expression vec_new handle
 } CAStructExpr;
 
 typedef struct CALiteral {

@@ -207,7 +207,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] function with array parameter
 - [x] function with pointer parameter
 - [x] function with struct parameter
-- [ ] support struct literal
+- [x] support struct literal
+- [ ] support named struct literal
 
 ## Makefile
 - [x] use cmake to build the system
@@ -272,7 +273,7 @@ is scopeline the real skip function start for debugging? try it
 ```
 
 NEXT TODO:
-- [ ] support struct literal
+- [ ] support named struct literal
 - [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
 - [ ] implement following functions: 
   `catype_compare_type_signature`, 

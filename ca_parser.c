@@ -2077,7 +2077,7 @@ ArrayItem arrayitem_end(ArrayItem ai, ASTNode *arraynode) {
 }
 
 CAStructExpr structexpr_new() {
-  CAStructExpr o = {typeid_novalue, vec_new()};
+  CAStructExpr o = {typeid_novalue, 0, vec_new()};
   return o;
 }
 
@@ -2086,9 +2086,18 @@ CAStructExpr structexpr_append(CAStructExpr sexpr, ASTNode *expr) {
   return sexpr;
 }
 
-CAStructExpr structexpr_end(CAStructExpr sexpr, int name) {
+CAStructExpr structexpr_append_named(CAStructExpr sexpr, ASTNode *expr, int name) {
+  CAStructNamed *s = (CAStructNamed *)malloc(sizeof(CAStructNamed));
+  s->expr = expr;
+  s->name = name;
+  vec_append(sexpr.data, s);
+  return sexpr; 
+}
+
+CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named) {
   typeid_t structtype = sym_form_type_id(name);
   sexpr.name = structtype;
+  sexpr.named = named;
   return sexpr;
 }
 

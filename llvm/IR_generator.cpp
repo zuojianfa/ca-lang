@@ -18,9 +18,11 @@
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
 #include <cassert>
 #include <cstdarg>
 #include <cstddef>
@@ -1432,6 +1434,15 @@ static void walk_expr_array(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
+static int structexpr_get_field_order(int name, CAStructField *fields, size_t size) {
+  for (int i = 0; i < size; ++i) {
+    if (fields[i].name == name)
+      return i;
+  }
+
+  return -1;
+}
+
 static void walk_expr_struct(ASTNode *p) {
   typeid_t structid = inference_expr_type(p);
   ASTNode *snode = p->exprn.operands[0];
@@ -1451,26 +1462,80 @@ static void walk_expr_struct(ASTNode *p) {
     return;
   }
 
-  //structcatype->struct_layout->name;
   CAStructField *fields = structcatype->struct_layout->fields;
 
+  // when is named field then store the field order in struct definition
+  std::vector<int> fieldorder;
   std::vector<Value *> values;
-  //CalcOperand leftco;
-  //typeid_t leftsubtypeid = structcatype->array_layout->type->signature;
   for (size_t i = 0; i < vnodes->size(); ++i) {
-    ASTNode *fieldnode = static_cast<ASTNode *>((*vnodes)[i]);
+    ASTNode *fieldnode = nullptr;
+    int exprfieldname = -1;
+    void *inode = (*vnodes)[i];
+    int order = i;
+    if (snode->snoden.named) {
+      CAStructNamed *namedexpr = static_cast<CAStructNamed *>(inode);
+      order = structexpr_get_field_order(namedexpr->name, fields, vnodes->size());
+      if (order == -1) {
+	yyerror("line: %d, col: %d: cannot find the field name in struct `%s` for the `%d` field `%s` in expression",
+		snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->struct_layout->name), i,
+		symname_get(namedexpr->name));
+	return;
+      }
+
+      fieldorder.push_back(order);
+      fieldnode = namedexpr->expr;
+      // TODO: here may need free `namedexpr` when it never used again
+      // free(namedexpr)
+    } else {
+      fieldnode = static_cast<ASTNode *>(inode);
+    }
+
     walk_stack(fieldnode);
-    bool iscomplextype = catype_is_complex_type(fields[0].type->type);
+    bool iscomplextype = catype_is_complex_type(fields[order].type->type);
     auto pair = pop_right_value("field", !iscomplextype);
-    if (pair.second->signature != fields[i].type->signature) {
-      yyerror("line: %d, col: %d: the `%d` field type `%s` of struct expression is different from the struct definition: `%s`",
-	      snode->begloc.row, snode->begloc.col, catype_get_type_name(pair.second->signature),
-	      catype_get_type_name(fields[i].type->signature));
+    if (pair.second->signature != fields[order].type->signature) {
+      yyerror("line: %d, col: %d: the field `%d`'s type `%s` of struct expression is different from the struct definition: `%s`",
+	      snode->begloc.row, snode->begloc.col, i, catype_get_type_name(pair.second->signature),
+	      catype_get_type_name(fields[order].type->signature));
       return;
     }
 
-    //fields[i].name;
     values.push_back(pair.first);
+  }
+
+  if (snode->snoden.named) {
+    // rearrange values order according to the named order
+    std::vector<int> copy = fieldorder;
+    std::sort(copy.begin(), copy.end());
+    for (int i = 1; i < copy.size(); ++i) {
+      if (copy[i-1] == copy[i]) {
+	yyerror("line: %d, col: %d: multiple expression specified for field `%s` in struct `%s`",
+		snode->begloc.row, snode->begloc.col, symname_get(fields[i].type->signature),
+		catype_get_type_name(structcatype->struct_layout->name));
+	return;
+      }
+    }
+
+    for (int i = 0; i < fieldorder.size(); ++i) {
+      if (i == fieldorder[i])
+	continue;
+
+      Value *tmpv = values[i];
+      int tmpi = fieldorder[i];
+
+      // go home for tmpi and tmpv
+      while(tmpi != i) {
+	int tmp = fieldorder[tmpi];
+	fieldorder[tmpi] = tmpi;
+
+        Value *tmpvi = values[tmpi];
+	values[tmpi] = tmpv;
+	tmpv = tmpvi;
+	tmpi = tmp;
+      }
+      fieldorder[tmpi] = tmpi;
+      values[tmpi] = tmpv;
+    }
   }
 
   // allocate new array and copy related elements to the array

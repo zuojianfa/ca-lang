@@ -1,0 +1,40 @@
+struct AA {
+    f1: i64,
+    f2: f64,
+    f3: bool,
+}
+
+struct A1 {
+    f1: AA,
+    f2: char,
+}
+
+fn main() {
+    let aa1 = AA {f1: 0x123456789i64, f2: 3.1415926, f3: true};
+    print aa1; print '\n';
+    let aa2 = AA {f1: 0x123456789i64, f3: true, f2: 3.1415926};
+    print aa2; print '\n';
+    let aa3: AA = AA {f2: 3.1415926, f1: 0x123456789i64, f3: true};
+    print aa3; print '\n';
+    let aa4: AA = AA {f2: 3.1415926, f3: true, f1: 0x123456789i64};
+    print aa4; print '\n';
+    let aa5: AA = AA {f3: true, f1: 0x123456789i64, f2: 3.1415926};
+    print aa5; print '\n';
+    let aa6: AA = AA {f3: true, f2: 3.1415926, f1: 0x123456789i64};
+    print aa6; print '\n';
+
+    let a11 = A1 {f1: aa1, f2: 'C'};
+    print a11; print '\n';
+    a11.f1.f1 = 100;
+    a11.f1.f2 = a11.f1.f2 * 2;
+    a11.f1.f3 = a11.f1.f3 != true;
+    print a11; print '\n';
+
+    let a12 = A1 {f2: 'C', f1: aa1};
+    print a12; print '\n';
+    a12.f1.f1 = 101;
+    a12.f1.f2 = a12.f1.f2 * 2;
+    a12.f1.f3 = a12.f1.f3 != true;
+    print a12; print '\n';
+}
+

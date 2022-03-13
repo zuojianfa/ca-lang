@@ -59,7 +59,6 @@ extern int yychar, yylineno;
   CAArrayExpr arrayexpr; /* array expression */
   CAStructExpr structexpr;
   LitBuffer litb;   /* literal buffer */
-    //IdToken idtok;    /* return type token */
   int symnameid;    /* symbol table index */
   typeid_t tid;
   ASTNode *astnode; /* node pointer */
@@ -86,7 +85,7 @@ extern int yychar, yylineno;
 %left			UARRAY UDEREF UADDR
 %type	<litv>		literal
 %type	<arrayexpr>	array_def array_def_items
-%type	<structexpr>	struct_expr struct_expr_fields
+%type	<structexpr>	struct_expr struct_expr_fields named_struct_expr_fields
 %type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
@@ -350,11 +349,17 @@ array_def_items:array_def_items ',' expr { $$ = arrayexpr_append($1, $3); }
 	|	expr { $$ = arrayexpr_append(arrayexpr_new(), $1); }
 	;
 
-struct_expr:	IDENT '{' struct_expr_fields  '}' { $$ = structexpr_end($3, $1); }
+struct_expr:	IDENT '{' struct_expr_fields  '}' { $$ = structexpr_end($3, $1, 0); }
+	|	IDENT '{' named_struct_expr_fields '}' { $$ = structexpr_end($3, $1, 1); }
 	;
 
 struct_expr_fields: struct_expr_fields ',' expr { $$ = structexpr_append($1, $3); }
 	|	expr { $$ = structexpr_append(structexpr_new(), $1); }
+	;
+
+named_struct_expr_fields:
+		named_struct_expr_fields ',' IDENT ':' expr { $$ = structexpr_append_named($1, $5, $3); }
+	|	IDENT ':' expr { $$ = structexpr_append_named(structexpr_new(), $3, $1); }
 	;
 
 %%
