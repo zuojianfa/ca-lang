@@ -53,6 +53,7 @@ execute_process(COMMAND llvm-config "--cxxflags"
 
 # remove the last \n character of llvm-config command
 string(REPLACE "\n" " " CLANGPP_CXXFLAGS ${CLANGPP_CXXFLAGS})
+string(REPLACE " " ";" CLANGPP_CXXFLAGS ${CLANGPP_CXXFLAGS})
 
 # get LDFLAGS using llvm-config
 execute_process(COMMAND llvm-config --ldflags --system-libs --libs core orcjit native
@@ -60,6 +61,7 @@ execute_process(COMMAND llvm-config --ldflags --system-libs --libs core orcjit n
 
 # remove the last \n character of llvm-config command
 string(REPLACE "\n" " " CLANGPP_LDFLAGS ${CLANGPP_LDFLAGS})
+string(REPLACE " " ";" CLANGPP_LDFLAGS ${CLANGPP_LDFLAGS})
 
 # four standard configurations: Debug Release RelWithDebInfo MinSizeRel
 #set(CMAKE_CXX_FLAGS "")
@@ -72,10 +74,10 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-g")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O2")
 set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "-O2 -g")
 
-# ${CLANGPP_CXXFLAGS} = -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
-# ${CLANGPP_LDFLAGS} = -L/usr/lib/llvm/12/lib64  -lLLVM-12
-set(llvm_cxxflags -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-set(llvm_ldflags -L/usr/lib/llvm/12/lib64  -lLLVM-12)
+#set(llvm_cxxflags -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
+#set(llvm_ldflags -L/usr/lib/llvm/12/lib64  -lLLVM-12)
+set(llvm_cxxflags ${CLANGPP_CXXFLAGS})
+set(llvm_ldflags ${CLANGPP_LDFLAGS})
 
 add_subdirectory(llvm)
 

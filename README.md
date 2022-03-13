@@ -138,7 +138,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] make non-global variable visiable when debugging, now can only debug but cannot see the variable name in the debugger
 - [x] resolve inner variable problem for debugging
 - [ ] skip the function name for debugging just like c function
-- [ ] generate debug info for label DILabel (DIBuilder::createLabel)
+- [x] generate debug info for label DILabel (DIBuilder::createLabel)
 - [ ] support fine location (lineno rowno) info for each symbol
 - [x] record program begin location
 - [x] record program end location
@@ -149,10 +149,10 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 ## Grammar
 - [x] support `__zero_init__` value for initial the value of any type with 0 initialized
 - [x] add function functionality
-- [ ] support array
-- [ ] support layered variable definition
+- [x] support array
+- [x] support layered variable definition
 - [ ] add other atomic type
-- [ ] add record (struct) type
+- [x] add record (struct) type
 - [x] support pointer type
 - [x] support array type
 - [x] support addressing operator '&'
@@ -177,7 +177,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   now directly support the extern c function, the `libc` is automatically added into the linker, so all the `libc` function can be used directly 
 - [x] support c variant parameter function
 - [x] support comment
-- [ ] support `0xxxxxxxx` literal
+- [x] support `0xxxxxxxx` literal
 - [x] when `-main` provided the global variable should use `#[scope(global)]` grammar to specifiy if it is a global variable
   - [x] try default global variable as local variable in generated `main` function
   - [x] add `#[scope(global)]` grammar
@@ -190,7 +190,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - when no `-main` option
 	- the variable declare in non-function will be global variable
 	- `#[scope(global)]` have the same effect as with `-main` option, so it's no affect to non-function variables
-- [ ] how to cope with: when use `-main` but the source file already defined a main function?
+- [x] how to cope with: when use `-main` but the source file already defined a main function?
   detect the conflicting
   
 - [x] support post type definition
@@ -216,7 +216,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 	can use ctest framework, but each .ca test case need write by hand
 
 ## Optimization
-- [ ] support optimization for each function not only `main`
+- [x] support optimization for each function not only `main`
 - [ ] support global optimization
 - [ ] add optimization for all functions, in `do_optimize_pass` function
 
@@ -225,7 +225,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] compile into executable file (linux)
 - [x] compile into ll (llvm assembly text file)
 - [ ] compile into llvm assembly binary file
-- [ ] Passing ld options for -native command
+- [x] Passing ld options for -native command
 - [ ] Write interactive interpreter like python command line
 - [x] Add option `-main` to emit main function, default not generate main function
 - [ ] support multi module compile, reference the functions / global variables in other ca module
@@ -274,6 +274,7 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
+- [ ] debug support inner field scope, 
 - [ ] implement following functions: 
   `catype_compare_type_signature`, 
   `catype_make_type_closure`,
@@ -281,7 +282,6 @@ NEXT TODO:
 - [ ] remove entry object in ASTNode
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
 - [ ] support other atomic type
-- [ ] debug support inner field scope, 
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
 
