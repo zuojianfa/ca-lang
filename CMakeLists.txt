@@ -63,6 +63,13 @@ execute_process(COMMAND llvm-config --ldflags --system-libs --libs core orcjit n
 string(REPLACE "\n" " " CLANGPP_LDFLAGS ${CLANGPP_LDFLAGS})
 string(REPLACE " " ";" CLANGPP_LDFLAGS ${CLANGPP_LDFLAGS})
 
+# get llvm version
+execute_process(COMMAND llvm-config --version OUTPUT_VARIABLE LLVM_VERSION)
+string(REPLACE "\n" "" LLVM_VERSION ${LLVM_VERSION})
+string(SUBSTRING ${LLVM_VERSION} 0 2 LLVM_VERSION_MAJOR)
+set(llvm_version_flag -DLLVM_VERSION=${LLVM_VERSION_MAJOR})
+message("llvm2: " ${llvm_version_flag})
+
 # four standard configurations: Debug Release RelWithDebInfo MinSizeRel
 #set(CMAKE_CXX_FLAGS "")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
@@ -76,7 +83,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "-O2 -g")
 
 #set(llvm_cxxflags -I/usr/lib/llvm/12/include -std=c++14    -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 #set(llvm_ldflags -L/usr/lib/llvm/12/lib64  -lLLVM-12)
-set(llvm_cxxflags ${CLANGPP_CXXFLAGS})
+set(llvm_cxxflags ${CLANGPP_CXXFLAGS} ${llvm_version_flag})
 set(llvm_ldflags ${CLANGPP_LDFLAGS})
 
 add_subdirectory(llvm)

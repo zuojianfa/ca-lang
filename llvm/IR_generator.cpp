@@ -1282,6 +1282,8 @@ static void walk_expr_op2(ASTNode *p) {
   Value *v2 = pair2.first;
   Value *v3 = nullptr;
 
+  Type *type = nullptr;
+
   // TODO: here should can use pair1.second pair2.second
   typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0]);
   typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1]);
@@ -1313,7 +1315,8 @@ static void walk_expr_op2(ASTNode *p) {
       v2 = ir1.builder().CreateSExt(v2, ir1.int_type<int64_t>());
       v2 = ir1.gen_sub(z, v2, "m");
     case '+':
-      v3 = ir1.builder().CreateGEP(v1, v2, "pop");
+      type = gen_llvmtype_from_catype(dt->pointer_layout->type);
+      v3 = ir1.builder().CreateGEP(type, v1, v2, "pop");
       break;
     default:
       yyerror("line: %d, column: %d, pointer operation only support `+` and `-`, but find `%c`",
@@ -1588,7 +1591,8 @@ static void walk_expr_struct(ASTNode *p) {
     // get elements address of structure
     Value *idxvi = ir1.gen_int((int)i);
     idxv[1] = idxvi;
-    Value *dest = ir1.builder().CreateGEP(structure, idxv);
+    Value *dest = ir1.builder().CreateGEP(// structype, 
+					  structure, idxv);
     Type *lefttype = structype->getStructElementType(i);
     aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "field");
   }
@@ -2042,7 +2046,13 @@ static int llvm_codegen_ll(const char *output = nullptr) {
 
   if (output && output[0]) {
     std::error_code ec;
+
+#if LLVM_VERSION > 12
+    raw_fd_ostream os(output, ec, llvm::sys::fs::OF_None);
+#else
     raw_fd_ostream os(output, ec, llvm::sys::fs::F_None);
+#endif
+
     if (ec) {
       errs() << "could not open file: " << output
 	     << ", error code: " << ec.message();
@@ -2090,7 +2100,13 @@ static int llvm_codegen_native(CodeGenFileType type, const char *output = nullpt
 
   if (output && output[0]) {
     std::error_code ec;
+
+#if LLVM_VERSION > 12
+    raw_fd_ostream os(output, ec, llvm::sys::fs::OF_None);
+#else
     raw_fd_ostream os(output, ec, llvm::sys::fs::F_None);
+#endif
+
     if (ec) {
       errs() << "could not open file: " << output
 	     << ", error code: " << ec.message();
