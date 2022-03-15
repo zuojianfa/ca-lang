@@ -339,6 +339,9 @@ void put_astnode_into_list(ASTNode *stmt, int begin);
 int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 ASTNode *make_struct_type(int id, ST_ArgList *arglist);
 
+void push_lexical_body();
+void pop_lexical_body();
+
 void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);
 

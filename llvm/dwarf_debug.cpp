@@ -47,6 +47,10 @@ llvm::DIType *DWARFDebugInfo::get_ditype(const char *type) {
   return _ditypes[type];
 }
 
+void DWARFDebugInfo::put_ditype(const char *type, llvm::DIType *ditype) {
+  _ditypes[type] = ditype;
+}
+
 DWARFDebugInfo::DWARFDebugInfo(llvm::IRBuilder<> &builder, llvm::Module &module,
                                const char *src_path)
   : builder(builder), dibuilder(std::make_unique<llvm::DIBuilder>(module)) {

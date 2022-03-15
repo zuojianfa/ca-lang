@@ -225,8 +225,9 @@ ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(
 ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { $$ = make_if(1, 3, $3, $5, $7); }
 		;
 
-stmtexpr_list_block: { SymTable *st = push_new_symtable(); }
-		'{' stmtexpr_list '}' { $$ = make_stmtexpr_list_block($3); }
+stmtexpr_list_block:               { SymTable *st = push_new_symtable(); }
+		'{'                { push_lexical_body(); }
+		stmtexpr_list '}'  { $$ = make_stmtexpr_list_block($4); pop_lexical_body(); }
 		;
 
 stmtexpr_list:  stmt_list expr { $$ = make_stmtexpr_list(make_stmt_list_zip(), $2); }
@@ -238,7 +239,8 @@ stmt_list_block: { SymTable *st = push_new_symtable(); }
 		block_body { $$ = make_stmtexpr_list_block($2); }
 		;
 
-block_body: 	'{'stmt_list_star '}' { $$ = $2; }
+block_body: 	'{'                { push_lexical_body(); }
+		stmt_list_star '}' { $$ = $3; pop_lexical_body(); }
 		;
 
 stmt_list_star:	stmt_list             { $$ = make_stmt_list_zip(); }

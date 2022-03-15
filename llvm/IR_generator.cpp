@@ -229,20 +229,62 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
   }
 }
 
-static void emit_global_var_dbginfo(const char *varname, const char *type, int row) {
-  DIType *ditype = diinfo->get_ditype(type);
+static DIType *ditype_create_from_catype(CADataType *catype) {
+  const char *name = nullptr;
+  switch(catype->type) {
+  case STRUCT: {
+    //DIScope *scope = diinfo->dibuilder->createLexicalBlock(); // (DIScope *Scope, DIFile *File, unsigned int Line, unsigned int Col)
+    //diinfo->dibuilder->createStructType(); // (DIScope *Scope, StringRef Name, DIFile *File, unsigned int LineNumber, uint64_t SizeInBits, uint32_t AlignInBits, DINode::DIFlags Flags, DIType *DerivedFrom, DINodeArray Elements);
+    return nullptr;
+  }
+  case ARRAY: {
+    assert(catype->array_layout->dimension == 1);
+    DIType *kernelty = ditype_create_from_catype(catype->array_layout->type);
+    DISubrange *subr = diinfo->dibuilder->getOrCreateSubrange(0, catype->array_layout->dimarray[0]);
+    DINodeArray na = diinfo->dibuilder->getOrCreateArray(subr);
+    DICompositeType *pty = diinfo->dibuilder->createArrayType(catype->array_layout->dimarray[0], 4, kernelty, na);
+    return pty;
+  }
+  case POINTER: {
+    assert(catype->pointer_layout->dimension == 1);
+    DIType *pointeety = ditype_create_from_catype(catype->pointer_layout->type);
+    name = catype_get_type_name(catype->signature);
+    DIDerivedType *pty = diinfo->dibuilder->createPointerType(pointeety, sizeof(void *), 0, None, name);
+    return pty;
+  }
+  default: {
+    name = catype_get_type_name(catype->signature);
+    return diinfo->get_ditype(name);
+  }
+  }
+}
+
+static DIType *ditype_get_or_create_from_catype(CADataType *catype) {
+  const char *typestr = catype_get_type_name(catype->signature);
+ 
+  DIType *ditype = diinfo->get_ditype(typestr);
+  if (ditype)
+    return ditype;
+
+  ditype = ditype_create_from_catype(catype);
+  diinfo->put_ditype(typestr, ditype);
+  return ditype;
+}
+
+static void emit_global_var_dbginfo(const char *varname, CADataType *catype, int row) {
+  DIType *ditype = ditype_get_or_create_from_catype(catype);
   llvm::DIGlobalVariableExpression *digve =
     diinfo->dibuilder->createGlobalVariableExpression(diunit, varname, StringRef(), diunit, row, ditype, false);
 }
 
 static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname,
-				   const char *typestr, llvm::Value *var, int row) {
+				   CADataType *catype, llvm::Value *var, int row) {
   auto itr = fn_debug_map.find(fn);
   if (itr == fn_debug_map.end())
     yyerror("cannot find function '%s' in map", fn->getName().str().c_str());
 
   auto &dbginfo = *itr->second;
-  DIType *ditype = diinfo->get_ditype(typestr);
+  DIType *ditype = ditype_get_or_create_from_catype(catype);
   DILocalVariable *divar =
     diinfo->dibuilder->createAutoVariable(dbginfo.disp, varname, diunit, row, ditype, true);
 
@@ -456,8 +498,6 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, bool zeroinitial = fa
     }
   } else {
     // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
-    const char *typestr = catype_get_type_name(idtype->signature);
-
     // here determine if `#[scope(global)]` is specified
     if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
       // global variable not allow dereference operation, so not consider TTE_DerefLeft and
@@ -465,7 +505,7 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, bool zeroinitial = fa
       var = ir1.gen_global_var(type, name, defval, false, zeroinitial);
 
       if (enable_debug_info())
-	emit_global_var_dbginfo(name, typestr, p->endloc.row);
+	emit_global_var_dbginfo(name, idtype, p->endloc.row);
     } else {
       switch (p->type) {
       case TTE_Id:
@@ -492,7 +532,7 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, bool zeroinitial = fa
 	aux_copy_llvmvalue_to_store(type, var, defval, name);
 
       if (enable_debug_info())
-	emit_local_var_dbginfo(curr_fn, name, typestr, var, p->endloc.row);
+	emit_local_var_dbginfo(curr_fn, name, idtype, var, p->endloc.row);
     }
 
     if (p->type == TTE_Id)
@@ -1836,14 +1876,14 @@ static Function *walk_fn_define(ASTNode *p) {
   ir1.builder().SetInsertPoint(retbb);
   generate_final_return(p);
 
-  if (enable_debug_info())
+  if (enable_debug_info()) {
     diinfo->lexical_blocks.pop_back();
 
-  // finalize the debug info for verify function successfully, it may slow down
-  // the performance invoke here, may move all function verification into later
-  // TODO: move into all module is processed
-  if (enable_debug_info())
+    // finalize the debug info for verify function successfully, it may slow down
+    // the performance invoke here, may move all function verification into later
+    // TODO: move into all module is processed
     diinfo->dibuilder->finalize();
+  }
 
   std::string verify_message;
   llvm::raw_string_ostream rso(verify_message);

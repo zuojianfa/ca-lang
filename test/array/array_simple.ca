@@ -1,0 +1,5 @@
+fn main() {
+    let a: [i32; 1] = [1];
+    //print a; print '\n';
+}
+

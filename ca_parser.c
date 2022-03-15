@@ -2101,6 +2101,14 @@ CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named) {
   return sexpr;
 }
 
+void push_lexical_body() {
+  // NEXT TODO: create a lexical body begin node
+}
+
+void pop_lexical_body() {
+  // NEXT TODO: create a lexical body end node 
+}
+
 void freeNode(ASTNode *p) {
     int i;
     if (!p) return;
