@@ -47,6 +47,7 @@ typedef enum {
   TTE_StructFieldOpLeft,
   TTE_StructFieldOpRight,
   TTE_StructExpr,
+  TTE_LexicalBody,
   TTE_Num,
 } ASTNodeType;
 
@@ -190,6 +191,10 @@ typedef struct StructFieldOp {
   int direct; // direct: . op, indirect: -> op
 } StructFieldOp, TStructFieldOp;
 
+typedef struct TLexicalBody {
+  struct ASTNode *stmts;
+} TLexicalBody;
+
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
@@ -219,6 +224,7 @@ typedef struct ASTNode {
     TArrayItem aitemn;   /* array item operation: left or right */
     TStructFieldOp sfopn;/* struct field operation */
     CAStructExpr snoden; /* struct expression definition */
+    TLexicalBody lnoden;
   };
 } ASTNode;
 
@@ -339,8 +345,9 @@ void put_astnode_into_list(ASTNode *stmt, int begin);
 int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 ASTNode *make_struct_type(int id, ST_ArgList *arglist);
 
-void push_lexical_body();
-void pop_lexical_body();
+//void push_lexical_body();
+//void pop_lexical_body();
+ASTNode *make_lexical_body(ASTNode *stmts);
 
 void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);

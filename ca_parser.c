@@ -364,6 +364,13 @@ ASTNode *make_stmtexpr_list(ASTNode *stmts, ASTNode *expr) {
   return node;
 }
 
+ASTNode *make_lexical_body(ASTNode *stmts) {
+  ASTNode *node = new_ASTNode(TTE_LexicalBody);
+  node->lnoden.stmts = stmts;
+  set_address(node, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  return node;
+}
+
 typeid_t make_pointer_type(typeid_t type) {
   return sym_form_pointer_id(type);
   /* return catype_make_pointer_type(type); */
@@ -1144,6 +1151,8 @@ typeid_t inference_expr_type(ASTNode *p) {
       }
     }
     return type1;
+  case TTE_LexicalBody:
+    return inference_expr_type(p->lnoden.stmts);
   default:
     yyerror("line: %d, col: %d: the expression already typed, no need to do inference",
 	    glineno, gcolno);
@@ -2101,13 +2110,8 @@ CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named) {
   return sexpr;
 }
 
-void push_lexical_body() {
-  // NEXT TODO: create a lexical body begin node
-}
-
-void pop_lexical_body() {
-  // NEXT TODO: create a lexical body end node 
-}
+//void push_lexical_body() {}
+//void pop_lexical_body() {}
 
 void freeNode(ASTNode *p) {
     int i;

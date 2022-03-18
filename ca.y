@@ -226,8 +226,8 @@ ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { $$ = ma
 		;
 
 stmtexpr_list_block:               { SymTable *st = push_new_symtable(); }
-		'{'                { push_lexical_body(); }
-		stmtexpr_list '}'  { $$ = make_stmtexpr_list_block($4); pop_lexical_body(); }
+		'{'                //{ push_lexical_body(); }
+		stmtexpr_list '}'  { ASTNode *node = make_lexical_body($3); $$ = make_stmtexpr_list_block(node); }
 		;
 
 stmtexpr_list:  stmt_list expr { $$ = make_stmtexpr_list(make_stmt_list_zip(), $2); }
@@ -239,8 +239,8 @@ stmt_list_block: { SymTable *st = push_new_symtable(); }
 		block_body { $$ = make_stmtexpr_list_block($2); }
 		;
 
-block_body: 	'{'                { push_lexical_body(); }
-		stmt_list_star '}' { $$ = $3; pop_lexical_body(); }
+block_body: 	'{'                // { push_lexical_body(); }
+		stmt_list_star '}'    { $$ = make_lexical_body($2); }
 		;
 
 stmt_list_star:	stmt_list             { $$ = make_stmt_list_zip(); }

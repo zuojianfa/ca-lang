@@ -233,6 +233,7 @@ static DIType *ditype_create_from_catype(CADataType *catype) {
   const char *name = nullptr;
   switch(catype->type) {
   case STRUCT: {
+    // NEXT TODO: 
     //DIScope *scope = diinfo->dibuilder->createLexicalBlock(); // (DIScope *Scope, DIFile *File, unsigned int Line, unsigned int Col)
     //diinfo->dibuilder->createStructType(); // (DIScope *Scope, StringRef Name, DIFile *File, unsigned int LineNumber, uint64_t SizeInBits, uint32_t AlignInBits, DINode::DIFlags Flags, DIType *DerivedFrom, DINodeArray Elements);
     return nullptr;
@@ -1928,16 +1929,17 @@ static void walk_typedef(ASTNode *node) {
 }
 
 static void walk_vardefvalue(ASTNode *node) {}
-
 static void walk_arraydef(ASTNode *node) {}
-
 static void walk_derefleft(ASTNode *node) {}
-
 static void walk_arrayitemleft(ASTNode *node) {}
 static void walk_arrayitemright(ASTNode *node) {}
 static void walk_structfieldopleft(ASTNode *node) {}
 static void walk_structfieldopright(ASTNode *node) {}
 static void walk_structexpr(ASTNode *node) {}
+
+static void walk_lexical_body(ASTNode *node) {
+  walk_stack(node->lnoden.stmts);
+}
 
 typedef void (*walk_fn_t)(ASTNode *p);
 static walk_fn_t walk_fn_array[TTE_Num] = {
@@ -1968,6 +1970,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_structfieldopleft,
   (walk_fn_t)walk_structfieldopright,
   (walk_fn_t)walk_structexpr,
+  (walk_fn_t)walk_lexical_body,
 };
 
 static int walk_stack(ASTNode *p) {
