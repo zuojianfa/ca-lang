@@ -41,7 +41,7 @@ typedef enum CADTStatus {
 typedef struct CADataType {
   tokenid_t type;       // type type: I32 I64 ... STRUCT ARRAY
   typeid_t formalname; // type name symname_xxx
-  int size;       // type size
+  size_t size;       // type size
   typeid_t signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table
   CADTStatus status;   // only when status is not None, the signature can be used directly
   union {
@@ -53,6 +53,7 @@ typedef struct CADataType {
 
 typedef struct CAStructField {
   int name;           // field name
+  size_t offset;      // field address offset to the struct beginning
   CADataType *type;   // field type
   //typeid_t type;
 } CAStructField;
@@ -60,7 +61,9 @@ typedef struct CAStructField {
 typedef struct CAStruct {
   int name;
   int fieldnum;
-  int capacity;
+  int capacity;  // private
+  int packed;    // 0: default, 1: pack 1, ...
+  int fieldmaxalign;
   struct CAStructField *fields;
 } CAStruct;
 

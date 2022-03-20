@@ -367,7 +367,7 @@ ASTNode *make_stmtexpr_list(ASTNode *stmts, ASTNode *expr) {
 ASTNode *make_lexical_body(ASTNode *stmts) {
   ASTNode *node = new_ASTNode(TTE_LexicalBody);
   node->lnoden.stmts = stmts;
-  set_address(node, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  set_address(node, &stmts->begloc, &stmts->endloc);
   return node;
 }
 

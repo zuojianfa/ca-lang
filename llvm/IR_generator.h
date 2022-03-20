@@ -4,6 +4,7 @@
 #include "ca_types.h"
 #include "ca.h"
 #include "symtable.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 
 #include <llvm/IR/Value.h>
 
@@ -25,6 +26,12 @@ CalcOperand(OperandType t, llvm::Value *v, CADataType *dt) : type(t), operand(v)
   OperandType type;
   CADataType *catype;
   llvm::Value *operand;
+};
+
+struct LexicalScope {
+LexicalScope() : discope(nullptr) {}
+
+  llvm::DIScope *discope;
 };
 
 #endif

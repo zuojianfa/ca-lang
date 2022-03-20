@@ -1,0 +1,81 @@
+struct C1 {
+    f1: char,
+}
+
+struct AA {
+    f1: i32,
+    f2: f64,
+    f3: char,
+}
+
+struct A1 {
+    f2: f64,
+    f1: i32,
+    f3: char,
+}
+
+struct A2 {
+    aa: AA,
+    a1: A1,
+}
+
+struct A21 {
+    c1: char,
+    aa: AA,
+    a1: A1,
+}
+
+struct A22 {
+    aa: AA,
+    a1: A1,
+    c1: char,
+}
+
+struct A3 {
+    aa: AA,
+    a1: A1,
+    c1: C1,
+}
+
+fn main() {
+    let a  = AA{32, 44.3, 'C'};
+    let b  = A1{44.3, 32, 'D'};
+    let c  = A2{AA{32, 44.3, 'C'}, A1{44.3, 32, 'D'}};
+    let a3 = A3{AA{32, 44.3, 'C'}, A1{44.3, 32, 'D'}, C1{'B'}};
+    let c1 = C1{'A'};
+
+    let a21: A21 = __zero_init__;
+    let a22: A22 = __zero_init__;
+    a21.c1 = 'E';
+    a21.aa.f3 = 'H';
+    a21.a1.f3 = 'I';
+    a22.c1 = 'F';
+    a22.aa.f3 = 'J';
+    a22.a1.f3 = 'K';
+
+    let f1: f64 = 1.234;
+    let f2: i32 = 1234;
+    let f21: f64 = 2.234;
+    let f3 = "C";
+    let f4: f64 = 3.234;
+
+    let sa = sizeof(AA);
+    let sb = sizeof(A1);
+    let sc = sizeof(A2);
+    let sa3 = sizeof(A3);
+    let sc1 = sizeof(C1);
+
+    print a; print '\n';
+    print b; print '\n';
+    print c; print '\n';
+    print a3; print '\n';
+    print c1; print '\n';
+    print a21; print '\n';
+    print a22; print '\n';
+    print sa; print ' ';
+    print sb; print ' ';
+    print sc; print ' ';
+    print sa3; print ' ';
+    print sc1; print ' ';
+}
+

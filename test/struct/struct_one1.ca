@@ -1,0 +1,29 @@
+struct AA {
+    f1: i32,
+}
+
+struct A1 {
+    f1: f64,
+}
+
+struct A2 {
+    f1: i32,
+    f2: f64,
+}
+
+struct A3 {
+    f2: f64,
+    f1: i32,
+}
+
+fn main() {
+    let aa = AA {f1: 32};
+    let a1 = A1 {f1: 44.3};
+    let a2 = A2 {f1: 32, f2: 44.3};
+    let a3 = A3 {f1: 32, f2: 44.3};
+    print aa; print '\n';
+    print a1; print '\n';
+    print a2; print '\n';
+    print a3; print '\n';
+}
+

@@ -272,7 +272,7 @@ is scopeline the real skip function start for debugging? try it
 #13 0x000000000041caec in main (argc=2, argv=0x7fffffffdba8) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1619
 ```
 
-NEXT TODO:
+NEXT TODO: debug debug info for struct with array, and array with struct, array with array, struct with struct
 - [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
 - [ ] debug support inner field scope, 
 - [ ] implement following functions: 

@@ -14,19 +14,19 @@ struct A2 {
 
 fn main() {
     let aa: AA = __zero_init__;
-    // let paa = &aa;
-    // print *paa; print '\n';
-    // let pf2 = &(aa.aa_f1);
-    // *pf2 = 1000;
-    // print *pf2; print '\n';
-    // print aa; print '\n';
+    let paa = &aa;
+    print *paa; print '\n';
+    let pf2 = &(aa.aa_f1);
+    *pf2 = 1000;
+    print *pf2; print '\n';
+    print aa; print '\n';
 
-    // let pf3 = &(aa.aa_f2);
-    // print *pf3; print '\n';
-    // (*pf3)[0] = true;
-    // (*pf3)[3] = true;
-    // print *pf3; print '\n';
-    // print aa; print '\n';
+    let pf3 = &(aa.aa_f2);
+    print *pf3; print '\n';
+    (*pf3)[0] = true;
+    (*pf3)[3] = true;
+    print *pf3; print '\n';
+    print aa; print '\n';
 
     let pf4 = &aa.aa_f1;
     *pf4 = 321;

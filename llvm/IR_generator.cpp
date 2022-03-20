@@ -127,6 +127,10 @@ static std::map<std::string, ASTNode *> function_map;
 // curr_fn
 static std::map<Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
 
+static std::vector<std::unique_ptr<LexicalScope>> lexical_scope_stack;
+static LexicalScope *curr_lexical_scope = nullptr;
+static LexicalScope *root_lexical_scope = nullptr;
+
 static int walk_stack(ASTNode *p);
 extern RootTree *gtree;
 extern std::unordered_map<typeid_t, void *> g_function_post_map;
@@ -229,26 +233,47 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
   }
 }
 
+static DIType *ditype_get_or_create_from_catype(CADataType *catype);
 static DIType *ditype_create_from_catype(CADataType *catype) {
   const char *name = nullptr;
   switch(catype->type) {
   case STRUCT: {
-    // NEXT TODO: 
-    //DIScope *scope = diinfo->dibuilder->createLexicalBlock(); // (DIScope *Scope, DIFile *File, unsigned int Line, unsigned int Col)
-    //diinfo->dibuilder->createStructType(); // (DIScope *Scope, StringRef Name, DIFile *File, unsigned int LineNumber, uint64_t SizeInBits, uint32_t AlignInBits, DINode::DIFlags Flags, DIType *DerivedFrom, DINodeArray Elements);
-    return nullptr;
+    const char *structname = symname_get(catype->struct_layout->name);
+
+    // TODO: how to set the line number
+    int lineno = 5;
+    std::vector<Metadata *> fields;
+
+    DINodeArray difields = diinfo->dibuilder->getOrCreateArray(fields);
+    DICompositeType *pty = diinfo->dibuilder->createStructType(nullptr, // curr_lexical_scope->discope,
+							       structname, diunit, lineno,
+							       catype->size * 8, 0, DINode::DIFlags::FlagZero, nullptr, difields);
+    for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
+      CAStructField &field = catype->struct_layout->fields[i];
+      DIType *ditype = ditype_get_or_create_from_catype(field.type);
+      const char *fieldname = symname_get(field.name);
+      uint64_t offsetbit = field.offset * 8;
+      uint64_t fieldsizebit = field.type->size * 8;
+      DIDerivedType *dfield = diinfo->dibuilder->createMemberType(pty, fieldname, diunit, lineno, fieldsizebit,
+								  0, offsetbit, DINode::DIFlags::FlagZero, ditype);
+      fields.push_back(dfield);
+    }
+
+    difields = diinfo->dibuilder->getOrCreateArray(fields);
+    pty->replaceElements(difields);
+    return pty;
   }
   case ARRAY: {
     assert(catype->array_layout->dimension == 1);
-    DIType *kernelty = ditype_create_from_catype(catype->array_layout->type);
+    DIType *kernelty = ditype_get_or_create_from_catype(catype->array_layout->type);
     DISubrange *subr = diinfo->dibuilder->getOrCreateSubrange(0, catype->array_layout->dimarray[0]);
     DINodeArray na = diinfo->dibuilder->getOrCreateArray(subr);
-    DICompositeType *pty = diinfo->dibuilder->createArrayType(catype->array_layout->dimarray[0], 4, kernelty, na);
+    DICompositeType *pty = diinfo->dibuilder->createArrayType(catype->array_layout->dimarray[0], 32, kernelty, na);
     return pty;
   }
   case POINTER: {
     assert(catype->pointer_layout->dimension == 1);
-    DIType *pointeety = ditype_create_from_catype(catype->pointer_layout->type);
+    DIType *pointeety = ditype_get_or_create_from_catype(catype->pointer_layout->type);
     name = catype_get_type_name(catype->signature);
     DIDerivedType *pty = diinfo->dibuilder->createPointerType(pointeety, sizeof(void *), 0, None, name);
     return pty;
@@ -1410,10 +1435,10 @@ static void walk_expr_as(ASTNode *node) {
 
 static void walk_expr_sizeof(ASTNode *id) {
   int typesize = 0;
-  typeid_t unwind = catype_unwind_type_signature(id->symtable, id->idn.i, &typesize, nullptr);
-  Value *value = ir1.gen_int((uint64_t)typesize);
-  CADataType *catype = catype_get_primitive_by_token(U64);
-  auto u = std::make_unique<CalcOperand>(OT_Const, value, catype);
+  CADataType *catype = catype_get_by_name(id->symtable, id->idn.i);
+  Value *value = ir1.gen_int((uint64_t)catype->size);
+  CADataType *sizetype = catype_get_primitive_by_token(U64);
+  auto u = std::make_unique<CalcOperand>(OT_Const, value, sizetype);
   oprand_stack.push_back(std::move(u));
 }
 
@@ -1938,7 +1963,22 @@ static void walk_structfieldopright(ASTNode *node) {}
 static void walk_structexpr(ASTNode *node) {}
 
 static void walk_lexical_body(ASTNode *node) {
+  auto lscope = std::make_unique<LexicalScope>();
+  LexicalScope *parentscope = curr_lexical_scope; // also = lexical_scope_stack.back().get();
+  if (enable_debug_info()) {
+    lscope->discope = diinfo->dibuilder->createLexicalBlock(parentscope->discope, diunit, node->begloc.row, node->begloc.col);
+  }
+
+  curr_lexical_scope = lscope.get();
+  lexical_scope_stack.push_back(std::move(lscope));
+
   walk_stack(node->lnoden.stmts);
+
+  lscope = std::move(lexical_scope_stack.back());
+  lexical_scope_stack.pop_back();
+  curr_lexical_scope = parentscope;
+
+  // TODO: extend here: coping with auto variable release operation when the scope `lscope` end up
 }
 
 typedef void (*walk_fn_t)(ASTNode *p);
@@ -2007,9 +2047,15 @@ static void do_optimize_pass() {
 static int llvm_codegen_begin(RootTree *tree) {
   // mock ASTNode for generated main function
   curr_fn = nullptr;
+  auto lscope = std::make_unique<LexicalScope>();
+  root_lexical_scope = lscope.get();
+  curr_lexical_scope = root_lexical_scope;
+  lexical_scope_stack.push_back(std::move(lscope));
 
-  if (enable_debug_info())
+  if (enable_debug_info()) {
     diunit = diinfo->create_difile();
+    curr_lexical_scope->discope = diunit;
+  }
 
   if (enable_emit_main()) {
     main_fn = ir1.gen_function(ir1.int_type<int>(), "main", std::vector<Type *>());
@@ -2178,6 +2224,10 @@ static const char *make_native_linker_command(const char *input, const char *out
 
 static int llvm_codegen_end() {
   int ret = 0;
+
+  // TODO: may need not handle variables release work in global lexical scope
+  auto lscope = std::move(lexical_scope_stack.back());
+
   if (enable_emit_main()) {
     BasicBlock *retbb = (BasicBlock *)main_fn_node->fndefn.retbb;
     ir1.builder().CreateBr(retbb);

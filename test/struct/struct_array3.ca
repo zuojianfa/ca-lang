@@ -1,0 +1,23 @@
+struct AA {
+    aa_f1: i32,
+    aa_f2: [i32;3],
+}
+
+struct A1 {
+    a1_f1: f64,
+    a1_f2: AA,
+}
+
+struct A2 {
+    arr: [[AA;2];2],
+}
+
+fn main() {
+    let aa = AA{321, [1, 2, 3]};
+    let a1 = A1{3.14159, aa};
+    let a2 = A2{[[aa, aa], [aa, aa]]};
+    print aa; print '\n';
+    print a1; print '\n';
+    print a2; print '\n';
+}
+

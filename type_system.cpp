@@ -42,9 +42,11 @@
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/ir1.h"
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cctype>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -645,6 +647,7 @@ static void castruct_add_member(CAStruct *castruct, int name, CADataType *dt) {
 
   castruct->fields[castruct->fieldnum].name = name;
   castruct->fields[castruct->fieldnum].type = dt;
+  castruct->fields[castruct->fieldnum].offset = 0;
   castruct->fieldnum++;
 }
 
@@ -697,6 +700,8 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     castruct->name = nameid;
     castruct->fieldnum = 0;
     castruct->capacity = 10;
+    castruct->packed = 0;
+    castruct->fieldmaxalign = 1;
     castruct->fields = new CAStructField[castruct->capacity];
     addrdt->struct_layout = castruct;
     namemap.insert(std::make_pair(namebuf, addrdt));
@@ -1491,13 +1496,76 @@ static CADataType *catype_formalize_type_expand(CADataType *datatype, std::set<C
   return nullptr;
 }
 
+static int catype_get_field_align(CADataType *type) {
+  switch(type->type) {
+  case POINTER:
+    return sizeof(void *);
+  case ARRAY:
+    return catype_get_field_align(type->array_layout->type);
+  case STRUCT:
+    return type->struct_layout->fieldmaxalign;
+  default:
+    return type->size;
+  }
+}
+
+static void catype_formalize_type_layout(CADataType *datatype, std::set<CADataType *> &rcheck) {
+  switch (datatype->type) {
+  case POINTER:
+    catype_formalize_type_layout(datatype->pointer_layout->type, rcheck);
+    break;
+  case ARRAY:
+    catype_formalize_type_layout(datatype->array_layout->type, rcheck);
+    datatype->size = datatype->array_layout->dimarray[0] * datatype->array_layout->type->size;
+    break;
+  case STRUCT: {
+    size_t offset = 0;
+    int maxalign = 1;
+    CAStruct *layout = datatype->struct_layout;
+    for (int i = 0; i < layout->fieldnum; ++i) {
+      CAStructField &field = layout->fields[i];
+      if (rcheck.find(field.type) != rcheck.end())
+	  continue;
+
+      rcheck.insert(field.type);
+      catype_formalize_type_layout(field.type, rcheck);
+      rcheck.erase(field.type);
+
+      int align = catype_get_field_align(field.type);
+      if (offset % align != 0)
+	offset += align - offset % align;
+
+      field.offset = offset;
+      offset += field.type->size;
+
+      maxalign = std::max(maxalign, align);
+    }
+
+    layout->fieldmaxalign = maxalign;
+
+    if (offset % maxalign != 0)
+      offset += maxalign - offset % maxalign;
+
+    datatype->size = offset;
+    break;
+  }
+  default:
+    break;
+  }
+}
+
 static CADataType *catype_formalize_type(CADataType *datatype, int compact) {
   if (compact)
     return catype_formalize_type_compact(datatype);
   else {
     std::set<CADataType *> rcheck;
     rcheck.insert(datatype);
-    return catype_formalize_type_expand(datatype, rcheck);
+    datatype = catype_formalize_type_expand(datatype, rcheck);
+
+    rcheck.clear();
+    rcheck.insert(datatype);
+    catype_formalize_type_layout(datatype, rcheck);
+    return datatype;
   }
 }
 
@@ -2101,32 +2169,6 @@ CADataType *catype_make_array_type(CADataType *datatype, uint64_t len, bool comp
 
   return dt;
 }
-
-#if 0
-CADataType *catype_make_struct_type(int symname, ST_ArgList *arglist) {
-  CADataType *dt = catype_make_type_symname(symname, STRUCT, 0);
-  dt->struct_layout = new CAStruct;
-  dt->struct_layout->fieldnum = arglist->argc;
-  dt->struct_layout->fields = new CAStructField[arglist->argc];
-
-  for (int i = 0; i < arglist->argc; ++i) {
-    STEntry *entry = sym_getsym(arglist->symtable, arglist->argnames[i], 0);
-    if (!entry) {
-      yyerror("line: %d, col: %d: can not find entry for args `%s`",
-	      glineno, gcolno, symname_get(arglist->argnames[i]));
-      return NULL;
-    }
-
-    CAVariable *cav = entry->u.var;
-
-    //dt->size += cav->datatype->size;
-    dt->struct_layout->fields[i].name = cav->name;
-    dt->struct_layout->fields[i].type = cav->datatype;
-  }
-
-  return dt;
-}
-#endif
 
 void put_post_function(typeid_t fnname, void *carrier) {
   g_function_post_map[fnname] = carrier;
