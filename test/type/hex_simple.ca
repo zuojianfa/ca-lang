@@ -1,0 +1,7 @@
+fn main() {
+    let a = 0x1234567890abcdefu64;
+    print a; print '\n';
+    print a as *void; print '\n';
+    dbgprinttype typeof(a);
+}
+

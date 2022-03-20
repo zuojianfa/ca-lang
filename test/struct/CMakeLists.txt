@@ -28,8 +28,9 @@ do_test(struct "AA { f1: 32 }\nA1 { f1: 44.300000 }\nA2 { f1: 32, f2: 44.300000 
 do_test(struct "AA { f1: 32, f2: 44.300000, f3: C }\nA1 { f2: 44.300000, f1: 32, f3: D }\nA2 { aa: AA { f1: 32, f2: 44.300000, f3: C }, a1: A1 { f2: 44.300000, f1: 32, f3: D } }\nA3 { aa: AA { f1: 32, f2: 44.300000, f3: C }, a1: A1 { f2: 44.300000, f1: 32, f3: D }, c1: C1 { f1: B } }\nC1 { f1: A }\nA21 { c1: E, aa: AA { f1: 0, f2: 0.000000, f3: H }, a1: A1 { f2: 0.000000, f1: 0, f3: I } }\nA22 { aa: AA { f1: 0, f2: 0.000000, f3: J }, a1: A1 { f2: 0.000000, f1: 0, f3: K }, c1: F }\n24 16 40 48 1" ca struct_one2.ca)
 do_testf(struct "struct_one1.ca.ll" "struct_one1.ca.ll.tmp" ca -g -ll struct_one1.ca struct_one1.ca.ll.tmp)
 do_testf(struct "struct_one2.ca.ll" "struct_one2.ca.ll.tmp" ca -g -ll struct_one2.ca struct_one2.ca.ll.tmp)
-do_test(struct "good" ca struct_array3.ca)
+do_test(struct "AA { aa_f1: 321, aa_f2: \\[1, 2, 3\\] }\nA1 { a1_f1: 3.141590, a1_f2: AA { aa_f1: 321, aa_f2: \\[1, 2, 3\\] } }\nA2 { arr: \\[\\[AA { aa_f1: 321, aa_f2: \\[1, 2, 3\\] }, AA { aa_f1: 321, aa_f2: \\[1, 2, 3\\] }\\], \\[AA { aa_f1: 321, aa_f2: \\[1, 2, 3\\] }, AA { aa_f1: 321, aa_f2: \\[1, 2, 3\\] }\\]\\] }\n" ca struct_array3.ca)
 do_testf(struct "struct_array1.ca.ll" "struct_array1.ca.ll.tmp" ca -g -ll struct_array1.ca struct_array1.ca.ll.tmp)
 do_testf(struct "struct_array2.ca.ll" "struct_array2.ca.ll.tmp" ca -g -ll struct_array2.ca struct_array2.ca.ll.tmp)
 do_testf(struct "struct_array3.ca.ll" "struct_array3.ca.ll.tmp" ca -g -ll struct_array3.ca struct_array3.ca.ll.tmp)
+do_testf(struct "struct_array_s1.ca.ll" "struct_array_s1.ca.ll.tmp" ca -g -ll struct_array_s1.ca struct_array_s1.ca.ll.tmp)
 

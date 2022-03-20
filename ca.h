@@ -193,6 +193,7 @@ typedef struct StructFieldOp {
 
 typedef struct TLexicalBody {
   struct ASTNode *stmts;
+  struct ASTNode *fnbuddy;
 } TLexicalBody;
 
 typedef struct ASTNode {

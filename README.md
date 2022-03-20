@@ -137,21 +137,20 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] add debug variable (local) type information for viewing variable value in gdb
 - [x] make non-global variable visiable when debugging, now can only debug but cannot see the variable name in the debugger
 - [x] resolve inner variable problem for debugging
-- [ ] skip the function name for debugging just like c function
 - [x] generate debug info for label DILabel (DIBuilder::createLabel)
-- [ ] support fine location (lineno rowno) info for each symbol
 - [x] record program begin location
 - [x] record program end location
 - [x] record main function begin location
 - [x] record main function end location
 - [x] handle the main function begin position
+- [ ] skip the function name for debugging just like c function
+- [ ] support fine location (lineno rowno) info for each symbol
 
 ## Grammar
 - [x] support `__zero_init__` value for initial the value of any type with 0 initialized
 - [x] add function functionality
 - [x] support array
 - [x] support layered variable definition
-- [ ] add other atomic type
 - [x] add record (struct) type
 - [x] support pointer type
 - [x] support array type
@@ -160,19 +159,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support store variable value in array not just literal
 - [x] support array literal
 - [x] add type convertion `as` keyword
-- [ ] support multiple compile unit and link them together
-- [ ] support rust grammar
-  - [ ] loop
-  - [ ] match
-  - [ ] type
-  - [x] last expression as return value in scope
-  - [ ] immutable
-  - [ ] mutable
-  - [ ] support attribute grammar like `#[derive(Clone)]`
 - [x] implement deref_left operation
 - [x] implement array to pointer as (may already implemented)
 - [x] implement pointer add sub operation
-- [ ] support never return type `!` like rust
 - [x] support invoke extern c function
   now directly support the extern c function, the `libc` is automatically added into the linker, so all the `libc` function can be used directly 
 - [x] support c variant parameter function
@@ -209,6 +198,24 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] function with struct parameter
 - [x] support struct literal
 - [x] support named struct literal
+- [x] support all kinds of type's debuggging info
+- [x] support scoped debugging information
+- [ ] bit operation '<<' '>>' '|' '&' '^' '~'
+- [ ] support never return type `!` like rust
+- [ ] add other atomic type
+- [ ] support multiple compile unit and link them together
+- [ ] support multiple if-else else if statement
+- [ ] support rust grammar
+  - [ ] loop
+  - [ ] match
+  - [ ] type
+  - [x] last expression as return value in scope
+  - [ ] immutable
+  - [ ] mutable
+  - [ ] support attribute grammar like `#[derive(Clone)]`
+  - [ ] heap allocate memory: `box`
+  - [ ] scope variable release
+
 
 ## Makefile
 - [x] use cmake to build the system
@@ -224,10 +231,10 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] jit (just in time running) support
 - [x] compile into executable file (linux)
 - [x] compile into ll (llvm assembly text file)
-- [ ] compile into llvm assembly binary file
 - [x] Passing ld options for -native command
-- [ ] Write interactive interpreter like python command line
 - [x] Add option `-main` to emit main function, default not generate main function
+- [ ] compile into llvm assembly binary file
+- [ ] Write interactive interpreter like python command line
 - [ ] support multi module compile, reference the functions / global variables in other ca module
   it should be the same as C language
 - [ ] support smoothly invoke c libraries in order to make use of all kinds of C libraries
@@ -237,6 +244,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [ ] define system limitations: such as max identifier name, max function parameters, ...
   
 ## Testing
+- [ ] transplant c test suite 
 - [ ] convert (by hand) a real whole program project into ca language project
   - [ ] simple one like find grep
   - [ ] complex pure c redis
@@ -251,30 +259,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 
 is scopeline the real skip function start for debugging? try it
 
-
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
-```
-(gdb) bt
-#0  yyerror (s=0x46a4a8 "bad type token: %d") at /home/xrsh/git/compiler/ca/ca_parser.c:1702
-#1  0x000000000044604b in get_type_string_common (tok=273, forid=false) at /home/xrsh/git/compiler/ca/type_system.cpp:233
-#2  0x0000000000445ec5 in get_type_string (tok=273) at /home/xrsh/git/compiler/ca/type_system.cpp:239
-#3  0x0000000000447a51 in determine_literal_type (lit=0x4fa2e0, typetok=273) at /home/xrsh/git/compiler/ca/type_system.cpp:1500
-#4  0x0000000000411257 in determine_expr_type (node=0x4fa2b0, type=131) at /home/xrsh/git/compiler/ca/ca_parser.c:947
-#5  0x00000000004119ca in reduce_node_and_type_group (nodes=0x7fffffffd8b0, expr_types=0x7fffffffd8c0, nodenum=2) at /home/xrsh/git/compiler/ca/ca_parser.c:1094
-#6  0x0000000000420a3f in walk_assign (p=0x4fa4b0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:692
-#7  0x000000000041e017 in walk_stack (p=0x4fa4b0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1205
-#8  0x0000000000420bc8 in walk_stmtlist (p=0x5059e0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:400
-#9  0x000000000041e017 in walk_stack (p=0x5059e0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1205
-#10 0x000000000041f6a3 in walk_fn_define (p=0x4fa0a0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1123
-#11 0x000000000041e017 in walk_stack (p=0x4fa0a0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1205
-#12 0x000000000041d304 in walk (tree=0x4e6fa0) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1472
-#13 0x000000000041caec in main (argc=2, argv=0x7fffffffdba8) at /home/xrsh/git/compiler/ca/llvm/IR_generator.cpp:1619
-```
-
-NEXT TODO: debug debug info for struct with array, and array with struct, array with array, struct with struct
-- [ ] impl `gen_literal_value`, `DWARFDebugInfo::initialize_types` to create all kinds of type's debuggging type
-- [ ] debug support inner field scope, 
+NEXT TODO: 
 - [ ] implement following functions: 
   `catype_compare_type_signature`, 
   `catype_make_type_closure`,
@@ -283,38 +270,11 @@ NEXT TODO: debug debug info for struct with array, and array with struct, array 
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
 - [ ] support other atomic type
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
+- [ ] set right line number for structure definition lines
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
-
-detailed TODO LIST:
-
-```
-*0	        make_expr			        ARG_LISTS_ACTUAL
-*al->argc 	make_expr_arglists_actual	ARG_LISTS_ACTUAL
-*1 	 	    make_goto 			        GOTO
-*2 	 	    make_assign 			    '='
-*2 	 	    make_vardef 			    '='
-*1 	 	    make_stmt_ret 			    RET
-*1 	 	    make_stmt_ret_expr 		    RET
-*1 	 	    make_stmt_print 		    DBGPRINT
-*listlen  	make_stmt_list_zip 		    stmt_list ';'
-2	 	    make_expr  			        ';'
-
-* make_id separate into different type: VarDef, VarAssign, FnName, Var (make_ident_expr), 
-* handle case TTE_Id
-make stmt type and move upper into TTE_Stmt type
-
-*`as` is a expression 
-
-```
 
 # License
 See `LICENSE` file in this directory, for license in directory `cruntime` see cruntime/README.md
-
-
-# searches
-```
-reduce_node_and_type
-```
 
 # type tree
 ## types
@@ -336,9 +296,17 @@ T
 ...
 ```
 
-## struct type representation
+## struct type inner representation
+```
+struct AA {} => t:{AA}
+struct A2 {a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8} => t:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}
+struct A3 {a: AA, b: A1, c: A2} => t:{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}}
+? => t:*{A5;a:{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},b:*{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},c:**{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},d:***{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},e:****{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}}}
 ```
 
+## array type inner representation
+```
+t:[[[[[[i32;4];3];5];5];3];5]
 ```
 
 ## entry representation
@@ -358,8 +326,6 @@ CADataType *resolve(typeid_t datatype) {
 	else
 		resolve(dt->u.datatype.datatype);
 }
-
-
 ```
 
 ## recursive definition
@@ -426,7 +392,6 @@ b <= t:[*i32;3]
 A <= [*i32;3]
 ```
 
-
 # another representation of type
 using `symname_id` instead of the string representation of name. keep the special element unchanged, such as * [] {} ... 
 this should can speed up the find performance 
@@ -435,22 +400,5 @@ this should can speed up the find performance
 *nameA => *nameAid, nameAid == symname_check_insert("t:nameA")
 [i32;3] => [i32id;3]
 struct A {a: i32, b: *A} => {Aid; aid:i32id, bid:*Aid}, Aid == symname_check_insert("t:Aid")
-```
-
-```
-	130 - string5-cstring5.ca (Failed)
-VS:
-	176 - aux-array1-array.ca.ll.tmp (Failed)
-	177 - array1-array.ca.ll.tmp (Not Run)
-	179 - aux-array2-array_2sideinfer.ca.ll.tmp (SEGFAULT)
-	180 - array2-array_2sideinfer.ca.ll.tmp (Not Run)
-	182 - array3-array_error1.ca (Failed)
-	183 - array4-array_error2.ca (Failed)
-	184 - aux-array5-array_dbgprint1.ca.result.tmp (SEGFAULT)
-	185 - array5-array_dbgprint1.ca.result.tmp (Not Run)
-	188 - array6-array2string.ca.result.tmp (Failed)
-	190 - array7-array2stringbad1.ca (Failed)
-	191 - array8-array2stringbad2.ca (Failed)
-	193 - array9-array2pointer.ca.result.tmp (Failed)
 ```
 

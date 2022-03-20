@@ -1730,7 +1730,7 @@ static typeid_t inference_primitive_literal_type(CALiteral *lit) {
     cmplen = lit->littypetok == I64 ? 3 : 2;
     cmpformat = lit->littypetok == I64 ? "-0x" : "0x";
     if (len > cmplen && !strncmp(cmpformat, text, cmplen)) {
-      intentdeftype = lit->littypetok;
+      intentdeftype = I32;
       format = "%p";
     } else {
       intentdeftype = I32;

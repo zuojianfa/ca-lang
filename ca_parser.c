@@ -229,6 +229,11 @@ void make_paragraphs(ASTNode *paragraph) {
 
 ASTNode *make_fn_def(ASTNode *proto, ASTNode *body) {
   dot_emit("fn_def", "fn_proto fn_body");
+
+  // fix the lexical body with function body for later use (in stage 2 parse)
+  assert(body->type == TTE_LexicalBody);
+  body->lnoden.fnbuddy = proto;
+
   proto->fndefn.stmts = body;
   proto->endloc.row = glineno;
   proto->endloc.col = gcolno;
@@ -367,6 +372,7 @@ ASTNode *make_stmtexpr_list(ASTNode *stmts, ASTNode *expr) {
 ASTNode *make_lexical_body(ASTNode *stmts) {
   ASTNode *node = new_ASTNode(TTE_LexicalBody);
   node->lnoden.stmts = stmts;
+  node->lnoden.fnbuddy = NULL;
   set_address(node, &stmts->begloc, &stmts->endloc);
   return node;
 }

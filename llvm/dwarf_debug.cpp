@@ -73,17 +73,21 @@ DWARFDebugInfo::DWARFDebugInfo(llvm::IRBuilder<> &builder, llvm::Module &module,
   initialize_types();
 }
 
-void DWARFDebugInfo::emit_location(int row, int col) {
+void DWARFDebugInfo::emit_location(int row, int col, llvm::DIScope *discope) {
   if (row == -1)
     return builder.SetCurrentDebugLocation(llvm::DebugLoc());
 
+  // the scope may be global or in a function
   llvm::DIScope *scope;
   if (lexical_blocks.empty())
     scope = this->dicu;
   else
     scope = lexical_blocks.back();
 
-  auto loc = llvm::DILocation::get(scope->getContext(), row, col, scope);
+  if (!discope)
+    discope = scope;
+
+  auto loc = llvm::DILocation::get(scope->getContext(), row, col, discope);
   builder.SetCurrentDebugLocation(loc);
 }
 

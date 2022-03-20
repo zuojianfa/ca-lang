@@ -29,9 +29,10 @@ CalcOperand(OperandType t, llvm::Value *v, CADataType *dt) : type(t), operand(v)
 };
 
 struct LexicalScope {
-LexicalScope() : discope(nullptr) {}
+LexicalScope() : discope(nullptr), difn(nullptr) {}
 
   llvm::DIScope *discope;
+  llvm::DISubprogram *difn;
 };
 
 #endif

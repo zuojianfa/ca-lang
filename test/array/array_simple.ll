@@ -28,13 +28,13 @@ attributes #2 = { argmemonly nofree nosync nounwind willreturn }
 !llvm.module.flags = !{!3, !4, !5}
 !llvm.ident = !{!6}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 12.0.0", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !2, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "array_simple.c", directory: "/home/xrsh/git/compiler/ca/test/array")
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 12.0.1", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !2, splitDebugInlining: false, nameTableKind: None)
+!1 = !DIFile(filename: "array_simple.c", directory: "/home/rxia/git/compiler/ca/test/array")
 !2 = !{}
 !3 = !{i32 7, !"Dwarf Version", i32 4}
 !4 = !{i32 2, !"Debug Info Version", i32 3}
 !5 = !{i32 1, !"wchar_size", i32 4}
-!6 = !{!"clang version 12.0.0"}
+!6 = !{!"clang version 12.0.1"}
 !7 = distinct !DISubprogram(name: "func1", scope: !1, file: !1, line: 1, type: !8, scopeLine: 1, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !2)
 !8 = !DISubroutineType(types: !9)
 !9 = !{null}

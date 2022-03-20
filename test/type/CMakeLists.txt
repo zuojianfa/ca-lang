@@ -92,5 +92,9 @@ do_test(type "type name `A2` is recursively defined: \\[grammar line: 8, token: 
 do_test(type "type name `A3` is recursively defined: \\[grammar line: 12, token: -2\\] unwind type name `A3` failed" ca struct_rec4.ca)
 do_test(type "type name `A1` is recursively defined: \\[grammar line: 7, token: -2\\] unwind type name `A1` failed" ca struct_bad1.ca)
 do_test(type "type name `A7` is recursively defined: \\[grammar line: 28, token: -2\\] unwind type name `A7` failed" ca struct_bad2.ca)
-
+do_testf(type "type_scope1.ca.ll" "type_scope1.ca.ll.tmp" ca -g -ll type_scope1.ca type_scope1.ca.ll.tmp)
+do_testf(type "type_scope2.ca.ll" "type_scope2.ca.ll.tmp" ca -g -ll type_scope2.ca type_scope2.ca.ll.tmp)
+do_testf(type "type_scope3.ca.ll" "type_scope3.ca.ll.tmp" ca -g -ll type_scope3.ca type_scope3.ca.ll.tmp)
+do_testf(type "more_scope.ca.ll" "more_scope.ca.ll.tmp" ca -g -ll more_scope.ca more_scope.ca.ll.tmp)
+do_test(type "u64\n1311768467294899695\n0x1234567890abcdef\nsize = 8, type: t:u64" ca hex_simple.ca)
 

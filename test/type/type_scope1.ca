@@ -1,0 +1,33 @@
+struct AA {
+    f1: i32,
+    f2: bool,
+}
+
+let a = 34;
+
+fn func1() {
+    let a = AA {f1: 3231, f2: true};
+    {
+	struct AA {
+	    f1: f64,
+	}
+	{
+	    struct AA {
+		f2: bool,
+	    }
+
+	    let a = AA{true};
+	    print a; print "\n";
+	}
+
+	let a = AA{f1: 101.11};
+	print a; print "\n";
+    }
+}
+
+fn main() {
+    func1();
+    let a = AA{f1: 321, f2: true};
+    print a; print "\n";
+}
+

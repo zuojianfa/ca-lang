@@ -1,0 +1,9 @@
+struct AA {
+    f1: [i32;3],
+}
+
+fn main() {
+    let a = AA {[1, 2, 3]};
+    //print a; print '\n';
+}
+

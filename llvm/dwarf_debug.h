@@ -21,7 +21,7 @@ public:
   llvm::DIType *get_ditype(const char *type);
   void put_ditype(const char *type, llvm::DIType *ditype);
 
-  void emit_location(int row = -1, int col = 0);
+  void emit_location(int row = -1, int col = 0, llvm::DIScope *discope = nullptr);
   void set_difile(llvm::DIFile *difile) { this->difile = difile; }
   llvm::DIFile *get_difile() { return difile; }
   llvm::DIFile *create_difile();

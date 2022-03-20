@@ -233,8 +233,8 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
   }
 }
 
-static DIType *ditype_get_or_create_from_catype(CADataType *catype);
-static DIType *ditype_create_from_catype(CADataType *catype) {
+static DIType *ditype_get_or_create_from_catype(CADataType *catype, DIScope *scope);
+static DIType *ditype_create_from_catype(CADataType *catype, DIScope *scope) {
   const char *name = nullptr;
   switch(catype->type) {
   case STRUCT: {
@@ -245,12 +245,13 @@ static DIType *ditype_create_from_catype(CADataType *catype) {
     std::vector<Metadata *> fields;
 
     DINodeArray difields = diinfo->dibuilder->getOrCreateArray(fields);
-    DICompositeType *pty = diinfo->dibuilder->createStructType(nullptr, // curr_lexical_scope->discope,
-							       structname, diunit, lineno,
-							       catype->size * 8, 0, DINode::DIFlags::FlagZero, nullptr, difields);
+
+    // not use lexical scope for struct definition, just use function or null when globally defined structure
+    DICompositeType *pty = diinfo->dibuilder->createStructType(scope, structname, diunit, lineno, catype->size * 8, 0,
+							       DINode::DIFlags::FlagZero, nullptr, difields);
     for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
       CAStructField &field = catype->struct_layout->fields[i];
-      DIType *ditype = ditype_get_or_create_from_catype(field.type);
+      DIType *ditype = ditype_get_or_create_from_catype(field.type, scope);
       const char *fieldname = symname_get(field.name);
       uint64_t offsetbit = field.offset * 8;
       uint64_t fieldsizebit = field.type->size * 8;
@@ -265,15 +266,16 @@ static DIType *ditype_create_from_catype(CADataType *catype) {
   }
   case ARRAY: {
     assert(catype->array_layout->dimension == 1);
-    DIType *kernelty = ditype_get_or_create_from_catype(catype->array_layout->type);
+    DIType *kernelty = ditype_get_or_create_from_catype(catype->array_layout->type, scope);
     DISubrange *subr = diinfo->dibuilder->getOrCreateSubrange(0, catype->array_layout->dimarray[0]);
     DINodeArray na = diinfo->dibuilder->getOrCreateArray(subr);
-    DICompositeType *pty = diinfo->dibuilder->createArrayType(catype->array_layout->dimarray[0], 32, kernelty, na);
+    uint64_t sizeinbit = catype->array_layout->dimarray[0] * catype->array_layout->type->size * 8;
+    DICompositeType *pty = diinfo->dibuilder->createArrayType(sizeinbit, 0, kernelty, na);
     return pty;
   }
   case POINTER: {
     assert(catype->pointer_layout->dimension == 1);
-    DIType *pointeety = ditype_get_or_create_from_catype(catype->pointer_layout->type);
+    DIType *pointeety = ditype_get_or_create_from_catype(catype->pointer_layout->type, scope);
     name = catype_get_type_name(catype->signature);
     DIDerivedType *pty = diinfo->dibuilder->createPointerType(pointeety, sizeof(void *), 0, None, name);
     return pty;
@@ -285,20 +287,20 @@ static DIType *ditype_create_from_catype(CADataType *catype) {
   }
 }
 
-static DIType *ditype_get_or_create_from_catype(CADataType *catype) {
+static DIType *ditype_get_or_create_from_catype(CADataType *catype, DIScope *scope) {
   const char *typestr = catype_get_type_name(catype->signature);
  
   DIType *ditype = diinfo->get_ditype(typestr);
   if (ditype)
     return ditype;
 
-  ditype = ditype_create_from_catype(catype);
+  ditype = ditype_create_from_catype(catype, scope);
   diinfo->put_ditype(typestr, ditype);
   return ditype;
 }
 
 static void emit_global_var_dbginfo(const char *varname, CADataType *catype, int row) {
-  DIType *ditype = ditype_get_or_create_from_catype(catype);
+  DIType *ditype = ditype_get_or_create_from_catype(catype, nullptr);
   llvm::DIGlobalVariableExpression *digve =
     diinfo->dibuilder->createGlobalVariableExpression(diunit, varname, StringRef(), diunit, row, ditype, false);
 }
@@ -310,11 +312,11 @@ static void emit_local_var_dbginfo(llvm::Function *fn, const char *varname,
     yyerror("cannot find function '%s' in map", fn->getName().str().c_str());
 
   auto &dbginfo = *itr->second;
-  DIType *ditype = ditype_get_or_create_from_catype(catype);
+  DIType *ditype = ditype_get_or_create_from_catype(catype, dbginfo.disp);
   DILocalVariable *divar =
-    diinfo->dibuilder->createAutoVariable(dbginfo.disp, varname, diunit, row, ditype, true);
+    diinfo->dibuilder->createAutoVariable(curr_lexical_scope->discope, varname, diunit, row, ditype, true);
 
-  const DILocation *diloc = DILocation::get(dbginfo.disp->getContext(), row, 0, dbginfo.disp);
+  const DILocation *diloc = DILocation::get(dbginfo.disp->getContext(), row, 0, curr_lexical_scope->discope);
   diinfo->dibuilder->insertDeclare(var, divar, diinfo->dibuilder->createExpression(),
 				   diloc, ir1.builder().GetInsertBlock());
 }
@@ -356,7 +358,7 @@ static void aux_copy_llvmvalue_to_store(Type *type, Value *dest, Value *src, con
 
 static Value *walk_literal(ASTNode *p) {
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   if (!p->litn.litv.fixed_type)
     inference_expr_type(p);
@@ -594,7 +596,7 @@ static BasicBlock *walk_label(ASTNode *p) {
   }
 
   if (enable_debug_info()) {
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
     auto itr = fn_debug_map.find(curr_fn);
     if (itr == fn_debug_map.end())
@@ -604,7 +606,7 @@ static BasicBlock *walk_label(ASTNode *p) {
     auto &dbginfo = *itr->second;
     DILabel *dilabel = diinfo->dibuilder->createLabel(dbginfo.disp, label_name, diunit, p->endloc.row);
 
-    const DILocation *diloc = DILocation::get(dbginfo.disp->getContext(), p->endloc.row, 0, dbginfo.disp);
+    const DILocation *diloc = DILocation::get(dbginfo.disp->getContext(), p->endloc.row, 0, curr_lexical_scope->discope);
     diinfo->dibuilder->insertLabel(dilabel, diloc, bb);
   }
 
@@ -627,7 +629,7 @@ static void walk_label_goto(ASTNode *label) {
   }
 
   if (enable_debug_info())
-    diinfo->emit_location(label->endloc.row, label->endloc.col);
+    diinfo->emit_location(label->endloc.row, label->endloc.col, curr_lexical_scope->discope);
   ir1.builder().CreateBr(bb);
 
   // to avoid verify error of 'Terminator found in the middle of a basic block!'
@@ -649,7 +651,7 @@ static void walk_while(ASTNode *p) {
   BasicBlock *endwhilebb = ir1.gen_bb("endwhilebb");
 
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   ir1.builder().CreateBr(condbb);
   curr_fn->getBasicBlockList().push_back(condbb);
@@ -689,7 +691,7 @@ static void walk_if_common(ASTNode *p) {
   int isexpr = p->ifn.isexpr;
 
   if (enable_debug_info())
-    diinfo->emit_location(p->begloc.row, p->begloc.col);
+    diinfo->emit_location(p->begloc.row, p->begloc.col, curr_lexical_scope->discope);
 
   Value *tmpv1 = nullptr;
   Value *tmpv2 = nullptr;
@@ -880,7 +882,7 @@ static void walk_dbgprint(ASTNode *p) {
 
   // handle expression value transfer
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   if (p->printn.expr->litn.litv.littypetok == CSTRING) {
     llvmcode_printf(printf_fn, "%s", v, nullptr);
@@ -901,7 +903,7 @@ static void walk_dbgprint(ASTNode *p) {
   printf_args.push_back(v);
 
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   ir1.builder().CreateCall(printf_fn, printf_args, "n");
 #endif
@@ -938,7 +940,7 @@ static void walk_dbgprinttype(ASTNode *p) {
   printf_args.push_back(type_str);
 
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   ir1.builder().CreateCall(printf_fn, printf_args, "n");
 #endif
@@ -1060,7 +1062,7 @@ static void walk_assign(ASTNode *p) {
     inference_assign_type(idn, exprn);
 
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   CADataType *dt = nullptr;
   switch (idn->type) {
@@ -1133,7 +1135,7 @@ static void walk_expr_minus(ASTNode *p) {
 
   auto pair = pop_right_value();
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   Value *z = ir1.gen_int((uint8_t)0);
   z = ir1.builder().CreateSExt(z, pair.first->getType());
@@ -1209,7 +1211,7 @@ static void walk_expr_call(ASTNode *p) {
 	    p->begloc.row, p->begloc.col, fnname);
 
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   std::vector<Value *> argv;
   for (int i = 0; i < args->arglistn.argc; ++i) {
@@ -1264,7 +1266,7 @@ static void walk_ret(ASTNode *p) {
     auto pair = pop_right_value();
     Value *v = pair.first;
     if (enable_debug_info())
-      diinfo->emit_location(p->endloc.row, p->endloc.col);
+      diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
     // match the function return value and the literal return value
     if (rettype != v->getType()) {
@@ -1282,7 +1284,7 @@ static void walk_ret(ASTNode *p) {
     ir1.builder().CreateStore(v, retslot);
   } else {
     if (enable_debug_info())
-      diinfo->emit_location(p->endloc.row, p->endloc.col);
+      diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
     if (rettype != ir1.void_type()) {
       yyerror("line: %d, column: %d, void type function, cannot return a valuedd",
@@ -1330,7 +1332,7 @@ static void walk_expr_op2(ASTNode *p) {
   }
 
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col);
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   if (pointer_op) {
     Value *z = nullptr;
@@ -1393,7 +1395,7 @@ static void walk_expr_as(ASTNode *node) {
   ASTNode *exprn = node->exprasn.expr;
 
   if (enable_debug_info())
-    diinfo->emit_location(node->endloc.row, node->endloc.col);
+    diinfo->emit_location(node->endloc.row, node->endloc.col, curr_lexical_scope->discope);
 
   inference_expr_type(exprn);
   walk_stack(exprn);
@@ -1894,10 +1896,13 @@ static Function *walk_fn_define(ASTNode *p) {
   }
 
   if (enable_debug_info())
-    diinfo->emit_location(p->begloc.row, p->begloc.col);
+    diinfo->emit_location(p->begloc.row, p->begloc.col, curr_lexical_scope->discope);
+
+  DIScope *save_discope = curr_lexical_scope->discope;
 
   walk_stack(p->fndefn.stmts);
 
+  // the return statement is not in source code, but be added by the compiler
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
@@ -1966,7 +1971,16 @@ static void walk_lexical_body(ASTNode *node) {
   auto lscope = std::make_unique<LexicalScope>();
   LexicalScope *parentscope = curr_lexical_scope; // also = lexical_scope_stack.back().get();
   if (enable_debug_info()) {
-    lscope->discope = diinfo->dibuilder->createLexicalBlock(parentscope->discope, diunit, node->begloc.row, node->begloc.col);
+    if (node->lnoden.fnbuddy) {
+      // when the scope have a buddy function scope then use the function scope as the scope but not lexical scope
+      auto itr = fn_debug_map.find(curr_fn);
+      assert(itr != fn_debug_map.end());
+
+      lscope->discope = itr->second->disp;
+    } else {
+      // when the scope is not under a function scope then create lexical scope 
+      lscope->discope = diinfo->dibuilder->createLexicalBlock(parentscope->discope, diunit, node->begloc.row, node->begloc.col);
+    }
   }
 
   curr_lexical_scope = lscope.get();

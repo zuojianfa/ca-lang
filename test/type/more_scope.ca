@@ -1,0 +1,37 @@
+struct AA {
+    f1: f64,
+}
+
+let a = 3.1323;
+
+fn func1(a: i32, b: i32) -> i32 {
+    let c = a + b;
+    return c;
+}
+
+fn main() {
+    let a = AA {f1: 3.2323};
+    {
+	struct AA {
+	    c: bool
+	}
+	let a = AA{true};
+	a.c = false;
+	{
+	    struct AA {
+		f1: i32,
+		f2: i32,
+	    }
+
+	    let a= AA{f2: 323, f1: 0x123};
+	    let b = a.f2 + a.f1;
+	    let c = func1(a.f1, a.f2);
+	    if (b == c) {
+		struct AA {dddd: [i32; 3]}
+		let a = AA{dddd: [1,2,6]};
+		print a.dddd[2]; print "\n";
+	    }
+	}
+    }
+}
+
