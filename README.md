@@ -262,13 +262,15 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO: 
+- [ ] support other atomic type
+  search F32 and fix, 
+  search I32 and fix
 - [ ] implement following functions: 
   `catype_compare_type_signature`, 
   `catype_make_type_closure`,
   `catype_create_type_from_unwind`
 - [ ] remove entry object in ASTNode
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
-- [ ] support other atomic type
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] set right line number for structure definition lines
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**

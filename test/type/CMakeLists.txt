@@ -97,4 +97,7 @@ do_testf(type "type_scope2.ca.ll" "type_scope2.ca.ll.tmp" ca -g -ll type_scope2.
 do_testf(type "type_scope3.ca.ll" "type_scope3.ca.ll.tmp" ca -g -ll type_scope3.ca type_scope3.ca.ll.tmp)
 do_testf(type "more_scope.ca.ll" "more_scope.ca.ll.tmp" ca -g -ll more_scope.ca more_scope.ca.ll.tmp)
 do_test(type "u64\n1311768467294899695\n0x1234567890abcdef\nsize = 8, type: t:u64" ca hex_simple.ca)
+do_test(type "u16\ni16\n16\n433\nsize = 2, type: t:u16\nsize = 2, type: t:i16" ca short1.ca)
+do_test(type "16\n43\n65535\n433\n" ca short2.ca)
+do_testf(type "short3.ca.ll" "short3.ca.ll.tmp" ca -g -ll short3.ca short3.ca.ll.tmp)
 

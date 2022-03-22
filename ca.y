@@ -68,7 +68,7 @@ extern int yychar, yylineno;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
-%token	<symnameid>	VOID I32 I64 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
+%token	<symnameid>	VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM
@@ -293,7 +293,7 @@ data_type:	ident_type            { $$ = $1; }
 	|	TYPEOF '(' expr ')'   { $$ = make_typeof($3); }
 	;
 
-//atomic_type:	VOID | I32 | I64 | U32 | U64 | F32 | F64 | BOOL | I8 | U8
+//atomic_type:	VOID | I16 | I32 | I64 | U16 | U32 | U64 | F32 | F64 | BOOL | I8 | U8
 ident_type: 	IDENT { $$ = sym_form_type_id($1); }
 		;
 

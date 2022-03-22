@@ -33,4 +33,4 @@ do_testf(struct "struct_array1.ca.ll" "struct_array1.ca.ll.tmp" ca -g -ll struct
 do_testf(struct "struct_array2.ca.ll" "struct_array2.ca.ll.tmp" ca -g -ll struct_array2.ca struct_array2.ca.ll.tmp)
 do_testf(struct "struct_array3.ca.ll" "struct_array3.ca.ll.tmp" ca -g -ll struct_array3.ca struct_array3.ca.ll.tmp)
 do_testf(struct "struct_array_s1.ca.ll" "struct_array_s1.ca.ll.tmp" ca -g -ll struct_array_s1.ca struct_array_s1.ca.ll.tmp)
-
+do_test(struct "1103103370\nAA { f1: 1104199399 }" ca struct_expr.ca)

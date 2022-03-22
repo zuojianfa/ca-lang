@@ -1,0 +1,11 @@
+struct AA {
+    f1: i32,
+}
+
+fn main() {
+    let v = 33213 * 33213 + 1;
+    let a = AA { 33213 * 33213 + 1 + 33 * 33213};
+    print v; print '\n';
+    print a;
+}
+

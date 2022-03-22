@@ -39,7 +39,7 @@ typedef enum CADTStatus {
 } CADTStatus;
 
 typedef struct CADataType {
-  tokenid_t type;       // type type: I32 I64 ... STRUCT ARRAY
+  tokenid_t type;       // type type: I16 I32 I64 ... STRUCT ARRAY
   typeid_t formalname; // type name symname_xxx
   size_t size;       // type size
   typeid_t signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table

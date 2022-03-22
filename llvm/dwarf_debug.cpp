@@ -14,10 +14,18 @@ namespace dwarf_debug {
 
 void DWARFDebugInfo::initialize_types() {
   llvm::DIType *type;
+  type = dibuilder->createBasicType("i16", 16, llvm::dwarf::DW_ATE_signed);
+  _ditypes["i16"] = type;
+  _ditypes["short"] = type;
+
   type = dibuilder->createBasicType("i32", 32, llvm::dwarf::DW_ATE_signed);
   _ditypes["i32"] = type;
   _ditypes["int"] = type;
   _ditypes["i64"] = dibuilder->createBasicType("i64", 64, llvm::dwarf::DW_ATE_signed);
+
+  type = dibuilder->createBasicType("u16", 16, llvm::dwarf::DW_ATE_unsigned);
+  _ditypes["u16"] = type;
+  _ditypes["ushort"] = type;
 
   type = dibuilder->createBasicType("u32", 32, llvm::dwarf::DW_ATE_unsigned);
   _ditypes["u32"] = type;

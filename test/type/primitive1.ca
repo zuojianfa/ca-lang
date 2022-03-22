@@ -1,0 +1,8 @@
+fn main() {
+    let a: isize = 100;
+    dbgprinttype typeof(a);
+
+    let f: float = 11.2321;
+    dbgprinttype typeof(f);
+}
+

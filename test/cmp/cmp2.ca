@@ -1,0 +1,6 @@
+fn main() {
+    let a = 2 > 1;
+    print a; print '\n';
+    dbgprinttype typeof(a);
+}
+

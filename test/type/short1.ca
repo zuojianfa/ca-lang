@@ -1,0 +1,10 @@
+fn main() {
+    let a = 16u16;
+    let b: i16 = 433;
+    print a; print '\n';
+    print b; print '\n';
+
+    dbgprinttype typeof(a);
+    dbgprinttype typeof(b);
+}
+

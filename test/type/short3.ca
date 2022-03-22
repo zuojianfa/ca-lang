@@ -1,0 +1,27 @@
+struct AA {
+    f1: u8,
+    f2: u16,
+    f3: u32,
+    f4: u64,
+    f11: i8,
+    f12: i16,
+    f13: i32,
+    f14: i64,
+}
+
+fn main() {
+    let a = AA {
+        f1: 33u8,
+        f2: 65535u16,
+        f3: 65535u32,
+        f4: 33u64,
+        f11: 'C',
+        f12: 4324i16,
+        f13: 432432,
+        f14: 32132132i64
+    };
+
+    print a; print '\n';
+    dbgprinttype typeof(a);
+}
+

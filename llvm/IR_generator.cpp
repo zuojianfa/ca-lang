@@ -1313,8 +1313,11 @@ static void walk_expr_op2(ASTNode *p) {
   Type *type = nullptr;
 
   // TODO: here should can use pair1.second pair2.second
-  typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0]);
-  typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1]);
+  //typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0]);
+  //typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1]);
+  typeid_t typeid1 = pair1.second->signature;
+  typeid_t typeid2 = pair2.second->signature;
+
   CADataType *dt = catype_get_by_name(p->symtable, typeid1);
   CHECK_GET_TYPE_VALUE(p, dt, typeid1);
 
@@ -1353,6 +1356,10 @@ static void walk_expr_op2(ASTNode *p) {
     }
 
     oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v3, dt));
+    if (p->exprn.expr_type == typeid_novalue)
+      p->exprn.expr_type = dt->signature;
+
+    assert(p->exprn.expr_type == dt->signature);
     return;
   }
 
@@ -1385,6 +1392,10 @@ static void walk_expr_op2(ASTNode *p) {
   }
 
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v3, dt));
+  if (p->exprn.expr_type == typeid_novalue)
+    p->exprn.expr_type = dt->signature;
+
+  assert(p->exprn.expr_type == dt->signature);
 }
 
 static void walk_expr_as(ASTNode *node) {

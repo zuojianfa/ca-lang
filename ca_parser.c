@@ -953,6 +953,20 @@ int parse_lexical_char(const char *text) {
   }
 }
 
+int is_logic_op(int op) { 
+  switch (op) {
+  case '<':
+  case '>':
+  case GE:
+  case LE:
+  case NE:
+  case EQ:
+    return 1;
+  default:
+    return 0;
+  }
+}
+
 typeid_t inference_expr_type(ASTNode *node);
 typeid_t inference_expr_expr_type(ASTNode *node) {
   CADataType *catype = NULL;
@@ -1084,7 +1098,10 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     }
     break;
   }
-  
+
+  if (is_logic_op(node->exprn.op))
+    type1 = sym_form_type_id_from_token(BOOL);
+
   node->exprn.expr_type = type1;
   return type1;
 }
