@@ -65,31 +65,44 @@ extern int yychar, yylineno;
   DerefLeft deleft; /* represent dereference left value */
   ArrayItem aitem;  /* array item */
   StructFieldOp structfieldop; /* struct field operation */
+  LeftValueId leftvalueid;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
 %token	<symnameid>	VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
+%token			LOOP FOR IN BREAK CONTINUE MATCH USE MOD
+%token			BOX
+%token			BAND BOR BXOR BNOT
+%token			ASSIGN_ADD ASSIGN_SUB ASSIGN_MUL ASSIGN_DIV ASSIGN_MOD ASSIGN_SHIFTL ASSIGN_SHIFTR ASSIGN_BAND ASSIGN_BOR ASSIGN_BXOR ASSIGN_BNOT
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM
 %token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
 %nonassoc		IFX
 %nonassoc		ELSE
-%left			GE LE EQ NE '>' '<'
-%left			'+' '-'
-%left			'*' '/'
-%left			AS
+%left			LOR
+%left			LAND
+%left			'|'
+%left			'^'
 %left			'&'
+%left			EQ NE
+%left			GE LE '>' '<'
+%left			SHIFTL SHIFTR
+%left			'+' '-'
+%left			'*' '/' '%'
+%left			AS
+%left			'!' '~'
+%nonassoc		UMINUS UADDR
 %left			'.' ARROW '[' ']'
-%nonassoc		UMINUS
-%left			UARRAY UDEREF UADDR
+%left			UARRAY UDEREF
 %type	<litv>		literal
 %type	<arrayexpr>	array_def array_def_items
 %type	<structexpr>	struct_expr struct_expr_fields named_struct_expr_fields
-%type	<astnode>	stmt expr stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
+%type	<astnode>	stmt stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
+%type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
-%type	<astnode>	ifstmt stmt_list_star block_body let_stmt struct_type_def type_def
+%type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def type_def
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list
 %type	<var>		iddef iddef_typed
 %type	<symnameid>	label_id attrib_scope ret_type
@@ -98,6 +111,8 @@ extern int yychar, yylineno;
 %type	<deleft>	deref_pointer
 %type	<aitem>		array_item array_item_r
 %type	<structfieldop>	structfield_op
+%type	<leftvalueid>	left_value_id
+%type	<symnameid>	assign_op
 
 %start program
 
@@ -176,10 +191,8 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	RET expr ';'            { $$ = make_stmt_ret_expr($2); }
 	|	RET ';'		        { $$ = make_stmt_ret(); }
 	|	let_stmt                { $$ = $1; }
-	|	IDENT '=' expr ';'      { $$ = make_assign($1, $3); }
-	|	deref_pointer '=' expr ';' { $$ = make_deref_left_assign($1, $3); }
-	|	array_item '=' expr ';' { $$ = make_arrayitem_left_assign($1, $3); }
-	|	structfield_op '=' expr ';' { $$ = make_structfield_left_assign($1, $3); }
+	|	assignment_stmt         { $$ = $1; }
+	|	assign_op_stmt          { $$ = $1; }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { dot_emit("stmt", "ifstmt"); $$ = $1; }
@@ -212,6 +225,31 @@ attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); 
 
 let_stmt:	attrib_scope LET iddef '=' vardef_value ';'  { $$ = make_vardef($3, $5, 1); }
 	|	LET iddef '=' vardef_value ';'               { $$ = make_vardef($2, $4, 0); }
+	;
+
+assignment_stmt:left_value_id '=' expr ';'  { $$ = make_assign(&$1, $3); }
+	;
+
+left_value_id:	IDENT               { $$.type = LVT_Var; $$.var = $1; }
+	|	deref_pointer       { $$.type = LVT_Deref; $$.deleft = $1; }
+	|	array_item          { $$.type = LVT_ArrayItem; $$.aitem = $1; }
+	|	structfield_op      { $$.type = LVT_StructOp; $$.structfieldop = $1; }
+	;
+
+assign_op_stmt:	left_value_id assign_op expr ';' { $$ = make_assign_op(&$1, $2, $3); }
+	;
+
+assign_op:	ASSIGN_ADD          { $$ = ASSIGN_ADD;    }
+	|	ASSIGN_SUB	    { $$ = ASSIGN_SUB;    }
+	|	ASSIGN_MUL	    { $$ = ASSIGN_MUL;    }
+	|	ASSIGN_DIV	    { $$ = ASSIGN_DIV;    }
+	|	ASSIGN_MOD	    { $$ = ASSIGN_MOD;    }
+	|	ASSIGN_SHIFTL	    { $$ = ASSIGN_SHIFTL; }
+	|	ASSIGN_SHIFTR	    { $$ = ASSIGN_SHIFTR; }
+	|	ASSIGN_BAND	    { $$ = ASSIGN_BAND;   }
+	|	ASSIGN_BOR	    { $$ = ASSIGN_BOR;    }
+	|	ASSIGN_BXOR	    { $$ = ASSIGN_BXOR;   }
+	|	ASSIGN_BNOT         { $$ = ASSIGN_BNOT;   }
 	;
 
 vardef_value:	expr                { $$ = $1; }
@@ -262,25 +300,46 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	array_item            { $$ = make_arrayitem_right($1); }
 	|	struct_expr           { $$ = make_struct_expr($1); }
 	|	IDENT                 { $$ = make_ident_expr($1); }
-	|	'-' expr %prec UMINUS { $$ = make_uminus_expr($2); }
-	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
-	|	expr '-' expr         { $$ = make_expr('-', 2, $1, $3); }
-	|	expr '*' expr         { $$ = make_expr('*', 2, $1, $3); }
-	|	expr '/' expr         { $$ = make_expr('/', 2, $1, $3); }
-	|	expr '<' expr         { $$ = make_expr('<', 2, $1, $3); }
-	|	expr '>' expr         { $$ = make_expr('>', 2, $1, $3); }
-	|	expr GE expr          { $$ = make_expr(GE, 2, $1, $3); }
-	|	expr LE expr          { $$ = make_expr(LE, 2, $1, $3); }
-	|	expr NE expr          { $$ = make_expr(NE, 2, $1, $3); }
-	|	expr EQ expr          { $$ = make_expr(EQ, 2, $1, $3); }
+	|	arith_expr            { $$ = $1; }
+	|	cmp_expr              { $$ = $1; }
+	|	logic_expr	      { $$ = $1; }
+	|	bit_expr              { $$ = $1; }
 	|	'('expr ')'           { dot_emit("expr", "'(' expr ')'"); $$ = $2; }
 	|	fn_call               { dot_emit("expr", "fn_call"); $$ = $1; }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
 	|	expr AS data_type     { $$ = make_as($1, $3); }
 	|	SIZEOF '(' data_type ')'{ $$ = make_sizeof($3); }
 	|	deref_pointer         { $$ = make_deref($1.expr); }
-	|	'&' expr  { $$ = make_address($2); }
+	|	'&' expr %prec UADDR  { $$ = make_address($2); }
 	|	structfield_op        { $$ = make_structfield_right($1); }
+	;
+
+arith_expr:	'-' expr %prec UMINUS { $$ = make_uminus_expr($2); }
+	|	expr '+' expr         { $$ = make_expr('+', 2, $1, $3); }
+	|	expr '-' expr         { $$ = make_expr('-', 2, $1, $3); }
+	|	expr '*' expr         { $$ = make_expr('*', 2, $1, $3); }
+	|	expr '/' expr         { $$ = make_expr('/', 2, $1, $3); }
+	|	expr '%' expr         { $$ = make_expr('%', 2, $1, $3); }
+	;
+
+cmp_expr:	expr '<' expr         { $$ = make_expr('<', 2, $1, $3); }
+	|	expr '>' expr         { $$ = make_expr('>', 2, $1, $3); }
+	|	expr GE expr          { $$ = make_expr(GE, 2, $1, $3); }
+	|	expr LE expr          { $$ = make_expr(LE, 2, $1, $3); }
+	|	expr NE expr          { $$ = make_expr(NE, 2, $1, $3); }
+	|	expr EQ expr          { $$ = make_expr(EQ, 2, $1, $3); }
+	;
+
+logic_expr:	expr LAND expr        { $$ = make_expr(LAND, 2, $1, $3); }
+	|	expr LOR expr         { $$ = make_expr(LOR, 2, $1, $3); }
+	;
+
+bit_expr:	expr '&' expr         { $$ = make_expr(BAND, 2, $1, $3); }
+	|	expr '|' expr         { $$ = make_expr(BOR, 2, $1, $3); }
+	|	expr '^' expr         { $$ = make_expr(BXOR, 2, $1, $3); }
+	|	'!' expr              { $$ = make_expr(BNOT, 1, $2); }
+	|	expr SHIFTL expr      { $$ = make_expr(SHIFTL, 2, $1, $3); }
+	|	expr SHIFTR expr      { $$ = make_expr(SHIFTR, 2, $1, $3); }
 	;
 
 structfield_op:	expr '.' IDENT	      { $$ = make_element_field($1, $3, 1); }

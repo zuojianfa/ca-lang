@@ -144,8 +144,12 @@ r\"[^"]*\"	       	{
 
  /* \.		{ ULL(); return DOT; } */
 \/\/.*$         { ULL(); /* return COMMENT; */}
-[-()<>=+*/;{}.:,]	{ ULL(); return *yytext; }
+[-()<>=+*/;{}.:,%!|^]	{ ULL(); return *yytext; }
 \#|\[|\]        { ULL(); return *yytext; }
+
+"&&"            { ULL(); return LAND; }
+"||"            { ULL(); return LOR; }
+
 ">="		{ ULL(); return GE; }
 "<="		{ ULL(); return LE; }
 "=="		{ ULL(); return EQ; }
@@ -155,6 +159,22 @@ r\"[^"]*\"	       	{
 "=>"		{ ULL(); return INFER; }
 \&		{ ULL(); return '&'; }
  /*'*'		{ ULL(); return DEREF; } */
+
+"+="            { ULL(); return ASSIGN_ADD; }
+"-="		{ ULL(); return ASSIGN_SUB; }
+"*="		{ ULL(); return ASSIGN_MUL; }
+"/="		{ ULL(); return ASSIGN_DIV; }
+"%="		{ ULL(); return ASSIGN_MOD; }
+"<<="		{ ULL(); return ASSIGN_SHIFTL; }
+">>="		{ ULL(); return ASSIGN_SHIFTR; }
+"&="		{ ULL(); return ASSIGN_BAND; }
+"\|="		{ ULL(); return ASSIGN_BOR; }
+"^="		{ ULL(); return ASSIGN_BXOR; }
+"~="		{ ULL(); return ASSIGN_BNOT; }
+
+"<<"		{ ULL(); return SHIFTL; }
+">>"            { ULL(); return SHIFTR; }
+
 
 ({letter}|_)+({letter}|{digit}|_)*	{
 		ULL();

@@ -427,7 +427,7 @@ static Value *extract_value_from_array(ASTNode *node) {
     inference_expr_type(expr);
     walk_stack(expr);
     std::pair<Value *, CADataType *> pair = pop_right_value("item", 1);
-    if (!is_integer_type(pair.second->type)) {
+    if (!catype_is_integer(pair.second->type)) {
       yyerror("line: %d, col: %d: array index type must be integer, but find `%s` on `%d`",
 	      node->begloc.row, node->begloc.col, catype_get_type_name(pair.second->signature), i);
       return nullptr;
@@ -1057,6 +1057,8 @@ static void walk_assign(ASTNode *p) {
   // idn can be type of TTE_Id or TTE_DerefLeft or TTE_ArrayItemLeft
   ASTNode *idn = p->assignn.id;
   ASTNode *exprn = p->assignn.expr;
+  int op = p->assignn.op;
+  // NEXT TODO: when op is not -1 then it is assign + operation like a += 1;
 
   if (exprn->type != TTE_VarDefZeroValue)
     inference_assign_type(idn, exprn);
@@ -1126,7 +1128,7 @@ static void walk_expr_minus(ASTNode *p) {
   typeid_t type = get_expr_type_from_tree(p->exprn.operands[0]);
   CADataType *dt = catype_get_by_name(p->symtable, type);
   CHECK_GET_TYPE_VALUE(p, dt, type);
-  if (is_unsigned_type(dt->type)) {
+  if (catype_is_unsigned(dt->type)) {
     yyerror("unsigned type `%s` cannot apply `-` operator", symname_get(type));
     return;
   }
@@ -1140,6 +1142,71 @@ static void walk_expr_minus(ASTNode *p) {
   Value *z = ir1.gen_int((uint8_t)0);
   z = ir1.builder().CreateSExt(z, pair.first->getType());
   Value *v = ir1.gen_sub(z, pair.first);
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v, dt));
+}
+
+static bool is_bnot_type(tokenid_t type) {
+  switch (type) {
+  case I8:
+  case I16:
+  case I32:
+  case I64:
+  case U8:
+  case U16:
+  case U32:
+  case U64:
+  case BOOL:
+    return true;
+  default:
+    return false;
+  }
+}
+
+static void walk_unary_expr(ASTNode *p) {
+  typeid_t type = get_expr_type_from_tree(p->exprn.operands[0]);
+  CADataType *dt = catype_get_by_name(p->symtable, type);
+  CHECK_GET_TYPE_VALUE(p, dt, type);
+
+  switch (p->exprn.op) {
+  case UMINUS:
+    if (catype_is_unsigned(dt->type)) {
+      yyerror("unsigned type `%s` cannot apply `-` operator", symname_get(type));
+      return;
+    }
+    break;
+  case BNOT:
+    if (!is_bnot_type(dt->type)) {
+      yyerror("line: %d, col: %d: expected integer type for bitwise & logical not, but find `%s`",
+	      p->begloc.row, p->begloc.col, symname_get(dt->signature));
+      return;
+    }
+    break;
+  default:
+    yyerror("line: %d, col: %d: unknown unary operator `%d`",
+	    p->begloc.row, p->begloc.col, p->exprn.op);
+    return;
+  }
+
+  walk_stack(p->exprn.operands[0]);
+
+  auto pair = pop_right_value();
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
+  Value *v = nullptr;
+  if (p->exprn.op == UMINUS) {
+    if (catype_is_float(pair.second->type))
+      v = ir1.builder().CreateFNeg(pair.first, "fneg");
+    else
+      v = ir1.builder().CreateNeg(pair.first, "neg");
+  } else if (dt->type == BOOL) {
+    // bool logic or bitwise not (they are equal)
+    v = ir1.builder().CreateNot(pair.first, "not");
+  } else {
+    // bitwise not
+    v = ir1.builder().CreateNot(pair.first, "bitnot");
+  }
+
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v, dt));
 }
 
@@ -1301,6 +1368,34 @@ static void walk_ret(ASTNode *p) {
   g_with_ret_value = true;
 }
 
+static void handle_pointer_op(ASTNode *p, CADataType *dt, Value *v1, CADataType *dt2, Value *v2) {
+  Value *v3 = nullptr;
+  Value *z = nullptr;
+  Type *type = nullptr;
+
+  switch (p->exprn.op) {
+  case '-':
+    z = ir1.gen_int((int64_t)0);
+    v2 = ir1.builder().CreateSExt(v2, ir1.int_type<int64_t>());
+    v2 = ir1.gen_sub(z, v2, "m");
+  case '+':
+    type = gen_llvmtype_from_catype(dt->pointer_layout->type);
+    v3 = ir1.builder().CreateGEP(type, v1, v2, "pop");
+    break;
+  default:
+    yyerror("line: %d, column: %d, pointer operation only support `+` and `-`, but find `%c`",
+	    p->begloc.row, p->begloc.col, p->exprn.op);
+    return;
+  }
+
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v3, dt));
+  if (p->exprn.expr_type == typeid_novalue)
+    p->exprn.expr_type = dt->signature;
+
+  assert(p->exprn.expr_type == dt->signature);
+  return;
+}
+
 static void walk_expr_op2(ASTNode *p) {
   walk_stack(p->exprn.operands[0]);
   auto pair1 = pop_right_value("v1");
@@ -1310,11 +1405,6 @@ static void walk_expr_op2(ASTNode *p) {
   Value *v2 = pair2.first;
   Value *v3 = nullptr;
 
-  Type *type = nullptr;
-
-  // TODO: here should can use pair1.second pair2.second
-  //typeid_t typeid1 = get_expr_type_from_tree(p->exprn.operands[0]);
-  //typeid_t typeid2 = get_expr_type_from_tree(p->exprn.operands[1]);
   typeid_t typeid1 = pair1.second->signature;
   typeid_t typeid2 = pair2.second->signature;
 
@@ -1324,42 +1414,17 @@ static void walk_expr_op2(ASTNode *p) {
   CADataType *dt2 = catype_get_by_name(p->symtable, typeid2);
   CHECK_GET_TYPE_VALUE(p, dt2, typeid2);
 
-  bool pointer_op = false;
-  if (dt->type == POINTER && is_integer_type(dt2->type))
-    pointer_op = true;
-
-  if (!pointer_op && !catype_check_identical_in_symtable(p->symtable, typeid1, p->symtable, typeid2)) {
-    yyerror("line: %d, column: %d, operation have 2 different types: '%s', '%s'",
-	    p->begloc.row, p->begloc.col, symname_get(typeid1), symname_get(typeid2));
-    return;
-  }
-
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
-  if (pointer_op) {
-    Value *z = nullptr;
-    switch (p->exprn.op) {
-    case '-':
-      // v3 = ir1.builder().CreateGEP(v1, v2, "pop");
-      z = ir1.gen_int((int64_t)0);
-      v2 = ir1.builder().CreateSExt(v2, ir1.int_type<int64_t>());
-      v2 = ir1.gen_sub(z, v2, "m");
-    case '+':
-      type = gen_llvmtype_from_catype(dt->pointer_layout->type);
-      v3 = ir1.builder().CreateGEP(type, v1, v2, "pop");
-      break;
-    default:
-      yyerror("line: %d, column: %d, pointer operation only support `+` and `-`, but find `%c`",
-	      p->begloc.row, p->begloc.col, p->exprn.op);
-      return;
-    }
+  if (dt->type == POINTER && catype_is_integer(dt2->type)) {
+    handle_pointer_op(p, dt, v1, dt2, v2);
+    return;
+  }
 
-    oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v3, dt));
-    if (p->exprn.expr_type == typeid_novalue)
-      p->exprn.expr_type = dt->signature;
-
-    assert(p->exprn.expr_type == dt->signature);
+  if ((p->exprn.op != SHIFTL &&  p->exprn.op != SHIFTR) && !catype_check_identical_in_symtable(p->symtable, typeid1, p->symtable, typeid2)) {
+    yyerror("line: %d, column: %d, operation have 2 different types: '%s', '%s'",
+	    p->begloc.row, p->begloc.col, symname_get(typeid1), symname_get(typeid2));
     return;
   }
 
@@ -1376,6 +1441,9 @@ static void walk_expr_op2(ASTNode *p) {
   case '/':
     v3 = ir1.gen_div(v1, v2);
     break;
+  case '%':
+    v3 = ir1.gen_mod(v1, v2);
+    break;
   case '<':
   case '>':
   case GE:
@@ -1385,6 +1453,32 @@ static void walk_expr_op2(ASTNode *p) {
     v3 = generate_cmp_op(dt->type, v1, v2, p->exprn.op);
     // BOOL for 1 bit of bool type
     dt = catype_get_primitive_by_token(BOOL);
+    break;
+  case LAND:
+    // NEXT TODO:
+    break;
+  case LOR:
+    // NEXT TODO:
+    break;
+  case BAND:
+    v3 = ir1.builder().CreateAnd(v1, v2, "band");
+    break;
+  case BOR:
+    v3 = ir1.builder().CreateOr(v1, v2, "bor");
+    break;
+  case BXOR:
+    v3 = ir1.builder().CreateXor(v1, v2, "bxor");
+    break;
+  case SHIFTL:
+    v2 = ir1.builder().CreateZExtOrTrunc(v2, v1->getType());
+    v3 = ir1.builder().CreateShl(v1, v2, "shl");
+    break;
+  case SHIFTR:
+    v2 = ir1.builder().CreateZExtOrTrunc(v2, v1->getType());
+    if (catype_is_signed(dt->type))
+      v3 = ir1.builder().CreateAShr(v1, v2, "ashr");
+    else
+      v3 = ir1.builder().CreateLShr(v1, v2, "lshr");
     break;
   default:
     yyerror("unknown expression operands: %d", p->exprn.op);
@@ -1724,7 +1818,8 @@ static void walk_expr(ASTNode *p) {
     walk_expr_sizeof(p->exprn.operands[0]);
     break;
   case UMINUS:
-    walk_expr_minus(p);
+  case BNOT:
+    walk_unary_expr(p);
     break;
   case FN_CALL:
     walk_expr_call(p);

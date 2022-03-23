@@ -1,0 +1,18 @@
+fn main() {
+    let a = 1;
+    let b = !a;
+
+    print a; print ' ';
+    print b; print ' ';
+
+    let f = 0x1234567890abcdefi64;
+    let g = !f;
+    print f; print ' ';
+    print g; print ' ';
+
+    let c = true;
+    let d = !c;
+    print c; print ' ';
+    print d; print ' ';
+}
+

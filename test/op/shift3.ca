@@ -1,0 +1,11 @@
+fn main() {
+    let i = 0;
+    let v = 2147483647;
+    let a = v >> 3;
+    a = a >> 4;
+    let b = v >> 3 >> 4;
+    print a; print ' ';
+    print b; print ' ';
+    print '\n';
+}
+

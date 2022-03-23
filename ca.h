@@ -161,6 +161,7 @@ typedef struct TRet {
 
 typedef struct TAssign {
   struct ASTNode *id;
+  int op; // when op is not -1, then it is the assignment operation
   struct ASTNode *expr;
 } TAssign;
 
@@ -190,6 +191,23 @@ typedef struct StructFieldOp {
   int fieldname;
   int direct; // direct: . op, indirect: -> op
 } StructFieldOp, TStructFieldOp;
+
+typedef enum LVType {
+  LVT_Var,
+  LVT_Deref,
+  LVT_ArrayItem,
+  LVT_StructOp,
+} LVType;
+
+typedef struct LeftValueId {
+  LVType type;
+  union {
+    int var;
+    DerefLeft deleft; /* represent dereference left value */
+    ArrayItem aitem;  /* array item */
+    StructFieldOp structfieldop; /* struct field operation */
+  };
+} LeftValueId;
 
 typedef struct TLexicalBody {
   struct ASTNode *stmts;
@@ -307,10 +325,8 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
 ASTNode *make_id(int id, IdType idtype);
 ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global);
 ASTNode *make_vardef_zero_value();
-ASTNode *make_assign(int id, ASTNode *exprn);
-ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn);
-ASTNode *make_arrayitem_left_assign(ArrayItem ai, ASTNode *expr);
-ASTNode *make_structfield_left_assign(StructFieldOp sfop, ASTNode *exprn);
+ASTNode *make_assign(LeftValueId *lvid, ASTNode *exprn);
+ASTNode *make_assign_op(LeftValueId *lvid, int op, ASTNode *exprn);
 ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);

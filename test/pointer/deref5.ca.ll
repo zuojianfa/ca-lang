@@ -96,8 +96,8 @@ entry:
   %n37 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @17, i32 0, i32 0), i8 10)
   %v138 = load i32*, i32** %pa, align 8
   %load39 = load i64, i64* %b, align 4
-  %sub = sub i64 0, %load39
-  %pop40 = getelementptr i32, i32* %v138, i64 %sub
+  %neg = sub i64 0, %load39
+  %pop40 = getelementptr i32, i32* %v138, i64 %neg
   %pf1 = alloca i32*, align 8
   store volatile i32* %pop40, i32** %pf1, align 8
   %load41 = load i32*, i32** %pf1, align 8

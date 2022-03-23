@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include "ca.h"
 #include "ca.tab.h"
@@ -706,6 +707,7 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global) {
   ASTNode *p = new_ASTNode(TTE_Assign);
   p->assignn.id = idn;
   p->assignn.expr = exprn;
+  p->assignn.op = -1;
   set_address(p, &idn->begloc, &exprn->endloc);
   p->symtable = symtable;
   return p;
@@ -720,12 +722,13 @@ ASTNode *make_vardef_zero_value() {
 static ASTNode *make_assign_common(ASTNode *left, ASTNode *right) {
   ASTNode *p = new_ASTNode(TTE_Assign);
   p->assignn.id = left;
+  p->assignn.op = -1;
   p->assignn.expr = right;
   set_address(p, &left->begloc, &right->endloc);
   return p;
 }
 
-ASTNode *make_assign(int id, ASTNode *exprn) {
+static ASTNode *make_assign_var(int id, ASTNode *exprn) {
   dot_emit("stmt", "varassign");
 
   STEntry *entry = sym_getsym(curr_symtable, id, 1);
@@ -741,13 +744,13 @@ ASTNode *make_assign(int id, ASTNode *exprn) {
   return p;
 }
 
-ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn) {
+static ASTNode *make_deref_left_assign(DerefLeft deleft, ASTNode *exprn) {
   ASTNode *derefln = make_deref_left(deleft);
   ASTNode *p = make_assign_common(derefln, exprn);
   return p;
 }
 
-ASTNode *make_arrayitem_left_assign(ArrayItem ai, ASTNode *exprn) {
+static ASTNode *make_arrayitem_left_assign(ArrayItem ai, ASTNode *exprn) {
   ASTNode *aitemn = new_ASTNode(TTE_ArrayItemLeft);
   aitemn->aitemn = ai;
   set_address(aitemn, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
@@ -756,13 +759,35 @@ ASTNode *make_arrayitem_left_assign(ArrayItem ai, ASTNode *exprn) {
   return p;
 }
 
-ASTNode *make_structfield_left_assign(StructFieldOp sfop, ASTNode *exprn) {
+static ASTNode *make_structfield_left_assign(StructFieldOp sfop, ASTNode *exprn) {
   ASTNode *sfopn = new_ASTNode(TTE_StructFieldOpLeft);
   sfopn->sfopn = sfop;
   set_address(sfopn, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
 
   ASTNode *p = make_assign_common(sfopn, exprn);
   return p;
+}
+
+ASTNode *make_assign(LeftValueId *lvid, ASTNode *exprn) {
+  switch (lvid->type) {
+  case LVT_Var:
+    return make_assign_var(lvid->var, exprn);
+  case LVT_Deref:
+    return make_deref_left_assign(lvid->deleft, exprn);
+  case LVT_ArrayItem:
+    return make_arrayitem_left_assign(lvid->aitem, exprn);
+  case LVT_StructOp:
+    return make_structfield_left_assign(lvid->structfieldop, exprn);
+  default:
+    yyerror("line: %d, col: %d: unknown assignment type", glineno, gcolno);
+    return NULL;
+  }
+}
+
+ASTNode *make_assign_op(LeftValueId *lvid, int op, ASTNode *exprn) {
+  ASTNode *node = make_assign(lvid, exprn);
+  node->assignn.op = op;
+  return node;
 }
 
 ASTNode *make_goto(int labelid) {
@@ -1083,16 +1108,26 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       if (type1 == typeid_novalue) {
 	type1 = type;
       } else if (!catype_check_identical_in_symtable(node->symtable, type1, node->symtable, type)) {
-	if (possible_pointer_op) {
+	if (node->exprn.op == SHIFTL || node->exprn.op == SHIFTR) {
 	  CADataType *catype1 = catype_get_by_name(node->symtable, type1);
 	  CADataType *catype2 = catype_get_by_name(node->symtable, type);
-	  pointer_op = (catype1->type == POINTER && is_integer_type(catype2->type));
-	}
+	  if (!catype_is_integer(catype1->type) || !catype_is_integer(catype2->type)) {
+	    yyerror("line: %d, column: %d, expected `integer`, but found `%s` `%s` for shift operation",
+		    node->begloc.row, node->begloc.col, symname_get(type1), symname_get(type));
+	    return typeid_novalue;
+	  }
+	} else {
+	  if (possible_pointer_op) {
+	    CADataType *catype1 = catype_get_by_name(node->symtable, type1);
+	    CADataType *catype2 = catype_get_by_name(node->symtable, type);
+	    pointer_op = (catype1->type == POINTER && catype_is_integer(catype2->type));
+	  }
 
-	if (!pointer_op) {
-	  yyerror("line: %d, column: %d, expected `%s`, found `%s`",
-		  node->begloc.row, node->begloc.col, symname_get(type1), symname_get(type));
-	  return typeid_novalue;
+	  if (!pointer_op) {
+	    yyerror("line: %d, column: %d, expected `%s`, found `%s`",
+		    node->begloc.row, node->begloc.col, symname_get(type1), symname_get(type));
+	    return typeid_novalue;
+	  }
 	}
       }
     }
@@ -1350,7 +1385,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 
       typeid_t secondid = inference_expr_type(node->exprn.operands[1]);
       CADataType *secondca = catype_get_by_name(node->symtable, secondid);
-      if (!is_integer_type(secondca->type)) {
+      if (!catype_is_integer(secondca->type)) {
 	yyerror("line: %d, col: %d: the 2nd pointer operand not support non-integer type, but find `%s`",
 		node->begloc.row, node->begloc.col, catype_get_type_name(secondca->signature));
 	return -1;

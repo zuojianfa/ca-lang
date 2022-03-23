@@ -1,0 +1,22 @@
+fn main() {
+    let a = 12i32;
+    let b = 33u32;
+    let c = a + b as i32;
+
+    let va1 = 7;
+    let va2 = 12;
+    let va3 = va1 & va2;
+    let va4 = va1 | va2;
+    let va5 = va1 ^ va2;
+    let va6 = (va1 | va2) & (va1 ^ va2);
+
+    print va1; print ' ';
+    print va2; print ' ';
+    print va3; print ' ';
+    print va4; print ' ';
+    print va5; print ' ';
+    print va6; print ' ';
+
+    print c + va6;
+}
+

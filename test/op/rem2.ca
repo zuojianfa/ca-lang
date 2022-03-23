@@ -1,0 +1,7 @@
+fn main() {
+    let a = 100 % 33;
+    let b = 100.2 % 22.2;
+    let c = 100u32 % 32u32;
+    print a; print ' '; print b; print ' '; print c; print '\n';
+}
+

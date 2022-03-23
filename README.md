@@ -200,21 +200,42 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support named struct literal
 - [x] support all kinds of type's debuggging info
 - [x] support scoped debugging information
+- [x] add other atomic type
+- [ ] '+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '|=' '^='
 - [ ] bit operation '<<' '>>' '|' '&' '^' '~'
+- [ ] logical operation '&&' '||' '!'
+- [ ] if else if else ...
 - [ ] support never return type `!` like rust
-- [ ] add other atomic type
 - [ ] support multiple compile unit and link them together
 - [ ] support multiple if-else else if statement
+- [ ] break
+- [ ] continue
 - [ ] support rust grammar
   - [ ] loop
+  - [ ] for i in list
   - [ ] match
-  - [ ] type
-  - [x] last expression as return value in scope
+  - [x] type
+  - [ ] last expression as return value in scope
+	- [ ] break expr
+	- [ ] break 'label2 expr
+	- [ ] continue expr
+	- [ ] continue 'label2 expr
+  - [ ] all kinds of expression
   - [ ] immutable
   - [ ] mutable
   - [ ] support attribute grammar like `#[derive(Clone)]`
   - [ ] heap allocate memory: `box`
   - [ ] scope variable release
+  - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
+  - [ ] 'label1: loop # labeled loop
+  - [ ] break 'label1 # labeled break
+  - [ ] mod scope
+  - [ ] use package
+  - [ ] tuple
+  - [ ] destructure operator: let S(x) = A; let S{x} = A;
+  - [ ] default acceptor _
+  - [ ] slice operator and infrastructure
+
 
 
 ## Makefile
@@ -261,19 +282,32 @@ is scopeline the real skip function start for debugging? try it
 
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
-NEXT TODO: 
-- [ ] support other atomic type
-  search F32 and fix, 
-  search I32 and fix
+NEXT TODO:
+- [ ] logical operation '&&' '||' '!'
+- [ ] bit operation '<<' '>>' '|' '&' '^' '~'
+- [ ] '+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '|=' '^='
+- [ ] heap allocate memory: `box`
+- [ ] loop
+- [ ] for i in list
+- [ ] if else if else ...
+- [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
+- [ ] 'label1: loop
+- [ ] match
+- [ ] tuple
+- [ ] destructure operator: let S(x) = A; let S{x} = A;
+- [ ] mod scope
+- [ ] use package
+- [ ] default acceptor _
+- [ ] slice operator and infrastructure
 - [ ] implement following functions: 
   `catype_compare_type_signature`, 
   `catype_make_type_closure`,
   `catype_create_type_from_unwind`
 - [ ] remove entry object in ASTNode
 - [ ] make typeid_t opaque for making it cannot convert from int to typeid_t directly
-- [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] set right line number for structure definition lines
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
+- [ ] add graphviz (dot graph) option for outputing the grammar tree
 
 # License
 See `LICENSE` file in this directory, for license in directory `cruntime` see cruntime/README.md

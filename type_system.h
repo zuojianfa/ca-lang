@@ -11,8 +11,9 @@ BEGIN_EXTERN_C
 #endif
 
 const char *get_printf_format(int type);
-int is_unsigned_type(tokenid_t type);
-int is_integer_type(tokenid_t type);
+bool catype_is_signed(tokenid_t type);
+bool catype_is_unsigned(tokenid_t type);
+bool catype_is_integer(tokenid_t type);
 const char *get_printf_format(int type);
 typeid_t inference_literal_type(CALiteral *lit);
 void determine_primitive_literal_type(CALiteral *lit, CADataType *catype);

@@ -185,6 +185,15 @@ std::unordered_map<std::string, int> s_token_map = {
   {"typeof", TYPEOF},
   {"typeid", TYPEID},
   {"__zero_init__", ZERO_INITIAL},
+  {"loop",   LOOP},
+  {"for",    FOR},
+  {"in",     IN},
+  {"break",  BREAK},
+  {"continue",  CONTINUE},
+  {"match",  MATCH},
+  {"use",    USE},
+  {"mod",    MOD},
+  {"box",    BOX},
 };
 
 static CADataType *catype_make_type(const char *name, int type, int size);
@@ -2582,26 +2591,6 @@ const char *get_printf_format(int type) {
   }
 }
 
-int is_unsigned_type(tokenid_t type) {
-  return type == U32 || type == U64 || type == U8;
-}
-
-int is_integer_type(tokenid_t type) {
-  switch (type) {
-  case I8:
-  case I16:
-  case I32:
-  case I64:
-  case U8:
-  case U16:
-  case U32:
-  case U64:
-    return 1;
-  default:
-    return 0;
-  }
-}
-
 // row: VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER
 // col: < > GE LE NE EQ
 CmpInst::Predicate s_cmp_predicate[ATOMTYPE_END-VOID][6] = {
@@ -3199,6 +3188,30 @@ bool catype_is_complex_type(tokenid_t typetok) {
   case STRUCT:
     return true;
   case POINTER:
+  default:
+    return false;
+  }
+}
+
+bool catype_is_signed(tokenid_t type) {
+  return type == I8 || type == I16 || type == I32 || type == I64;
+}
+
+bool catype_is_unsigned(tokenid_t type) {
+  return type == U8 || type == U16 || type == U32 || type == U64;
+}
+
+bool catype_is_integer(tokenid_t type) {
+  switch (type) {
+  case I8:
+  case I16:
+  case I32:
+  case I64:
+  case U8:
+  case U16:
+  case U32:
+  case U64:
+    return true;
   default:
     return false;
   }

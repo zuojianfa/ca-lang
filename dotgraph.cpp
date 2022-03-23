@@ -89,6 +89,9 @@ void dot_emit_expr(const char *from, const char *to, int op) {
   case '/':
     dot_emit("expr", "expr '/' expr");
     break;
+  case '%':
+    dot_emit("expr", "expr '%' expr");
+    break;
   case '<':
     dot_emit("expr", "expr '<' expr");
     break;

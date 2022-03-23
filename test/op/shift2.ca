@@ -1,0 +1,38 @@
+fn main() {
+    let i = 0;
+    let v = 2147483647;
+    while (i < 33) {
+        let a0 = v >> i;
+        print a0; print ' ';
+        i = i + 1;
+    }
+    print '\n';
+
+    i = 0;
+    let v2 = -9223372036854775807i64;
+    while (i < 65i32) {
+        let a0 = v2 >> i;
+        print a0; print ' ';
+        i = i + 1;
+    }
+    print '\n';
+
+    i = 0;
+    let v3 = 2147483648u32;
+    while (i < 33) {
+        let a0 = v3 >> i;
+        print a0; print ' ';
+        i = i + 1;
+    }
+    print '\n';
+
+    i = 0;
+    let v4 = 9223372036854775808u64;
+    while (i < 65i32) {
+        let a0 = v4 >> i;
+        print a0; print ' ';
+        i = i + 1;
+    }
+
+}
+
