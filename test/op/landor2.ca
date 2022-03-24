@@ -1,0 +1,12 @@
+fn func1(seq: i32) -> bool {
+    print "func1 called: "; print seq; print "\n";
+    return true;
+}
+
+fn main() {
+    true && func1(1);
+    true || func1(2);
+    false && func1(3);
+    false || func1(4);
+}
+

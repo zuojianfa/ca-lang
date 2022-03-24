@@ -1,0 +1,30 @@
+fn func1() -> bool {
+    print "func1 called\n";
+    return true;
+}
+
+fn main() {
+    let a = 1;
+    let b = 2;
+    let c = a < b;
+    let d = a > b;
+
+    print "\tc: "; print c; print '\n';
+
+    let e = c && func1();
+    print "\te: "; print e; print '\n';
+
+    let f = c || func1();
+    print "\tf: "; print f; print '\n';
+
+    print "\td: "; print d; print '\n';
+    let e2 = d && func1();
+    print "\te2: "; print e2; print '\n';
+
+    let f2 = d || func1();
+    print "\tf2: "; print f2; print '\n';
+
+    print c; print ' ';
+    print d; print ' ';
+}
+

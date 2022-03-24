@@ -1,0 +1,12 @@
+fn fn1() -> bool {
+    print "invoked"; print '\n';
+    return true;
+}
+
+fn main() {
+    let a = 1;
+    let b = 2;
+    let c = 3;
+    let e = (a < b) && (c > b) && fn1();
+}
+

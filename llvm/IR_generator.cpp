@@ -1396,9 +1396,46 @@ static void handle_pointer_op(ASTNode *p, CADataType *dt, Value *v1, CADataType 
   return;
 }
 
+static void walk_expr_landor(CADataType *dt1, Value *v1, ASTNode *p) {
+  BasicBlock *thenbb = ir1.gen_bb("thenbb");
+  BasicBlock *outbb = ir1.gen_bb("outbb");
+  bool isand = (p->exprn.op == LAND);
+
+  BasicBlock *v1bb = ir1.builder().GetInsertBlock();
+
+  ir1.builder().CreateCondBr(v1, isand ? thenbb : outbb, isand ? outbb : thenbb);
+
+  // then block, to calculate the value of second bool expression
+  curr_fn->getBasicBlockList().push_back(thenbb);
+  ir1.builder().SetInsertPoint(thenbb);
+  walk_stack(p->exprn.operands[1]);
+  auto pair2 = pop_right_value("v2");
+  Value *v2 = pair2.first;
+
+  // because the upper walk may appended new BB, so here cannot use thenbb directly, so just get it
+  BasicBlock *v2bb = ir1.builder().GetInsertBlock();
+
+  ir1.builder().CreateBr(outbb);
+
+  // out block, when first bool expression already meet requirement
+  curr_fn->getBasicBlockList().push_back(outbb);
+  ir1.builder().SetInsertPoint(outbb);
+
+  PHINode *phiv = ir1.gen_phi(ir1.bool_type(), v2bb, v2, v1bb, v1);
+  auto pnv = std::make_unique<CalcOperand>(OT_PHINode, phiv, dt1);
+  oprand_stack.push_back(std::move(pnv));
+}
+
 static void walk_expr_op2(ASTNode *p) {
   walk_stack(p->exprn.operands[0]);
   auto pair1 = pop_right_value("v1");
+
+  switch (p->exprn.op) {
+  case LAND:
+  case LOR:
+    return walk_expr_landor(pair1.second, pair1.first, p);
+  }
+
   walk_stack(p->exprn.operands[1]);
   auto pair2 = pop_right_value("v2");
   Value *v1 = pair1.first;
@@ -1453,12 +1490,6 @@ static void walk_expr_op2(ASTNode *p) {
     v3 = generate_cmp_op(dt->type, v1, v2, p->exprn.op);
     // BOOL for 1 bit of bool type
     dt = catype_get_primitive_by_token(BOOL);
-    break;
-  case LAND:
-    // NEXT TODO:
-    break;
-  case LOR:
-    // NEXT TODO:
     break;
   case BAND:
     v3 = ir1.builder().CreateAnd(v1, v2, "band");

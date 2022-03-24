@@ -1,0 +1,14 @@
+fn func1(seq: i32) -> bool {
+    print "func1 called: "; print seq; print "\n";
+    return true;
+}
+
+fn main() {
+    let a = (true && func1(1)) || (false && func1(3));
+    if (a) {
+        print "first\n";
+    } else {
+        print "second\n";
+    }
+}
+
