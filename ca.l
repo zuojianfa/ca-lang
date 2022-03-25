@@ -170,7 +170,6 @@ r\"[^"]*\"	       	{
 "&="		{ ULL(); return ASSIGN_BAND; }
 "\|="		{ ULL(); return ASSIGN_BOR; }
 "^="		{ ULL(); return ASSIGN_BXOR; }
-"~="		{ ULL(); return ASSIGN_BNOT; }
 
 "<<"		{ ULL(); return SHIFTL; }
 ">>"            { ULL(); return SHIFTR; }

@@ -1540,7 +1540,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
 // when in walk stage the assignment statement will determine the variable's
 // type and the right expression's type when the expression's type not
 // determined: int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands)
-int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum) {
+int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum, int assignop) {
   // check if exist type in the each node and type is conflicting for each node
   // but here cannot create literal value when the value not determined a type
   // because it may be a tree, or can make the type by tranverlling the tree?
@@ -1556,7 +1556,8 @@ int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenu
       if (type1 == typeid_novalue) {
 	type1 = expr_types[i];
 	typei = i;
-      } else if (!catype_check_identical_in_symtable(nodes[i]->symtable, type1, nodes[i]->symtable, expr_types[i])) {
+      } else if (assignop == -1 && !catype_check_identical_in_symtable(nodes[i]->symtable, type1, nodes[i]->symtable, expr_types[i])) {
+	// when assignop not -1 it will not check the type
 	CADataType *dt1 = catype_get_by_name(nodes[i]->symtable, type1);
 	CADataType *dt2 = catype_get_by_name(nodes[i]->symtable, expr_types[i]);
 

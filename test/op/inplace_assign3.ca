@@ -1,0 +1,26 @@
+fn main() {
+    let i = 0xf0;
+    i &= 0xf;
+    print i; print ' ';
+
+    i = 0xf0;
+    i |= 0xf;
+    print i; print ' ';
+
+    i = 0xff0f;
+    i ^= 0xf0;
+    print i; print ' ';
+
+    let j = 0xffff7777u32;
+    j &= 0x876589abu32;
+    print j as *void; print ' ';
+
+    j = 0x12340000u32;
+    j |= 0x876589abu32;
+    print j as *void; print ' ';
+
+    j = 0x12340000u32;
+    j ^= 0x25cbfedcu32;
+    print j as *void; print ' ';
+}
+

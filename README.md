@@ -201,9 +201,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support all kinds of type's debuggging info
 - [x] support scoped debugging information
 - [x] add other atomic type
-- [ ] '+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '|=' '^='
-- [ ] bit operation '<<' '>>' '|' '&' '^' '~'
-- [ ] logical operation '&&' '||' '!'
+- [x] '+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '|=' '^='
+- [x] bit operation '<<' '>>' '|' '&' '^' '~'
+- [x] logical operation '&&' '||' '!'
 - [ ] if else if else ...
 - [ ] support never return type `!` like rust
 - [ ] support multiple compile unit and link them together
@@ -283,9 +283,6 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-- [ ] logical operation '&&' '||' '!'
-- [ ] bit operation '<<' '>>' '|' '&' '^' '~'
-- [ ] '+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '|=' '^='
 - [ ] heap allocate memory: `box`
 - [ ] loop
 - [ ] for i in list

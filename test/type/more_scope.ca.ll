@@ -45,89 +45,88 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #0
 
 define void @main() !dbg !22 {
 entry:
-  %0 = alloca %AA, align 8, !dbg !53
-  %1 = getelementptr %AA, %AA* %0, i32 0, i32 0, !dbg !53
-  store volatile double 3.232300e+00, double* %1, align 8, !dbg !53
-  %a = alloca %AA, align 8, !dbg !53
-  %2 = bitcast %AA* %a to i8*, !dbg !53
-  %3 = bitcast %AA* %0 to i8*, !dbg !53
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %2, i8* align 8 %3, i64 8, i1 false), !dbg !53
-  call void @llvm.dbg.declare(metadata %AA* %a, metadata !26, metadata !DIExpression()), !dbg !54
-  %4 = alloca %AA.0, align 8, !dbg !55
-  %5 = getelementptr %AA.0, %AA.0* %4, i32 0, i32 0, !dbg !55
-  store volatile i1 true, i1* %5, align 1, !dbg !55
-  %a1 = alloca %AA.0, align 8, !dbg !55
-  %6 = bitcast %AA.0* %a1 to i8*, !dbg !55
-  %7 = bitcast %AA.0* %4 to i8*, !dbg !55
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %6, i8* align 8 %7, i64 1, i1 false), !dbg !55
-  call void @llvm.dbg.declare(metadata %AA.0* %a1, metadata !30, metadata !DIExpression()), !dbg !56
-  %8 = getelementptr inbounds %AA.0, %AA.0* %a1, i32 0, i32 0, !dbg !57
-  store volatile i1 false, i1* %8, align 1, !dbg !57
-  call void @llvm.dbg.declare(metadata i1* %8, metadata !36, metadata !DIExpression()), !dbg !58
-  %9 = alloca %AA.1, align 8, !dbg !59
-  %10 = getelementptr %AA.1, %AA.1* %9, i32 0, i32 0, !dbg !59
-  store volatile i32 291, i32* %10, align 4, !dbg !59
-  %11 = getelementptr %AA.1, %AA.1* %9, i32 0, i32 1, !dbg !59
-  store volatile i32 323, i32* %11, align 4, !dbg !59
-  %a2 = alloca %AA.1, align 8, !dbg !59
-  %12 = bitcast %AA.1* %a2 to i8*, !dbg !59
-  %13 = bitcast %AA.1* %9 to i8*, !dbg !59
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %12, i8* align 8 %13, i64 8, i1 false), !dbg !59
-  call void @llvm.dbg.declare(metadata %AA.1* %a2, metadata !37, metadata !DIExpression()), !dbg !60
-  %14 = getelementptr inbounds %AA.1, %AA.1* %a2, i32 0, i32 1, !dbg !61
-  %v1 = load i32, i32* %14, align 4, !dbg !61
-  %15 = getelementptr inbounds %AA.1, %AA.1* %a2, i32 0, i32 0, !dbg !61
-  %v2 = load i32, i32* %15, align 4, !dbg !61
-  %add = add i32 %v1, %v2, !dbg !61
-  %b = alloca i32, align 4, !dbg !61
-  store volatile i32 %add, i32* %b, align 4, !dbg !61
-  call void @llvm.dbg.declare(metadata i32* %b, metadata !43, metadata !DIExpression()), !dbg !62
-  %16 = getelementptr inbounds %AA.1, %AA.1* %a2, i32 0, i32 0, !dbg !63
-  %exprarg = load i32, i32* %16, align 4, !dbg !63
-  %17 = getelementptr inbounds %AA.1, %AA.1* %a2, i32 0, i32 1, !dbg !63
-  %exprarg3 = load i32, i32* %17, align 4, !dbg !63
-  %func1 = call i32 @func1(i32 %exprarg, i32 %exprarg3), !dbg !63
-  %calltmp = alloca i32, align 4, !dbg !63
-  store volatile i32 %func1, i32* %calltmp, align 4, !dbg !63
-  %tmpexpr = load i32, i32* %calltmp, align 4, !dbg !63
-  %c = alloca i32, align 4, !dbg !63
-  store volatile i32 %tmpexpr, i32* %c, align 4, !dbg !63
-  call void @llvm.dbg.declare(metadata i32* %c, metadata !44, metadata !DIExpression()), !dbg !64
-  %v14 = load i32, i32* %b, align 4, !dbg !65
-  %v25 = load i32, i32* %c, align 4, !dbg !65
-  %eq = icmp eq i32 %v14, %v25, !dbg !66
-  br i1 %eq, label %thenbb, label %outbb, !dbg !66
+  %0 = alloca %AA, align 8, !dbg !52
+  %1 = getelementptr %AA, %AA* %0, i32 0, i32 0, !dbg !52
+  store volatile double 3.232300e+00, double* %1, align 8, !dbg !52
+  %a = alloca %AA, align 8, !dbg !52
+  %2 = bitcast %AA* %a to i8*, !dbg !52
+  %3 = bitcast %AA* %0 to i8*, !dbg !52
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %2, i8* align 8 %3, i64 8, i1 false), !dbg !52
+  call void @llvm.dbg.declare(metadata %AA* %a, metadata !26, metadata !DIExpression()), !dbg !53
+  %4 = alloca %AA.0, align 8, !dbg !54
+  %5 = getelementptr %AA.0, %AA.0* %4, i32 0, i32 0, !dbg !54
+  store volatile i1 true, i1* %5, align 1, !dbg !54
+  %a1 = alloca %AA.0, align 8, !dbg !54
+  %6 = bitcast %AA.0* %a1 to i8*, !dbg !54
+  %7 = bitcast %AA.0* %4 to i8*, !dbg !54
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %6, i8* align 8 %7, i64 1, i1 false), !dbg !54
+  call void @llvm.dbg.declare(metadata %AA.0* %a1, metadata !30, metadata !DIExpression()), !dbg !55
+  %8 = getelementptr inbounds %AA.0, %AA.0* %a1, i32 0, i32 0, !dbg !56
+  store volatile i1 false, i1* %8, align 1, !dbg !56
+  %9 = alloca %AA.1, align 8, !dbg !57
+  %10 = getelementptr %AA.1, %AA.1* %9, i32 0, i32 0, !dbg !57
+  store volatile i32 291, i32* %10, align 4, !dbg !57
+  %11 = getelementptr %AA.1, %AA.1* %9, i32 0, i32 1, !dbg !57
+  store volatile i32 323, i32* %11, align 4, !dbg !57
+  %a2 = alloca %AA.1, align 8, !dbg !57
+  %12 = bitcast %AA.1* %a2 to i8*, !dbg !57
+  %13 = bitcast %AA.1* %9 to i8*, !dbg !57
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %12, i8* align 8 %13, i64 8, i1 false), !dbg !57
+  call void @llvm.dbg.declare(metadata %AA.1* %a2, metadata !36, metadata !DIExpression()), !dbg !58
+  %14 = getelementptr inbounds %AA.1, %AA.1* %a2, i32 0, i32 1, !dbg !59
+  %v1 = load i32, i32* %14, align 4, !dbg !59
+  %15 = getelementptr inbounds %AA.1, %AA.1* %a2, i32 0, i32 0, !dbg !59
+  %v2 = load i32, i32* %15, align 4, !dbg !59
+  %add = add i32 %v1, %v2, !dbg !59
+  %b = alloca i32, align 4, !dbg !59
+  store volatile i32 %add, i32* %b, align 4, !dbg !59
+  call void @llvm.dbg.declare(metadata i32* %b, metadata !42, metadata !DIExpression()), !dbg !60
+  %16 = getelementptr inbounds %AA.1, %AA.1* %a2, i32 0, i32 0, !dbg !61
+  %exprarg = load i32, i32* %16, align 4, !dbg !61
+  %17 = getelementptr inbounds %AA.1, %AA.1* %a2, i32 0, i32 1, !dbg !61
+  %exprarg3 = load i32, i32* %17, align 4, !dbg !61
+  %func1 = call i32 @func1(i32 %exprarg, i32 %exprarg3), !dbg !61
+  %calltmp = alloca i32, align 4, !dbg !61
+  store volatile i32 %func1, i32* %calltmp, align 4, !dbg !61
+  %tmpexpr = load i32, i32* %calltmp, align 4, !dbg !61
+  %c = alloca i32, align 4, !dbg !61
+  store volatile i32 %tmpexpr, i32* %c, align 4, !dbg !61
+  call void @llvm.dbg.declare(metadata i32* %c, metadata !43, metadata !DIExpression()), !dbg !62
+  %v14 = load i32, i32* %b, align 4, !dbg !63
+  %v25 = load i32, i32* %c, align 4, !dbg !63
+  %eq = icmp eq i32 %v14, %v25, !dbg !64
+  br i1 %eq, label %thenbb, label %outbb, !dbg !64
 
 thenbb:                                           ; preds = %entry
-  %18 = alloca [3 x i32], align 4, !dbg !67
-  %19 = getelementptr [3 x i32], [3 x i32]* %18, i32 0, i64 0, !dbg !67
-  store volatile i32 1, i32* %19, align 4, !dbg !67
-  %20 = getelementptr [3 x i32], [3 x i32]* %18, i32 0, i64 1, !dbg !67
-  store volatile i32 2, i32* %20, align 4, !dbg !67
-  %21 = getelementptr [3 x i32], [3 x i32]* %18, i32 0, i64 2, !dbg !67
-  store volatile i32 6, i32* %21, align 4, !dbg !67
-  %22 = alloca %AA.2, align 8, !dbg !67
-  %23 = getelementptr %AA.2, %AA.2* %22, i32 0, i32 0, !dbg !67
-  %24 = bitcast [3 x i32]* %23 to i8*, !dbg !67
-  %25 = bitcast [3 x i32]* %18 to i8*, !dbg !67
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %24, i8* align 1 %25, i64 12, i1 false), !dbg !67
-  %a6 = alloca %AA.2, align 8, !dbg !67
-  %26 = bitcast %AA.2* %a6 to i8*, !dbg !67
-  %27 = bitcast %AA.2* %22 to i8*, !dbg !67
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %26, i8* align 8 %27, i64 12, i1 false), !dbg !67
-  call void @llvm.dbg.declare(metadata %AA.2* %a6, metadata !45, metadata !DIExpression()), !dbg !68
-  %28 = getelementptr inbounds %AA.2, %AA.2* %a6, i32 0, i32 0, !dbg !67
-  %29 = getelementptr inbounds [3 x i32], [3 x i32]* %28, i32 0, i32 2, !dbg !69
-  %load = load i32, i32* %29, align 4, !dbg !69
-  %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i32 %load), !dbg !69
-  %n7 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @1, i32 0, i32 0)), !dbg !70
-  br label %outbb, !dbg !70
+  %18 = alloca [3 x i32], align 4, !dbg !65
+  %19 = getelementptr [3 x i32], [3 x i32]* %18, i32 0, i64 0, !dbg !65
+  store volatile i32 1, i32* %19, align 4, !dbg !65
+  %20 = getelementptr [3 x i32], [3 x i32]* %18, i32 0, i64 1, !dbg !65
+  store volatile i32 2, i32* %20, align 4, !dbg !65
+  %21 = getelementptr [3 x i32], [3 x i32]* %18, i32 0, i64 2, !dbg !65
+  store volatile i32 6, i32* %21, align 4, !dbg !65
+  %22 = alloca %AA.2, align 8, !dbg !65
+  %23 = getelementptr %AA.2, %AA.2* %22, i32 0, i32 0, !dbg !65
+  %24 = bitcast [3 x i32]* %23 to i8*, !dbg !65
+  %25 = bitcast [3 x i32]* %18 to i8*, !dbg !65
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %24, i8* align 1 %25, i64 12, i1 false), !dbg !65
+  %a6 = alloca %AA.2, align 8, !dbg !65
+  %26 = bitcast %AA.2* %a6 to i8*, !dbg !65
+  %27 = bitcast %AA.2* %22 to i8*, !dbg !65
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %26, i8* align 8 %27, i64 12, i1 false), !dbg !65
+  call void @llvm.dbg.declare(metadata %AA.2* %a6, metadata !44, metadata !DIExpression()), !dbg !66
+  %28 = getelementptr inbounds %AA.2, %AA.2* %a6, i32 0, i32 0, !dbg !65
+  %29 = getelementptr inbounds [3 x i32], [3 x i32]* %28, i32 0, i32 2, !dbg !67
+  %load = load i32, i32* %29, align 4, !dbg !67
+  %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i32 %load), !dbg !67
+  %n7 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @1, i32 0, i32 0)), !dbg !68
+  br label %outbb, !dbg !68
 
 outbb:                                            ; preds = %thenbb, %entry
-  br label %ret, !dbg !71
+  br label %ret, !dbg !69
 
 ret:                                              ; preds = %outbb
-  ret void, !dbg !71
+  ret void, !dbg !69
 }
 
 ; Function Attrs: argmemonly nofree nosync nounwind willreturn
@@ -164,7 +163,7 @@ attributes #1 = { argmemonly nofree nosync nounwind willreturn }
 !22 = distinct !DISubprogram(name: "main", scope: !2, file: !2, line: 12, type: !23, scopeLine: 12, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !1, retainedNodes: !25)
 !23 = !DISubroutineType(types: !24)
 !24 = !{!11}
-!25 = !{!26, !30, !36, !37, !43, !44, !45}
+!25 = !{!26, !30, !36, !42, !43, !44}
 !26 = !DILocalVariable(name: "a", scope: !22, file: !2, line: 13, type: !27)
 !27 = !DICompositeType(tag: DW_TAG_structure_type, name: "AA", scope: !22, file: !2, line: 5, size: 64, elements: !28)
 !28 = !{!29}
@@ -175,39 +174,37 @@ attributes #1 = { argmemonly nofree nosync nounwind willreturn }
 !33 = !{!34}
 !34 = !DIDerivedType(tag: DW_TAG_member, name: "c", scope: !32, file: !2, line: 5, baseType: !35, size: 8)
 !35 = !DIBasicType(name: "bool", size: 8, encoding: DW_ATE_boolean)
-!36 = !DILocalVariable(name: "t:void", scope: !31, file: !2, line: 19, type: !35)
-!37 = !DILocalVariable(name: "a", scope: !38, file: !2, line: 26, type: !39)
-!38 = distinct !DILexicalBlock(scope: !31, file: !2, line: 24, column: 5)
-!39 = !DICompositeType(tag: DW_TAG_structure_type, name: "AA", scope: !22, file: !2, line: 5, size: 64, elements: !40)
-!40 = !{!41, !42}
-!41 = !DIDerivedType(tag: DW_TAG_member, name: "f1", scope: !39, file: !2, line: 5, baseType: !14, size: 32)
-!42 = !DIDerivedType(tag: DW_TAG_member, name: "f2", scope: !39, file: !2, line: 5, baseType: !14, size: 32, offset: 32)
-!43 = !DILocalVariable(name: "b", scope: !38, file: !2, line: 27, type: !14)
-!44 = !DILocalVariable(name: "c", scope: !38, file: !2, line: 28, type: !14)
-!45 = !DILocalVariable(name: "a", scope: !46, file: !2, line: 31, type: !47)
-!46 = distinct !DILexicalBlock(scope: !38, file: !2, line: 30, column: 27)
-!47 = !DICompositeType(tag: DW_TAG_structure_type, name: "AA", scope: !22, file: !2, line: 5, size: 96, elements: !48)
-!48 = !{!49}
-!49 = !DIDerivedType(tag: DW_TAG_member, name: "dddd", scope: !47, file: !2, line: 5, baseType: !50, size: 96)
-!50 = !DICompositeType(tag: DW_TAG_array_type, baseType: !14, size: 96, elements: !51)
-!51 = !{!52}
-!52 = !DISubrange(count: 3, lowerBound: 0)
-!53 = !DILocation(line: 13, column: 27, scope: !22)
-!54 = !DILocation(line: 13, scope: !22)
-!55 = !DILocation(line: 18, column: 17, scope: !31)
-!56 = !DILocation(line: 18, scope: !31)
-!57 = !DILocation(line: 19, column: 13, scope: !31)
-!58 = !DILocation(line: 19, scope: !31)
-!59 = !DILocation(line: 26, column: 34, scope: !38)
-!60 = !DILocation(line: 26, scope: !38)
-!61 = !DILocation(line: 27, column: 24, scope: !38)
-!62 = !DILocation(line: 27, scope: !38)
-!63 = !DILocation(line: 28, column: 29, scope: !38)
-!64 = !DILocation(line: 28, scope: !38)
-!65 = !DILocation(line: 29, column: 11, scope: !38)
-!66 = !DILocation(line: 29, column: 16, scope: !38)
-!67 = !DILocation(line: 31, column: 26, scope: !46)
-!68 = !DILocation(line: 31, scope: !46)
-!69 = !DILocation(line: 32, column: 17, scope: !46)
-!70 = !DILocation(line: 32, column: 29, scope: !46)
-!71 = !DILocation(line: 36, column: 1, scope: !22)
+!36 = !DILocalVariable(name: "a", scope: !37, file: !2, line: 26, type: !38)
+!37 = distinct !DILexicalBlock(scope: !31, file: !2, line: 24, column: 5)
+!38 = !DICompositeType(tag: DW_TAG_structure_type, name: "AA", scope: !22, file: !2, line: 5, size: 64, elements: !39)
+!39 = !{!40, !41}
+!40 = !DIDerivedType(tag: DW_TAG_member, name: "f1", scope: !38, file: !2, line: 5, baseType: !14, size: 32)
+!41 = !DIDerivedType(tag: DW_TAG_member, name: "f2", scope: !38, file: !2, line: 5, baseType: !14, size: 32, offset: 32)
+!42 = !DILocalVariable(name: "b", scope: !37, file: !2, line: 27, type: !14)
+!43 = !DILocalVariable(name: "c", scope: !37, file: !2, line: 28, type: !14)
+!44 = !DILocalVariable(name: "a", scope: !45, file: !2, line: 31, type: !46)
+!45 = distinct !DILexicalBlock(scope: !37, file: !2, line: 30, column: 27)
+!46 = !DICompositeType(tag: DW_TAG_structure_type, name: "AA", scope: !22, file: !2, line: 5, size: 96, elements: !47)
+!47 = !{!48}
+!48 = !DIDerivedType(tag: DW_TAG_member, name: "dddd", scope: !46, file: !2, line: 5, baseType: !49, size: 96)
+!49 = !DICompositeType(tag: DW_TAG_array_type, baseType: !14, size: 96, elements: !50)
+!50 = !{!51}
+!51 = !DISubrange(count: 3, lowerBound: 0)
+!52 = !DILocation(line: 13, column: 27, scope: !22)
+!53 = !DILocation(line: 13, scope: !22)
+!54 = !DILocation(line: 18, column: 17, scope: !31)
+!55 = !DILocation(line: 18, scope: !31)
+!56 = !DILocation(line: 19, column: 13, scope: !31)
+!57 = !DILocation(line: 26, column: 34, scope: !37)
+!58 = !DILocation(line: 26, scope: !37)
+!59 = !DILocation(line: 27, column: 24, scope: !37)
+!60 = !DILocation(line: 27, scope: !37)
+!61 = !DILocation(line: 28, column: 29, scope: !37)
+!62 = !DILocation(line: 28, scope: !37)
+!63 = !DILocation(line: 29, column: 11, scope: !37)
+!64 = !DILocation(line: 29, column: 16, scope: !37)
+!65 = !DILocation(line: 31, column: 26, scope: !45)
+!66 = !DILocation(line: 31, scope: !45)
+!67 = !DILocation(line: 32, column: 17, scope: !45)
+!68 = !DILocation(line: 32, column: 29, scope: !45)
+!69 = !DILocation(line: 36, column: 1, scope: !22)

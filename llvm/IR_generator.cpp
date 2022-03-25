@@ -503,69 +503,137 @@ static Value *extract_value_from_struct(ASTNode *node) {
   return structfieldvalue;
 }
 
+static inline bool is_create_global_var(STEntry *entry) {
+  // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
+  // here determine if `#[scope(global)]` is specified
+  return curr_fn == main_fn && (!main_fn || entry->u.var->global);
+}
+
+static inline bool is_var_declare(ASTNode *p) {
+  return p->type == TTE_Id && p->entry->u.var->llvm_value == nullptr;
+}
+
+static Value *walk_id_defv_declare(ASTNode *p, CADataType *idtype, bool zeroinitial, Value *defval) {
+  Value *var = nullptr;
+  const char *name = symname_get(p->idn.i);
+  Type *type = gen_llvmtype_from_catype(idtype);
+
+  STEntry *entry = p->entry;
+  if (entry->sym_type != Sym_Variable) {
+    yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
+    return nullptr;
+  }
+
+  if (is_create_global_var(entry)) {
+    var = ir1.gen_global_var(type, name, defval, false, zeroinitial);
+
+    if (enable_debug_info())
+      emit_global_var_dbginfo(name, idtype, p->endloc.row);
+  } else {
+    var = ir1.gen_var(type, name, nullptr);
+
+    if (zeroinitial)
+      aux_set_zero_to_store(type, var);
+    else if (defval)
+      aux_copy_llvmvalue_to_store(type, var, defval, name);
+
+    if (enable_debug_info())
+      emit_local_var_dbginfo(curr_fn, name, idtype, var, p->endloc.row);
+  }
+
+  entry->u.var->llvm_value = static_cast<void *>(var);
+  return var;
+}
+
+static Value *inplace_assignop_assistant(ASTNode *p, CADataType *idtype, Type *type, int assignop, Value *vl, Value *vr) {
+  // handling inside replace operation, e.g. a += 1;
+  vl = ir1.builder().CreateLoad(vl);
+  switch(assignop) {
+  case ASSIGN_ADD:
+    vr = ir1.gen_add(vl, vr);
+    break;
+  case ASSIGN_SUB:
+    vr = ir1.gen_sub(vl, vr);
+    break;
+  case ASSIGN_MUL:
+    vr = ir1.gen_mul(vl, vr);
+    break;
+  case ASSIGN_DIV:
+    vr = ir1.gen_div(vl, vr);
+    break;
+  case ASSIGN_MOD:
+    vr = ir1.gen_mod(vl, vr);
+    break;
+  case ASSIGN_BAND:
+    vr = ir1.builder().CreateAnd(vl, vr, "band");
+    break;
+  case ASSIGN_BOR:
+    vr = ir1.builder().CreateOr(vl, vr, "bor");
+    break;
+  case ASSIGN_BXOR:
+    vr = ir1.builder().CreateXor(vl, vr, "bxor");
+    break;
+  case ASSIGN_SHIFTL:
+    vr = ir1.builder().CreateZExtOrTrunc(vr, type);
+    vr = ir1.builder().CreateShl(vl, vr, "shl");
+    break;
+  case ASSIGN_SHIFTR:
+    vr = ir1.builder().CreateZExtOrTrunc(vr, type);
+    if (catype_is_signed(idtype->type))
+      vr = ir1.builder().CreateAShr(vl, vr, "ashr");
+    else
+      vr = ir1.builder().CreateLShr(vl, vr, "lshr");
+    break;
+  default:
+    yyerror("line: %d, col: %d: unknown inside variable operator: `%d`",
+	    p->begloc.row, p->begloc.col, assignop);
+    return nullptr;
+  }
+
+  return vr;
+}
+
 // generate variable, if in a function then it is a local variable, when not in
 // a function but `-nomain` is specified then generate a global variable else
 // also generate a global variable for other use
 // `arrayleftvalue` for TTE_ArrayItemLeft type
-static Value *walk_id_defv(ASTNode *p, CADataType *idtype, bool zeroinitial = false, Value *defval = nullptr) {
+static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bool zeroinitial = false, Value *defval = nullptr) {
+  if (is_var_declare(p))
+    return walk_id_defv_declare(p, idtype, zeroinitial, defval);
+
   Value *var = nullptr;
   const char *name = symname_get(p->idn.i);
-  STEntry *entry = p->type == TTE_Id ? p->entry : nullptr;
-  if (entry && entry->sym_type != Sym_Variable)
-    yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
-
   Type *type = gen_llvmtype_from_catype(idtype);
 
-  if (entry && entry->u.var->llvm_value) {
-    var = static_cast<Value *>(entry->u.var->llvm_value);
-    if (zeroinitial) {
-      yyerror("assignment not support assigning zero value");
-      return nullptr;
-    } else if (defval) {
-      aux_copy_llvmvalue_to_store(type, var, defval, name);
-    }
-  } else {
-    // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
-    // here determine if `#[scope(global)]` is specified
-    if (curr_fn == main_fn && (!main_fn || entry->u.var->global)) {
-      // global variable not allow dereference operation, so not consider TTE_DerefLeft and
-      // TTE_ArrayItemLeft here
-      var = ir1.gen_global_var(type, name, defval, false, zeroinitial);
-
-      if (enable_debug_info())
-	emit_global_var_dbginfo(name, idtype, p->endloc.row);
-    } else {
-      switch (p->type) {
-      case TTE_Id:
-	var = ir1.gen_var(type, name, nullptr);
-	break;
-      case TTE_DerefLeft:
-	var = get_deref_expr_value(p->deleftn.expr);
-	for (int i = 0; i < p->deleftn.derefcount - 1; ++i)
-	  var = ir1.builder().CreateLoad(var, "deref");
-        break;
-      case TTE_ArrayItemLeft:
-	var = extract_value_from_array(p);
-	break;
-      case TTE_StructFieldOpLeft:
-	var = extract_value_from_struct(p);
-	break;
-      default:
-	break;
-      }
-
-      if (zeroinitial)
-	aux_set_zero_to_store(type, var);
-      else if (defval)
-	aux_copy_llvmvalue_to_store(type, var, defval, name);
-
-      if (enable_debug_info())
-	emit_local_var_dbginfo(curr_fn, name, idtype, var, p->endloc.row);
-    }
-
-    if (p->type == TTE_Id)
-      entry->u.var->llvm_value = static_cast<void *>(var);
+  if (zeroinitial) {
+    yyerror("assignment not support assigning zero value");
+    return nullptr;
   }
+
+  switch (p->type) {
+  case TTE_Id:
+    var = static_cast<Value *>(p->entry->u.var->llvm_value);
+    break;
+  case TTE_DerefLeft:
+    var = get_deref_expr_value(p->deleftn.expr);
+    for (int i = 0; i < p->deleftn.derefcount - 1; ++i)
+      var = ir1.builder().CreateLoad(var, "deref");
+    break;
+  case TTE_ArrayItemLeft:
+    var = extract_value_from_array(p);
+    break;
+  case TTE_StructFieldOpLeft:
+    var = extract_value_from_struct(p);
+    break;
+  default:
+    break;
+  }
+
+  if (assignop != -1)
+    defval = inplace_assignop_assistant(p, idtype, type, assignop, var, defval);
+
+  if (defval)
+    aux_copy_llvmvalue_to_store(type, var, defval, name);
 
   return var;
 }
@@ -1018,7 +1086,7 @@ static void walk_dbgprinttype(ASTNode *p) {
 // (variable)'s type
 // 4) both have no type, then inference the right side expression type with
 // default one and apply it into the left side variable
-static void inference_assign_type(ASTNode *idn, ASTNode *exprn) {
+static void inference_assign_type(ASTNode *idn, ASTNode *exprn, int assignop = -1) {
   typeid_t expr_types[2];
   ASTNode *group[2] = {idn, exprn};
   expr_types[0] = get_expr_type_from_tree(idn);
@@ -1050,18 +1118,17 @@ static void inference_assign_type(ASTNode *idn, ASTNode *exprn) {
     // }
   }
   
-  reduce_node_and_type_group(group, expr_types, 2);
+  reduce_node_and_type_group(group, expr_types, 2, assignop);
 }
 
 static void walk_assign(ASTNode *p) {
   // idn can be type of TTE_Id or TTE_DerefLeft or TTE_ArrayItemLeft
   ASTNode *idn = p->assignn.id;
   ASTNode *exprn = p->assignn.expr;
-  int op = p->assignn.op;
-  // NEXT TODO: when op is not -1 then it is assign + operation like a += 1;
+  int assignop = p->assignn.op;
 
   if (exprn->type != TTE_VarDefZeroValue)
-    inference_assign_type(idn, exprn);
+    inference_assign_type(idn, exprn, assignop);
 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
@@ -1097,7 +1164,7 @@ static void walk_assign(ASTNode *p) {
 
     auto pair = pop_right_value("tmpexpr", !iscomplextype);
     v = pair.first;
-    if (!catype_check_identical(dt, pair.second)) {
+    if (assignop == -1 && !catype_check_identical(dt, pair.second)) {
       yyerror("line: %d, col: %d: expected a type `%s`, but found `%s`",
 	      p->begloc.row, p->begloc.col,
 	      catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
@@ -1115,9 +1182,9 @@ static void walk_assign(ASTNode *p) {
 
     zero_initialize = true;
   }
-  
-  vp = walk_id_defv(idn, dt, zero_initialize, v);
 
+  vp = walk_id_defv(idn, dt, assignop, zero_initialize, v);
+  
   // in fact the pushed value should not used, because value assignment syntax is
   // not an expresssion ande have no a value
   auto u = std::make_unique<CalcOperand>(OT_Alloc, vp, dt);

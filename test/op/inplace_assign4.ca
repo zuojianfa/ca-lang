@@ -1,0 +1,38 @@
+fn main() {
+    let i = 0;
+    while (i < 65) {
+        let j = 1u64;
+        j <<= i;
+        print j; print ' ';
+        i += 1;
+    }
+    print '\n';
+
+    i = 0;
+    let j = 1u64;
+    while (i < 65) {
+        j <<= 1;
+        print j; print ' ';
+        i += 1;
+    }
+    print '\n';
+
+    i = 0;
+    let k = 1;
+    while (i < 65) {
+        k <<= 1;
+        print k; print ' ';
+        i += 1;
+    }
+    print '\n';
+
+    i = 0;
+    let s = 1u16;
+    while (i < 17) {
+        s <<= 1;
+        print s; print ' ';
+        i += 1;
+    }
+    
+}
+
