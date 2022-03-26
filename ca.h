@@ -48,6 +48,10 @@ typedef enum {
   TTE_StructFieldOpRight,
   TTE_StructExpr,
   TTE_LexicalBody,
+  TTE_Loop,
+  TTE_Break,
+  TTE_Continue,
+  TTE_For,
   TTE_Num,
 } ASTNodeType;
 
@@ -214,6 +218,16 @@ typedef struct TLexicalBody {
   struct ASTNode *fnbuddy;
 } TLexicalBody;
 
+typedef struct TLoop {
+  struct ASTNode *stmts;
+} TLoop;
+
+typedef struct TFor {
+  int var;
+  struct ASTNode *listnode;
+  struct ASTNode *stmts;
+} TFor;
+
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
@@ -244,6 +258,8 @@ typedef struct ASTNode {
     TStructFieldOp sfopn;/* struct field operation */
     CAStructExpr snoden; /* struct expression definition */
     TLexicalBody lnoden;
+    TLoop loopn;         /* loop node */
+    TFor forn;           /* for node */
   };
 } ASTNode;
 
@@ -334,6 +350,10 @@ ASTNode *make_array_def(CAArrayExpr expr);
 ASTNode *make_struct_expr(CAStructExpr expr);
 ASTNode *make_arrayitem_right(ArrayItem ai);
 ASTNode *make_structfield_right(StructFieldOp sfop);
+ASTNode *make_break();
+ASTNode *make_continue();
+ASTNode *make_loop(ASTNode *loopbody);
+ASTNode *make_for(int id, ASTNode *listnode, ASTNode *stmts);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);

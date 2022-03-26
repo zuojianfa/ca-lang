@@ -135,11 +135,13 @@ static int walk_stack(ASTNode *p);
 extern RootTree *gtree;
 extern std::unordered_map<typeid_t, void *> g_function_post_map;
 
-std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
-std::vector<void *> *structexpr_deref(CAStructExpr obj);
-
 // for handling function parameter checking
 static std::unordered_map<typeid_t, void *> g_function_post_check_map;
+
+static std::vector<std::unique_ptr<LoopControlInfo>> g_loop_controls;
+
+std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
+std::vector<void *> *structexpr_deref(CAStructExpr obj);
 
 static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load", bool load = true) {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
@@ -710,6 +712,34 @@ static void walk_stmtlist(ASTNode *p) {
     walk_stack(p->stmtlistn.stmts[i]);
 }
 
+static void walk_break(ASTNode *p) {
+  ir1.builder().CreateBr(g_loop_controls.back()->outbb);
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
+  BasicBlock *extrabb = ir1.gen_bb("extra", curr_fn);
+  ir1.builder().SetInsertPoint(extrabb);
+}
+
+static void walk_continue(ASTNode *p) {
+  ir1.builder().CreateBr(g_loop_controls.back()->condbb);
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
+  BasicBlock *extrabb = ir1.gen_bb("extra", curr_fn);
+  ir1.builder().SetInsertPoint(extrabb);
+}
+
+static void walk_loop(ASTNode *p) {
+  // NEXT TODO:
+}
+
+static void walk_for(ASTNode *p) {
+  // NEXT TODO:
+}
+
 static void walk_while(ASTNode *p) {
   if (!curr_fn)
     return;
@@ -744,7 +774,10 @@ static void walk_while(ASTNode *p) {
   curr_fn->getBasicBlockList().push_back(whilebb);
   ir1.builder().SetInsertPoint(whilebb);
 
+  g_loop_controls.push_back(std::make_unique<LoopControlInfo>(LoopControlInfo::LT_While, -1, condbb, endwhilebb));
   walk_stack(p->whilen.body);
+  g_loop_controls.pop_back();
+
   // TBD: how to remove the stack element that never used?
   ir1.builder().CreateBr(condbb);
 
@@ -2229,6 +2262,10 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_structfieldopright,
   (walk_fn_t)walk_structexpr,
   (walk_fn_t)walk_lexical_body,
+  (walk_fn_t)walk_loop,
+  (walk_fn_t)walk_break,
+  (walk_fn_t)walk_continue,
+  (walk_fn_t)walk_for,
 };
 
 static int walk_stack(ASTNode *p) {

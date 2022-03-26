@@ -4,6 +4,7 @@
 #include "ca_types.h"
 #include "ca.h"
 #include "symtable.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 
 #include <llvm/IR/Value.h>
@@ -33,6 +34,22 @@ LexicalScope() : discope(nullptr), difn(nullptr) {}
 
   llvm::DIScope *discope;
   llvm::DISubprogram *difn;
+};
+
+struct LoopControlInfo {
+  enum LoopType {
+    LT_Loop,
+    LT_While,
+    LT_For,
+  };
+
+LoopControlInfo(LoopType looptype, int name, llvm::BasicBlock *condbb, llvm::BasicBlock *outbb) :
+  looptype(looptype), name(name), condbb(condbb), outbb(outbb) {}
+
+  LoopType looptype;
+  int name;
+  llvm::BasicBlock *condbb;
+  llvm::BasicBlock *outbb;
 };
 
 #endif

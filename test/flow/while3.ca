@@ -1,0 +1,15 @@
+fn main() {
+    let i = 0;
+    while (true) {
+        i += 1;
+        if (i > 10) {
+	    print "while finished\n";
+            break;
+            let a = 2;
+            a += 2;
+        }
+
+        print i; print ' ';
+    }
+}
+

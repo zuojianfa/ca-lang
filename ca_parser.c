@@ -1728,6 +1728,36 @@ static ASTNode *build_fn_define(typeid_t name, ST_ArgList *al, typeid_t rettype,
     return p;
 }
 
+ASTNode *make_break() {
+  ASTNode *p = new_ASTNode(TTE_Break);
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  return p;
+}
+
+ASTNode *make_continue() {
+  ASTNode *p = new_ASTNode(TTE_Continue);
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  return p;
+}
+
+ASTNode *make_loop(ASTNode *loopbody) {
+  ASTNode *p = new_ASTNode(TTE_While);
+  p->loopn.stmts = loopbody;
+
+  set_address(p, &loopbody->begloc, &loopbody->endloc);
+  return p;
+}
+
+ASTNode *make_for(int id, ASTNode *listnode, ASTNode *stmts) {
+  ASTNode *p = new_ASTNode(TTE_For);
+  p->forn.var = id;
+  p->forn.listnode = listnode;
+  p->forn.stmts = stmts;
+
+  set_address(p, &listnode->begloc, &stmts->endloc);
+  return p;
+}
+
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
     dot_emit("stmt", "whileloop");
 

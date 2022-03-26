@@ -285,6 +285,8 @@ is scopeline the real skip function start for debugging? try it
 NEXT TODO:
 - [ ] heap allocate memory: `box`
 - [ ] loop
+- [ ] break
+- [ ] continue
 - [ ] for i in list
 - [ ] if else if else ...
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
