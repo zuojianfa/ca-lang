@@ -215,17 +215,17 @@ typedef struct LeftValueId {
 
 typedef struct TLexicalBody {
   struct ASTNode *stmts;
-  struct ASTNode *fnbuddy;
+  struct ASTNode *fnbuddy; /* if not null it is also a function body */
 } TLexicalBody;
 
 typedef struct TLoop {
-  struct ASTNode *stmts;
+  struct ASTNode *body;
 } TLoop;
 
 typedef struct TFor {
-  int var;
+  CAVariable *var;
   struct ASTNode *listnode;
-  struct ASTNode *stmts;
+  struct ASTNode *body;
 } TFor;
 
 typedef struct ASTNode {
@@ -354,6 +354,7 @@ ASTNode *make_break();
 ASTNode *make_continue();
 ASTNode *make_loop(ASTNode *loopbody);
 ASTNode *make_for(int id, ASTNode *listnode, ASTNode *stmts);
+ASTNode *make_for_stmt(int id, ASTNode *listnode, ASTNode *stmts);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);

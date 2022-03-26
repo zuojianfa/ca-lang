@@ -1,0 +1,16 @@
+fn main() {
+    let i = 0;
+    loop {
+        i += 1;
+        if (i % 2 == 0) {
+            continue;
+        }
+
+        if (i > 20) {
+            break;
+        }
+
+	print i; print ' ';
+    }
+}
+

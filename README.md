@@ -204,14 +204,14 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] '+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '|=' '^='
 - [x] bit operation '<<' '>>' '|' '&' '^' '~'
 - [x] logical operation '&&' '||' '!'
+- [x] break
+- [x] continue
 - [ ] if else if else ...
 - [ ] support never return type `!` like rust
 - [ ] support multiple compile unit and link them together
 - [ ] support multiple if-else else if statement
-- [ ] break
-- [ ] continue
 - [ ] support rust grammar
-  - [ ] loop
+  - [x] loop
   - [ ] for i in list
   - [ ] match
   - [x] type
@@ -283,10 +283,8 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
+- [ ] debug loop while break continue for
 - [ ] heap allocate memory: `box`
-- [ ] loop
-- [ ] break
-- [ ] continue
 - [ ] for i in list
 - [ ] if else if else ...
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }

@@ -733,11 +733,90 @@ static void walk_continue(ASTNode *p) {
 }
 
 static void walk_loop(ASTNode *p) {
-  // NEXT TODO:
+  if (!curr_fn)
+    return;
+
+  BasicBlock *loopbb = ir1.gen_bb("loopbb");
+  BasicBlock *endloopbb = ir1.gen_bb("endloopbb");
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
+  ir1.builder().CreateBr(loopbb);
+  curr_fn->getBasicBlockList().push_back(loopbb);
+  ir1.builder().SetInsertPoint(loopbb);
+
+  g_loop_controls.push_back(std::make_unique<LoopControlInfo>(LoopControlInfo::LT_Loop, -1, loopbb, endloopbb));
+  walk_stack(p->loopn.body);
+  g_loop_controls.pop_back();
+
+  ir1.builder().CreateBr(loopbb);
+
+  curr_fn->getBasicBlockList().push_back(endloopbb);
+  ir1.builder().SetInsertPoint(endloopbb);
 }
 
 static void walk_for(ASTNode *p) {
+  if (!curr_fn)
+    return;
+
+  BasicBlock *condbb = ir1.gen_bb("condbb");
+  BasicBlock *loopbb = ir1.gen_bb("loopbb");
+  BasicBlock *endloopbb = ir1.gen_bb("endloopbb");
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
+  // TODO: currently only support iterator array, later will support generator list e.g. (1..6)
+  // the generator list also need allocate just like variable
+
+  // prepare list nodes and the variable
+  inference_expr_type(p->forn.listnode);
+  walk_stack(p->forn.listnode);
+  auto pair = pop_right_value("list");
+  Value *lists = pair.first;
+  if (pair.second->type != ARRAY) {
+    yyerror("line: %d, col: %d: currently only support iterate array in for statement, but find `%s`",
+	    p->begloc.row, p->begloc.col, catype_get_type_name(pair.second->signature));
+    return;
+  }
+
+  CADataType *idtype = pair.second->array_layout->type;
+  p->forn.var->datatype = idtype->signature;
+  const char *name = symname_get(p->forn.var->name);
+  Type *type = lists->getType()->getArrayElementType();
+  Value *var = ir1.gen_var(type, name, nullptr);
+  if (enable_debug_info())
+    emit_local_var_dbginfo(curr_fn, name, idtype, var, p->endloc.row);
+
+  // TODO: entry->u.var->llvm_value is also point to p->forn.var->llvm_value, so it may be good to
+  // only use entry
+  // entry->u.var->llvm_value = static_cast<void *>(var);
+  p->forn.var->llvm_value = static_cast<void *>(var);
+
+  ir1.builder().CreateBr(condbb);
+
+  // condition block
+  curr_fn->getBasicBlockList().push_back(condbb);
+  ir1.builder().SetInsertPoint(condbb);
+
+  // calculate list nodes and assign to variable
   // NEXT TODO:
+
+  // branch according to the list nodes, when no node left then out else loop again
+  //ir1.builder().CreateCondBr(cond, loopbb, endloopbb);
+
+  curr_fn->getBasicBlockList().push_back(loopbb);
+  ir1.builder().SetInsertPoint(loopbb);
+
+  g_loop_controls.push_back(std::make_unique<LoopControlInfo>(LoopControlInfo::LT_For, -1, condbb, endloopbb));
+  walk_stack(p->forn.body);
+  g_loop_controls.pop_back();
+
+  ir1.builder().CreateBr(condbb);
+
+  curr_fn->getBasicBlockList().push_back(endloopbb);
+  ir1.builder().SetInsertPoint(endloopbb);
 }
 
 static void walk_while(ASTNode *p) {

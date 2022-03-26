@@ -138,6 +138,7 @@ CAVariable *cavar_create(int name, typeid_t datatype) {
   var->loc = (SLoc){glineno, gcolno};
   var->name = name;
   var->llvm_value = nullptr;
+  var->global = 0;
   return var;
 }
 

@@ -1,0 +1,31 @@
+fn main() {
+    let i = 0;
+    loop {
+        i += 1;
+        if (i % 2 == 0) {
+            continue;
+        }
+
+        let j = 0;
+        while (true) {
+            j += 1;
+            if (j % 3 == 0) {
+                continue;
+            }
+
+            print j; print ' ';
+            if (j > 23) {
+                break;
+            }
+        }
+
+        print '\n';
+
+        if (i > 20) {
+            break;
+        }
+
+	print "out: "; print i; print '\n';
+    }
+}
+

@@ -1,0 +1,7 @@
+fn main() {
+    loop {
+        print "good";
+        break;
+    }
+}
+

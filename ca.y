@@ -103,7 +103,7 @@ extern int yychar, yylineno;
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def type_def
-%type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list
+%type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
 %type	<var>		iddef iddef_typed
 %type	<symnameid>	label_id attrib_scope ret_type
 //			%type	<symnameid>	atomic_type
@@ -196,9 +196,8 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	BREAK ';'               { $$ = make_break(); }
 	|	CONTINUE ';'            { $$ = make_continue(); }
 	|	LOOP stmt_list_block    { $$ = make_loop($2); }
-	|	FOR '(' IDENT IN expr ')' stmt_list_block { $$ = make_for($3, $5, $7); }
+	|	for_stmt                { $$ = $1; }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
-//	|	WHILE expr stmt_list_block { $$ = make_while($2, $3); }
 	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { dot_emit("stmt", "ifstmt"); $$ = $1; }
 	|	stmt_list_block         { dot_emit("stmt", "stmt_list_block"); $$ = $1; }
@@ -260,6 +259,10 @@ vardef_value:	expr                { $$ = $1; }
 	|	ZERO_INITIAL        { $$ = make_vardef_zero_value(); }
 	;
 
+for_stmt:	FOR                 { SymTable *st = push_new_symtable();   /* the inner variable and / or listnode need a symbol table in for stmt */ }
+		'(' IDENT IN expr ')' stmt_list_block { $$ = make_for_stmt($4, $6, $8); }
+	;
+
 ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
 		;
 //////////////////////////////////////////////////////////////
@@ -267,9 +270,8 @@ ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(
 ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { $$ = make_if(1, 3, $3, $5, $7); }
 		;
 
-stmtexpr_list_block:               { SymTable *st = push_new_symtable(); }
-		'{'                //{ push_lexical_body(); }
-		stmtexpr_list '}'  { ASTNode *node = make_lexical_body($3); $$ = make_stmtexpr_list_block(node); }
+stmtexpr_list_block:                   { SymTable *st = push_new_symtable(); }
+		'{' stmtexpr_list '}'  { ASTNode *node = make_lexical_body($3); $$ = make_stmtexpr_list_block(node); }
 		;
 
 stmtexpr_list:  stmt_list expr { $$ = make_stmtexpr_list(make_stmt_list_zip(), $2); }

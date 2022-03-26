@@ -1741,21 +1741,41 @@ ASTNode *make_continue() {
 }
 
 ASTNode *make_loop(ASTNode *loopbody) {
-  ASTNode *p = new_ASTNode(TTE_While);
-  p->loopn.stmts = loopbody;
+  ASTNode *p = new_ASTNode(TTE_Loop);
+  p->loopn.body = loopbody;
 
   set_address(p, &loopbody->begloc, &loopbody->endloc);
   return p;
 }
 
 ASTNode *make_for(int id, ASTNode *listnode, ASTNode *stmts) {
+  STEntry *entry = sym_getsym(curr_symtable, id, 0);
+  if (entry) {
+    yyerror("line: %d, col: %d: strange variable '%s' already defined in scope on line %d, col %d.",
+	    glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
+    return NULL;
+  }
+
+  entry = sym_insert(curr_symtable, id, Sym_Variable);
+  CAVariable *cavar = cavar_create(id, typeid_novalue);
+  entry->u.var = cavar;
+
   ASTNode *p = new_ASTNode(TTE_For);
-  p->forn.var = id;
+  p->forn.var = cavar;
   p->forn.listnode = listnode;
-  p->forn.stmts = stmts;
+  p->forn.body = stmts;
 
   set_address(p, &listnode->begloc, &stmts->endloc);
   return p;
+}
+
+ASTNode *make_for_stmt(int id, ASTNode *listnode, ASTNode *stmts) {
+  ASTNode *forn = make_for(id, listnode, stmts);
+
+  // the inner variable and / or listnode also need a lexical body in for statement
+  ASTNode *node = make_lexical_body(forn);
+  SymTable *st = pop_symtable();
+  return node;
 }
 
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
