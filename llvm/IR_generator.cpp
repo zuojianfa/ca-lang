@@ -713,20 +713,20 @@ static void walk_stmtlist(ASTNode *p) {
 }
 
 static void walk_break(ASTNode *p) {
-  ir1.builder().CreateBr(g_loop_controls.back()->outbb);
-
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
+  ir1.builder().CreateBr(g_loop_controls.back()->outbb);
 
   BasicBlock *extrabb = ir1.gen_bb("extra", curr_fn);
   ir1.builder().SetInsertPoint(extrabb);
 }
 
 static void walk_continue(ASTNode *p) {
-  ir1.builder().CreateBr(g_loop_controls.back()->condbb);
-
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
+  ir1.builder().CreateBr(g_loop_controls.back()->condbb);
 
   BasicBlock *extrabb = ir1.gen_bb("extra", curr_fn);
   ir1.builder().SetInsertPoint(extrabb);
@@ -765,7 +765,7 @@ static void walk_for(ASTNode *p) {
   BasicBlock *endloopbb = ir1.gen_bb("endloopbb");
 
   if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+    diinfo->emit_location(p->forn.listnode->endloc.row, p->forn.listnode->endloc.col, curr_lexical_scope->discope);
 
   // TODO: currently only support iterator array, later will support generator list e.g. (1..6)
   // the generator list also need allocate just like variable
@@ -782,8 +782,6 @@ static void walk_for(ASTNode *p) {
   }
 
   ForStmtId forvar = p->forn.var;
-  // NEXT TODO: handle pointer type variable and reference type variable
-
   STEntry *entry = sym_getsym(p->symtable, forvar.var, 0);
   if (!entry) {
     yyerror("line: %d, col: %d: cannot find variable `%s` in symbol table",
@@ -793,12 +791,20 @@ static void walk_for(ASTNode *p) {
 
   CAVariable *cavar = entry->u.var;
 
-  CADataType *itemcatype = pair.second->array_layout->type;
+  CADataType *itemcatype = nullptr;
+  if (forvar.vartype == '*') {
+    itemcatype = pair.second->array_layout->type;
+    itemcatype = catype_make_pointer_type(itemcatype);
+  } else {
+    itemcatype = pair.second->array_layout->type;
+  }
+  
   cavar->datatype = itemcatype->signature;
 
   size_t listsize = pair.second->array_layout->dimarray[0];
   // list size llvm value
   Value *listsizev = ir1.gen_int(listsize);
+  // NEXT TODO: handle pointer type variable and reference type variable
 
   // scanner index llvm value
   Value *valuezero = ir1.gen_int((size_t)0);
@@ -809,7 +815,7 @@ static void walk_for(ASTNode *p) {
   Type *itemtype = gen_llvmtype_from_catype(itemcatype);
   Value *itemvar = ir1.gen_var(itemtype, itemname, nullptr);
   if (enable_debug_info())
-    emit_local_var_dbginfo(curr_fn, itemname, itemcatype, itemvar, p->endloc.row);
+    emit_local_var_dbginfo(curr_fn, itemname, itemcatype, itemvar, p->forn.listnode->endloc.row);
 
   cavar->llvm_value = static_cast<void *>(itemvar);
 
@@ -826,6 +832,9 @@ static void walk_for(ASTNode *p) {
 
   curr_fn->getBasicBlockList().push_back(loopbb);
   ir1.builder().SetInsertPoint(loopbb);
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->forn.body->begloc.row, p->forn.body->begloc.col, curr_lexical_scope->discope);
 
   // copy array item value into the variable
   std::vector<Value *> idxv(2, valuezero);
@@ -846,6 +855,9 @@ static void walk_for(ASTNode *p) {
   g_loop_controls.push_back(std::make_unique<LoopControlInfo>(LoopControlInfo::LT_For, -1, condbb, endloopbb));
   walk_stack(p->forn.body);
   g_loop_controls.pop_back();
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->forn.body->endloc.row, p->forn.body->endloc.col, curr_lexical_scope->discope);
 
   ir1.builder().CreateBr(condbb);
 
@@ -1081,6 +1093,10 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
 }
 
 static void walk_dbgprint(ASTNode *p) {
+  // handle expression value transfer
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
   inference_expr_type(p->printn.expr);
   walk_stack(p->printn.expr);
   auto pair = pop_right_value();
@@ -1093,10 +1109,6 @@ static void walk_dbgprint(ASTNode *p) {
     dbgprint_complex(printf_fn, pair.second, v);
     return;
   }
-
-  // handle expression value transfer
-  if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   if (p->printn.expr->litn.litv.littypetok == CSTRING) {
     llvmcode_printf(printf_fn, "%s", v, nullptr);

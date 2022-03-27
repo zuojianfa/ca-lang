@@ -115,7 +115,7 @@ thenbb:                                           ; preds = %entry
   %27 = bitcast %AA.2* %22 to i8*, !dbg !65
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %26, i8* align 8 %27, i64 12, i1 false), !dbg !65
   call void @llvm.dbg.declare(metadata %AA.2* %a6, metadata !44, metadata !DIExpression()), !dbg !66
-  %28 = getelementptr inbounds %AA.2, %AA.2* %a6, i32 0, i32 0, !dbg !65
+  %28 = getelementptr inbounds %AA.2, %AA.2* %a6, i32 0, i32 0, !dbg !67
   %29 = getelementptr inbounds [3 x i32], [3 x i32]* %28, i32 0, i32 2, !dbg !67
   %load = load i32, i32* %29, align 4, !dbg !67
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i32 %load), !dbg !67

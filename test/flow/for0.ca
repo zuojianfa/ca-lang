@@ -1,0 +1,10 @@
+fn main() {
+    let a = [1, 2, 3];
+    // TODO: make the gdb not skip for statement, after the 1 loop
+    for (i in a) {
+        print i;
+	print ' ';
+    }
+    print '\n';
+}
+
