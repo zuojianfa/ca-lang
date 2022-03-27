@@ -65,7 +65,8 @@ extern int yychar, yylineno;
   DerefLeft deleft; /* represent dereference left value */
   ArrayItem aitem;  /* array item */
   StructFieldOp structfieldop; /* struct field operation */
-  LeftValueId leftvalueid;
+  LeftValueId leftvalueid; /* any id that have left value */
+  ForStmtId forstmtid; /* the for statement variable type: by value, by pointer, by reference */
 };
 
 %token	<litb>		LITERAL STR_LITERAL
@@ -104,6 +105,7 @@ extern int yychar, yylineno;
 %type			fn_args_p fn_args_call_p
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def type_def
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
+%type	<forstmtid>	for_stmt_ident
 %type	<var>		iddef iddef_typed
 %type	<symnameid>	label_id attrib_scope ret_type
 //			%type	<symnameid>	atomic_type
@@ -259,8 +261,14 @@ vardef_value:	expr                { $$ = $1; }
 	|	ZERO_INITIAL        { $$ = make_vardef_zero_value(); }
 	;
 
-for_stmt:	FOR                 { SymTable *st = push_new_symtable();   /* the inner variable and / or listnode need a symbol table in for stmt */ }
-		'(' IDENT IN expr ')' stmt_list_block { $$ = make_for_stmt($4, $6, $8); }
+for_stmt:	FOR                   { SymTable *st = push_new_symtable(); /* the inner variable and / or listnode need a symbol table in for stmt */ }
+		'(' for_stmt_ident IN expr ')' { make_for_var_entry($4.var); }
+		stmt_list_block       { $$ = make_for_stmt($4, $6, $9); }
+	;
+
+for_stmt_ident:	IDENT               { $$ = (ForStmtId){0, $1}; }
+	|	'*' IDENT           { $$ = (ForStmtId){'*', $2}; }
+	|	'&' IDENT           { $$ = (ForStmtId){'&', $2}; }
 	;
 
 ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }

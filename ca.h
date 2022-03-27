@@ -213,6 +213,11 @@ typedef struct LeftValueId {
   };
 } LeftValueId;
 
+typedef struct ForStmtId {
+  int vartype; // 0: for value, '*': for pointer, '&': for reference
+  int var;
+} ForStmtId;
+
 typedef struct TLexicalBody {
   struct ASTNode *stmts;
   struct ASTNode *fnbuddy; /* if not null it is also a function body */
@@ -223,7 +228,7 @@ typedef struct TLoop {
 } TLoop;
 
 typedef struct TFor {
-  CAVariable *var;
+  ForStmtId var;
   struct ASTNode *listnode;
   struct ASTNode *body;
 } TFor;
@@ -353,8 +358,9 @@ ASTNode *make_structfield_right(StructFieldOp sfop);
 ASTNode *make_break();
 ASTNode *make_continue();
 ASTNode *make_loop(ASTNode *loopbody);
-ASTNode *make_for(int id, ASTNode *listnode, ASTNode *stmts);
-ASTNode *make_for_stmt(int id, ASTNode *listnode, ASTNode *stmts);
+void make_for_var_entry(int id);
+ASTNode *make_for(ForStmtId id, ASTNode *listnode, ASTNode *stmts);
+ASTNode *make_for_stmt(ForStmtId id, ASTNode *listnode, ASTNode *stmts);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
 ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);

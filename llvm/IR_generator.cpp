@@ -773,7 +773,7 @@ static void walk_for(ASTNode *p) {
   // prepare list nodes and the variable
   inference_expr_type(p->forn.listnode);
   walk_stack(p->forn.listnode);
-  auto pair = pop_right_value("list");
+  auto pair = pop_right_value("list", false);
   Value *lists = pair.first;
   if (pair.second->type != ARRAY) {
     yyerror("line: %d, col: %d: currently only support iterate array in for statement, but find `%s`",
@@ -781,18 +781,37 @@ static void walk_for(ASTNode *p) {
     return;
   }
 
-  CADataType *idtype = pair.second->array_layout->type;
-  p->forn.var->datatype = idtype->signature;
-  const char *name = symname_get(p->forn.var->name);
-  Type *type = lists->getType()->getArrayElementType();
-  Value *var = ir1.gen_var(type, name, nullptr);
-  if (enable_debug_info())
-    emit_local_var_dbginfo(curr_fn, name, idtype, var, p->endloc.row);
+  ForStmtId forvar = p->forn.var;
+  // NEXT TODO: handle pointer type variable and reference type variable
 
-  // TODO: entry->u.var->llvm_value is also point to p->forn.var->llvm_value, so it may be good to
-  // only use entry
-  // entry->u.var->llvm_value = static_cast<void *>(var);
-  p->forn.var->llvm_value = static_cast<void *>(var);
+  STEntry *entry = sym_getsym(p->symtable, forvar.var, 0);
+  if (!entry) {
+    yyerror("line: %d, col: %d: cannot find variable `%s` in symbol table",
+	    glineno, gcolno, symname_get(forvar.var));
+    return;
+  }
+
+  CAVariable *cavar = entry->u.var;
+
+  CADataType *itemcatype = pair.second->array_layout->type;
+  cavar->datatype = itemcatype->signature;
+
+  size_t listsize = pair.second->array_layout->dimarray[0];
+  // list size llvm value
+  Value *listsizev = ir1.gen_int(listsize);
+
+  // scanner index llvm value
+  Value *valuezero = ir1.gen_int((size_t)0);
+  Value *valueone = ir1.gen_int((size_t)1);
+  Value *indexvslot = ir1.gen_var(ir1.int_type<size_t>(), "idx", valuezero);
+
+  const char *itemname = symname_get(cavar->name);
+  Type *itemtype = gen_llvmtype_from_catype(itemcatype);
+  Value *itemvar = ir1.gen_var(itemtype, itemname, nullptr);
+  if (enable_debug_info())
+    emit_local_var_dbginfo(curr_fn, itemname, itemcatype, itemvar, p->endloc.row);
+
+  cavar->llvm_value = static_cast<void *>(itemvar);
 
   ir1.builder().CreateBr(condbb);
 
@@ -800,14 +819,29 @@ static void walk_for(ASTNode *p) {
   curr_fn->getBasicBlockList().push_back(condbb);
   ir1.builder().SetInsertPoint(condbb);
 
-  // calculate list nodes and assign to variable
-  // NEXT TODO:
-
   // branch according to the list nodes, when no node left then out else loop again
-  //ir1.builder().CreateCondBr(cond, loopbb, endloopbb);
+  Value *indexv = ir1.builder().CreateLoad(indexvslot, "idx");
+  Value *ltv = ir1.builder().CreateICmpULT(indexv, listsizev);
+  ir1.builder().CreateCondBr(ltv, loopbb, endloopbb);
 
   curr_fn->getBasicBlockList().push_back(loopbb);
   ir1.builder().SetInsertPoint(loopbb);
+
+  // copy array item value into the variable
+  std::vector<Value *> idxv(2, valuezero);
+  idxv[1] = indexv;
+  Value *listitemvslot = ir1.builder().CreateInBoundsGEP(lists, idxv);
+  bool iscomplextype = catype_is_complex_type(itemcatype->type);
+  Value *listitemv = listitemvslot;
+  if (!iscomplextype)
+    listitemv = ir1.builder().CreateLoad(listitemvslot);
+
+  aux_copy_llvmvalue_to_store(itemtype, itemvar, listitemv, "auxi");
+
+  // increment the index
+  Value *indexloadv = ir1.builder().CreateLoad(indexvslot, "idx");
+  Value *incv = ir1.builder().CreateAdd(indexloadv, valueone);
+  ir1.builder().CreateStore(incv, indexvslot);
 
   g_loop_controls.push_back(std::make_unique<LoopControlInfo>(LoopControlInfo::LT_For, -1, condbb, endloopbb));
   walk_stack(p->forn.body);

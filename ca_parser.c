@@ -1748,20 +1748,22 @@ ASTNode *make_loop(ASTNode *loopbody) {
   return p;
 }
 
-ASTNode *make_for(int id, ASTNode *listnode, ASTNode *stmts) {
+void make_for_var_entry(int id) {
   STEntry *entry = sym_getsym(curr_symtable, id, 0);
   if (entry) {
     yyerror("line: %d, col: %d: strange variable '%s' already defined in scope on line %d, col %d.",
 	    glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
-    return NULL;
+    return;
   }
 
   entry = sym_insert(curr_symtable, id, Sym_Variable);
   CAVariable *cavar = cavar_create(id, typeid_novalue);
   entry->u.var = cavar;
+}
 
+ASTNode *make_for(ForStmtId id, ASTNode *listnode, ASTNode *stmts) {
   ASTNode *p = new_ASTNode(TTE_For);
-  p->forn.var = cavar;
+  p->forn.var = id;
   p->forn.listnode = listnode;
   p->forn.body = stmts;
 
@@ -1769,7 +1771,7 @@ ASTNode *make_for(int id, ASTNode *listnode, ASTNode *stmts) {
   return p;
 }
 
-ASTNode *make_for_stmt(int id, ASTNode *listnode, ASTNode *stmts) {
+ASTNode *make_for_stmt(ForStmtId id, ASTNode *listnode, ASTNode *stmts) {
   ASTNode *forn = make_for(id, listnode, stmts);
 
   // the inner variable and / or listnode also need a lexical body in for statement
