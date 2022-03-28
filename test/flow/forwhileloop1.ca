@@ -1,0 +1,23 @@
+fn main() {
+    let a = [1, 2, 3];
+    for (i in a) {
+        print i; print ':';
+        let j = 0;
+        while (j < 2) {
+            print j; print ' ';
+            j += 1;
+            let k = 0;
+            loop {
+                print k; print ' ';
+                k += 2;
+                if (k > 10) {
+                    break;
+                }
+            }
+            print '\n';
+        }
+        print '\n';
+    }
+    print '\n';
+}
+

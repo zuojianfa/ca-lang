@@ -21,4 +21,5 @@ do_test(flow "\\[1, 2\\] \\[3, 4\\] \\[5, 6\\] \nAA { f1: 21, f2: C, f3: \\[1, 2
 do_test(flow "1 0x.* 3" ca for_ptr0.ca)
 do_test(flow "1 2 3 \n1.100000 2.200000 3.300000 \nAA { f1: 123, f2: C } AA { f1: 456, f2: A } AA { f1: 789, f2: ! }" ca for_ptr1.ca)
 do_test(flow "\\[2, 3, 4\\]\n\\[3.300000, 6.600000, 9.900000\\]\n\\[AA { f1: 251, f2: D }, AA { f1: 917, f2: B }, AA { f1: 1583, f2: ! }\\]" ca for_ptr2.ca)
+do_test(flow "1:0 0 2 4 6 8 10 \n1 0 2 4 6 8 10 \n\n2:0 0 2 4 6 8 10 \n1 0 2 4 6 8 10 \n\n3:0 0 2 4 6 8 10 \n1 0 2 4 6 8 10" ca forwhileloop1.ca)
 

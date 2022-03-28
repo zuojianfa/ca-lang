@@ -78,7 +78,7 @@ extern int yychar, yylineno;
 %token			BAND BOR BXOR BNOT
 %token			ASSIGN_ADD ASSIGN_SUB ASSIGN_MUL ASSIGN_DIV ASSIGN_MOD ASSIGN_SHIFTL ASSIGN_SHIFTR ASSIGN_BAND ASSIGN_BOR ASSIGN_BXOR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM
-%token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL
+%token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL REF
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			LOR
@@ -268,7 +268,7 @@ for_stmt:	FOR                   { SymTable *st = push_new_symtable(); /* the inn
 
 for_stmt_ident:	IDENT               { $$ = (ForStmtId){0, $1}; }
 	|	'*' IDENT           { $$ = (ForStmtId){'*', $2}; }
-	|	'&' IDENT           { $$ = (ForStmtId){'&', $2}; }
+	|	REF IDENT           { $$ = (ForStmtId){'&', $2}; }
 	;
 
 ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
