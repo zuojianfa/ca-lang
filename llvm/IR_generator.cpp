@@ -756,6 +756,10 @@ static void walk_loop(ASTNode *p) {
   ir1.builder().SetInsertPoint(endloopbb);
 }
 
+static bool is_forstmt_pointer_var(ForStmtId forvar) {
+  return forvar.vartype == '*';
+}
+
 static void walk_for(ASTNode *p) {
   if (!curr_fn)
     return;
@@ -792,10 +796,11 @@ static void walk_for(ASTNode *p) {
   CAVariable *cavar = entry->u.var;
 
   CADataType *itemcatype = nullptr;
-  if (forvar.vartype == '*') {
+  if (is_forstmt_pointer_var(forvar)) {
     itemcatype = pair.second->array_layout->type;
     itemcatype = catype_make_pointer_type(itemcatype);
   } else {
+    // the reference use the same type as value
     itemcatype = pair.second->array_layout->type;
   }
   
@@ -804,7 +809,6 @@ static void walk_for(ASTNode *p) {
   size_t listsize = pair.second->array_layout->dimarray[0];
   // list size llvm value
   Value *listsizev = ir1.gen_int(listsize);
-  // NEXT TODO: handle pointer type variable and reference type variable
 
   // scanner index llvm value
   Value *valuezero = ir1.gen_int((size_t)0);
@@ -833,16 +837,15 @@ static void walk_for(ASTNode *p) {
   curr_fn->getBasicBlockList().push_back(loopbb);
   ir1.builder().SetInsertPoint(loopbb);
 
-  if (enable_debug_info())
-    diinfo->emit_location(p->forn.body->begloc.row, p->forn.body->begloc.col, curr_lexical_scope->discope);
-
   // copy array item value into the variable
+  
+  // NEXT TODO: handle the reference type variable
   std::vector<Value *> idxv(2, valuezero);
   idxv[1] = indexv;
   Value *listitemvslot = ir1.builder().CreateInBoundsGEP(lists, idxv);
   bool iscomplextype = catype_is_complex_type(itemcatype->type);
   Value *listitemv = listitemvslot;
-  if (!iscomplextype)
+  if (!iscomplextype && !is_forstmt_pointer_var(forvar))
     listitemv = ir1.builder().CreateLoad(listitemvslot);
 
   aux_copy_llvmvalue_to_store(itemtype, itemvar, listitemv, "auxi");
@@ -851,6 +854,9 @@ static void walk_for(ASTNode *p) {
   Value *indexloadv = ir1.builder().CreateLoad(indexvslot, "idx");
   Value *incv = ir1.builder().CreateAdd(indexloadv, valueone);
   ir1.builder().CreateStore(incv, indexvslot);
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->forn.body->begloc.row, p->forn.body->begloc.col, curr_lexical_scope->discope);
 
   g_loop_controls.push_back(std::make_unique<LoopControlInfo>(LoopControlInfo::LT_For, -1, condbb, endloopbb));
   walk_stack(p->forn.body);

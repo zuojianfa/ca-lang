@@ -18,5 +18,7 @@ do_test(flow "1 2 3" ca for0.ca)
 do_test(flow "1 2 3 \n1.100000 2.200000 3.300000" ca for1.ca)
 do_test(flow "AA { f1: 21, f2: C } AA { f1: 22, f2: A } AA { f1: 44, f2: ! }" ca for2.ca)
 do_test(flow "\\[1, 2\\] \\[3, 4\\] \\[5, 6\\] \nAA { f1: 21, f2: C, f3: \\[1, 2, 3\\] } AA { f1: 22, f2: A, f3: \\[4, 5, 6\\] } AA { f1: 44, f2: !, f3: \\[7, 8, 9\\] }" ca for3.ca)
-              
+do_test(flow "1 0x.* 3" ca for_ptr0.ca)
+do_test(flow "1 2 3 \n1.100000 2.200000 3.300000 \nAA { f1: 123, f2: C } AA { f1: 456, f2: A } AA { f1: 789, f2: ! }" ca for_ptr1.ca)
+do_test(flow "\\[2, 3, 4\\]\n\\[3.300000, 6.600000, 9.900000\\]\n\\[AA { f1: 251, f2: D }, AA { f1: 917, f2: B }, AA { f1: 1583, f2: ! }\\]" ca for_ptr2.ca)
 
