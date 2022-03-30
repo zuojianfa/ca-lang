@@ -1,0 +1,9 @@
+extern fn printf(s: *char, ...) -> i32;
+fn main() {
+    let a = box(2 + 3 * 100);
+    print *a; print '\n';
+
+    let b = box("Hello CA!");
+    printf(*b);
+}
+

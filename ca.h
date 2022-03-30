@@ -52,6 +52,7 @@ typedef enum {
   TTE_Break,
   TTE_Continue,
   TTE_For,
+  TTE_Box,
   TTE_Num,
 } ASTNodeType;
 
@@ -233,6 +234,10 @@ typedef struct TFor {
   struct ASTNode *body;
 } TFor;
 
+typedef struct TBox {
+  struct ASTNode *expr;
+} TBox;
+
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
@@ -262,9 +267,10 @@ typedef struct ASTNode {
     TArrayItem aitemn;   /* array item operation: left or right */
     TStructFieldOp sfopn;/* struct field operation */
     CAStructExpr snoden; /* struct expression definition */
-    TLexicalBody lnoden;
+    TLexicalBody lnoden; /* lexical scope body */
     TLoop loopn;         /* loop node */
     TFor forn;           /* for node */
+    TBox boxn;           /* box node */
   };
 } ASTNode;
 
@@ -355,6 +361,7 @@ ASTNode *make_array_def(CAArrayExpr expr);
 ASTNode *make_struct_expr(CAStructExpr expr);
 ASTNode *make_arrayitem_right(ArrayItem ai);
 ASTNode *make_structfield_right(StructFieldOp sfop);
+ASTNode *make_boxed_expr(ASTNode *expr);
 ASTNode *make_break();
 ASTNode *make_continue();
 ASTNode *make_loop(ASTNode *loopbody);

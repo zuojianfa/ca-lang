@@ -108,6 +108,7 @@ struct FnDebugInfo {
   DISubprogram *disp;
 };
 
+static llvm::Function *g_box_fn = nullptr;
 static llvm::Function *main_fn = nullptr;
 
 // handle when processing current function, the top level function is main function
@@ -142,6 +143,96 @@ static std::vector<std::unique_ptr<LoopControlInfo>> g_loop_controls;
 
 std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
 std::vector<void *> *structexpr_deref(CAStructExpr obj);
+
+const static char *box_fn_name = "malloc";
+
+static void init_printf_fn() {
+  // TODO: add grammar for handling extern functions instead hardcoded here
+  Function *printf_fn = ir1.module().getFunction("printf");
+  if (!printf_fn) {
+    auto param_names = std::vector<const char *>(1, "s");
+    printf_fn = ir1.gen_extern_fn(ir1.int_type<int>(), "printf",
+				  std::vector<Type *>(1, ir1.intptr_type<char>()),
+				  &param_names,	true);
+    printf_fn->setCallingConv(CallingConv::C);
+
+    //AttrListPtr func_printf_PAL;
+    //printf_fn->setAttributes(func_printf_PAL);
+  }
+}
+
+static void init_box_fn() {
+  // void *malloc(size_t size);
+  Function *box_fn = ir1.module().getFunction(box_fn_name);
+  if (!box_fn) {
+    auto param_names = std::vector<const char *>(1, "size");
+    box_fn = ir1.gen_extern_fn(ir1.voidptr_type(), box_fn_name,
+			       std::vector<Type *>(1, ir1.int_type<size_t>()),
+			       &param_names, false);
+    box_fn->setCallingConv(CallingConv::C);
+
+    //AttrListPtr func_printf_PAL;
+    //box_fn->setAttributes(func_printf_PAL);
+  }
+
+  g_box_fn = box_fn;
+}
+
+static void initialize_inner_functions() {
+  init_printf_fn();
+  //init_box_fn();
+}
+
+static Value *llvmcode_box(Value *sizev, Type *type = nullptr) {
+  std::vector<Value *> params(1, sizev);
+  if (!g_box_fn)
+    init_box_fn();
+
+  Value *callret = ir1.builder().CreateCall(g_box_fn, params, "heap");
+  if (type) {
+    callret = ir1.gen_cast_value(ICO::BitCast, callret, type, "ptrcast");
+  }
+
+  return callret;
+}
+
+static Value *llvmcode_box(size_t size, Type *type = nullptr) {
+  Value *sizev = ir1.gen_int<size_t>(size);
+  return llvmcode_box(sizev, type);
+}
+
+static Value *llvmcode_box(Value *sizev, CADataType *catype = nullptr) {
+  Type *type = nullptr;
+  if (catype)
+    type = llvmtype_from_catype(catype);
+
+  return llvmcode_box(sizev, type);
+}
+
+static Value *llvmcode_box(size_t size, CADataType *catype = nullptr) {
+  Value *sizev = ir1.gen_int<size_t>(size);
+  return llvmcode_box(sizev, catype);
+}
+
+static void llvmcode_printf(Function *fn, const char *format, ...) {
+  Constant *llvmformat = ir1.builder().CreateGlobalStringPtr(format);
+  std::vector<Value *> params(1, llvmformat);
+
+  Value *vv = nullptr;
+  va_list ap;
+  va_start(ap, format);
+  while ((vv  = va_arg(ap, Value *)) != nullptr)
+    params.push_back(vv);
+  va_end(ap);
+
+  ir1.builder().CreateCall(fn, params, "n");
+}
+
+static void llvmcode_printf_primitive(Function *fn, CADataType *catype, Value *v) {
+  const char *format = get_printf_format(catype->type);
+  v = tidy_value_with_arith(v, catype->type);
+  llvmcode_printf(fn, format, v, nullptr);
+}
 
 static std::unique_ptr<CalcOperand> pop_right_operand(const char *name = "load", bool load = true) {
   std::unique_ptr<CalcOperand> o = std::move(oprand_stack.back());
@@ -216,7 +307,7 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     CADataType *dt = catype_get_by_name(st, entry->u.var->datatype);
     CHECK_GET_TYPE_VALUE(curr_fn_node, dt, entry->u.var->datatype);
 
-    Type *type = gen_llvmtype_from_catype(dt);
+    Type *type = llvmtype_from_catype(dt);
     AllocaInst *slot = ir1.gen_var(type, name, &arg);
 
     if (enable_debug_info()) {
@@ -371,7 +462,7 @@ static Value *walk_literal(ASTNode *p) {
   Value *v = gen_literal_value(&p->litn.litv, catype, p->begloc);
 
   if (catype->type == ARRAY || catype->type == STRUCT) {
-    Type *arraytype = gen_llvmtype_from_catype(catype);
+    Type *arraytype = llvmtype_from_catype(catype);
     Type::TypeID id = arraytype->getTypeID();
     Constant *complexconst = static_cast<Constant *>(v);
     v = ir1.gen_global_var(arraytype, "constarray", complexconst, true);
@@ -518,7 +609,7 @@ static inline bool is_var_declare(ASTNode *p) {
 static Value *walk_id_defv_declare(ASTNode *p, CADataType *idtype, bool zeroinitial, Value *defval) {
   Value *var = nullptr;
   const char *name = symname_get(p->idn.i);
-  Type *type = gen_llvmtype_from_catype(idtype);
+  Type *type = llvmtype_from_catype(idtype);
 
   STEntry *entry = p->entry;
   if (entry->sym_type != Sym_Variable) {
@@ -605,7 +696,7 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bo
 
   Value *var = nullptr;
   const char *name = symname_get(p->idn.i);
-  Type *type = gen_llvmtype_from_catype(idtype);
+  Type *type = llvmtype_from_catype(idtype);
 
   if (zeroinitial) {
     yyerror("assignment not support assigning zero value");
@@ -816,7 +907,7 @@ static void walk_for(ASTNode *p) {
   Value *indexvslot = ir1.gen_var(ir1.int_type<size_t>(), "idx", valuezero);
 
   const char *itemname = symname_get(cavar->name);
-  Type *itemtype = gen_llvmtype_from_catype(itemcatype);
+  Type *itemtype = llvmtype_from_catype(itemcatype);
   Value *itemvar = ir1.gen_var(itemtype, itemname, nullptr);
   if (enable_debug_info())
     emit_local_var_dbginfo(curr_fn, itemname, itemcatype, itemvar, p->forn.listnode->endloc.row);
@@ -869,6 +960,32 @@ static void walk_for(ASTNode *p) {
 
   curr_fn->getBasicBlockList().push_back(endloopbb);
   ir1.builder().SetInsertPoint(endloopbb);
+}
+
+static void walk_box(ASTNode *p) {
+  walk_stack(p->boxn.expr);
+  auto pair = pop_right_value("willbox", false);
+  Value *willv = pair.first;
+  CADataType *pointeety = pair.second;
+  CADataType *pointerty = catype_make_pointer_type(pointeety);
+  pointerty->pointer_layout->allocpos = CAPointerAllocPos::PP_Heap;
+  Type *type = llvmtype_from_catype(pointerty);
+
+  // NEXT TODO:
+  // 1. invoke allocate memory function to allocate memory,
+  Value *heapv = llvmcode_box(pointeety->size, type);
+
+  // 2. invoke alloca to allocate pointer type and
+  // 3. store the heap allocated address into the memory
+  Value *stackv = ir1.gen_var(type, "bindptr", heapv);
+  
+  // 4. copy Value willv into heap allocated space
+  Type *pointeellvmty = llvmtype_from_catype(pointeety);
+  aux_copy_llvmvalue_to_store(pointeellvmty, heapv, willv, "binddata");
+  
+  // 5. return the pointer memory address
+  auto operands = std::make_unique<CalcOperand>(OT_Alloc, stackv, pointerty);
+  oprand_stack.push_back(std::move(operands));
 }
 
 static void walk_while(ASTNode *p) {
@@ -1012,26 +1129,6 @@ static void walk_if(ASTNode *p) {
 
 static void walk_expr_ife(ASTNode *p) {
   walk_if_common(p);
-}
-
-static void llvmcode_printf(Function *fn, const char *format, ...) {
-  Constant *llvmformat = ir1.builder().CreateGlobalStringPtr(format);
-  std::vector<Value *> params(1, llvmformat);
-
-  Value *vv = nullptr;
-  va_list ap;
-  va_start(ap, format);
-  while ((vv  = va_arg(ap, Value *)) != nullptr)
-    params.push_back(vv);
-  va_end(ap);
-
-  ir1.builder().CreateCall(fn, params, "n");
-}
-
-static void llvmcode_printf_primitive(Function *fn, CADataType *catype, Value *v) {
-  const char *format = get_printf_format(catype->type);
-  v = tidy_value_with_arith(v, catype->type);
-  llvmcode_printf(fn, format, v, nullptr);
 }
 
 static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
@@ -1610,7 +1707,7 @@ static void handle_pointer_op(ASTNode *p, CADataType *dt, Value *v1, CADataType 
     v2 = ir1.builder().CreateSExt(v2, ir1.int_type<int64_t>());
     v2 = ir1.gen_sub(z, v2, "m");
   case '+':
-    type = gen_llvmtype_from_catype(dt->pointer_layout->type);
+    type = llvmtype_from_catype(dt->pointer_layout->type);
     v3 = ir1.builder().CreateGEP(type, v1, v2, "pop");
     break;
   default:
@@ -1786,12 +1883,12 @@ static void walk_expr_as(ASTNode *node) {
   Value *v = calco->operand;
 
   if (array2ptr) {
-    Type *stype = gen_llvmtype_from_catype(astype);
+    Type *stype = llvmtype_from_catype(astype);
     v = ir1.gen_cast_value(ICO::BitCast, v, stype, "ptrcast");
     v = ir1.gen_var(stype, "tmpptr", v);
   } else {
     if (castopt != (ICO)0) {
-      Type *stype = gen_llvmtype_from_catype(astype);
+      Type *stype = llvmtype_from_catype(astype);
       v = ir1.gen_cast_value(castopt, v, stype);
     }
   }
@@ -1852,7 +1949,7 @@ static void walk_expr_array(ASTNode *p) {
   }
 
   // allocate new array and copy related elements to the array
-  Type *arraytype = gen_llvmtype_from_catype(arraycatype);
+  Type *arraytype = llvmtype_from_catype(arraycatype);
   AllocaInst *arr = ir1.gen_var(arraytype);
   Value *idxv0 = ir1.gen_int(0);
   std::vector<Value *> idxv(2, idxv0);
@@ -1977,7 +2074,7 @@ static void walk_expr_struct(ASTNode *p) {
   }
 
   // allocate new array and copy related elements to the array
-  StructType *structype = static_cast<StructType *>(gen_llvmtype_from_catype(structcatype));
+  StructType *structype = static_cast<StructType *>(llvmtype_from_catype(structcatype));
   AllocaInst *structure = ir1.gen_var(structype);
   Value *idxv0 = ir1.gen_int((int)0);
   std::vector<Value *> idxv(2, idxv0);
@@ -2055,6 +2152,14 @@ static void walk_expr_address(ASTNode *aexpr) {
   oprand_stack.push_back(std::move(pair));
 }
 
+static void walk_expr_box(ASTNode *expr) {
+  ASTNode *boxexpr = expr->exprn.operands[0];
+  walk_stack(boxexpr);
+  auto pair = pop_right_operand("box", false);
+  expr->exprn.expr_type = pair->catype->signature;
+  oprand_stack.push_back(std::move(pair));
+}
+
 static void walk_expr(ASTNode *p) {
   // not allow global assign value, global variable definition is not assign
   if (!curr_fn)
@@ -2108,6 +2213,9 @@ static void walk_expr(ASTNode *p) {
     break;
   case ADDRESS:
     walk_expr_address(p);
+    break;
+  case BOX:
+    walk_expr_box(p);
     break;
   default:
     walk_expr_op2(p);
@@ -2197,13 +2305,13 @@ static Function *walk_fn_declare(ASTNode *p) {
     CADataType *dt = catype_get_by_name(p->symtable, entry->u.var->datatype);
     CHECK_GET_TYPE_VALUE(p, dt, entry->u.var->datatype);
 
-    Type *type = gen_llvmtype_from_catype(dt);
+    Type *type = llvmtype_from_catype(dt);
     params.push_back(type);
   }
 
   CADataType *retdt = catype_get_by_name(p->symtable, p->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, p->fndecln.ret);
-  Type *rettype = gen_llvmtype_from_catype(retdt);
+  Type *rettype = llvmtype_from_catype(retdt);
   fn = ir1.gen_extern_fn(rettype, fnname, params, &param_names, !!p->fndecln.args.contain_varg);
   function_map.insert(std::make_pair(fnname, p));
   fn->setCallingConv(CallingConv::C);
@@ -2397,6 +2505,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_break,
   (walk_fn_t)walk_continue,
   (walk_fn_t)walk_for,
+  (walk_fn_t)walk_box,
 };
 
 static int walk_stack(ASTNode *p) {
@@ -2459,18 +2568,7 @@ static int llvm_codegen_begin(RootTree *tree) {
       (void *)ir1.gen_var(main_fn->getReturnType(), "retslot", ir1.gen_int<int>(0));
   }
 
-  // TODO: add grammar for handling extern functions instead hardcoded here
-  Function *printf_fn = ir1.module().getFunction("printf");
-  if (!printf_fn) {
-    auto param_names = std::vector<const char *>(1, "s");
-    printf_fn = ir1.gen_extern_fn(ir1.int_type<int>(), "printf",
-				  std::vector<Type *>(1, ir1.intptr_type<char>()),
-				  &param_names,	true);
-    printf_fn->setCallingConv(CallingConv::C);
-
-    //AttrListPtr func_printf_PAL;
-    //printf_fn->setAttributes(func_printf_PAL);
-  }
+  initialize_inner_functions();
 
   return 0;
 }

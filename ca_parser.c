@@ -602,7 +602,6 @@ ASTNode *make_literal(CALiteral *litv) {
 ASTNode *make_array_def(CAArrayExpr expr) {
   ASTNode *p = new_ASTNode(TTE_ArrayDef);
   p->anoden.aexpr = expr;
-  p->symtable = curr_symtable;
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   ASTNode *node = make_expr(ARRAY, 1, p);
   return node;
@@ -611,7 +610,6 @@ ASTNode *make_array_def(CAArrayExpr expr) {
 ASTNode *make_struct_expr(CAStructExpr expr) {
   ASTNode *p = new_ASTNode(TTE_StructExpr);
   p->snoden = expr;
-  p->symtable = curr_symtable;
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   ASTNode *node = make_expr(STRUCT, 1, p);
   return node;
@@ -630,6 +628,14 @@ ASTNode *make_structfield_right(StructFieldOp sfop) {
   p->sfopn = sfop;
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   ASTNode *node = make_expr(STRUCTITEM, 1, p);
+  return node;
+}
+
+ASTNode *make_boxed_expr(ASTNode *expr) {
+  ASTNode *p = new_ASTNode(TTE_Box);
+  p->boxn.expr = expr;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  ASTNode *node = make_expr(BOX, 1, p);
   return node;
 }
 
@@ -1211,6 +1217,11 @@ typeid_t inference_expr_type(ASTNode *p) {
     return type1;
   case TTE_LexicalBody:
     return inference_expr_type(p->lnoden.stmts);
+  case TTE_Box:
+    type1 = inference_expr_type(p->boxn.expr);
+    typedt = catype_get_by_name(p->boxn.expr->symtable, type1);
+    exprdt = catype_make_pointer_type(typedt);
+    return exprdt->signature;
   default:
     yyerror("line: %d, col: %d: the expression already typed, no need to do inference",
 	    glineno, gcolno);

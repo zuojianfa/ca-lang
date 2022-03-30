@@ -61,4 +61,5 @@ add_subdirectory(struct)
 add_subdirectory(function)
 add_subdirectory(op)
 add_subdirectory(flow)
+add_subdirectory(box)
 

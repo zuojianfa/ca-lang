@@ -211,6 +211,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [ ] support multiple compile unit and link them together
 - [ ] support multiple if-else else if statement
 - [ ] support rust grammar
+  - [ ] reference type
   - [x] loop
   - [x] for i in list
 	- [x] for *i in list
@@ -226,7 +227,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [ ] immutable
   - [ ] mutable
   - [ ] support attribute grammar like `#[derive(Clone)]`
-  - [ ] heap allocate memory: `box`
+  - [x] heap allocate memory: `box`
   - [ ] scope variable release
   - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
   - [ ] 'label1: loop # labeled loop
@@ -286,8 +287,6 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] resolve for stmt debug issue: cannot skip to for after one loop
-- [ ] heap allocate memory: `box`
-- [ ] for &i in list
 - [ ] if else if else ...
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
 - [ ] 'label1: loop
@@ -307,6 +306,8 @@ NEXT TODO:
 - [ ] set right line number for structure definition lines
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
+- [ ] for &i in list
+- [ ] reference type
 
 # License
 See `LICENSE` file in this directory, for license in directory `cruntime` see cruntime/README.md

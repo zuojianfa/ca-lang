@@ -74,13 +74,13 @@ extern int yychar, yylineno;
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
 %token			LOOP FOR IN BREAK CONTINUE MATCH USE MOD
-%token			BOX
 %token			BAND BOR BXOR BNOT
 %token			ASSIGN_ADD ASSIGN_SUB ASSIGN_MUL ASSIGN_DIV ASSIGN_MOD ASSIGN_SHIFTL ASSIGN_SHIFTR ASSIGN_BAND ASSIGN_BOR ASSIGN_BXOR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM
 %token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL REF
 %nonassoc		IFX
 %nonassoc		ELSE
+%left			BOX
 %left			LOR
 %left			LAND
 %left			'|'
@@ -326,6 +326,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	deref_pointer         { $$ = make_deref($1.expr); }
 	|	'&' expr %prec UADDR  { $$ = make_address($2); }
 	|	structfield_op        { $$ = make_structfield_right($1); }
+	|	BOX expr              { $$ = make_boxed_expr($2); }
 	;
 
 arith_expr:	'-' expr %prec UMINUS { $$ = make_uminus_expr($2); }

@@ -97,9 +97,15 @@ typedef struct CAArray {
 
 // the dimension need compact when constructing type, because
 // e.g. ((int *) *) *a; after compact, it should be int ***a;
+typedef enum CAPointerAllocPos {
+  PP_Stack,
+  PP_Heap,
+} CAPointerAllocPos;
+
 typedef struct CAPointer {
   CADataType *type;
   int dimension;
+  CAPointerAllocPos allocpos;
 } CAPointer;
 
 typedef struct CAStringLit {

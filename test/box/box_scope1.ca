@@ -1,0 +1,23 @@
+fn main() -> i32{
+    {
+	let a = 1;
+	let b = 2;
+	let c = 3;
+	box 0;
+	if (b > a) {
+	    return 1;
+	}
+
+	if (b > c) {
+	    return 2;
+	}
+
+	if (a < c)
+	{
+	    return 3;
+	}
+    }
+
+    return 4;
+}
+

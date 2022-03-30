@@ -590,6 +590,7 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 	addrdt->pointer_layout = new CAPointer;
 	//dt->pointer_layout->type = datatype;
 	addrdt->pointer_layout->dimension = ret;
+	addrdt->pointer_layout->allocpos = CAPointerAllocPos::PP_Stack;
       }
       break;
     case '&':
@@ -2059,6 +2060,7 @@ CADataType *catype_clone_thin(const CADataType *type) {
     dt->pointer_layout = new CAPointer;
     dt->pointer_layout->type = type->pointer_layout->type;
     dt->pointer_layout->dimension = type->pointer_layout->dimension;
+    dt->pointer_layout->allocpos = CAPointerAllocPos::PP_Stack;
     break;
   case STRUCT:
     // TODO:
@@ -2150,6 +2152,7 @@ CADataType *catype_make_pointer_type(CADataType *datatype) {
     type->pointer_layout = new CAPointer;
     type->pointer_layout->dimension = 1;
     type->pointer_layout->type = datatype;
+    type->pointer_layout->allocpos = CAPointerAllocPos::PP_Stack;
     break;
   }
 
@@ -2291,7 +2294,7 @@ Value *tidy_value_with_arith(Value *v, int typetok) {
   return v;
 }
 
-Type *gen_llvmtype_from_token(int tok) {
+Type *llvmtype_from_token(int tok) {
   switch (tok) {
   case VOID:
     return ir1.void_type();
@@ -2322,7 +2325,7 @@ Type *gen_llvmtype_from_token(int tok) {
   }
 }
 
-static Type *gen_llvmtype_from_catype_inner(CADataType *catype, std::map<CADataType *, Type *> &rcheck) {
+static Type *llvmtype_from_catype_inner(CADataType *catype, std::map<CADataType *, Type *> &rcheck) {
   switch (catype->type) {
   case POINTER: {
     // create llvm pointer type
@@ -2331,7 +2334,7 @@ static Type *gen_llvmtype_from_catype_inner(CADataType *catype, std::map<CADataT
     if (itr != rcheck.end())
       kerneltype = itr->second;
     else
-      kerneltype = gen_llvmtype_from_catype_inner(catype->pointer_layout->type, rcheck);
+      kerneltype = llvmtype_from_catype_inner(catype->pointer_layout->type, rcheck);
 
     if (!kerneltype) {
       fprintf(stderr, "create kernel type for pointer failed: %s\n",
@@ -2352,7 +2355,7 @@ static Type *gen_llvmtype_from_catype_inner(CADataType *catype, std::map<CADataT
     // should cannot be recursively defined, or the size is unlimited, the checking
     // should already blocked by the type system analyze
     assert(rcheck.find(catype->pointer_layout->type) == rcheck.end());
-    Type *kerneltype = gen_llvmtype_from_catype_inner(catype->array_layout->type, rcheck);
+    Type *kerneltype = llvmtype_from_catype_inner(catype->array_layout->type, rcheck);
 
     if (!kerneltype) {
       fprintf(stderr, "create kernel type for array failed: %s\n",
@@ -2385,7 +2388,7 @@ static Type *gen_llvmtype_from_catype_inner(CADataType *catype, std::map<CADataT
 
     rcheck.insert(std::make_pair(catype, sttype));
     for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
-      Type *fieldtype = gen_llvmtype_from_catype_inner(catype->struct_layout->fields[i].type, rcheck);
+      Type *fieldtype = llvmtype_from_catype_inner(catype->struct_layout->fields[i].type, rcheck);
       fields.push_back(fieldtype);
     }
     rcheck.erase(catype);
@@ -2396,13 +2399,13 @@ static Type *gen_llvmtype_from_catype_inner(CADataType *catype, std::map<CADataT
     return sttype;
   }
   default:
-    return gen_llvmtype_from_token(catype->type);
+    return llvmtype_from_token(catype->type);
   }
 }
 
-Type *gen_llvmtype_from_catype(CADataType *catype) {
+Type *llvmtype_from_catype(CADataType *catype) {
   std::map<CADataType *, Type *> rcheck;
-  Type *type = gen_llvmtype_from_catype_inner(catype, rcheck);
+  Type *type = llvmtype_from_catype_inner(catype, rcheck);
   return type;
 }
 
@@ -2510,7 +2513,7 @@ Value *gen_array_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
     subvalues.push_back((Constant *)subvalue);
   }
 
-  Type *arraytype = gen_llvmtype_from_catype(catype);
+  Type *arraytype = llvmtype_from_catype(catype);
   Constant *arrayconst = ConstantArray::get((ArrayType *)arraytype, subvalues);
   //GlobalValue *g = ir1.gen_global_var(arraytype, "constarray", arrayconst, true);
 
@@ -2531,7 +2534,7 @@ Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
       return llvmconststr;
     }
 
-    type = gen_llvmtype_from_catype(catype);
+    type = llvmtype_from_catype(catype);
 
     if (lit->u.i64value == 0) {
       llvmvalue = ConstantPointerNull::get(static_cast<PointerType *>(type));

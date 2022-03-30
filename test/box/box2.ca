@@ -1,0 +1,8 @@
+fn main() {
+    let a = box(2);
+    print *a; print ' ';
+
+    *a = 2022;
+    print *a;
+}
+

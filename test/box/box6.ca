@@ -1,0 +1,23 @@
+fn main() {
+    struct AA {
+	f1: i32,
+	f2: f64,
+    }
+
+    let a = box([AA{f1: 2022, f2: 2022.0330}, AA{2, 2.2}]);
+    print *a; print '\n';
+    print (*a)[0];
+    print '\n';
+    let b = &(*a)[0];
+    print b->f1; print ' ';
+    print b->f2;
+    b->f1 += 1;
+    print '\n';
+    print b->f1;
+    
+    for (*i in *a) {
+	print i->f1; print ' ';
+	print i->f2; print ' ';
+    }
+}
+
