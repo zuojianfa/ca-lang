@@ -1,0 +1,17 @@
+struct AA {
+    f1: i32,
+    f2: [f64; 2],
+}
+
+// fn new_AA() -> AA {
+//     let aa = AA {f1: 2022, f2: [03.31, 17.36]};
+//     return aa;
+// }
+
+fn main() {
+    //let aa = new_AA();
+    let f2 = [03.31, 17.36];
+    let aa = AA {f1: 2022, f2: f2};
+    print aa; print '\n';
+}
+

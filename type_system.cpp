@@ -1749,6 +1749,38 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   return dt;
 }
 
+static int literal_parse_integer(const char *text, tokenid_t littypetok, tokenid_t typetok, int64_t *i64value) {
+  int len = strlen(text);
+  int cmplen = littypetok == I64 ? 3 : 2;
+  const char *cmpformat = littypetok == I64 ? "-0x" : "0x";
+  const char *format = nullptr;
+  bool neg = false;
+
+  if (len > cmplen && !strncmp(cmpformat, text, cmplen)) {
+    format = "%p";
+  } else {
+    cmpformat = littypetok == I64 ? "-0o" : "0o";
+    if (len > cmplen && !strncmp(cmpformat, text, cmplen)) {
+      format = "%o";
+      text += cmplen;
+      if (cmplen == 3)
+	neg = true;
+    } else {
+      format = "%lu";
+    }
+  }
+
+  sscanf(text, format, i64value);
+  if (neg)
+    *i64value = -*i64value;
+
+  int badscope = littypetok == I64 ?
+    check_i64_value_scope(*i64value, typetok) :
+    check_u64_value_scope((uint64_t)*i64value, typetok);
+
+  return badscope;
+}
+
 static typeid_t inference_primitive_literal_type(CALiteral *lit) {
   const char *text = symname_get(lit->textid);
   int badscope = 0;
@@ -1762,21 +1794,8 @@ static typeid_t inference_primitive_literal_type(CALiteral *lit) {
   switch (lit->littypetok) {
   case I64:
   case U64:
-    len = strlen(text);
-    cmplen = lit->littypetok == I64 ? 3 : 2;
-    cmpformat = lit->littypetok == I64 ? "-0x" : "0x";
-    if (len > cmplen && !strncmp(cmpformat, text, cmplen)) {
-      intentdeftype = I32;
-      format = "%p";
-    } else {
-      intentdeftype = I32;
-      format = "%lu";
-    }
-
-    sscanf(text, format, &lit->u.i64value);
-    badscope = lit->littypetok == I64 ?
-      check_i64_value_scope(lit->u.i64value, I32) :
-      check_u64_value_scope((uint64_t)lit->u.i64value, I32);
+    intentdeftype = I32;
+    badscope = literal_parse_integer(text, lit->littypetok, I32, &lit->u.i64value);
     break;
   case F64:
     intentdeftype = F64;
@@ -1934,18 +1953,7 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
   switch (littypetok) {
   case I64: // I64 stand for positive integer value in lexical
   case U64:
-    len = strlen(text);
-    cmplen = littypetok == I64 ? 3 : 2;
-    cmpformat = littypetok == I64 ? "-0x" : "0x";
-    if (len > cmplen && !strncmp(cmpformat, text, cmplen))
-      format = "%p";
-    else
-      format = "%lu";
-
-    sscanf(text, format, &lit->u.i64value);
-    badscope = littypetok == I64 ?
-      check_i64_value_scope(lit->u.i64value, typetok) :
-      check_u64_value_scope((uint64_t)lit->u.i64value, typetok);
+    badscope = literal_parse_integer(text, littypetok, typetok, &lit->u.i64value);
     break;
   case F64:
     lit->u.f64value = atof(text);

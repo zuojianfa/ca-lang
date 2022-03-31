@@ -1,0 +1,9 @@
+fn main() {
+    let a = 0o1000;
+    print a; print ' ';
+    a = 0o0777;
+    print a; print ' ';
+    a -= 0o776;
+    print a; print '\n';
+}
+

@@ -49,6 +49,8 @@ do_test(t "10.000000.*79.800000.*57.830000.*2.170000.*50.530000.*12.340000.*.*re
 do_test(t "6.200000\n13.500000" ca type6.ca)
 do_test(t "32.*344.343231.*3.123000.*A.*1.*323.122300.*.*return value:.*" ca typed_var1.ca)
 do_test(t "return value: 4" ca fn_retconv.ca)
+do_test(t "512 511 1" ca octal1.ca)
+do_test(t "-512 -511 -1" ca octal2.ca)
 
 add_subdirectory(nomain)
 add_subdirectory(as)

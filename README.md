@@ -206,6 +206,10 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] logical operation '&&' '||' '!'
 - [x] break
 - [x] continue
+- [x] support octal literal: 0o777 -0o1000
+- [x] support hex literal: 0xffff -0xfe23
+- [x] support decimal literal
+- [ ] support binary literal value: 0b010100101000100101 -0b1110101001
 - [ ] if else if else ...
 - [ ] support never return type `!` like rust
 - [ ] support multiple compile unit and link them together
@@ -286,6 +290,7 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
+- [ ] support binary literal value: 0b010100101000100101 -0b1110101001
 - [ ] resolve for stmt debug issue: cannot skip to for after one loop
 - [ ] if else if else ...
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
