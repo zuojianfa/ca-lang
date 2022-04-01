@@ -80,7 +80,7 @@ extern int yychar, yylineno;
 %token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL REF
 %nonassoc		IFX
 %nonassoc		ELSE
-%left			BOX
+%left			BOX DROP
 %left			LOR
 %left			LAND
 %left			'|'
@@ -207,7 +207,8 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	GOTO label_id ';'       { $$ = make_goto($2); }
 	|	struct_type_def         { $$ = $1; }
 	|	type_def                { $$ = $1; }
-		;
+	|	DROP IDENT ';'          { $$ = make_drop($2); }
+	;
 
 deref_pointer: '*' expr { $$ = (DerefLeft) {1, $2}; }
 

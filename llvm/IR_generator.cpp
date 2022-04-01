@@ -109,6 +109,7 @@ struct FnDebugInfo {
 };
 
 static llvm::Function *g_box_fn = nullptr;
+static llvm::Function *g_drop_fn = nullptr;
 static llvm::Function *main_fn = nullptr;
 
 // handle when processing current function, the top level function is main function
@@ -145,6 +146,7 @@ std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
 std::vector<void *> *structexpr_deref(CAStructExpr obj);
 
 const static char *box_fn_name = "malloc";
+const static char *drop_fn_name = "free";
 
 static void init_printf_fn() {
   // TODO: add grammar for handling extern functions instead hardcoded here
@@ -178,9 +180,27 @@ static void init_box_fn() {
   g_box_fn = box_fn;
 }
 
+static void init_drop_fn() {
+  // void free(void *ptr);
+  Function *drop_fn = ir1.module().getFunction(drop_fn_name);
+  if (!drop_fn) {
+    auto param_names = std::vector<const char *>(1, "ptr");
+    drop_fn = ir1.gen_extern_fn(ir1.void_type(), drop_fn_name,
+			       std::vector<Type *>(1, ir1.voidptr_type()),
+			       &param_names, false);
+    drop_fn->setCallingConv(CallingConv::C);
+
+    //AttrListPtr func_printf_PAL;
+    //drop_fn->setAttributes(func_printf_PAL);
+  }
+
+  g_drop_fn = drop_fn;
+}
+
 static void initialize_inner_functions() {
   init_printf_fn();
   //init_box_fn();
+  //init_drop_fn();
 }
 
 static Value *llvmcode_box(Value *sizev, Type *type = nullptr) {
@@ -212,6 +232,16 @@ static Value *llvmcode_box(Value *sizev, CADataType *catype = nullptr) {
 static Value *llvmcode_box(size_t size, CADataType *catype = nullptr) {
   Value *sizev = ir1.gen_int<size_t>(size);
   return llvmcode_box(sizev, catype);
+}
+
+static Value *llvmcode_drop(Value *ptr) {
+  if (!g_drop_fn)
+    init_drop_fn();
+
+  ptr = ir1.gen_cast_value(ICO::BitCast, ptr, ir1.voidptr_type(), "ptrcast");
+  std::vector<Value *> params(1, ptr);
+  Value *callret = ir1.builder().CreateCall(g_drop_fn, params);
+  return callret;
 }
 
 static void llvmcode_printf(Function *fn, const char *format, ...) {
@@ -986,6 +1016,28 @@ static void walk_box(ASTNode *p) {
   // 5. return the pointer memory address
   auto operands = std::make_unique<CalcOperand>(OT_Alloc, stackv, pointerty);
   oprand_stack.push_back(std::move(operands));
+}
+
+static void walk_drop(ASTNode *p) {
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
+  STEntry *entry = sym_getsym(p->symtable, p->dropn.var, 1);
+  if (!entry) {
+    yyerror("line: %d, col: %d: cannot find variable `%s` in symbol table when dropping",
+	    glineno, gcolno, symname_get(p->dropn.var));
+    return;
+  }
+
+  if (entry->sym_type != Sym_Variable) {
+    yyerror("line: %d, col: %d: '%s' Not a variable when dropping", entry->sloc.col, entry->sloc.row,
+	    symname_get(p->dropn.var));
+    return;
+  }
+
+  Value *boxedv = static_cast<Value *>(entry->u.var->llvm_value);
+  Value *heapv = ir1.builder().CreateLoad(boxedv, "heapv");
+  llvmcode_drop(heapv);
 }
 
 static void walk_while(ASTNode *p) {
@@ -2506,6 +2558,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_continue,
   (walk_fn_t)walk_for,
   (walk_fn_t)walk_box,
+  (walk_fn_t)walk_drop,
 };
 
 static int walk_stack(ASTNode *p) {

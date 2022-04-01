@@ -53,6 +53,7 @@ typedef enum {
   TTE_Continue,
   TTE_For,
   TTE_Box,
+  TTE_Drop,
   TTE_Num,
 } ASTNodeType;
 
@@ -238,6 +239,10 @@ typedef struct TBox {
   struct ASTNode *expr;
 } TBox;
 
+typedef struct TDrop {
+  int var; /* subscript to sym array */
+} TDrop;
+
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
@@ -271,6 +276,7 @@ typedef struct ASTNode {
     TLoop loopn;         /* loop node */
     TFor forn;           /* for node */
     TBox boxn;           /* box node */
+    TDrop dropn;         /* drop node */
   };
 } ASTNode;
 
@@ -362,6 +368,7 @@ ASTNode *make_struct_expr(CAStructExpr expr);
 ASTNode *make_arrayitem_right(ArrayItem ai);
 ASTNode *make_structfield_right(StructFieldOp sfop);
 ASTNode *make_boxed_expr(ASTNode *expr);
+ASTNode *make_drop(int id);
 ASTNode *make_break();
 ASTNode *make_continue();
 ASTNode *make_loop(ASTNode *loopbody);

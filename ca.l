@@ -39,7 +39,7 @@ void *string_buffer = NULL;
 (0o)[0-7]+         { ULL(); set_litbuf(&yylval.litb, yytext, yyleng, U64); return LITERAL; }
 [0-9]+	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, U64); return LITERAL; }
 0\.[0-9]+	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, F64); return LITERAL; }
-[1-9][0-9]*\.[0-9]+	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, F64); return LITERAL; }
+[0-9]+\.[0-9]+	{ ULL(); set_litbuf(&yylval.litb, yytext, yyleng, F64); return LITERAL; }
 \'\\[0-9]{1,3}\'	{ ULL(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, U8); return LITERAL; }
 \'\\.\'		{ ULL(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, U8); return LITERAL; }
 \'.\'		{ ULL(); set_litbuf(&yylval.litb, yytext+1, yyleng-1, I8); return LITERAL; }

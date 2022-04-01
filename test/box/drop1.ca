@@ -1,0 +1,9 @@
+fn main() {
+    let a = box 1;
+    *a = 2022;
+    print *a;
+
+    drop a;
+    //print *a;
+}
+

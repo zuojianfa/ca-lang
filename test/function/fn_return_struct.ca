@@ -3,15 +3,22 @@ struct AA {
     f2: [f64; 2],
 }
 
-// fn new_AA() -> AA {
-//     let aa = AA {f1: 2022, f2: [03.31, 17.36]};
-//     return aa;
-// }
+fn new_AA() -> AA {
+    let aa = AA {f1: 2022, f2: [03.31, 17.36]};
+    return aa;
+}
+
+fn new_box_AA() -> *AA {
+    let aa = box AA {f1: 2022, f2: [03.31, 22.09]};
+    return aa;
+}
 
 fn main() {
-    //let aa = new_AA();
-    let f2 = [03.31, 17.36];
-    let aa = AA {f1: 2022, f2: f2};
+    let aa = new_AA();
     print aa; print '\n';
+
+    let a1 = new_box_AA();
+    //print a1; print '\n';
+    print *a1; print '\n';
 }
 

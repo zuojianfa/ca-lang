@@ -639,6 +639,13 @@ ASTNode *make_boxed_expr(ASTNode *expr) {
   return node;
 }
 
+ASTNode *make_drop(int id) {
+  ASTNode *p = new_ASTNode(TTE_Drop);
+  p->dropn.var = id;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  return p;
+}
+
 ASTNode *make_id(int i, IdType idtype) {
     ASTNode *p = new_ASTNode(TTE_Id);
     p->idn.i = i;

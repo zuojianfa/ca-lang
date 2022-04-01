@@ -195,6 +195,7 @@ std::unordered_map<std::string, int> s_token_map = {
   {"mod",    MOD},
   {"box",    BOX},
   {"ref",    REF},
+  {"drop",   DROP},
 };
 
 static CADataType *catype_make_type(const char *name, int type, int size);
