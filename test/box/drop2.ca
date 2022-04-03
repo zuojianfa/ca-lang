@@ -1,0 +1,22 @@
+fn main() {
+    let a = box 1;    
+    *a = 2022;
+    print *a; print '\n';
+    drop a;
+    a = box 2;
+    print a; print ':';
+    print *a; print '\n';
+    {
+        let a = box 1.1;
+        print a; print ':';
+        print *a; print '\n';
+        drop a;
+    }
+
+    drop a;
+    a = box 3;
+    print a; print ':';
+    print *a; print ' ';
+    drop a;
+}
+

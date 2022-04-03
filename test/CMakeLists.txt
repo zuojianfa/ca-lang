@@ -51,6 +51,8 @@ do_test(t "32.*344.343231.*3.123000.*A.*1.*323.122300.*.*return value:.*" ca typ
 do_test(t "return value: 4" ca fn_retconv.ca)
 do_test(t "512 511 1" ca octal1.ca)
 do_test(t "-512 -511 -1" ca octal2.ca)
+do_test(t "0 1 2 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 255 256 65535 65536 4294967295 4294967296 9223372036854775807 18446744073709551615" ca binary1.ca)
+do_test(t "0 -1 -2 -2 -3 -4 -5 -6 -7 -8 -9 -10 -11 -12 -13 -14 -15 -16 -255 -256 -65535 -65536 -4294967295 -4294967296 -9223372036854775807 18446744073709551615 0" ca binary2.ca)
 
 add_subdirectory(nomain)
 add_subdirectory(as)

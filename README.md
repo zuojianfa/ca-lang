@@ -209,6 +209,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support octal literal: 0o777 -0o1000
 - [x] support hex literal: 0xffff -0xfe23
 - [x] support decimal literal
+- [ ] support tuple struct type
+- [ ] add tuple struct literal
 - [ ] support binary literal value: 0b010100101000100101 -0b1110101001
 - [ ] if else if else ...
 - [ ] support never return type `!` like rust
@@ -222,6 +224,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 	- [ ] for &i in list
   - [ ] match
   - [x] type
+  - [ ] support enum type
   - [ ] last expression as return value in scope
 	- [ ] break expr
 	- [ ] break 'label2 expr
@@ -291,7 +294,6 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] support binary literal value: 0b010100101000100101 -0b1110101001
-- [ ] resolve for stmt debug issue: cannot skip to for after one loop
 - [ ] if else if else ...
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
 - [ ] 'label1: loop
@@ -303,6 +305,10 @@ NEXT TODO:
 - [ ] default acceptor _
 - [ ] slice operator and infrastructure
 - [ ] implement following functions: 
+- [ ] for &i in list
+- [ ] reference type
+- [ ] resolve for stmt debug issue: cannot skip to for after one loop
+- [ ] implement following function
   `catype_compare_type_signature`, 
   `catype_make_type_closure`,
   `catype_create_type_from_unwind`
@@ -311,8 +317,6 @@ NEXT TODO:
 - [ ] set right line number for structure definition lines
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
-- [ ] for &i in list
-- [ ] reference type
 
 # License
 See `LICENSE` file in this directory, for license in directory `cruntime` see cruntime/README.md

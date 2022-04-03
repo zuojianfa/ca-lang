@@ -9,4 +9,5 @@ do_test(box "good" ca box_scope1.ca)
 
 set(test_case_seq 1)
 do_test(drop "2022" ca drop1.ca)
+do_test(drop "996\n33" ca drop3.ca)
 

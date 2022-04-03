@@ -1750,12 +1750,37 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   return dt;
 }
 
+static int64_t parse_binary_number(const char *text, int len) {
+  int i = 0;
+  for (i = 0; i < len; ++i) {
+    if (text[i] == '1')
+      break;
+  }
+  len -= i;
+  text += i;
+
+  if (len > 64) {
+    yyerror("the length `%d` of binary number `%s` out of range of 64", len, text);
+    return 0;
+  }
+
+  // 1011
+  int64_t v = 0;
+  for (int i = 0; i < len; ++i) {
+    v <<= 1;
+    v += text[i] - '0';
+  }
+
+  return v;
+}
+
 static int literal_parse_integer(const char *text, tokenid_t littypetok, tokenid_t typetok, int64_t *i64value) {
   int len = strlen(text);
   int cmplen = littypetok == I64 ? 3 : 2;
   const char *cmpformat = littypetok == I64 ? "-0x" : "0x";
   const char *format = nullptr;
   bool neg = false;
+  bool isbinary = false;
 
   if (len > cmplen && !strncmp(cmpformat, text, cmplen)) {
     format = "%p";
@@ -1767,11 +1792,23 @@ static int literal_parse_integer(const char *text, tokenid_t littypetok, tokenid
       if (cmplen == 3)
 	neg = true;
     } else {
-      format = "%lu";
+      cmpformat = littypetok == I64 ? "-0b" : "0b";
+      if (len > cmplen && !strncmp(cmpformat, text, cmplen)) {
+        isbinary = true;
+	text += cmplen;
+	if (cmplen == 3)
+	  neg = true;
+      } else {
+	format = "%lu";
+      }
     }
   }
 
-  sscanf(text, format, i64value);
+  if (isbinary)
+    *i64value = parse_binary_number(text, len - cmplen);
+  else
+    sscanf(text, format, i64value);
+
   if (neg)
     *i64value = -*i64value;
 
