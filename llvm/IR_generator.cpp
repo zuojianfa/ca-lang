@@ -1631,24 +1631,175 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
     // check the formal parameter and actual parameter type
     if (!catype_check_identical_in_symtable(name->symtable, realtype, param->symtable, formaltype)) {
       yyerror("line: %d, col: %d: the %d parameter type '%s' not match the parameter declared type '%s'",
-	      param->begloc.row, param->begloc.col, i, symname_get(realtype)+2, symname_get(formaltype)+2);
+	      param->begloc.row, param->begloc.col, i, catype_get_type_name(realtype), catype_get_type_name(formaltype));
       return;
     }
   }
 }
 
+static int structexpr_get_field_order(int name, CAStructField *fields, size_t size);
+static void walk_expr_tuple(ASTNode *p) {
+  typeid_t structid = inference_expr_type(p);
+  ASTNode *snode = p->exprn.operands[0];
+  CADataType *structcatype = catype_get_by_name(snode->symtable, structid);
+  CHECK_GET_TYPE_VALUE(snode, structcatype, snode->exprasn.type);
+  if (structcatype->type != STRUCT) {
+    yyerror("line: %d, col: %d: type `%s` is not a struct type",
+	    snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->signature));
+    return;
+  }
+
+  std::vector<void *> *vnodes = structexpr_deref(snode->snoden); 
+  if (structcatype->struct_layout->fieldnum != vnodes->size()) {
+    yyerror("line: %d, col: %d: struct type `%s` expression field size: `%d` not equal to the struct field size: `%d`",
+	    snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->signature),
+	    structcatype->struct_layout->fieldnum, vnodes->size());
+    return;
+  }
+
+  CAStructField *fields = structcatype->struct_layout->fields;
+
+  // when is named field then store the field order in struct definition
+  std::vector<int> fieldorder;
+  std::vector<Value *> values;
+  for (size_t i = 0; i < vnodes->size(); ++i) {
+    ASTNode *fieldnode = nullptr;
+    int exprfieldname = -1;
+    void *inode = (*vnodes)[i];
+    int order = i;
+    if (snode->snoden.named) {
+      CAStructNamed *namedexpr = static_cast<CAStructNamed *>(inode);
+      order = structexpr_get_field_order(namedexpr->name, fields, vnodes->size());
+      if (order == -1) {
+	yyerror("line: %d, col: %d: cannot find the field name in struct `%s` for the `%d` field `%s` in expression",
+		snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->struct_layout->name), i,
+		symname_get(namedexpr->name));
+	return;
+      }
+
+      fieldorder.push_back(order);
+      fieldnode = namedexpr->expr;
+      // TODO: here may need free `namedexpr` when it never used again
+      // free(namedexpr)
+    } else {
+      fieldnode = static_cast<ASTNode *>(inode);
+    }
+
+    walk_stack(fieldnode);
+    bool iscomplextype = catype_is_complex_type(fields[order].type->type);
+    auto pair = pop_right_value("field", !iscomplextype);
+    if (pair.second->signature != fields[order].type->signature) {
+      yyerror("line: %d, col: %d: the field `%d`'s type `%s` of struct expression is different from the struct definition: `%s`",
+	      snode->begloc.row, snode->begloc.col, i, catype_get_type_name(pair.second->signature),
+	      catype_get_type_name(fields[order].type->signature));
+      return;
+    }
+
+    values.push_back(pair.first);
+  }
+
+  if (snode->snoden.named) {
+    // rearrange values order according to the named order
+    std::vector<int> copy = fieldorder;
+    std::sort(copy.begin(), copy.end());
+    for (int i = 1; i < copy.size(); ++i) {
+      if (copy[i-1] == copy[i]) {
+	yyerror("line: %d, col: %d: multiple expression specified for field `%s` in struct `%s`",
+		snode->begloc.row, snode->begloc.col, symname_get(fields[i].type->signature),
+		symname_get(structcatype->struct_layout->name));
+	return;
+      }
+    }
+
+    for (int i = 0; i < fieldorder.size(); ++i) {
+      if (i == fieldorder[i])
+	continue;
+
+      Value *tmpv = values[i];
+      int tmpi = fieldorder[i];
+
+      // go home for tmpi and tmpv
+      while(tmpi != i) {
+	int tmp = fieldorder[tmpi];
+	fieldorder[tmpi] = tmpi;
+
+        Value *tmpvi = values[tmpi];
+	values[tmpi] = tmpv;
+	tmpv = tmpvi;
+	tmpi = tmp;
+      }
+      fieldorder[tmpi] = tmpi;
+      values[tmpi] = tmpv;
+    }
+  }
+
+  // allocate new array and copy related elements to the array
+  StructType *structype = static_cast<StructType *>(llvmtype_from_catype(structcatype));
+  AllocaInst *structure = ir1.gen_var(structype);
+  Value *idxv0 = ir1.gen_int((int)0);
+  std::vector<Value *> idxv(2, idxv0);
+
+  for (size_t i = 0; i < values.size(); ++i) {
+    // get elements address of structure
+    Value *idxvi = ir1.gen_int((int)i);
+    idxv[1] = idxvi;
+    Value *dest = ir1.builder().CreateGEP(// structype, 
+					  structure, idxv);
+    Type *lefttype = structype->getStructElementType(i);
+    aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "field");
+  }
+  
+  auto u = std::make_unique<CalcOperand>(OT_Alloc, structure, structcatype);
+  oprand_stack.push_back(std::move(u));
+}
+
+// 0: function, 1: tuple, -1: error
+static int extract_function_or_tuple(SymTable *symtable, int name, const char **fnname, Function **fn, STEntry **entry) {
+  *fnname = catype_get_type_name(name);
+  *entry = sym_getsym(symtable, name, 1);
+  if (*entry) {  // if it really a function
+    if ((*entry)->sym_type == Sym_FnDecl || (*entry)->sym_type == Sym_FnDef) {
+      *fn = ir1.module().getFunction(*fnname);
+      if (*fn)
+	return 0;
+      else
+	return -1;
+    }
+
+    return -1;
+  }
+
+  int tupleid = symname_check(*fnname);
+  if (tupleid == -1)
+    return -1;
+
+  tupleid = sym_form_type_id(tupleid);
+  *entry = sym_getsym(symtable, tupleid, 1);
+  if (*entry && (*entry)->sym_type == Sym_DataType)
+    return 1;
+
+  return -1;
+}
+
 static void walk_expr_call(ASTNode *p) {
-  // NEXT TODO: handle tuple definition here also, because the form of tuple is the same as function 
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
+
   check_and_determine_param_type(name, args);
 
-  const char *fnname = catype_get_function_name(name->idn.i);
+  const char *fnname = nullptr;
+  Function *fn = nullptr;
+  STEntry *entry = nullptr;
+  int istuple = extract_function_or_tuple(p->symtable, name->idn.i, &fnname, &fn, &entry);
+  if (istuple == -1) {
+      yyerror("line: %d, col: %d: cannot find declared function: '%s'",
+	      p->begloc.row, p->begloc.col, fnname);
+  }
 
-  Function *fn = ir1.module().getFunction(fnname);
-  if (!fn)
-    yyerror("line: %d, col: %d: cannot find declared function: '%s'",
-	    p->begloc.row, p->begloc.col, fnname);
+  // the tuple literal form is the same as function, so handle it here
+  // NEXT TODO: handle tuple definition here also, because the form of tuple is the same as function
+  if (istuple)
+    return walk_expr_tuple(p);
 
   if (args->type != TTE_ArgList)
     yyerror("line: %d, col: %d: not a argument list: '%s'",
@@ -2138,7 +2289,7 @@ static void walk_expr_struct(ASTNode *p) {
   }
   
   auto u = std::make_unique<CalcOperand>(OT_Alloc, structure, structcatype);
-  oprand_stack.push_back(std::move(u)); 
+  oprand_stack.push_back(std::move(u));
 }
 
 static void walk_expr_arrayitem(ASTNode *p) {
@@ -2844,11 +2995,20 @@ static void init_llvm_env() {
 
 static void handle_post_functions() {
   for (auto itr = g_function_post_map.begin(); itr != g_function_post_map.end(); ++itr) {
-    ASTNode *node = (ASTNode *)itr->second;
-    if (!node) {
+    CallParamAux *paramaux = (CallParamAux *)itr->second;
+    if (!paramaux->checked) {
+      // const char *fnname = nullptr;
+      // Function *fn = nullptr;
+      // STEntry *entry = nullptr;
+      // int istuple = extract_function_or_tuple(SymTable *symtable, itr->first, &fnname, &fn, &entry);
+      // if (istuple)
+      // 	return;
+
       yyerror("function `%s` is used but not defined", symname_get(itr->first));
       return;
     }
+
+    ASTNode *node = paramaux->param;
 
     if (node->type == TTE_FnDecl)
       walk_fn_declare(node);

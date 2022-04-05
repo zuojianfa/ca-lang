@@ -296,6 +296,11 @@ typedef struct RootTree {
   int count;
 } RootTree;
 
+typedef struct CallParamAux {
+  int checked;
+  ASTNode *param;
+} CallParamAux;
+
 int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum, int assignop);
 int parse_lexical_char(const char *text);
 int enable_emit_main();
@@ -411,6 +416,8 @@ ASTNode *make_lexical_body(ASTNode *stmts);
 
 void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);
+CallParamAux *new_CallParamAux(ASTNode *param, int checked);
+void delete_CallParamAux(CallParamAux *paramaux);
 
 #ifdef __cplusplus
 END_EXTERN_C

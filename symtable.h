@@ -300,6 +300,7 @@ int sym_tablelen(SymTable *t);
 SymType sym_gettype(SymTable *t, int idx, int parent);
 SLoc sym_getsloc(SymTable *t, int idx, int parent);
 void sym_setsloc(SymTable *st, int idx, SLoc loc);
+int sym_is_sub_symtable(SymTable *sub, SymTable *root);
 
 SymTable *load_symtable(char *buf, int len);
 void sym_destroy(SymTable *t);

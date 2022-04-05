@@ -1,0 +1,49 @@
+fn main() {
+    struct AA();
+    let a: AA = AA();
+    print a;
+
+    // let b = AA();
+    // print b;
+
+    // struct A1(i32);
+    // let a1: A1 = __zero_init__;
+    // print a1; print '\n';
+
+    // struct A2(bool);
+    // let a2: A2 = __zero_init__;
+    // print a2; print '\n';
+
+    // struct A3(f64);
+    // let a3: A3 = __zero_init__;
+    // print a3; print '\n';
+
+    // struct A4(f64, bool);
+    // let a4: A4 = __zero_init__;
+    // print a4; print '\n';
+
+    // struct A5(bool, f64);
+    // let a5: A5 = __zero_init__;
+    // print a5; print '\n';
+
+    // struct A6(bool, f64, i32);
+    // let a6: A6 = __zero_init__;
+    // print a6; print '\n';
+
+    // struct A6a {f1: bool, f2: f64, f3: i32};
+    // let a6a: A6a = __zero_init__;
+    // print a6a; print '\n';
+
+    // struct A7(i32, A1, A2);
+    // let a7: A7 = __zero_init__;
+    // print a7; print '\n';
+
+    // struct A8(i32, A1, A2, A3, A4, A5, A6);
+    // let a8: A8 = __zero_init__;
+    // print a8; print '\n';
+
+    // struct A9(A7, A8);
+    // let a9: A9 = __zero_init__;
+    // print a9; print '\n';
+}
+

@@ -41,6 +41,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name);
 void put_post_function(typeid_t fnname, void *carrier);
 int exists_post_function(typeid_t fnname);
 void *get_post_function(typeid_t fnname);
+void remove_post_function(typeid_t fnname);
 
 int catype_check_identical(CADataType *type1, CADataType *type2);
 int catype_check_identical_in_symtable(SymTable *st1, typeid_t type1, SymTable *st2, typeid_t type2);

@@ -1886,7 +1886,7 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
 
   //void *carrier = get_post_function(fnname);
   // for handle post function declaration or define
-  int existpost = exists_post_function(fnname);
+  CallParamAux *paramaux = get_post_function(fnname);
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (extern_flag) {
     if (entry) {
@@ -1899,8 +1899,11 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
     entry->u.f.rettype = rettype;
 
     ASTNode *decln = build_fn_decl(fnname, arglist, rettype, beg, end);
-    if (existpost)
-      put_post_function(fnname, decln);
+    if (paramaux && !paramaux->checked) {
+      paramaux->param = decln;
+      paramaux->checked = 1;
+      put_post_function(fnname, paramaux);
+    }
 
     return decln;
   } else {
@@ -1930,8 +1933,11 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
     entry->u.f.rettype = rettype;
 
     ASTNode *defn = build_fn_define(fnname, arglist, rettype, beg, end);
-    if (existpost)
-      put_post_function(fnname, defn);
+    if (paramaux && !paramaux->checked) {
+      paramaux->param = defn;
+      paramaux->checked = 1;
+      put_post_function(fnname, paramaux);
+    }
 
     return defn;
   }
@@ -1964,17 +1970,40 @@ int check_fn_define(typeid_t fnname, ASTNode *param) {
   return 0;
 }
 
-ASTNode *make_fn_call(int fnid, ASTNode *param) {
-  dot_emit("fn_call", symname_get(fnid));
+CallParamAux *new_CallParamAux(ASTNode *param, int checked) {
+  CallParamAux *paramaux = (CallParamAux *)malloc(sizeof(CallParamAux));
+  paramaux->param = param;
+  paramaux->checked = checked;
+  return paramaux;
+}
 
-  typeid_t fnname = sym_form_function_id(fnid);
+void delete_CallParamAux(CallParamAux *paramaux) {
+  free(paramaux);
+}
+
+// id: can be function name or tuple name, tuple is special
+ASTNode *make_fn_call(int id, ASTNode *param) {
+  dot_emit("fn_call", symname_get(id));
+
+  typeid_t fnname = sym_form_function_id(id);
+
+  // tuple type cannot have the same name with function in the same symbol table
 
 #ifdef __SUPPORT_BACK_TYPE__
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (entry) {
     check_fn_define(fnname, param);
   } else {
-    put_post_function(fnname, NULL);
+    typeid_t tuplename = sym_form_type_id(id);
+    entry = sym_getsym(param->symtable, tuplename, 1);
+    if (entry) {
+      // find a previously defined tuple name, then do nothing
+    } else {
+      // when no any name find in the symbol table then make a function call
+      // request with specified name, the request may also be tuple call
+      CallParamAux *paramaux = new_CallParamAux(param, 0);
+      put_post_function(fnname, paramaux);
+    }
   }
 #else
   check_fn_define(fnname, param);
@@ -2090,6 +2119,14 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
   *entry->u.datatype.members = *arglist;
   entry->sloc = (SLoc){glineno, gcolno};
   p->entry = entry;
+
+  typeid_t fnid = sym_form_function_id(id);
+  CallParamAux *paramaux = get_post_function(fnid);
+  if (paramaux && !paramaux->checked && sym_is_sub_symtable(paramaux->param->symtable, curr_symtable)) {
+    // check if current symtable is the parent of the request symtable
+    delete_CallParamAux(paramaux);
+    remove_post_function(fnid);
+  }
 
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &entry->sloc);
   return p;

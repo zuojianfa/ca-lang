@@ -295,6 +295,16 @@ void sym_setsloc(SymTable *st, int idx, SLoc loc) {
   sym_getsym(st, idx, 0)->sloc = loc;
 }
 
+int sym_is_sub_symtable(SymTable *sub, SymTable *root) {
+  while (sub != NULL && sub != root)
+    sub = sub->parent;
+
+  if (sub)
+    return 1;
+
+  return 0;
+}
+
 void sym_destroy(SymTable *st) {
   SymTableInner *table = (SymTableInner *)st->opaque;
   delete table;
