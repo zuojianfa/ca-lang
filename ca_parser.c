@@ -1009,6 +1009,35 @@ int is_logic_op(int op) {
   }
 }
 
+typeid_t get_fncall_form_datatype(ASTNode *node, int id) {
+  STEntry *entry = sym_getsym(&g_root_symtable, id, 0);
+  if (entry)
+    return entry->u.f.rettype;
+
+  const char *fnname = catype_get_type_name(id);
+  typeid_t tupleid = sym_form_type_id_by_str(fnname);
+  entry = sym_getsym(node->symtable, tupleid, 1);
+  if (!entry) {
+    yyerror("line: %d, col: %d: can find entry for function call or tuple call: `%s`",
+	    node->begloc.row, node->begloc.col, fnname);
+    return typeid_novalue;
+  }
+
+  if (entry->sym_type != Sym_DataType) {
+    yyerror("line: %d, col: %d: the entry is not datatype entry: `%s`",
+	    node->begloc.row, node->begloc.col, fnname);
+    return typeid_novalue;
+  }
+
+  if (!entry->u.datatype.tuple) {
+    yyerror("line: %d, col: %d: only support tuple call here: `%s`",
+	    node->begloc.row, node->begloc.col, fnname);
+    return typeid_novalue;
+  }
+
+  return entry->u.datatype.id;
+}
+
 typeid_t inference_expr_type(ASTNode *node);
 typeid_t inference_expr_expr_type(ASTNode *node) {
   CADataType *catype = NULL;
@@ -1084,8 +1113,7 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
   case FN_CALL: {
     // get function return type
     ASTNode *idn = node->exprn.operands[0];
-    STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-    type1 = entry->u.f.rettype;
+    type1 = get_fncall_form_datatype(node, idn->idn.i);
     break;
   }
   case STMT_EXPR:
@@ -1326,8 +1354,8 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
   case FN_CALL: {
     // get function return type
     ASTNode *idn = node->exprn.operands[0];
-    STEntry *entry = sym_getsym(&g_root_symtable, idn->idn.i, 0);
-    catype_check_identical_in_symtable_witherror(node->symtable, type, node->symtable, entry->u.f.rettype, 1, &node->begloc);
+    typeid_t type1 = get_fncall_form_datatype(node, idn->idn.i);
+    catype_check_identical_in_symtable_witherror(node->symtable, type, node->symtable, type1, 1, &node->begloc);
     break;
   }
   case STMT_EXPR:
@@ -1943,7 +1971,8 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   }
 }
 
-int check_fn_define(typeid_t fnname, ASTNode *param) {
+int check_fn_define(typeid_t fnname, ASTNode *param, int tuple) {
+  // NEXT TODO: tuple
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   if (!entry) {
     yyerror("line: %d, col: %d: function '%s' not defined", glineno, gcolno, symname_get(fnname));
@@ -1989,25 +2018,25 @@ ASTNode *make_fn_call(int id, ASTNode *param) {
 
   // tuple type cannot have the same name with function in the same symbol table
 
-#ifdef __SUPPORT_BACK_TYPE__
+  int tuple = 0;
   STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
-  if (entry) {
-    check_fn_define(fnname, param);
-  } else {
+  if (!entry) {
     typeid_t tuplename = sym_form_type_id(id);
     entry = sym_getsym(param->symtable, tuplename, 1);
     if (entry) {
       // find a previously defined tuple name, then do nothing
-    } else {
-      // when no any name find in the symbol table then make a function call
-      // request with specified name, the request may also be tuple call
-      CallParamAux *paramaux = new_CallParamAux(param, 0);
-      put_post_function(fnname, paramaux);
+      tuple = 1;
     }
   }
-#else
-  check_fn_define(fnname, param);
-#endif
+
+  if (entry) {
+    check_fn_define(fnname, param, tuple);
+  } else {
+    // when no any name find in the symbol table then make a function call
+    // request with specified name, the request may also be tuple call
+    CallParamAux *paramaux = new_CallParamAux(param, 0);
+    put_post_function(fnname, paramaux);
+  }
 
   return make_expr(FN_CALL, 2, make_id(fnname, TTEId_FnName), param);
 }

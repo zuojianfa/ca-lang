@@ -1,6 +1,6 @@
 fn main() {
     struct AA();
-    let a: AA = AA();
+    let a = AA();
     print a;
 
     // let b = AA();

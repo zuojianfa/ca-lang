@@ -3,8 +3,6 @@
 
 #include "ca_types.h"
 
-#define __SUPPORT_BACK_TYPE__
-
 #define BEGIN_EXTERN_C extern "C" {
 #define END_EXTERN_C }
 
@@ -402,7 +400,7 @@ CAStructExpr structexpr_append(CAStructExpr sexpr, ASTNode *expr);
 CAStructExpr structexpr_append_named(CAStructExpr sexpr, ASTNode *expr, int name);
 CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named);
 
-int check_fn_define(typeid_t fnname, ASTNode *param);
+int check_fn_define(typeid_t fnname, ASTNode *param, int tuple);
 // for tree node compress deep into wide, begin for stmt list beginning
 void put_astnode_into_list(ASTNode *stmt, int begin);
 

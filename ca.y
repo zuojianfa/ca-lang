@@ -447,6 +447,7 @@ array_def_items:array_def_items ',' expr { $$ = arrayexpr_append($1, $3); }
 
 struct_expr:	IDENT '{' struct_expr_fields  '}' { $$ = structexpr_end($3, $1, 0); }
 	|	IDENT '{' named_struct_expr_fields '}' { $$ = structexpr_end($3, $1, 1); }
+	|	IDENT '{' '}' { $$ = structexpr_end(structexpr_new(), $1, 0); }
 	;
 
 struct_expr_fields: struct_expr_fields ',' expr { $$ = structexpr_append($1, $3); }

@@ -1586,18 +1586,19 @@ static void walk_unary_expr(ASTNode *p) {
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v, dt));
 }
 
-static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
+static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tuple, STEntry *entry) {
   typeid_t fnname = name->idn.i;
   if (name->idn.idtype != IdType::TTEId_FnName) {
-      yyerror("line: %d, col: %d: the id: `%s` is not function name",
-	      param->begloc.row, param->begloc.col, symname_get(fnname));
+      yyerror("line: %d, col: %d: the id: `%s` is not `%s` name",
+	      param->begloc.row, param->begloc.col, symname_get(fnname), tuple ? "tuple" : "function");
+      return;
   }
 
-#ifdef __SUPPORT_BACK_TYPE__
-  check_fn_define(fnname, param);
-#endif
+  check_fn_define(fnname, param, tuple);
+
+  // NEXT TODO: tuple
   
-  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
+  //STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
   ST_ArgList *formalparam = entry->u.f.arglists;
 
   // check and determine parameter type
@@ -1785,8 +1786,6 @@ static void walk_expr_call(ASTNode *p) {
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
 
-  check_and_determine_param_type(name, args);
-
   const char *fnname = nullptr;
   Function *fn = nullptr;
   STEntry *entry = nullptr;
@@ -1798,6 +1797,9 @@ static void walk_expr_call(ASTNode *p) {
 
   // the tuple literal form is the same as function, so handle it here
   // NEXT TODO: handle tuple definition here also, because the form of tuple is the same as function
+
+  check_and_determine_param_type(name, args, istuple, entry);
+
   if (istuple)
     return walk_expr_tuple(p);
 
@@ -2997,13 +2999,6 @@ static void handle_post_functions() {
   for (auto itr = g_function_post_map.begin(); itr != g_function_post_map.end(); ++itr) {
     CallParamAux *paramaux = (CallParamAux *)itr->second;
     if (!paramaux->checked) {
-      // const char *fnname = nullptr;
-      // Function *fn = nullptr;
-      // STEntry *entry = nullptr;
-      // int istuple = extract_function_or_tuple(SymTable *symtable, itr->first, &fnname, &fn, &entry);
-      // if (istuple)
-      // 	return;
-
       yyerror("function `%s` is used but not defined", symname_get(itr->first));
       return;
     }

@@ -631,7 +631,6 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 	// yhandling tuple - named (Name; <type1>, <type2>, <type3>)
 	ret = catype_unwind_type_struct(symtable, pch, prenamemap, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt, 1);
 	// NEXT TODO: or unnamed: (<anytype>,<anytype>,<anytype>[,])
-	ret = -1;
 	break;
       case '<':
 	// TODO: handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
@@ -696,10 +695,9 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 				     const std::set<std::string> &rcheckset,
 				     char *sigbuf, int &buflen, int *typesize,
 				     CADataType **retdt, int tuple) {
-  // NEXT TODO: handle tuple 
   const char *pch = pchbegin;
   int sigi = 0;
-  sigbuf[sigi++] = *pch++; // = '{';
+  sigbuf[sigi++] = *pch++; // = '{'; or '(' when tuple
   int i = 0;
   int tmptypesize = 0;
   int sizeerror = 0;
@@ -718,9 +716,13 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     return -1;
   }
 
-  if (*pch != '}') {
+  if ((!tuple && *pch != '}') || (tuple && *pch != ')')) {
     if (*pch != ';') {
-      yyerror("(internal) bad format of struct `%s` != ';' or '}'", pch);
+      if (tuple)
+	yyerror("(internal) bad format of tuple `%s` != ';' or ')'", pch);
+      else
+	yyerror("(internal) bad format of struct `%s` != ';' or '}'", pch);
+
       return -1;
     }
 
@@ -738,7 +740,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     int nameid = symname_check_insert(namebuf);
     addrdt = catype_make_type_symname(nameid, STRUCT, *typesize);
     castruct = new CAStruct;
-    castruct->tuple = 0;
+    castruct->tuple = tuple;
     castruct->name = nameid;
     castruct->fieldnum = 0;
     castruct->capacity = 10;
@@ -752,29 +754,31 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 
   namemap.insert(std::make_pair(namebuf, addrdt));
 
-  while (*pch != '}') {
-    int tsize = 0;
-    i = 0;
-    while(isalnum(*pch) || *pch == '_') {
-      sigbuf[sigi++] = *pch;
-      namebuf[i++] = *pch++;
-    }
-    namebuf[i] = 0;
+  while ((!tuple && *pch != '}') || (tuple && *pch != ')')) {
+    if (!tuple) {
+      i = 0;
+      while(isalnum(*pch) || *pch == '_') {
+	sigbuf[sigi++] = *pch;
+	namebuf[i++] = *pch++;
+      }
+      namebuf[i] = 0;
 
-    if (i == 0) {
-      yyerror("(internal) this struct type member have no name `%s`", pch);
-      return -1;
-    }
+      if (i == 0) {
+	yyerror("(internal) this struct type member have no name `%s`", pch);
+	return -1;
+      }
 
-    if (*pch != ':') {
-      yyerror("(internal) bad format of struct `%s` != ':'", pch);
-      return -1;
-    }
+      if (*pch != ':') {
+	yyerror("(internal) bad format of struct `%s` != ':'", pch);
+	return -1;
+      }
 
-    sigbuf[sigi++] = *pch++; // = ':';
+      sigbuf[sigi++] = *pch++; // = ':';
+    }
 
     int tbuflen = buflen - sigi;
 
+    int tsize = 0;
     CADataType **outdt = retdt ? &dt : nullptr;
     int ret = catype_unwind_type_signature_inner(symtable, pch, namemap, checkset, sigbuf+sigi, tbuflen, &tsize, outdt);
     if (ret == -1) {
@@ -796,10 +800,10 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
       tmptypesize += tsize;
 
     if (retdt)
-      castruct_add_member(castruct, symname_check_insert(namebuf), *outdt);
+      castruct_add_member(castruct, tuple ? -1 : symname_check_insert(namebuf), *outdt);
   }
 
-  sigbuf[sigi++] = *pch++; // = '}';
+  sigbuf[sigi++] = *pch++; // = '}'; or ')' when tuple
   buflen = sigi;
 
   if (sizeerror)
