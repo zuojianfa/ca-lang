@@ -102,7 +102,7 @@ entry:
   %n23 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @32, i32 0, i32 0), i64 %18), !dbg !30
   %n24 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @33, i32 0, i32 0)), !dbg !30
   %n25 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @34, i32 0, i32 0), i8 10), !dbg !31
-  %n26 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([22 x i8], [22 x i8]* @35, i32 0, i32 0), i64 30, i8* getelementptr inbounds ([65 x i8], [65 x i8]* @36, i32 0, i32 0)), !dbg !32
+  %n26 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([22 x i8], [22 x i8]* @35, i32 0, i32 0), i64 32, i8* getelementptr inbounds ([65 x i8], [65 x i8]* @36, i32 0, i32 0)), !dbg !32
   br label %ret, !dbg !33
 
 ret:                                              ; preds = %entry

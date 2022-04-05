@@ -365,6 +365,7 @@ ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_array_def(CAArrayExpr expr);
 ASTNode *make_struct_expr(CAStructExpr expr);
+ASTNode *make_tuple_expr(CAStructExpr expr);
 ASTNode *make_arrayitem_right(ArrayItem ai);
 ASTNode *make_structfield_right(StructFieldOp sfop);
 ASTNode *make_boxed_expr(ASTNode *expr);
@@ -401,7 +402,8 @@ int check_fn_define(typeid_t fnname, ASTNode *param);
 void put_astnode_into_list(ASTNode *stmt, int begin);
 
 int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var);
-ASTNode *make_struct_type(int id, ST_ArgList *arglist);
+int add_tuple_member(ST_ArgList *arglist, typeid_t tid);
+ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple);
 
 //void push_lexical_body();
 //void pop_lexical_body();

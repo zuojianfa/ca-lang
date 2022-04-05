@@ -1001,7 +1001,6 @@ static void walk_box(ASTNode *p) {
   pointerty->pointer_layout->allocpos = CAPointerAllocPos::PP_Heap;
   Type *type = llvmtype_from_catype(pointerty);
 
-  // NEXT TODO:
   // 1. invoke allocate memory function to allocate memory,
   Value *heapv = llvmcode_box(pointeety->size, type);
 
@@ -1215,8 +1214,9 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
     Constant *sname = ir1.builder().CreateGlobalStringPtr(name);
     CAStructField *fields = catype->struct_layout->fields;
     len = catype->struct_layout->fieldnum;
+    int tuple = catype->struct_layout->tuple;
 
-    llvmcode_printf(fn, "%s { ", sname, nullptr);
+    llvmcode_printf(fn, tuple ? "%s ( " : "%s { ", sname, nullptr);
     for (int i = 0; i < len; ++i) {
       //ConstantArray *arrayv = static_cast<ConstantArray *>(v);
       //Constant *subv = arrayv->getAggregateElement(i);
@@ -1225,9 +1225,11 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
       //Value *subv = ir1.builder().CreateGEP(v, idx, "subv");
 
       //Type* array_t =  llvm::PointerType::getUnqual(v->getType());
-      name = symname_get(fields[i].name); // field name
-      sname = ir1.builder().CreateGlobalStringPtr(name);
-      llvmcode_printf(fn, "%s: ", sname, nullptr);
+      if (!tuple) {
+	name = symname_get(fields[i].name); // field name
+	sname = ir1.builder().CreateGlobalStringPtr(name);
+	llvmcode_printf(fn, "%s: ", sname, nullptr);
+      }
 
       Value *subv = ir1.builder().CreateExtractValue(v, i);
       dbgprint_complex(fn, fields[i].type, subv);
@@ -1236,7 +1238,7 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
 	llvmcode_printf(fn, ", ", nullptr);
     }
 
-    llvmcode_printf(fn, " }", nullptr);
+    llvmcode_printf(fn, tuple ? " )" : " }", nullptr);
     //yyerror("dbgprint for struct type not implmeneted yet");
     break;
   }
@@ -1291,14 +1293,8 @@ static void walk_dbgprint(ASTNode *p) {
 }
 
 static void walk_dbgprinttype(ASTNode *p) {
-  int typesize = 0;
-  CADataType *dt = nullptr;
-  typeid_t unwind = catype_unwind_type_signature(p->symtable, p->printtypen.type, &typesize, &dt);
-  if (unwind == typeid_novalue) {
-    yyerror("line: %d, col: %d: unwind type `%s` failed",
-	    p->begloc.col, p->begloc.row, symname_get(p->printtypen.type));
-    return;
-  }
+  CADataType *dt = catype_get_by_name(p->symtable, p->printtypen.type);
+  int typesize = dt->size;
 
   // print datatype information when compiling
   debug_catype_datatype(dt);
@@ -1313,7 +1309,7 @@ static void walk_dbgprinttype(ASTNode *p) {
   Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
 
   // TODO: type string
-  Constant *type_str = ir1.builder().CreateGlobalStringPtr(symname_get(unwind));
+  Constant *type_str = ir1.builder().CreateGlobalStringPtr(symname_get(dt->signature));
 
   Value *value = ir1.gen_int((uint64_t)typesize);
   std::vector<Value *> printf_args(1, format_str);
@@ -1642,6 +1638,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param) {
 }
 
 static void walk_expr_call(ASTNode *p) {
+  // NEXT TODO: handle tuple definition here also, because the form of tuple is the same as function 
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
   check_and_determine_param_type(name, args);
@@ -1952,7 +1949,6 @@ static void walk_expr_as(ASTNode *node) {
 }
 
 static void walk_expr_sizeof(ASTNode *id) {
-  int typesize = 0;
   CADataType *catype = catype_get_by_name(id->symtable, id->idn.i);
   Value *value = ir1.gen_int((uint64_t)catype->size);
   CADataType *sizetype = catype_get_primitive_by_token(U64);
@@ -2472,7 +2468,7 @@ static void walk_struct(ASTNode *node) {
 
   STEntry *entry = node->entry;
   typeid_t id = entry->u.datatype.id;
-  
+
   CADataType *dt = catype_get_by_name(node->symtable, id);
   CHECK_GET_TYPE_VALUE(node, dt, id);
 }

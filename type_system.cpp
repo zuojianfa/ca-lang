@@ -455,17 +455,20 @@ void debug_catype_datatype_aux(const CADataType *datatype, std::set<const CAData
     break;
   case STRUCT:
     debug_print_tab(identhead);
-    fprintf(out_source, "{%s@%p\n", symname_get(datatype->formalname), datatype);
+    fprintf(out_source, "%c%s@%p\n", datatype->struct_layout->tuple ? '(' : '{', symname_get(datatype->formalname), datatype);
+
     accessed.insert(datatype);
     for (int i = 0; i < datatype->struct_layout->fieldnum; ++i) {
       debug_print_tab(ident + 1);
-      fprintf(out_source, "%s: ", symname_get(datatype->struct_layout->fields[i].name));
+      if (!datatype->struct_layout->tuple)
+	fprintf(out_source, "%s: ", symname_get(datatype->struct_layout->fields[i].name));
+
       debug_catype_datatype_aux(datatype->struct_layout->fields[i].type, accessed, 0, ident + 1);
       fprintf(out_source, ",\n");
     }
 
     debug_print_tab(ident);
-    fprintf(out_source, "}");
+    fprintf(out_source, datatype->struct_layout->tuple ? ")" : "}");
     break;
   default:
     fprintf(out_source, "%s", get_type_string_for_signature(datatype->type));
@@ -732,6 +735,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     int nameid = symname_check_insert(namebuf);
     addrdt = catype_make_type_symname(nameid, STRUCT, *typesize);
     castruct = new CAStruct;
+    castruct->tuple = 0;
     castruct->name = nameid;
     castruct->fieldnum = 0;
     castruct->capacity = 10;
@@ -999,6 +1003,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     int nameid = symname_check_insert(namebuf);
     addrdt = catype_make_type_symname(nameid, STRUCT, *typesize);
     castruct = new CAStruct;
+    castruct->tuple = entry->u.datatype.tuple;
     castruct->name = nameid;
     castruct->fieldnum = 0;
     castruct->capacity = 10;
@@ -1013,21 +1018,33 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
   int sizeerror = 0;
   int calcing = 0;
 
-  int sigi = sprintf(sigbuf, "{%s;", caname);
+  int sigi = 0;
+  if (castruct->tuple)
+    sigi = sprintf(sigbuf, "(%s;", caname);
+  else
+    sigi = sprintf(sigbuf, "{%s;", caname);
+
   ST_ArgList *members = entry->u.datatype.members;
   for (int j = 0; j < members->argc; ++j) {
-    int tsize = 0;
-    const char *argname = symname_get(members->argnames[j]);
-    STEntry *nameentry = sym_getsym(members->symtable, members->argnames[j], 0);
-    if (nameentry->sym_type != Sym_Member) {
-      yyerror("(internal) symbol type is not struct member for argument: `%s`", argname);
-      return -1;
+    typeid_t membertype = typeid_novalue;
+    if (castruct->tuple) {
+      membertype = members->types[j];
+    } else {
+      const char *argname = symname_get(members->argnames[j]);
+      STEntry *nameentry = sym_getsym(members->symtable, members->argnames[j], 0);
+      if (nameentry->sym_type != Sym_Member) {
+	yyerror("(internal) symbol type is not struct member for argument: `%s`", argname);
+	return -1;
+      }
+
+      sigi += sprintf(sigbuf + sigi, "%s:", argname);
+      membertype = nameentry->u.var->datatype;
     }
 
-    sigi += sprintf(sigbuf + sigi, "%s:", argname);
-    const char *mtypename = catype_get_type_name(nameentry->u.var->datatype);
+    const char *mtypename = catype_get_type_name(membertype);
     int tbuflen = buflen - sigi;
 
+    int tsize = 0;
     CADataType **outdt = retdt ? &dt : nullptr;
     int ret = catype_unwind_type_signature_inner(members->symtable, mtypename,
 						 namemap, checkset, sigbuf + sigi, tbuflen, &tsize, outdt);
@@ -1050,7 +1067,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
       castruct_add_member(castruct, members->argnames[j], *outdt);
   }
 
-  sigbuf[sigi-1] = '}'; // remove last ',' or ';' when it is empty struct
+  sigbuf[sigi-1] = castruct->tuple ? ')' : '}'; // remove last ',' or ';' when it is empty struct
   sigbuf[sigi] = '\0';
 
   buflen = sigi;

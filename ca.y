@@ -103,7 +103,7 @@ extern int yychar, yylineno;
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
 %type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
 %type			fn_args_p fn_args_call_p
-%type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def type_def
+%type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
 %type	<forstmtid>	for_stmt_ident
 %type	<var>		iddef iddef_typed
@@ -206,6 +206,7 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	label_def               { dot_emit("stmt", "label_def"); $$ = $1; }
 	|	GOTO label_id ';'       { $$ = make_goto($2); }
 	|	struct_type_def         { $$ = $1; }
+	|	tuple_type_def          { $$ = $1; }
 	|	type_def                { $$ = $1; }
 	|	DROP IDENT ';'          { $$ = make_drop($2); }
 	;
@@ -314,6 +315,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	array_def             { $$ = make_array_def($1); }
 	|	array_item            { $$ = make_arrayitem_right($1); }
 	|	struct_expr           { $$ = make_struct_expr($1); }
+//	|	tuple_expr            { $$ = make_tuple_expr($1); }
 	|	IDENT                 { $$ = make_ident_expr($1); }
 	|	arith_expr            { $$ = $1; }
 	|	cmp_expr              { $$ = $1; }
@@ -378,7 +380,7 @@ struct_type_def: STRUCT IDENT
 		curr_arglist.argc = 0;
 		curr_arglist.symtable = curr_symtable;
 		}
-		'{' struct_members_dot '}'       { $$ = make_struct_type($2, &curr_arglist); }
+		'{' struct_members_dot '}'       { $$ = make_struct_type($2, &curr_arglist, 0); }
 	;
 
 struct_members_dot: struct_members | struct_members ','
@@ -386,6 +388,23 @@ struct_members_dot: struct_members | struct_members ','
 struct_members: struct_members ',' iddef_typed   { add_struct_member(&curr_arglist, curr_symtable, $3); }
 	|	iddef_typed                      { add_struct_member(&curr_arglist, curr_symtable, $1); }
 	|	
+	;
+
+tuple_type_def:	STRUCT IDENT
+		{
+		SymTable *st = push_new_symtable();
+		curr_arglist.argc = 0;
+		curr_arglist.symtable = curr_symtable;
+		}
+		'(' tuple_members_dot ')' ';'        { $$ = make_struct_type($2, &curr_arglist, 1); }
+	;
+
+tuple_members_dot: tuple_members | tuple_members ','
+	;
+
+tuple_members:	tuple_members ',' data_type      { add_tuple_member(&curr_arglist, $3); }
+	|	data_type                        { add_tuple_member(&curr_arglist, $1); }
+	|
 	;
 
 type_def:	TYPE IDENT '=' data_type ';' { $$ = make_type_def($2, $4); }
@@ -438,6 +457,14 @@ named_struct_expr_fields:
 		named_struct_expr_fields ',' IDENT ':' expr { $$ = structexpr_append_named($1, $5, $3); }
 	|	IDENT ':' expr { $$ = structexpr_append_named(structexpr_new(), $3, $1); }
 	;
+
+//tuple_expr:	IDENT '(' tuple_expr_fields ')'
+//	;
+
+//tuple_expr_fields:
+//		tuple_expr_fields ',' expr
+//	|	expr
+//	;
 
 %%
 

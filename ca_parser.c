@@ -615,6 +615,10 @@ ASTNode *make_struct_expr(CAStructExpr expr) {
   return node;
 }
 
+ASTNode *make_tuple_expr(CAStructExpr expr) {
+  //
+}
+
 ASTNode *make_arrayitem_right(ArrayItem ai) {
   ASTNode *p = new_ASTNode(TTE_ArrayItemRight);
   p->aitemn = ai;
@@ -2037,7 +2041,18 @@ int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
   return 0;
 }
 
-ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
+int add_tuple_member(ST_ArgList *arglist, typeid_t tid) {
+  if (arglist->argc >= MAX_ARGS) {
+    yyerror("line: %d, col: %d: too many struct members '%d', max member supports are `%d`",
+	    glineno, gcolno, arglist->argc, MAX_ARGS);
+    return -1;
+  }
+
+  arglist->types[arglist->argc++] = tid;
+  return 0;
+}
+
+ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
   dot_emit("struct_type_def", "IDENT");
 
   // see make_fn_proto
@@ -2066,6 +2081,7 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist) {
 
   ASTNode *p = new_ASTNode(TTE_Struct);
   entry = sym_insert(curr_symtable, structtype, Sym_DataType);
+  entry->u.datatype.tuple = tuple;
   entry->u.datatype.id = structtype;
   entry->u.datatype.idtable = curr_symtable;
   entry->u.datatype.members = (ST_ArgList *)malloc(sizeof(ST_ArgList));

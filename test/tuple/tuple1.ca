@@ -1,0 +1,25 @@
+fn main() {
+    struct AA();
+    dbgprinttype AA;
+    struct A1(i32);
+    dbgprinttype A1;
+    struct A2(bool);
+    dbgprinttype A2;
+    struct A3(f64);
+    dbgprinttype A3;
+    struct A4(f64, bool);
+    dbgprinttype A4;
+    struct A5(bool, f64);
+    dbgprinttype A5;
+    struct A6(bool, f64, i32);
+    dbgprinttype A6;
+    struct A6a {f1: bool, f2: f64, f3: i32};
+    dbgprinttype A6a;
+    struct A7(i32, A1, A2);
+    dbgprinttype A7;
+    struct A8(i32, A1, A2, A3, A4, A5, A6);
+    dbgprinttype A8;
+    struct A9(A7, A8);
+    dbgprinttype A9;
+}
+

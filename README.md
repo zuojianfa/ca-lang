@@ -209,9 +209,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support octal literal: 0o777 -0o1000
 - [x] support hex literal: 0xffff -0xfe23
 - [x] support decimal literal
+- [x] support binary literal value: 0b010100101000100101 -0b1110101001
 - [ ] support tuple struct type
 - [ ] add tuple struct literal
-- [ ] support binary literal value: 0b010100101000100101 -0b1110101001
 - [ ] if else if else ...
 - [ ] support never return type `!` like rust
 - [ ] support multiple compile unit and link them together
@@ -293,7 +293,7 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-- [ ] support binary literal value: 0b010100101000100101 -0b1110101001
+- [ ] tuple literal and debugging
 - [ ] if else if else ...
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
 - [ ] 'label1: loop
@@ -347,6 +347,14 @@ struct AA {} => t:{AA}
 struct A2 {a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8} => t:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}
 struct A3 {a: AA, b: A1, c: A2} => t:{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}}
 ? => t:*{A5;a:{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},b:*{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},c:**{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},d:***{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},e:****{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}}}
+```
+
+## tuple type inner representation
+```
+struct AA () => t:(AA)
+struct A1 (i32) => t:(A1;i32)
+struct A2 (i32, bool) => t:(A2;i32,bool)
+struct A3 (i32, AA, A1, A2) => t:(A3; i32, (AA), (A1;i32), (A2; i32, bool))
 ```
 
 ## array type inner representation
