@@ -54,6 +54,7 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name,
                                       int *typesize, CADataType **retdt);
 
 void debug_catype_datatype(const CADataType *datatype);
+int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, const char **fnname, void **fn);
 
 #ifdef __cplusplus
 END_EXTERN_C

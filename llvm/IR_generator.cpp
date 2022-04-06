@@ -1594,7 +1594,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
       return;
   }
 
-  check_fn_define(fnname, param, tuple);
+  check_fn_define(fnname, param, tuple, entry);
 
   // NEXT TODO: tuple
   
@@ -1754,34 +1754,6 @@ static void walk_expr_tuple(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
-// 0: function, 1: tuple, -1: error
-static int extract_function_or_tuple(SymTable *symtable, int name, const char **fnname, Function **fn, STEntry **entry) {
-  *fnname = catype_get_type_name(name);
-  *entry = sym_getsym(symtable, name, 1);
-  if (*entry) {  // if it really a function
-    if ((*entry)->sym_type == Sym_FnDecl || (*entry)->sym_type == Sym_FnDef) {
-      *fn = ir1.module().getFunction(*fnname);
-      if (*fn)
-	return 0;
-      else
-	return -1;
-    }
-
-    return -1;
-  }
-
-  int tupleid = symname_check(*fnname);
-  if (tupleid == -1)
-    return -1;
-
-  tupleid = sym_form_type_id(tupleid);
-  *entry = sym_getsym(symtable, tupleid, 1);
-  if (*entry && (*entry)->sym_type == Sym_DataType)
-    return 1;
-
-  return -1;
-}
-
 static void walk_expr_call(ASTNode *p) {
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
@@ -1789,7 +1761,7 @@ static void walk_expr_call(ASTNode *p) {
   const char *fnname = nullptr;
   Function *fn = nullptr;
   STEntry *entry = nullptr;
-  int istuple = extract_function_or_tuple(p->symtable, name->idn.i, &fnname, &fn, &entry);
+  int istuple = extract_function_or_tuple(p->symtable, name->idn.i, &entry, &fnname, &fn);
   if (istuple == -1) {
       yyerror("line: %d, col: %d: cannot find declared function: '%s'",
 	      p->begloc.row, p->begloc.col, fnname);

@@ -1,6 +1,7 @@
 
 #include <alloca.h>
 #include <assert.h>
+#include <cstddef>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -1971,21 +1972,14 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   }
 }
 
-int check_fn_define(typeid_t fnname, ASTNode *param, int tuple) {
+int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry) {
   // NEXT TODO: tuple
-  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
-  if (!entry) {
-    yyerror("line: %d, col: %d: function '%s' not defined", glineno, gcolno, symname_get(fnname));
-    return -1;
-  }
-
-  if (entry->sym_type != Sym_FnDecl && entry->sym_type != Sym_FnDef) {
-    yyerror("line: %d, col: %d: '%s' is not a function", glineno, gcolno, symname_get(fnname));
-    return -1;
-  }
-
   // check formal parameter and actual parameter
-  ST_ArgList *formalparam = entry->u.f.arglists;
+  ST_ArgList *formalparam = NULL;
+  if (tuple)
+    formalparam = entry->u.datatype.members;
+  else
+    formalparam = entry->u.f.arglists;
 
   // check parameter number
   if(formalparam->contain_varg && formalparam->argc > param->arglistn.argc
@@ -2018,19 +2012,15 @@ ASTNode *make_fn_call(int id, ASTNode *param) {
 
   // tuple type cannot have the same name with function in the same symbol table
 
-  int tuple = 0;
-  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
-  if (!entry) {
-    typeid_t tuplename = sym_form_type_id(id);
-    entry = sym_getsym(param->symtable, tuplename, 1);
-    if (entry) {
-      // find a previously defined tuple name, then do nothing
-      tuple = 1;
-    }
+  STEntry *entry = NULL;
+  int tuple = extract_function_or_tuple(param->symtable, fnname, &entry, NULL, NULL);
+  if (tuple == -1) {
+    yyerror("line: %d, col: %d: extract function or tuple name '%s' failed", glineno, gcolno, symname_get(id));
+    return NULL;
   }
 
   if (entry) {
-    check_fn_define(fnname, param, tuple);
+    check_fn_define(fnname, param, tuple, entry);
   } else {
     // when no any name find in the symbol table then make a function call
     // request with specified name, the request may also be tuple call

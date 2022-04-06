@@ -400,7 +400,7 @@ CAStructExpr structexpr_append(CAStructExpr sexpr, ASTNode *expr);
 CAStructExpr structexpr_append_named(CAStructExpr sexpr, ASTNode *expr, int name);
 CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named);
 
-int check_fn_define(typeid_t fnname, ASTNode *param, int tuple);
+int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry);
 // for tree node compress deep into wide, begin for stmt list beginning
 void put_astnode_into_list(ASTNode *stmt, int begin);
 

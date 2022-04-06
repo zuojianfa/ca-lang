@@ -3247,3 +3247,40 @@ static CADataType *catype_make_type(const char *name, int type, int size) {
   catype_put_primitive_by_name(formalname, datatype);
   return datatype;
 }
+
+
+// 0: function, 1: tuple, -1: error
+int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, const char **fnname, void **fn) {
+  const char *fnname_ = catype_get_type_name(name);
+  if (fnname)
+    *fnname = fnname_;
+
+  *entry = sym_getsym(g_root_symtable /* symtable */, name, 1);
+  if (*entry) {  // if it really a function
+    if ((*entry)->sym_type == Sym_FnDecl || (*entry)->sym_type == Sym_FnDef) {
+      if (fn) {
+	*fn = ir1.module().getFunction(fnname_);
+	if (*fn)
+	  return 0;
+	else
+	  return -1;
+      }
+
+      return 0;
+    }
+
+    return -1;
+  }
+
+  int tupleid = symname_check(fnname_);
+  if (tupleid == -1)
+    return -1;
+
+  tupleid = sym_form_type_id(tupleid);
+  *entry = sym_getsym(symtable, tupleid, 1);
+  if (*entry && (*entry)->sym_type == Sym_DataType)
+    return 1;
+
+  return -1;
+}
+
