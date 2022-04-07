@@ -210,8 +210,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support hex literal: 0xffff -0xfe23
 - [x] support decimal literal
 - [x] support binary literal value: 0b010100101000100101 -0b1110101001
-- [ ] support tuple struct type
-- [ ] add tuple struct literal
+- [x] support tuple struct type
+- [x] add tuple struct literal
 - [ ] if else if else ...
 - [ ] support never return type `!` like rust
 - [ ] support multiple compile unit and link them together
@@ -241,7 +241,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [ ] break 'label1 # labeled break
   - [ ] mod scope
   - [ ] use package
-  - [ ] tuple
+  - [x] named tuple
+  - [ ] unnamed tuple
   - [ ] destructure operator: let S(x) = A; let S{x} = A;
   - [ ] default acceptor _
   - [ ] slice operator and infrastructure
@@ -294,9 +295,6 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-- [ ] search check_fn_define
-- [ ] walk_tuple
-- [ ] named tuple literal and debugging
 - [ ] unnamed tuple literal and debugging
 - [ ] check unique tuple name and function name in the same symbol table, they are conflicting not like struct
 - [ ] function definition can be in any scope
@@ -304,7 +302,7 @@ NEXT TODO:
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
 - [ ] 'label1: loop
 - [ ] match
-- [ ] tuple
+- [ ] named tuple
 - [ ] destructure operator: let S(x) = A; let S{x} = A;
 - [ ] mod scope
 - [ ] use package

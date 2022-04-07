@@ -378,6 +378,7 @@ struct_type_def: STRUCT IDENT
 		{
 		SymTable *st = push_new_symtable();
 		curr_arglist.argc = 0;
+		curr_arglist.contain_varg = 0;
 		curr_arglist.symtable = curr_symtable;
 		}
 		'{' struct_members_dot '}'       { $$ = make_struct_type($2, &curr_arglist, 0); }
@@ -394,6 +395,7 @@ tuple_type_def:	STRUCT IDENT
 		{
 		SymTable *st = push_new_symtable();
 		curr_arglist.argc = 0;
+		curr_arglist.contain_varg = 0;
 		curr_arglist.symtable = curr_symtable;
 		}
 		'(' tuple_members_dot ')' ';'        { $$ = make_struct_type($2, &curr_arglist, 1); }

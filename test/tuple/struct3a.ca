@@ -1,0 +1,9 @@
+fn main() {
+    struct A1{f1: i32};
+    struct A2{f2: A1};
+
+    let a1: A1 = A1{34};
+    let a2: A2 = A2{a1};
+    //print a2; print '\n';
+}
+

@@ -70,6 +70,7 @@ END_EXTERN_C
 extern int glineno;
 extern int gcolno;
 extern ir_codegen::IR1 ir1;
+extern SymTable g_root_symtable;
 
 std::vector<CALiteral> *arraylit_deref(CAArrayLit obj);
 
@@ -630,7 +631,7 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
       case '(':
 	// yhandling tuple - named (Name; <type1>, <type2>, <type3>)
 	ret = catype_unwind_type_struct(symtable, pch, prenamemap, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt, 1);
-	// NEXT TODO: or unnamed: (<anytype>,<anytype>,<anytype>[,])
+	// NEXT TODO: handle unnamed tuple: (<anytype>,<anytype>,<anytype>[,])
 	break;
       case '<':
 	// TODO: handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
@@ -2288,6 +2289,41 @@ const char *catype_get_type_name(typeid_t type) {
   return symname_get(type) + 2;
 }
 
+// 0: function, 1: tuple, -1: error
+int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, const char **fnname, void **fn) {
+  const char *fnname_ = catype_get_type_name(name);
+  if (fnname)
+    *fnname = fnname_;
+
+  *entry = sym_getsym(&g_root_symtable /* symtable */, name, 1);
+  if (*entry) {  // if it really a function
+    if ((*entry)->sym_type == Sym_FnDecl || (*entry)->sym_type == Sym_FnDef) {
+      if (fn) {
+	*fn = ir1.module().getFunction(fnname_);
+	if (*fn)
+	  return 0;
+	else
+	  return -1;
+      }
+
+      return 0;
+    }
+
+    return -1;
+  }
+
+  int tupleid = symname_check(fnname_);
+  if (tupleid == -1)
+    return -1;
+
+  tupleid = sym_form_type_id(tupleid);
+  *entry = sym_getsym(symtable, tupleid, 1);
+  if (*entry && (*entry)->sym_type == Sym_DataType)
+    return 1;
+
+  return -1;
+}
+
 // unwind the type into type object, when have object like members
 // e.g.
 // example 1:
@@ -3246,41 +3282,5 @@ static CADataType *catype_make_type(const char *name, int type, int size) {
   datatype->struct_layout = nullptr;
   catype_put_primitive_by_name(formalname, datatype);
   return datatype;
-}
-
-
-// 0: function, 1: tuple, -1: error
-int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, const char **fnname, void **fn) {
-  const char *fnname_ = catype_get_type_name(name);
-  if (fnname)
-    *fnname = fnname_;
-
-  *entry = sym_getsym(g_root_symtable /* symtable */, name, 1);
-  if (*entry) {  // if it really a function
-    if ((*entry)->sym_type == Sym_FnDecl || (*entry)->sym_type == Sym_FnDef) {
-      if (fn) {
-	*fn = ir1.module().getFunction(fnname_);
-	if (*fn)
-	  return 0;
-	else
-	  return -1;
-      }
-
-      return 0;
-    }
-
-    return -1;
-  }
-
-  int tupleid = symname_check(fnname_);
-  if (tupleid == -1)
-    return -1;
-
-  tupleid = sym_form_type_id(tupleid);
-  *entry = sym_getsym(symtable, tupleid, 1);
-  if (*entry && (*entry)->sym_type == Sym_DataType)
-    return 1;
-
-  return -1;
 }
 

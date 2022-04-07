@@ -1,7 +1,6 @@
 
 #include <alloca.h>
 #include <assert.h>
-#include <cstddef>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -1973,7 +1972,6 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
 }
 
 int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry) {
-  // NEXT TODO: tuple
   // check formal parameter and actual parameter
   ST_ArgList *formalparam = NULL;
   if (tuple)
@@ -2014,12 +2012,7 @@ ASTNode *make_fn_call(int id, ASTNode *param) {
 
   STEntry *entry = NULL;
   int tuple = extract_function_or_tuple(param->symtable, fnname, &entry, NULL, NULL);
-  if (tuple == -1) {
-    yyerror("line: %d, col: %d: extract function or tuple name '%s' failed", glineno, gcolno, symname_get(id));
-    return NULL;
-  }
-
-  if (entry) {
+  if (tuple != -1) {
     check_fn_define(fnname, param, tuple, entry);
   } else {
     // when no any name find in the symbol table then make a function call

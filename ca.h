@@ -424,9 +424,9 @@ END_EXTERN_C
 #define CHECK_GET_TYPE_VALUE(p, value, id)			\
   do {								\
     if (!(value)) {						\
-      const char *name = symname_get(id);			\
+      const char *name_ = symname_get(id);			\
       yyerror("line: %d, col: %d: cannot find data type '%s'",	\
-	      (p)->begloc.row, (p)->begloc.col, name);		\
+	      (p)->begloc.row, (p)->begloc.col, name_);		\
     }								\
   } while(0)
 

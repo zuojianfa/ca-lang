@@ -375,7 +375,8 @@ static DIType *ditype_create_from_catype(CADataType *catype, DIScope *scope) {
     for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
       CAStructField &field = catype->struct_layout->fields[i];
       DIType *ditype = ditype_get_or_create_from_catype(field.type, scope);
-      const char *fieldname = symname_get(field.name);
+      const char *fieldname = catype->struct_layout->tuple ? nullptr : symname_get(field.name);
+
       uint64_t offsetbit = field.offset * 8;
       uint64_t fieldsizebit = field.type->size * 8;
       DIDerivedType *dfield = diinfo->dibuilder->createMemberType(pty, fieldname, diunit, lineno, fieldsizebit,
@@ -1596,10 +1597,11 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
 
   check_fn_define(fnname, param, tuple, entry);
 
-  // NEXT TODO: tuple
-  
-  //STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
-  ST_ArgList *formalparam = entry->u.f.arglists;
+  ST_ArgList *formalparam = nullptr;
+  if (tuple)
+    formalparam = entry->u.datatype.members;
+  else
+    formalparam = entry->u.f.arglists;
 
   // check and determine parameter type
   for (int i = 0; i < param->arglistn.argc; ++i) {
@@ -1608,10 +1610,16 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
       // it is a variable parameter ...
       formaltype = typeid_novalue;
     } else {
-      STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
-      CADataType *dt = catype_get_by_name(name->symtable, paramentry->u.var->datatype);
-      CHECK_GET_TYPE_VALUE(param, dt, paramentry->u.var->datatype);
-      //formaltype = paramentry->u.var->datatype;
+      typeid_t datatype = typeid_novalue;
+      if (tuple) {
+	datatype = formalparam->types[i];
+      } else {
+	STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
+	datatype = paramentry->u.var->datatype;
+      }
+
+      CADataType *dt = catype_get_by_name(name->symtable, datatype);
+      CHECK_GET_TYPE_VALUE(param, dt, datatype);
       formaltype = dt->signature;
     }
 
@@ -1638,100 +1646,23 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
   }
 }
 
-static int structexpr_get_field_order(int name, CAStructField *fields, size_t size);
-static void walk_expr_tuple(ASTNode *p) {
-  typeid_t structid = inference_expr_type(p);
-  ASTNode *snode = p->exprn.operands[0];
-  CADataType *structcatype = catype_get_by_name(snode->symtable, structid);
-  CHECK_GET_TYPE_VALUE(snode, structcatype, snode->exprasn.type);
+static void walk_expr_tuple(ASTNode *p, STEntry *entry, std::vector<Value *> &values) {
+  assert(entry->u.datatype.tuple == 1);
+
+  typeid_t structid = entry->u.datatype.id;
+  CADataType *structcatype = catype_get_by_name(entry->u.datatype.idtable, structid);
+  CHECK_GET_TYPE_VALUE(p, structcatype, structid);
   if (structcatype->type != STRUCT) {
     yyerror("line: %d, col: %d: type `%s` is not a struct type",
-	    snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->signature));
+	    p->begloc.row, p->begloc.col, catype_get_type_name(structcatype->signature));
     return;
   }
 
-  std::vector<void *> *vnodes = structexpr_deref(snode->snoden); 
-  if (structcatype->struct_layout->fieldnum != vnodes->size()) {
+  if (structcatype->struct_layout->fieldnum != values.size()) {
     yyerror("line: %d, col: %d: struct type `%s` expression field size: `%d` not equal to the struct field size: `%d`",
-	    snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->signature),
-	    structcatype->struct_layout->fieldnum, vnodes->size());
+	    p->begloc.row, p->begloc.col, catype_get_type_name(structcatype->signature),
+	    structcatype->struct_layout->fieldnum, values.size());
     return;
-  }
-
-  CAStructField *fields = structcatype->struct_layout->fields;
-
-  // when is named field then store the field order in struct definition
-  std::vector<int> fieldorder;
-  std::vector<Value *> values;
-  for (size_t i = 0; i < vnodes->size(); ++i) {
-    ASTNode *fieldnode = nullptr;
-    int exprfieldname = -1;
-    void *inode = (*vnodes)[i];
-    int order = i;
-    if (snode->snoden.named) {
-      CAStructNamed *namedexpr = static_cast<CAStructNamed *>(inode);
-      order = structexpr_get_field_order(namedexpr->name, fields, vnodes->size());
-      if (order == -1) {
-	yyerror("line: %d, col: %d: cannot find the field name in struct `%s` for the `%d` field `%s` in expression",
-		snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->struct_layout->name), i,
-		symname_get(namedexpr->name));
-	return;
-      }
-
-      fieldorder.push_back(order);
-      fieldnode = namedexpr->expr;
-      // TODO: here may need free `namedexpr` when it never used again
-      // free(namedexpr)
-    } else {
-      fieldnode = static_cast<ASTNode *>(inode);
-    }
-
-    walk_stack(fieldnode);
-    bool iscomplextype = catype_is_complex_type(fields[order].type->type);
-    auto pair = pop_right_value("field", !iscomplextype);
-    if (pair.second->signature != fields[order].type->signature) {
-      yyerror("line: %d, col: %d: the field `%d`'s type `%s` of struct expression is different from the struct definition: `%s`",
-	      snode->begloc.row, snode->begloc.col, i, catype_get_type_name(pair.second->signature),
-	      catype_get_type_name(fields[order].type->signature));
-      return;
-    }
-
-    values.push_back(pair.first);
-  }
-
-  if (snode->snoden.named) {
-    // rearrange values order according to the named order
-    std::vector<int> copy = fieldorder;
-    std::sort(copy.begin(), copy.end());
-    for (int i = 1; i < copy.size(); ++i) {
-      if (copy[i-1] == copy[i]) {
-	yyerror("line: %d, col: %d: multiple expression specified for field `%s` in struct `%s`",
-		snode->begloc.row, snode->begloc.col, symname_get(fields[i].type->signature),
-		symname_get(structcatype->struct_layout->name));
-	return;
-      }
-    }
-
-    for (int i = 0; i < fieldorder.size(); ++i) {
-      if (i == fieldorder[i])
-	continue;
-
-      Value *tmpv = values[i];
-      int tmpi = fieldorder[i];
-
-      // go home for tmpi and tmpv
-      while(tmpi != i) {
-	int tmp = fieldorder[tmpi];
-	fieldorder[tmpi] = tmpi;
-
-        Value *tmpvi = values[tmpi];
-	values[tmpi] = tmpv;
-	tmpv = tmpvi;
-	tmpi = tmp;
-      }
-      fieldorder[tmpi] = tmpi;
-      values[tmpi] = tmpv;
-    }
   }
 
   // allocate new array and copy related elements to the array
@@ -1754,6 +1685,8 @@ static void walk_expr_tuple(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
+// the expression call may be a function call or tuple literal definition,
+// because the tuple literal form is the same as function, so handle it here
 static void walk_expr_call(ASTNode *p) {
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
@@ -1761,19 +1694,13 @@ static void walk_expr_call(ASTNode *p) {
   const char *fnname = nullptr;
   Function *fn = nullptr;
   STEntry *entry = nullptr;
-  int istuple = extract_function_or_tuple(p->symtable, name->idn.i, &entry, &fnname, &fn);
+  int istuple = extract_function_or_tuple(p->symtable, name->idn.i, &entry, &fnname, (void **)&fn);
   if (istuple == -1) {
       yyerror("line: %d, col: %d: cannot find declared function: '%s'",
 	      p->begloc.row, p->begloc.col, fnname);
   }
 
-  // the tuple literal form is the same as function, so handle it here
-  // NEXT TODO: handle tuple definition here also, because the form of tuple is the same as function
-
   check_and_determine_param_type(name, args, istuple, entry);
-
-  if (istuple)
-    return walk_expr_tuple(p);
 
   if (args->type != TTE_ArgList)
     yyerror("line: %d, col: %d: not a argument list: '%s'",
@@ -1786,9 +1713,21 @@ static void walk_expr_call(ASTNode *p) {
   for (int i = 0; i < args->arglistn.argc; ++i) {
     // how to get the name for an expr? not possible / neccessary to get it
     walk_stack(args->arglistn.exprs[i]);
-    auto pair = pop_right_value("exprarg");
+    bool iscomplextype = false;
+    if (istuple) {
+      typeid_t id = entry->u.datatype.members->types[i];
+      CADataType *dt = catype_get_by_name(name->symtable, id);
+      CHECK_GET_TYPE_VALUE(name, dt, id);
+      
+      iscomplextype = catype_is_complex_type(dt->type);
+    }
+
+    auto pair = pop_right_value("exprarg", !iscomplextype);
     argv.push_back(pair.first);
   }
+
+  if (istuple)
+    return walk_expr_tuple(p, entry, argv);
 
   Type *rettype = fn->getReturnType();
   bool isvoidty = rettype->isVoidTy();
