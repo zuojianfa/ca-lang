@@ -109,7 +109,7 @@ extern int yychar, yylineno;
 %type	<var>		iddef iddef_typed
 %type	<symnameid>	label_id attrib_scope ret_type
 //			%type	<symnameid>	atomic_type
-%type	<tid>		data_type pointer_type array_type ident_type
+%type	<tid>		data_type pointer_type array_type ident_type gen_tuple_type
 %type	<deleft>	deref_pointer
 %type	<aitem>		array_item array_item_r
 %type	<structfieldop>	structfield_op
@@ -368,6 +368,7 @@ data_type:	ident_type            { $$ = $1; }
 	|	pointer_type          { $$ = $1; }
 	|	array_type            { $$ = $1; }
 	|	TYPEOF '(' expr ')'   { $$ = make_typeof($3); }
+	|	gen_tuple_type        { $$ = $1; }
 	;
 
 //atomic_type:	VOID | I16 | I32 | I64 | U16 | U32 | U64 | F32 | F64 | BOOL | I8 | U8
@@ -420,6 +421,14 @@ array_type:	'[' data_type ';' LITERAL ']'
 		// the LITERAL must be u64 or usize type that which is 8bytes length
 		$$ = make_array_type($2, &$4);
 		}
+	;
+
+gen_tuple_type:	'(' type_list ')'  { $$ = 0; }
+	;
+
+type_list:	data_type ',' type_list
+	| 	data_type
+	|
 	;
 
 iddef:		iddef_typed  { dot_emit("iddef", "iddef_typed"); $$ = $1; }
