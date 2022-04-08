@@ -434,7 +434,13 @@ typeid_t make_array_type(typeid_t type, LitBuffer *size) {
 
 typeid_t make_tuple_type(ST_ArgList *arglist) {
   // t:(;), t:(;i32), t:(;i32, bool), t:(;i32, (;i32, i32)), t:(;(;i32, i32,), i32), ...
-  return sym_form_tuple_id(arglist->types, arglist->argc);
+  typeid_t id = typeid_novalue;
+  if (arglist->argc == 1)
+    id = arglist->types[0];
+  else
+    id = sym_form_tuple_id(arglist->types, arglist->argc);
+  
+  return id;
 }
 
 ASTNode *make_type_def(int id, typeid_t type) {

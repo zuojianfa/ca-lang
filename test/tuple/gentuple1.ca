@@ -1,5 +1,38 @@
 fn main() {
-    let a: (i32, i32) = __zero_init__;
-    print a; print '\n';
+    let a0: () = __zero_init__;
+    print a0; print '\n';
+
+    let a1: (i32) = __zero_init__;
+    print a1; print '\n';
+
+    let a2: (i32, i32) = __zero_init__;
+    print a2; print '\n';
+
+    let a3: (i32, f64) = __zero_init__;
+    print a3; print '\n';
+
+    let a4: ((), i32, f64) = __zero_init__;
+    print a4; print '\n';
+
+    let a5: ((), (i32), f64) = __zero_init__;
+    print a5; print '\n';
+
+    let a6: ((i32, f64), i32) = __zero_init__;
+    print a6; print '\n';
+
+    type AA = ((i32, f64), i32);
+    let a7: AA = __zero_init__;
+    print a7; print '\n';
+
+    type A1 = (i32, AA);
+    type A2 = (f64, A1);
+    type A3 = (f32, A2);
+
+    let a8: A3 = __zero_init__;
+    print a8; print '\n';
+    type A4 = ((), (AA));
+
+    let a9: A4 = __zero_init__;
+    print a9; print '\n';
 }
 

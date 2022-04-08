@@ -26,6 +26,7 @@ BEGIN_EXTERN_C
 void yyerror(const char *s, ...);
 extern int glineno;
 extern int gcolno;
+extern SymTable *curr_symtable;
 END_EXTERN_C
 
 extern std::unordered_map<std::string, int> s_token_map;
@@ -35,6 +36,7 @@ static std::vector<char> s_symname_buffer;
 static std::unordered_map<std::string, int> s_symname_name2pos;
 
 static std::stack<std::unique_ptr<ST_ArgListActual>> s_actualarglist_stack;
+static std::stack<std::unique_ptr<ST_ArgList>> s_tuplelist_stack;
 
 ST_ArgListActual *actualarglist_current() {
   return s_actualarglist_stack.top().get();
@@ -49,6 +51,24 @@ ST_ArgListActual *actualarglist_new_push() {
 
 void actualarglist_pop() {
   s_actualarglist_stack.pop();
+}
+
+ST_ArgList *tuplelist_current() {
+  return s_tuplelist_stack.top().get();
+}
+
+ST_ArgList *tuplelist_new_push() {
+  auto aa = std::make_unique<ST_ArgList>();
+  aa->argc = 0;
+  aa->contain_varg = 0;
+  aa->symtable = curr_symtable;
+
+  s_tuplelist_stack.push(std::move(aa));
+  return s_tuplelist_stack.top().get();
+}
+
+void tuplelist_pop() {
+  s_tuplelist_stack.pop();
 }
 
 static int symname_insert(const std::string &s) {

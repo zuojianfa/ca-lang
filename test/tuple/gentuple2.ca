@@ -1,0 +1,23 @@
+fn main() {
+    struct AA{}
+    let a0: (AA) = __zero_init__;
+    print a0; print '\n';
+
+    struct A1 {f1: i32, f2: bool}
+    let a1: ((), AA, A1) = __zero_init__;
+    print a1; print '\n';
+
+    struct A2 {f1: [i32; 3], f2: f64, f3: AA}
+    let a2: (AA, A1, A2) = __zero_init__;
+    print a2; print '\n';
+
+    type T1 = (i32, bool, f64);
+    struct A3 {f1: T1}
+    let a3: A3 = __zero_init__;
+    print a3; print '\n';
+
+    struct A4 {f1: (), f2: (i32), f3: (i32, f64), f4: A3}
+    let a4: A4 = __zero_init__;
+    print a4; print '\n';
+}
+

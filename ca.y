@@ -386,19 +386,20 @@ struct_members: struct_members ',' iddef_typed   { add_struct_member(&curr_argli
 	|	
 	;
 
-tuple_type_def:	STRUCT IDENT { reset_arglist_with_new_symtable(); }
-		'(' tuple_members_dot ')' ';'        { $$ = make_struct_type($2, &curr_arglist, 1); }
+tuple_type_def:	STRUCT IDENT { tuplelist_new_push(); }
+		'(' tuple_members_dot ')' ';'    { $$ = make_struct_type($2, tuplelist_current(), 1); tuplelist_pop(); }
 	;
 
-gen_tuple_type:	 { reset_arglist_with_new_symtable(); }
-		'(' tuple_members_dot ')'  { $$ = make_tuple_type(&curr_arglist); }
+gen_tuple_type:	 { tuplelist_new_push(); }
+		'(' tuple_members_dot ')'
+		{ $$ = make_tuple_type(tuplelist_current()); tuplelist_pop(); }
 	;
 
 tuple_members_dot: tuple_members | tuple_members ','
 	;
 
-tuple_members:	tuple_members ',' data_type      { add_tuple_member(&curr_arglist, $3); }
-	|	data_type                        { add_tuple_member(&curr_arglist, $1); }
+tuple_members:	tuple_members ',' data_type      { add_tuple_member(tuplelist_current(), $3); }
+	|	data_type                        { add_tuple_member(tuplelist_current(), $1); }
 	|
 	;
 

@@ -1,0 +1,5 @@
+fn main() {
+    let a5: (((((i32))))) = __zero_init__;
+    print a5; print '\n';
+}
+

@@ -258,6 +258,10 @@ ST_ArgListActual *actualarglist_new_push();
 // popup a actual argument list object and destroy it
 void actualarglist_pop();
 
+ST_ArgList *tuplelist_current();
+ST_ArgList *tuplelist_new_push();
+void tuplelist_pop();
+
 // type checking
 int check_i64_value_scope(int64_t lit, tokenid_t typetok);
 int check_u64_value_scope(uint64_t lit, tokenid_t typetok);
