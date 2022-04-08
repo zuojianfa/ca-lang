@@ -59,7 +59,7 @@ typedef struct CAStructField {
 } CAStructField;
 
 typedef struct CAStruct {
-  int tuple; // 1: tuple, other: common structure
+  int tuple; // 2: general tuple (unnamed), 1: tuple, 0: common structure
   int name;
   int fieldnum;
   int capacity;  // private
@@ -321,6 +321,13 @@ void vec_append(void *handle, void *item);
 size_t vec_size(void *handle);
 void *vec_at(void *handle, int index);
 void vec_reverse(void *handle);
+
+void *string_new();
+void string_append(void *handle, const char *s);
+void string_append_char(void *handle, int ch);
+const char *string_c_str(void *handle);
+void string_pop_back(void *handle);
+void string_drop(void *handle);
 
 #ifdef __cplusplus
 END_EXTERN_C

@@ -320,6 +320,7 @@ typeid_t sym_form_label_id(int id);
 typeid_t sym_form_function_id(int fnid);
 typeid_t sym_form_pointer_id(typeid_t type);
 typeid_t sym_form_array_id(typeid_t type, int dimension);
+typeid_t sym_form_tuple_id(typeid_t *types, int argc);
 typeid_t sym_form_type_id_from_token(tokenid_t tok);
 tokenid_t sym_primitive_token_from_id(typeid_t id);
 ASTNode *astnode_unwind_from_addr(const char *addr, int *len);
@@ -349,6 +350,7 @@ ASTNode *make_stmtexpr_list_block(ASTNode *exprblockbody);
 ASTNode *make_stmtexpr_list(ASTNode *stmts, ASTNode *expr);
 typeid_t make_pointer_type(typeid_t datatype);
 typeid_t make_array_type(typeid_t type, LitBuffer *size);
+typeid_t make_tuple_type(ST_ArgList *arglist);
 ASTNode *make_type_def(int name, typeid_t type);
 typeid_t make_ret_type_void();
 void make_type_postfix(IdToken *idt, int id, int typetok);
@@ -406,6 +408,7 @@ void put_astnode_into_list(ASTNode *stmt, int begin);
 
 int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 int add_tuple_member(ST_ArgList *arglist, typeid_t tid);
+void reset_arglist_with_new_symtable();
 ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple);
 
 //void push_lexical_body();

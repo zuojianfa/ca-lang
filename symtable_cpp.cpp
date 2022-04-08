@@ -387,5 +387,39 @@ void vec_reverse(void *handle) {
   std::reverse(vec->begin(), vec->end());
 }
 
+void vec_drop(void *handle) {
+  std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
+  delete vec;
+}
+
+static std::string &string_deref(void *handle) {
+  std::string *s = static_cast<std::string *>(handle);
+  return *s;
+}
+
+void *string_new() {
+  std::string *s = new std::string;
+  return static_cast<void *>(s);
+}
+
+void string_append(void *handle, const char *s) {
+  string_deref(handle).append(s);
+}
+
+void string_append_char(void *handle, int ch) {
+  string_deref(handle).append(1, ch);
+}
+
+const char *string_c_str(void *handle) { return string_deref(handle).c_str(); }
+
+void string_pop_back(void *handle) {
+  string_deref(handle).pop_back();
+}
+
+void string_drop(void *handle) {
+  std::string *s = &string_deref(handle);
+  delete s;
+}
+
 END_EXTERN_C
 

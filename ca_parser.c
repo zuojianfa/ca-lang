@@ -108,36 +108,42 @@ ASTNode *new_ASTNode(ASTNodeType nodetype) {
 }
 
 const char *sym_form_label_name(const char *name) {
+  // TODO: the buffer need reimplement
   static char label_buf[1024];
   sprintf(label_buf, "l:%s", name);
   return label_buf;
 }
 
 const char *sym_form_type_name(const char *name) {
+  // TODO: the buffer need reimplement
   static char type_buf[1024];
   sprintf(type_buf, "t:%s", name);
   return type_buf;
 }
 
 const char *sym_form_function_name(const char *name) {
+  // TODO: the buffer need reimplement
   static char type_buf[1024];
   sprintf(type_buf, "f:%s", name);
   return type_buf;
 }
 
 const char *sym_form_pointer_name(const char *name) {
+  // TODO: the buffer need reimplement
   static char type_buf[1024];
   sprintf(type_buf, "t:*%s", name);
   return type_buf;
 }
 
 const char *sym_form_array_name(const char *name, int dimension) {
+  // TODO: the buffer need reimplement
   static char type_buf[1024];
   sprintf(type_buf, "t:[%s;%d]", name, dimension);
   return type_buf;
 }
 
 typeid_t sym_form_expr_typeof_id(ASTNode *expr) {
+  // TODO: the buffer need reimplement
   char type_buf[32];
   sprintf(type_buf, "+:%p", expr);
   typeid_t id = sym_form_type_id_by_str(type_buf);
@@ -195,7 +201,31 @@ typeid_t sym_form_array_id(typeid_t type, int dimension) {
   const char *name = catype_get_type_name(type);
   const char *typename = sym_form_array_name(name, dimension);
   typeid_t typeid = symname_check_insert(typename);
-  return typeid;  
+  return typeid;
+}
+
+typeid_t sym_form_tuple_id(typeid_t *types, int argc) {
+  // format: t:(;), t:(;i32), t:(;i32, bool), t:(;i32, (;i32, i32)), t:(;(;i32, i32,), i32), ...
+  void *hs = string_new();
+  string_append(hs, "t:(;");
+  for (int i = 0; i < argc; ++i) {
+    const char *name = catype_get_type_name(types[i]);
+    string_append(hs, name);
+    string_append(hs, ",");
+  }
+
+  if (argc) {
+    // remove tailing ','
+    string_pop_back(hs);
+  }
+
+  string_append(hs, ")");
+
+  const char *typestr = string_c_str(hs);
+  typeid_t typeid = symname_check_insert(typestr);
+  string_drop(hs);
+
+  return typeid;
 }
 
 const char *sym_form_struct_signature(const char *name, SymTable *st) {
@@ -400,6 +430,11 @@ typeid_t make_array_type(typeid_t type, LitBuffer *size) {
   sscanf(text, "%lu", &len);
   return sym_form_array_id(type, (int)len);
   /*return catype_make_array_type(type, len);*/
+}
+
+typeid_t make_tuple_type(ST_ArgList *arglist) {
+  // t:(;), t:(;i32), t:(;i32, bool), t:(;i32, (;i32, i32)), t:(;(;i32, i32,), i32), ...
+  return sym_form_tuple_id(arglist->types, arglist->argc);
 }
 
 ASTNode *make_type_def(int id, typeid_t type) {
@@ -616,7 +651,9 @@ ASTNode *make_struct_expr(CAStructExpr expr) {
 }
 
 ASTNode *make_tuple_expr(CAStructExpr expr) {
-  //
+  // not used currently, the tuple expression now use the form of function call
+  // because the form of named tuple definition is the same as function call
+  return NULL;
 }
 
 ASTNode *make_arrayitem_right(ArrayItem ai) {
@@ -2091,6 +2128,13 @@ int add_tuple_member(ST_ArgList *arglist, typeid_t tid) {
 
   arglist->types[arglist->argc++] = tid;
   return 0;
+}
+
+void reset_arglist_with_new_symtable() {
+  SymTable *st = push_new_symtable();
+  curr_arglist.argc = 0;
+  curr_arglist.contain_varg = 0;
+  curr_arglist.symtable = curr_symtable;
 }
 
 ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {

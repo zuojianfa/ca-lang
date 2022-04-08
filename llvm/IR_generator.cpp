@@ -1216,8 +1216,8 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
     CAStructField *fields = catype->struct_layout->fields;
     len = catype->struct_layout->fieldnum;
     int tuple = catype->struct_layout->tuple;
-
-    llvmcode_printf(fn, tuple ? "%s ( " : "%s { ", sname, nullptr);
+    const char *fmt = tuple == 2 ? "%s( " : tuple == 1 ? "%s ( " : "%s { ";
+    llvmcode_printf(fn, fmt, sname, nullptr);
     for (int i = 0; i < len; ++i) {
       //ConstantArray *arrayv = static_cast<ConstantArray *>(v);
       //Constant *subv = arrayv->getAggregateElement(i);

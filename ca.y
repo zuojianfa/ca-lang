@@ -189,7 +189,7 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	expr ';'                { $$ = make_stmt_expr($1); }
 	|	DBGPRINT expr ';'          { $$ = make_stmt_print($2); }
 	|	DBGPRINTTYPE data_type ';' { $$ = make_stmt_print_datatype($2); }
-	|	DBGPRINTTYPE '(' data_type ')' ';' { $$ = make_stmt_print_datatype($3); }
+//	|	DBGPRINTTYPE '(' data_type ')' ';' { $$ = make_stmt_print_datatype($3); } // the brackets conflict with general tuple so disable it
 	|	RET expr ';'            { $$ = make_stmt_ret_expr($2); }
 	|	RET ';'		        { $$ = make_stmt_ret(); }
 	|	let_stmt                { $$ = $1; }
@@ -375,13 +375,7 @@ data_type:	ident_type            { $$ = $1; }
 ident_type: 	IDENT { $$ = sym_form_type_id($1); }
 		;
 
-struct_type_def: STRUCT IDENT
-		{
-		SymTable *st = push_new_symtable();
-		curr_arglist.argc = 0;
-		curr_arglist.contain_varg = 0;
-		curr_arglist.symtable = curr_symtable;
-		}
+struct_type_def: STRUCT IDENT { reset_arglist_with_new_symtable(); }
 		'{' struct_members_dot '}'       { $$ = make_struct_type($2, &curr_arglist, 0); }
 	;
 
@@ -392,14 +386,12 @@ struct_members: struct_members ',' iddef_typed   { add_struct_member(&curr_argli
 	|	
 	;
 
-tuple_type_def:	STRUCT IDENT
-		{
-		SymTable *st = push_new_symtable();
-		curr_arglist.argc = 0;
-		curr_arglist.contain_varg = 0;
-		curr_arglist.symtable = curr_symtable;
-		}
+tuple_type_def:	STRUCT IDENT { reset_arglist_with_new_symtable(); }
 		'(' tuple_members_dot ')' ';'        { $$ = make_struct_type($2, &curr_arglist, 1); }
+	;
+
+gen_tuple_type:	 { reset_arglist_with_new_symtable(); }
+		'(' tuple_members_dot ')'  { $$ = make_tuple_type(&curr_arglist); }
 	;
 
 tuple_members_dot: tuple_members | tuple_members ','
@@ -421,14 +413,6 @@ array_type:	'[' data_type ';' LITERAL ']'
 		// the LITERAL must be u64 or usize type that which is 8bytes length
 		$$ = make_array_type($2, &$4);
 		}
-	;
-
-gen_tuple_type:	'(' type_list ')'  { $$ = 0; }
-	;
-
-type_list:	data_type ',' type_list
-	| 	data_type
-	|
 	;
 
 iddef:		iddef_typed  { dot_emit("iddef", "iddef_typed"); $$ = $1; }

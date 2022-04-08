@@ -703,6 +703,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
   int tmptypesize = 0;
   int sizeerror = 0;
   int calcing = 0;
+  int gen_tuple = 0;
   *typesize = -1;
 
   char namebuf[128];
@@ -713,8 +714,12 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
   namebuf[i] = '\0';
 
   if (i == 0) {
-    yyerror("(internal) this struct type have no name `%s`", pch);
-    return -1;
+    if (tuple) {
+      gen_tuple = 1;
+    } else {
+      yyerror("(internal) this struct type have no name `%s`", pch);
+      return -1;
+    }
   }
 
   if ((!tuple && *pch != '}') || (tuple && *pch != ')')) {
@@ -815,8 +820,11 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     *typesize = tmptypesize;
 
   // TODO: fillback typeid signature when possible or need to use these information
-  if (retdt)
+  if (retdt) {
     addrdt->size = *typesize;
+    if (gen_tuple)
+      addrdt->struct_layout->tuple = 2;
+  }
 
   return pch - pchbegin;
 }
