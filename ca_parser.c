@@ -1962,6 +1962,17 @@ static int pre_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currar
   return 0;
 }
 
+static STEntry *check_tuple_name(int id) {
+  // check tuple type
+  typeid_t type = sym_form_type_id(id);
+  STEntry *entry = sym_getsym(&g_root_symtable, type, 0);
+
+  if (entry && entry->u.datatype.tuple)
+    return entry;
+
+  return NULL;
+}
+
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
 
@@ -1971,6 +1982,12 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
 
   SLoc beg = {glineno, gcolno};
   SLoc end = {glineno, gcolno};
+
+  if (check_tuple_name(fnid)) {
+    yyerror("line: %d, col: %d: function '%s' already defined as tuple in previous",
+	    glineno, gcolno, symname_get(fnid));
+    return NULL;
+  }
 
   //void *carrier = get_post_function(fnname);
   // for handle post function declaration or define
@@ -2164,6 +2181,17 @@ void reset_arglist_with_new_symtable() {
   curr_arglist.symtable = curr_symtable;
 }
 
+static STEntry *check_function_name(int id) {
+  // check tuple type
+  typeid_t fnname = sym_form_function_id(id);
+  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
+
+  if (entry)
+    return entry;
+
+  return NULL; 
+}
+
 ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
   dot_emit("struct_type_def", "IDENT");
 
@@ -2176,6 +2204,12 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
 
   // 0. check if current scope already exists such type and report error when already exists
   const char *structname = symname_get(id);
+  if (check_function_name(id)) {
+    yyerror("line: %d, col: %d: tuple '%s' already defined as function in previous",
+	    glineno, gcolno, structname);
+    return NULL;
+  }
+
   typeid_t structtype = sym_form_type_id(id);
   STEntry *entry = sym_getsym(curr_symtable, structtype, 0);
   if (entry) {

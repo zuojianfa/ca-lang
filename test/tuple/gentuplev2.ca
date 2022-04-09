@@ -5,39 +5,26 @@ fn main() {
     let a1s = (AA{3, 2.2}, 66);
     print a1s; print '\n';
 
-    let a3 = (AA{f1: 6, f2: 6.5}, 332);
-    print a3; print '\n';
+    let a2a = (AA{f1: 6, f2: 6.5}, 332);
+    print a2a; print '\n';
 
     type T1 = (AA, i32);
 
     struct A1 {f1: T1, f2: i32}
-    let a2 = A1{f1: a3, f2: 33};
+    let a2 = A1{f1: a2a, f2: 33};
     print a2; print '\n';
-
     
-    // struct A1 {f1: T1, f2: i32}
-    // let a2 = A1{f1: (AA{f1: 6, f2: 6.5}, 332), f2: 33};
-    // print a2; print '\n';
+    struct A1a {f1: (AA, i32), f2: i32}
+    let a4 = A1a{f1: (AA{f1: 6, f2: 6.5}, 332), f2: 33};
+    print a4; print '\n';
 
-    // let a3: () = ();
-    // print a3; print '\n';
+    struct A2 {f1: (i32, char), f2: i32}
 
-    // let a4 = ();
-    // print a4; print '\n';
+    struct A1b {f1: (A2, i32), f2: i32}
+    let a5 = A1b{f1: (A2{f1: (6, 'D'), f2: 6}, 335), f2: 36};
+    print a5; print '\n';
 
-    // let a5: (i32, i32) = (3, 4);
-    // print a5; print '\n';
-
-    // let a6 = (5, 6);
-    // print a6; print '\n';
-
-    // let a7 = (a4, a5);
-    // print a7; print '\n';
-
-    // let a8 = (a4, a5, a6, a7);
-    // print a8; print '\n';
-
-    // let a9 = (a4, (a5, a6), a7);
-    // print a9; print '\n';
+    let a3 = (A1{a2a, 45}, 66);
+    print a3; print '\n';
 }
 
