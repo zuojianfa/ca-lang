@@ -1646,27 +1646,26 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
   }
 }
 
-static void walk_expr_tuple(ASTNode *p, STEntry *entry, std::vector<Value *> &values) {
-  assert(entry->u.datatype.tuple == 1);
+static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<Value *> &values) {
+  // the general tuple expresssion
+  // NEXT TODO: 
 
-  typeid_t structid = entry->u.datatype.id;
-  CADataType *structcatype = catype_get_by_name(entry->u.datatype.idtable, structid);
-  CHECK_GET_TYPE_VALUE(p, structcatype, structid);
-  if (structcatype->type != STRUCT) {
+ 
+  if (catype->type != STRUCT) {
     yyerror("line: %d, col: %d: type `%s` is not a struct type",
-	    p->begloc.row, p->begloc.col, catype_get_type_name(structcatype->signature));
+	    p->begloc.row, p->begloc.col, catype_get_type_name(catype->signature));
     return;
   }
 
-  if (structcatype->struct_layout->fieldnum != values.size()) {
+  if (catype->struct_layout->fieldnum != values.size()) {
     yyerror("line: %d, col: %d: struct type `%s` expression field size: `%d` not equal to the struct field size: `%d`",
-	    p->begloc.row, p->begloc.col, catype_get_type_name(structcatype->signature),
-	    structcatype->struct_layout->fieldnum, values.size());
+	    p->begloc.row, p->begloc.col, catype_get_type_name(catype->signature),
+	    catype->struct_layout->fieldnum, values.size());
     return;
   }
 
   // allocate new array and copy related elements to the array
-  StructType *structype = static_cast<StructType *>(llvmtype_from_catype(structcatype));
+  StructType *structype = static_cast<StructType *>(llvmtype_from_catype(catype));
   AllocaInst *structure = ir1.gen_var(structype);
   Value *idxv0 = ir1.gen_int((int)0);
   std::vector<Value *> idxv(2, idxv0);
@@ -1681,8 +1680,42 @@ static void walk_expr_tuple(ASTNode *p, STEntry *entry, std::vector<Value *> &va
     aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "field");
   }
   
-  auto u = std::make_unique<CalcOperand>(OT_Alloc, structure, structcatype);
+  auto u = std::make_unique<CalcOperand>(OT_Alloc, structure, catype);
   oprand_stack.push_back(std::move(u));
+}
+
+static void walk_expr_tuple(ASTNode *p, STEntry *entry, std::vector<Value *> &values) {
+  assert(entry->u.datatype.tuple == 1);
+
+  typeid_t structid = entry->u.datatype.id;
+  CADataType *structcatype = catype_get_by_name(entry->u.datatype.idtable, structid);
+  CHECK_GET_TYPE_VALUE(p, structcatype, structid);
+
+  walk_expr_tuple_common(p, structcatype, values);
+}
+
+static void llvmvalue_from_exprs(ASTNode **exprs, int len, std::vector<Value *> &argv, bool isvalue) {
+  for (int i = 0; i < len; ++i) {
+    // how to get the name for an expr? not possible / neccessary to get it
+    walk_stack(exprs[i]);
+    bool iscomplextype = false;
+    if (!isvalue)
+      iscomplextype = catype_is_complex_type(oprand_stack.back()->catype->type);
+
+    auto pair = pop_right_value("exprarg", !iscomplextype);
+    argv.push_back(pair.first);
+  }
+}
+
+static void walk_expr_gentuple(ASTNode *p) {
+  ASTNode *anode = p->exprn.operands[0];
+
+  std::vector<Value *> values;
+  llvmvalue_from_exprs(anode->arglistn.exprs, anode->arglistn.argc, values, false);
+
+  typeid_t type = inference_expr_type(p);
+  CADataType *catype = catype_get_by_name(p->symtable, type);
+  walk_expr_tuple_common(p, catype, values);
 }
 
 // the expression call may be a function call or tuple literal definition,
@@ -1710,21 +1743,7 @@ static void walk_expr_call(ASTNode *p) {
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   std::vector<Value *> argv;
-  for (int i = 0; i < args->arglistn.argc; ++i) {
-    // how to get the name for an expr? not possible / neccessary to get it
-    walk_stack(args->arglistn.exprs[i]);
-    bool iscomplextype = false;
-    if (istuple) {
-      typeid_t id = entry->u.datatype.members->types[i];
-      CADataType *dt = catype_get_by_name(name->symtable, id);
-      CHECK_GET_TYPE_VALUE(name, dt, id);
-      
-      iscomplextype = catype_is_complex_type(dt->type);
-    }
-
-    auto pair = pop_right_value("exprarg", !iscomplextype);
-    argv.push_back(pair.first);
-  }
+  llvmvalue_from_exprs(args->arglistn.exprs, args->arglistn.argc, argv, !istuple);
 
   if (istuple)
     return walk_expr_tuple(p, entry, argv);
@@ -2283,6 +2302,9 @@ static void walk_expr(ASTNode *p) {
     break;
   case STRUCT:
     walk_expr_struct(p);
+    break;
+  case TUPLE:
+    walk_expr_gentuple(p);
     break;
   case ARRAYITEM:
     walk_expr_arrayitem(p);

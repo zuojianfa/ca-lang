@@ -295,7 +295,7 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-- [ ] unnamed tuple literal and debugging
+- [ ] unnamed tuple literal and debugging: debugging gentuplev2a.ca, gentuple elements
 - [ ] check unique tuple name and function name in the same symbol table, they are conflicting not like struct
 - [ ] function definition can be in any scope
 - [ ] if else if else ...

@@ -1145,6 +1145,23 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     type1 = catype->signature;
     break;
   }
+  case TUPLE: {
+    // the general tuple expresssion
+    ASTNode *anode = node->exprn.operands[0];
+    assert(anode->type == TTE_ArgList);
+    int argc = anode->arglistn.argc;
+    typeid_t *args = (typeid_t *)malloc(argc * sizeof(typeid_t));
+    for (int i = 0; i < argc; ++i)
+      args[i] = inference_expr_type(anode->arglistn.exprs[i]);
+
+    type1 = sym_form_tuple_id(args, argc);
+    free(args);
+
+    CADataType *catype = catype_get_by_name(anode->symtable, type1);
+    CHECK_GET_TYPE_VALUE(anode, catype, type1);
+    type1 = catype->signature;
+    break;
+  }
   case STRUCTITEM: {
     assert(node->exprn.noperand == 1);
     ASTNode *p = node->exprn.operands[0];
@@ -2046,7 +2063,7 @@ void delete_CallParamAux(CallParamAux *paramaux) {
 }
 
 // id: can be function name or tuple name, tuple is special
-ASTNode *make_fn_call(int id, ASTNode *param) {
+ASTNode *make_fn_call_or_tuple(int id, ASTNode *param) {
   dot_emit("fn_call", symname_get(id));
 
   typeid_t fnname = sym_form_function_id(id);
@@ -2065,6 +2082,10 @@ ASTNode *make_fn_call(int id, ASTNode *param) {
   }
 
   return make_expr(FN_CALL, 2, make_id(fnname, TTEId_FnName), param);
+}
+
+ASTNode *make_gen_tuple_expr(ASTNode *param) {
+  return make_expr(TUPLE, 1, param);
 }
 
 ASTNode *make_ident_expr(int id) {

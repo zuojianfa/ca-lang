@@ -1,0 +1,28 @@
+fn main() {
+    let a1: (i32, i32) = __zero_init__;
+    let a2 = a1;
+    print a1; print '\n';
+    print a2; print '\n';
+
+    let a3: () = ();
+    print a3; print '\n';
+
+    let a4 = ();
+    print a4; print '\n';
+
+    let a5: (i32, i32) = (3, 4);
+    print a5; print '\n';
+
+    let a6 = (5, 6);
+    print a6; print '\n';
+
+    let a7 = (a4, a5);
+    print a7; print '\n';
+
+    let a8 = (a4, a5, a6, a7);
+    print a8; print '\n';
+
+    let a9 = (a4, (a5, a6), a7);
+    print a9; print '\n';
+}
+

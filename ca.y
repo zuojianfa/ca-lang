@@ -76,7 +76,7 @@ extern int yychar, yylineno;
 %token			LOOP FOR IN BREAK CONTINUE MATCH USE MOD
 %token			BAND BOR BXOR BNOT
 %token			ASSIGN_ADD ASSIGN_SUB ASSIGN_MUL ASSIGN_DIV ASSIGN_MOD ASSIGN_SHIFTL ASSIGN_SHIFTR ASSIGN_BAND ASSIGN_BOR ASSIGN_BXOR
-%token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM
+%token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM TUPLE
 %token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL REF
 %nonassoc		IFX
 %nonassoc		ELSE
@@ -101,8 +101,8 @@ extern int yychar, yylineno;
 %type	<structexpr>	struct_expr struct_expr_fields named_struct_expr_fields
 %type	<astnode>	stmt stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
-%type	<astnode>	paragraph fn_proto fn_args fn_call fn_body fn_args_call
-%type			fn_args_p fn_args_call_p
+%type	<astnode>	paragraph fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
+%type			fn_args_p fn_args_call_or_tuple_p
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
 %type	<forstmtid>	for_stmt_ident
@@ -143,7 +143,8 @@ fn_body:	block_body { $$ = make_fn_body($1); }
 fn_decl: 	EXTERN { extern_flag = 1; } fn_proto ';' { $$ = make_fn_decl($3); }
 		;
 
-fn_call:	IDENT '(' fn_args_call ')' { $$ = make_fn_call($1, $3); }
+fn_call_or_tuple:
+		IDENT '(' fn_args_call_or_tuple ')' { $$ = make_fn_call_or_tuple($1, $3); }
 		;
 
 fn_proto:	FN IDENT
@@ -176,12 +177,14 @@ fn_args_p:	fn_args_p ',' iddef_typed    { add_fn_args(&curr_arglist, curr_symtab
 	|	iddef_typed                  { add_fn_args(&curr_arglist, curr_symtable, $1); }
 	;
 
-fn_args_call:	{ actualarglist_new_push(); }
-		fn_args_call_p { $$ = make_expr_arglists_actual(actualarglist_current()); }
+fn_args_call_or_tuple:
+		{ actualarglist_new_push(); }
+		fn_args_call_or_tuple_p { $$ = make_expr_arglists_actual(actualarglist_current()); }
 	|	{ $$ = make_expr_arglists_actual(NULL); }
 		;
 
-fn_args_call_p:	fn_args_call_p ',' expr { add_fn_args_actual(curr_symtable, $3); }
+fn_args_call_or_tuple_p:
+		fn_args_call_or_tuple_p ',' expr { add_fn_args_actual(curr_symtable, $3); }
 	|	expr { add_fn_args_actual(curr_symtable, $1); }
 	;
 
@@ -315,6 +318,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	array_def             { $$ = make_array_def($1); }
 	|	array_item            { $$ = make_arrayitem_right($1); }
 	|	struct_expr           { $$ = make_struct_expr($1); }
+	|	gen_tuple_expr        { $$ = $1; }
 //	|	tuple_expr            { $$ = make_tuple_expr($1); }
 	|	IDENT                 { $$ = make_ident_expr($1); }
 	|	arith_expr            { $$ = $1; }
@@ -322,7 +326,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	logic_expr	      { $$ = $1; }
 	|	bit_expr              { $$ = $1; }
 	|	'('expr ')'           { dot_emit("expr", "'(' expr ')'"); $$ = $2; }
-	|	fn_call               { dot_emit("expr", "fn_call"); $$ = $1; }
+	|	fn_call_or_tuple      { dot_emit("expr", "fn_call_or_tuple"); $$ = $1; }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
 	|	expr AS data_type     { $$ = make_as($1, $3); }
 	|	SIZEOF '(' data_type ')'{ $$ = make_sizeof($3); }
@@ -362,6 +366,19 @@ bit_expr:	expr '&' expr         { $$ = make_expr(BAND, 2, $1, $3); }
 
 structfield_op:	expr '.' IDENT	      { $$ = make_element_field($1, $3, 1); }
 	|	expr ARROW IDENT      { $$ = make_element_field($1, $3, 0); }
+	;
+
+gen_tuple_expr:	'(' gen_tuple_expr_args ')' { $$ = make_gen_tuple_expr($2); }
+	;
+
+gen_tuple_expr_args:
+		gen_tuple_expr_args_p { $$ = make_expr_arglists_actual(actualarglist_current()); }
+	|	{ $$ = make_expr_arglists_actual(NULL); }
+		;
+
+gen_tuple_expr_args_p:
+		gen_tuple_expr_args_p ',' expr { add_fn_args_actual(curr_symtable, $3); }
+	|	expr ',' expr { actualarglist_new_push(); add_fn_args_actual(curr_symtable, $1); add_fn_args_actual(curr_symtable, $3); }
 	;
 
 data_type:	ident_type            { $$ = $1; }

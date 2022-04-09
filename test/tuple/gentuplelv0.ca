@@ -1,0 +1,16 @@
+fn main() {
+    let a5: (i32, i32) = (3, 4);
+    print a5; print '\n';
+    a5.0 = 100;
+    a5.1 = 1000;
+    print a5; print '\n';
+    let b = a5.0;
+    let c = a5.1;
+
+    print (b, c); print '\n';
+
+    let a6 = (3, 4);
+    print a6.0; print ' ';
+    print a6.1; print ' ';
+}
+
