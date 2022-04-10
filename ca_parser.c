@@ -933,10 +933,19 @@ static typeid_t get_structfield_expr_type_from_tree(ASTNode *node) {
     return typeid_novalue;
   }
 
-  for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
-    if (catype->struct_layout->fields[i].name == node->sfopn.fieldname)
-      return catype->struct_layout->fields[i].type->signature;
+  if (catype->struct_layout->tuple) {
+    if (node->sfopn.fieldname < catype->struct_layout->fieldnum)
+      return catype->struct_layout->fields[node->sfopn.fieldname].type->signature;
+  } else {
+    for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
+      if (catype->struct_layout->fields[i].name == node->sfopn.fieldname)
+	return catype->struct_layout->fields[i].type->signature;
+    }
   }
+
+  yyerror("line: %d, col: %d: cannot find field name `%s` in struct `%s`",
+	  node->begloc.row, node->begloc.col, symname_get(node->sfopn.fieldname),
+	  symname_get(catype->struct_layout->name));
 
   return typeid_novalue;
 }
@@ -2280,8 +2289,21 @@ ASTNode *make_address(ASTNode *expr) {
   return node;
 }
 
-StructFieldOp make_element_field(ASTNode *expr, int fieldname, int direct) {
-  StructFieldOp sfop = {expr, fieldname, direct};
+StructFieldOp make_element_field(ASTNode *expr, int fieldname, int direct, int tuple) {
+  if (tuple) {
+    const char *name = symname_get(fieldname);
+    int len = strlen(name);
+    int i = 0;
+    for (; i < len; ++i) {
+      if (name[i] < '0' || name[i] > '9')
+	break;
+    }
+
+    if (i != len || name[0] == '0')
+      yyerror("line: %d, col: %d: unknown field name `%s`", glineno, gcolno, name);
+  }
+
+  StructFieldOp sfop = {expr, fieldname, direct, tuple};
   return sfop;
 }
 

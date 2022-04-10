@@ -364,8 +364,10 @@ bit_expr:	expr '&' expr         { $$ = make_expr(BAND, 2, $1, $3); }
 	|	expr SHIFTR expr      { $$ = make_expr(SHIFTR, 2, $1, $3); }
 	;
 
-structfield_op:	expr '.' IDENT	      { $$ = make_element_field($1, $3, 1); }
-	|	expr ARROW IDENT      { $$ = make_element_field($1, $3, 0); }
+structfield_op:	expr '.' IDENT	      { $$ = make_element_field($1, $3, 1, 0); }
+	|	expr ARROW IDENT      { $$ = make_element_field($1, $3, 0, 0); }
+	|	expr '.' LITERAL      { $$ = make_element_field($1, $3.text, 1, 1); }
+	|	expr ARROW LITERAL    { $$ = make_element_field($1, $3.text, 0, 1); }
 	;
 
 gen_tuple_expr:	'(' gen_tuple_expr_args ')' { $$ = make_gen_tuple_expr($2); }

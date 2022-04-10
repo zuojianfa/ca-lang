@@ -572,7 +572,6 @@ static Value *extract_value_from_array(ASTNode *node) {
 static Value *extract_value_from_struct(ASTNode *node) {
   assert(node->type == TTE_StructFieldOpLeft || node->type == TTE_StructFieldOpRight);
   typeid_t structtype = get_expr_type_from_tree(node->sfopn.expr);
-  //typeid_t fieldtype = get_expr_type_from_tree(node);
   CADataType *structcatype = catype_get_by_name(node->symtable, structtype);
   CHECK_GET_TYPE_VALUE(node, structcatype, structtype);
 
@@ -594,9 +593,13 @@ static Value *extract_value_from_struct(ASTNode *node) {
   }
 
   int fieldindex = 0;
-  for (; fieldindex < structcatype->struct_layout->fieldnum; ++fieldindex) {
-    if (structcatype->struct_layout->fields[fieldindex].name == node->sfopn.fieldname)
-      break;
+  if (structcatype->struct_layout->tuple)
+    fieldindex = node->sfopn.fieldname;
+  else {
+    for (; fieldindex < structcatype->struct_layout->fieldnum; ++fieldindex) {
+      if (structcatype->struct_layout->fields[fieldindex].name == node->sfopn.fieldname)
+	break;
+    }
   }
 
   if (fieldindex == structcatype->struct_layout->fieldnum) {
@@ -616,12 +619,8 @@ static Value *extract_value_from_struct(ASTNode *node) {
   // extract field value from struct value
   std::vector<Value *> vindices;
   vindices.push_back(ir1.gen_int(0));
-  // if (!node->sfopn.direct)
-  //   vindices.push_back(ir1.gen_int(0));
-
   vindices.push_back(ir1.gen_int(fieldindex));
 
-  //Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
   // structfieldvalue: is an alloc memory address, so following can store value into it
   Value *structfieldvalue = ir1.builder().CreateInBoundsGEP(pair.first, vindices);
   return structfieldvalue;
@@ -1647,10 +1646,6 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
 }
 
 static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<Value *> &values) {
-  // the general tuple expresssion
-  // NEXT TODO: 
-
- 
   if (catype->type != STRUCT) {
     yyerror("line: %d, col: %d: type `%s` is not a struct type",
 	    p->begloc.row, p->begloc.col, catype_get_type_name(catype->signature));
@@ -1708,6 +1703,7 @@ static void llvmvalue_from_exprs(ASTNode **exprs, int len, std::vector<Value *> 
 }
 
 static void walk_expr_gentuple(ASTNode *p) {
+  // the general tuple expresssion
   ASTNode *anode = p->exprn.operands[0];
 
   std::vector<Value *> values;

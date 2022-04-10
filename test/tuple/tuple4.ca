@@ -1,0 +1,30 @@
+fn main() {
+    struct A1(i32);
+    let a1: A1 = A1(34);
+    let pa1 = &a1;
+    print *pa1; print '\n';
+    
+    struct A2(bool);
+    let a2: A2 = A2(true);
+    let pa2 = &a2;
+    print *pa2; print '\n';
+
+    struct A3(f64);
+    let a3: A3 = A3(3.1415926);
+    let pa3 = &a3;
+    print *pa3; print '\n';
+
+    struct A4(f64, bool);
+    let a4: A4 = A4(2022.040623, true);
+    let pa4 = &a4;
+    print *pa4; print '\n';
+
+    struct A6a {f1: bool, f2: f64, f3: i32};
+    let a6a: A6a = A6a{true, 2.02, 43243};
+    let pa6a = &a6a;
+    print *pa6a; print '\n';
+    print pa6a->f1; print ' ';
+    print pa6a->f2; print ' ';
+    print pa6a->f3; print ' ';
+}
+

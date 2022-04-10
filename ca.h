@@ -194,6 +194,7 @@ typedef struct StructFieldOp {
   struct ASTNode *expr;
   int fieldname;
   int direct; // direct: . op, indirect: -> op
+  int tuple;  // 1: when is tuple, fieldname is the parsed numeric field name, 0: when is not tuple
 } StructFieldOp, TStructFieldOp;
 
 typedef enum LVType {
@@ -393,7 +394,7 @@ ASTNode *make_sizeof(typeid_t type);
 typeid_t make_typeof(ASTNode *node);
 ASTNode *make_deref(ASTNode *expr);
 ASTNode *make_address(ASTNode *expr);
-StructFieldOp make_element_field(ASTNode *node, int fieldname, int direct);
+StructFieldOp make_element_field(ASTNode *node, int fieldname, int direct, int tuple);
 ASTNode *make_stmt_list_zip();
 ArrayItem arrayitem_begin(ASTNode *expr);
 ArrayItem arrayitem_append(ArrayItem ai, ASTNode *expr);

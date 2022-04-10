@@ -1,0 +1,12 @@
+fn main() {
+    struct AA(i32);
+    let a1: AA = AA(34);
+    print a1; print ' ';
+    a1.0 = 100;
+    // print a1; print ' ';
+
+    // let b = a1.0;
+    // print b; print ' ';
+    // print a1.0; print '\n';
+}
+
