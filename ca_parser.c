@@ -2299,8 +2299,10 @@ StructFieldOp make_element_field(ASTNode *expr, int fieldname, int direct, int t
 	break;
     }
 
-    if (i != len || name[0] == '0')
+    if (i != len || (len > 1 && name[0] == '0'))
       yyerror("line: %d, col: %d: unknown field name `%s`", glineno, gcolno, name);
+
+    fieldname = atoi(name);
   }
 
   StructFieldOp sfop = {expr, fieldname, direct, tuple};

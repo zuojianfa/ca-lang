@@ -7,10 +7,19 @@ fn main() {
     let b = a5.0;
     let c = a5.1;
 
-    print (b, c); print '\n';
+    print (b + 1, c + 1); print '\n';
 
     let a6 = (3, 4);
     print a6.0; print ' ';
-    print a6.1; print ' ';
+    print a6.1; print '\n';
+
+    let a7 = ([1,2,3], 4.5);
+    print a7; print '\n';
+
+    for (i in [0,1,2]) {
+        print a7.0[i];
+    }
+
+    print a7.1;
 }
 

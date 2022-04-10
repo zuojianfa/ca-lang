@@ -1,12 +1,34 @@
 fn main() {
     struct AA(i32);
     let a1: AA = AA(34);
-    print a1; print ' ';
+    print a1; print '\n';
     a1.0 = 100;
-    // print a1; print ' ';
+    print a1; print '\n';
 
-    // let b = a1.0;
-    // print b; print ' ';
-    // print a1.0; print '\n';
+    a1.0 = 200;
+
+    let b = a1.0;
+    print b; print '\n';
+    print a1.0; print '\n';
+    print a1; print '\n';
+
+    struct BB(i32, f64);
+    let b1 = BB(32, 3.14);
+    print b1; print '\n';
+    print b1.0; print ' ';
+    print b1.1; print '\n';
+    b1.0 *= 2;
+    b1.1 *= 2.2;
+    print b1; print '\n';
+
+    let b2 = BB(b1.0 + 10, b1.1 + 1.1);
+    print b2; print '\n';
+
+    let b3 = (3, 4.4, true);
+    print b3; print '\n';
+    b3.2 = false;
+    print b3; print '\n';
+    b3.1 = 23.32;
+    print b3; print '\n';
 }
 

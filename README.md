@@ -218,13 +218,17 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [ ] support multiple compile unit and link them together
 - [ ] support multiple if-else else if statement
 - [ ] support rust grammar
-  - [ ] reference type
+  - [x] heap allocate memory: `box`
+  - [x] named tuple
+  - [x] unnamed tuple (general tuple)
+  - [x] tuple operation .0 .1
   - [x] loop
+  - [x] type statement, used to define type aliases
   - [x] for i in list
 	- [x] for *i in list
 	- [ ] for &i in list
+  - [ ] reference type
   - [ ] match
-  - [x] type
   - [ ] support enum type
   - [ ] last expression as return value in scope
 	- [ ] break expr
@@ -235,15 +239,12 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [ ] immutable
   - [ ] mutable
   - [ ] support attribute grammar like `#[derive(Clone)]`
-  - [x] heap allocate memory: `box`
   - [ ] scope variable release
   - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
   - [ ] 'label1: loop # labeled loop
   - [ ] break 'label1 # labeled break
   - [ ] mod scope
   - [ ] use package
-  - [x] named tuple
-  - [ ] unnamed tuple
   - [ ] destructure operator: let S(x) = A; let S{x} = A;
   - [ ] default acceptor _
   - [ ] slice operator and infrastructure
@@ -296,13 +297,11 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-- [ ] get tuple element: named and unnamed tuple: debugging tuple elements op for file tuplelv0.ca gentuplelv0.ca
 - [ ] function definition can be in any scope
 - [ ] if else if else ...
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
 - [ ] 'label1: loop
 - [ ] match
-- [ ] named tuple
 - [ ] destructure operator: let S(x) = A; let S{x} = A;
 - [ ] mod scope
 - [ ] use package
