@@ -1,0 +1,23 @@
+fn main() {
+    let a = 1;
+    if (a == 1) {
+	print "single if: a == 1\n";
+    }
+
+    if (a == 1) {
+	print "ifelse if: a == 1\n";
+    } else {
+	print "ifelse else: a != 1\n";
+    }
+
+    let b = 2;
+    if (a == 1) {
+    } else if (b == 2) {
+    }
+
+    if (a == 1) {
+    } else if (b == 2) {
+    } else {
+    }
+}
+

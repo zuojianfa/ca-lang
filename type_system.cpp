@@ -629,9 +629,9 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 	ret = catype_unwind_type_struct(symtable, pch, prenamemap, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt);
 	break;
       case '(':
-	// yhandling tuple - named (Name; <type1>, <type2>, <type3>)
+	// handling - named tuple (Name;<type1>,<type2>,<type3>[,]) and
+	// general unnamed tuple: (;<type1>,<type2>,<type3>[,])
 	ret = catype_unwind_type_struct(symtable, pch, prenamemap, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt, 1);
-	// NEXT TODO: handle unnamed tuple: (<anytype>,<anytype>,<anytype>[,])
 	break;
       case '<':
 	// TODO: handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
