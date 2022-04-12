@@ -1105,8 +1105,9 @@ static void walk_if_common(ASTNode *p) {
   BasicBlock *outbb = ir1.gen_bb("outbb");
   BasicBlock *elsebb = nullptr;
 
-  inference_expr_type(p->ifn.conds[0]);
-  walk_stack(p->ifn.conds[0]);
+  ASTNode *firstcond = static_cast<ASTNode *>(vec_at(p->ifn.conds, 0));
+  inference_expr_type(firstcond);
+  walk_stack(firstcond);
   auto pair = pop_right_value("cond");
   Value *cond = pair.first;
   if (pair.second->type != BOOL) {
@@ -1123,12 +1124,13 @@ static void walk_if_common(ASTNode *p) {
   CADataType *tt1 = nullptr;
   CADataType *tt2 = nullptr;
 
+  ASTNode *firstbody = static_cast<ASTNode *>(vec_at(p->ifn.bodies, 0));
   if (p->ifn.remain) { /* if else */
     elsebb = ir1.gen_bb("elsebb");
     ir1.builder().CreateCondBr(cond, thenbb, elsebb);
     curr_fn->getBasicBlockList().push_back(thenbb);
     ir1.builder().SetInsertPoint(thenbb);
-    walk_stack(p->ifn.bodies[0]);
+    walk_stack(firstbody);
     if (isexpr) {
       auto tmpv1 = pop_right_value("tmpv");
       ir1.store_var(tmpc, tmpv1.first);
@@ -1149,7 +1151,7 @@ static void walk_if_common(ASTNode *p) {
     ir1.builder().CreateCondBr(cond, thenbb, outbb);
     curr_fn->getBasicBlockList().push_back(thenbb);
     ir1.builder().SetInsertPoint(thenbb);
-    walk_stack(p->ifn.bodies[0]);
+    walk_stack(firstbody);
   }
 
   ir1.builder().CreateBr(outbb);

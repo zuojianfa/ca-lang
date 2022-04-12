@@ -262,6 +262,10 @@ ST_ArgList *tuplelist_current();
 ST_ArgList *tuplelist_new_push();
 void tuplelist_pop();
 
+struct ASTNode *ifstmt_current();
+struct ASTNode *ifstmt_new_push();
+void ifstmt_pop();
+
 // type checking
 int check_i64_value_scope(int64_t lit, tokenid_t typetok);
 int check_u64_value_scope(uint64_t lit, tokenid_t typetok);

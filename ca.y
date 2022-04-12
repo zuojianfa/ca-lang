@@ -203,7 +203,6 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	LOOP stmt_list_block    { $$ = make_loop($2); }
 	|	for_stmt                { $$ = $1; }
 	|	WHILE '(' expr ')' stmt_list_block { $$ = make_while($3, $5); }
-	|	IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
 	|	ifstmt                  { dot_emit("stmt", "ifstmt"); $$ = $1; }
 	|	stmt_list_block         { dot_emit("stmt", "stmt_list_block"); $$ = $1; }
 	|	label_def               { dot_emit("stmt", "label_def"); $$ = $1; }
@@ -276,11 +275,38 @@ for_stmt_ident:	IDENT               { $$ = (ForStmtId){0, $1}; }
 	|	REF IDENT           { $$ = (ForStmtId){'&', $2}; }
 	;
 
-ifstmt:		IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
+//ifstmt:		IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
+//	|	IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
+//		;
+
+ifstmt:		{ ifstmt_new_push(); } ifstmt1 { $$ = ifstmt_current(); ifstmt_pop(); }
+	;
+
+ifstmt1:   	ifpart elsepart
 		;
+
+ifpart:  	IF '(' expr ')' stmt_list_block { make_ifpart(ifstmt_current(), $3, $5); }
+		;
+
+elsepart:	ELSE stmt_list_block { make_elsepart(ifstmt_current(), $2); }
+	|	ELSE ifstmt1 // just for syntax structure, no need action, all done in stack
+	|                    // just for syntax structure, no need action, all done in stack
+		;
+
 //////////////////////////////////////////////////////////////
-/* TODO: realize the conflict problem when open the stmt expression using `IF` not `IFE` */
-ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { $$ = make_if(1, 3, $3, $5, $7); }
+/* 		TODO: realize the conflict problem when open the stmt expression using `IF` not `IFE` */
+//ifexpr:		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block { $$ = make_if(1, 3, $3, $5, $7); }
+//		;
+
+ifexpr:		{ ifstmt_new_push(); }
+		IFE '(' expr ')' stmtexpr_list_block ELSE stmtexpr_list_block
+		{
+		ASTNode *p = ifstmt_current();
+		make_ifpart(p, $4, $6);
+		make_elsepart(p, $8);
+		$$ = p;
+		ifstmt_pop();
+		}
 		;
 
 stmtexpr_list_block:                   { SymTable *st = push_new_symtable(); }

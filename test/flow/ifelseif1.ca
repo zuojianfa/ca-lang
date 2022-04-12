@@ -1,0 +1,139 @@
+fn main() {
+    let a = 1;
+    // single if
+    if (a == 1) {
+	print "if1...else0: a == 1\n";
+        let b = 2;
+        // if + else + if
+        if (a == 1) {
+            print "if2...else1: a == 1\n";
+        } else if (b == 2) {
+            print "if2...else1: b == 2\n";
+        }
+    }
+
+    // if + else
+    if (a == 1) {
+	print "if1...else1: a == 1\n";
+        if (a == 1) {
+            print "if2...else2: a == 1\n";
+        } else if (b == 2) {
+            print "if2...else2: b == 2\n";
+        } else {
+            print "if2...else2\n";
+            let c = 3;
+            // if + else + if + else + if
+            if (a == 1) {
+                print "if3...else2: a == 1\n";
+            } else if (b == 2) {
+                print "if3...else2: b == 2\n";
+            } else if (c == 3) {
+                print "if3...else2: c == 3\n";
+            }
+        }
+    } else {
+	print "if1...else1\n";
+        if (a == 1) {
+            print "if2...else2: a == 1\n";
+        } else if (b == 2) {
+            print "if2...else2: b == 2\n";
+            // if + else + if + else + if + else
+            if (a == 1) {
+                print "if3...else3: a == 1\n";
+            } else if (b == 2) {
+                print "if3...else3: b == 2\n";
+                // if + else + if + else + if + else + if + else + if + else
+                if (a == 1) {
+                    print "if5...else5: a == 1\n";
+                } else if (b == 2) {
+                    print "if5...else5: b == 2\n";
+                } else if (c == 3) {
+                    print "if5...else5: c == 3\n";
+                } else if (d == 4) {
+                    print "if5...else5: d == 4\n";
+                } else if (e == 5) {
+                    print "if5...else5: e == 5\n";
+                } else {
+                    print "if5...else5\n";
+                }
+            } else if (c == 3) {
+                print "if3...else3: c == 3\n";
+            } else {
+                print "if3...else3\n";
+            }
+        } else {
+            print "if2...else2\n";
+        }
+    }
+
+    let d = 4;
+    let e = 5;
+    
+    // if + else + if + else + if + else + if + else + if + else
+    if (a == 1) {
+        print "if5...else5: a == 1\n";
+    } else if (b == 2) {
+        print "if5...else5: b == 2\n";
+    } else if (c == 3) {
+        print "if5...else5: c == 3\n";
+    } else if (d == 4) {
+        print "if5...else5: d == 4\n";
+        if (a == 1) {
+	    print "if1...else1: a == 1\n";
+            if (a == 1) {
+                print "if2...else2: a == 1\n";
+            } else if (b == 2) {
+                print "if2...else2: b == 2\n";
+            } else {
+                print "if2...else2\n";
+                let c = 3;
+                // if + else + if + else + if
+                if (a == 1) {
+                    print "if3...else2: a == 1\n";
+                } else if (b == 2) {
+                    print "if3...else2: b == 2\n";
+                } else if (c == 3) {
+                    print "if3...else2: c == 3\n";
+                }
+            }
+        } else {
+	    print "if1...else1\n";
+            if (a == 1) {
+                print "if2...else2: a == 1\n";
+            } else if (b == 2) {
+                print "if2...else2: b == 2\n";
+                // if + else + if + else + if + else
+                if (a == 1) {
+                    print "if3...else3: a == 1\n";
+                } else if (b == 2) {
+                    print "if3...else3: b == 2\n";
+                    // if + else + if + else + if + else + if + else + if + else
+                    if (a == 1) {
+                        print "if5...else5: a == 1\n";
+                    } else if (b == 2) {
+                        print "if5...else5: b == 2\n";
+                    } else if (c == 3) {
+                        print "if5...else5: c == 3\n";
+                    } else if (d == 4) {
+                        print "if5...else5: d == 4\n";
+                    } else if (e == 5) {
+                        print "if5...else5: e == 5\n";
+                    } else {
+                        print "if5...else5\n";
+                    }
+                } else if (c == 3) {
+                    print "if3...else3: c == 3\n";
+                } else {
+                    print "if3...else3\n";
+                }
+            } else {
+                print "if2...else2\n";
+            }
+        }
+    } else if (e == 5) {
+        print "if5...else5: e == 5\n";
+    } else {
+        print "if5...else5\n";
+    }
+}
+

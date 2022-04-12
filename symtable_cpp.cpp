@@ -37,6 +37,7 @@ static std::unordered_map<std::string, int> s_symname_name2pos;
 
 static std::stack<std::unique_ptr<ST_ArgListActual>> s_actualarglist_stack;
 static std::stack<std::unique_ptr<ST_ArgList>> s_tuplelist_stack;
+static std::stack<ASTNode *> s_ifstmt_stack;
 
 ST_ArgListActual *actualarglist_current() {
   return s_actualarglist_stack.top().get();
@@ -68,6 +69,23 @@ ST_ArgList *tuplelist_new_push() {
 }
 
 void tuplelist_pop() {
+  s_tuplelist_stack.pop();
+}
+
+ASTNode *ifstmt_current() {
+  return s_ifstmt_stack.top();
+}
+
+ASTNode *ifstmt_new_push() {
+  ASTNode *p = new_ifstmt_node();
+  p->ifn.conds = vec_new();
+  p->ifn.bodies = vec_new();
+
+  s_ifstmt_stack.push(p);
+  return p;
+}
+
+void ifstmt_pop() {
   s_tuplelist_stack.pop();
 }
 

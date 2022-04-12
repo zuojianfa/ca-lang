@@ -1313,7 +1313,7 @@ typeid_t inference_expr_type(ASTNode *p) {
 
     // determine if expression type
     // TODO: realize multiple if else statement
-    type1 = inference_expr_type(p->ifn.bodies[0]);
+    type1 = inference_expr_type((ASTNode *)(vec_at(p->ifn.bodies, 0)));
     if (p->ifn.remain) {
       typeid_t type2 = inference_expr_type(p->ifn.remain);
       if (!catype_check_identical_in_symtable(p->symtable, type1, p->symtable, type2)) {
@@ -1641,7 +1641,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
 
     // determine if expression type
     // TODO: realize multiple if else statement
-    determine_expr_expr_type(node->ifn.bodies[0], type);
+    determine_expr_expr_type((ASTNode *)(vec_at(node->ifn.bodies, 0)), type);
     if (node->ifn.remain) {
       determine_expr_expr_type(node->ifn.remain, type);
     }
@@ -1910,6 +1910,28 @@ ASTNode *make_while(ASTNode *cond, ASTNode *whilebody) {
     return p;
 }
 
+ASTNode *new_ifstmt_node() {
+  ASTNode *p = new_ASTNode(TTE_If);
+  p->ifn.ncond = 0;
+  p->ifn.isexpr = 0;
+  p->ifn.conds = NULL;
+  p->ifn.bodies = NULL;
+  p->ifn.remain = NULL;
+  return p;
+}
+
+ASTNode *make_ifpart(ASTNode *p, ASTNode *cond, ASTNode *body) {
+  vec_append(p->ifn.conds, cond);
+  vec_append(p->ifn.bodies, body);
+  return p;
+}
+
+ASTNode *make_elsepart(ASTNode *p, ASTNode *body) {
+  p->ifn.remain = body;
+  return p;
+}
+
+#if 0
 ASTNode *make_if(int isexpr, int argc, ...) {
     dot_emit("stmt", "if");
     // or
@@ -1949,6 +1971,7 @@ ASTNode *make_if(int isexpr, int argc, ...) {
     else
       return p;
 }
+#endif
 
 // compare if the previous defined function proto is the same as the current defining
 static int pre_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, typeid_t rettype) {

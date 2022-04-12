@@ -136,8 +136,8 @@ typedef struct TWhileNode {
 typedef struct TIfNode {
   int ncond;
   int isexpr;
-  struct ASTNode **conds;
-  struct ASTNode **bodies;
+  void *conds;
+  void *bodies;
   struct ASTNode *remain;
 } TIfNode;
 
@@ -383,6 +383,9 @@ void make_for_var_entry(int id);
 ASTNode *make_for(ForStmtId id, ASTNode *listnode, ASTNode *stmts);
 ASTNode *make_for_stmt(ForStmtId id, ASTNode *listnode, ASTNode *stmts);
 ASTNode *make_while(ASTNode *cond, ASTNode *whilebody);
+ASTNode *new_ifstmt_node();
+ASTNode *make_ifpart(ASTNode *p, ASTNode *cond, ASTNode *body);
+ASTNode *make_elsepart(ASTNode *p, ASTNode *body);
 ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
 ASTNode *make_fn_call_or_tuple(int fnid, ASTNode *param);
