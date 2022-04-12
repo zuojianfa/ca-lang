@@ -85,8 +85,22 @@ ASTNode *ifstmt_new_push() {
   return p;
 }
 
-void ifstmt_pop() {
-  s_tuplelist_stack.pop();
+void ifstmt_pop(int isexpr) {
+  ASTNode *p = s_ifstmt_stack.top();
+  p->ifn.isexpr = isexpr;
+  p->ifn.ncond = vec_size(p->ifn.conds);
+
+  ASTNode *cond1 = (ASTNode *)vec_at(p->ifn.conds, 0);
+  ASTNode *lastn = NULL;
+  if (p->ifn.remain)
+    lastn = p->ifn.remain;
+  else
+    lastn = (ASTNode *)vec_at(p->ifn.bodies, p->ifn.ncond - 1);
+
+  p->begloc = cond1->begloc;
+  p->endloc = lastn->endloc;
+
+  s_ifstmt_stack.pop();
 }
 
 static int symname_insert(const std::string &s) {

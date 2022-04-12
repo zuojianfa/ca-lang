@@ -1,0 +1,12 @@
+fn func(a: i32, b: i32) -> bool {
+    return a > b;
+}
+
+fn main() {
+    let a = 4;
+    let b = 3;
+    if (func(a, b)) {
+	print "a > b";
+    }
+}
+

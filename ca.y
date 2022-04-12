@@ -279,7 +279,7 @@ for_stmt_ident:	IDENT               { $$ = (ForStmtId){0, $1}; }
 //	|	IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
 //		;
 
-ifstmt:		{ ifstmt_new_push(); } ifstmt1 { $$ = ifstmt_current(); ifstmt_pop(); }
+ifstmt:		{ ifstmt_new_push(); } ifstmt1 { $$ = ifstmt_current(); ifstmt_pop(0); }
 	;
 
 ifstmt1:   	ifpart elsepart
@@ -305,7 +305,7 @@ ifexpr:		{ ifstmt_new_push(); }
 		make_ifpart(p, $4, $6);
 		make_elsepart(p, $8);
 		$$ = p;
-		ifstmt_pop();
+		ifstmt_pop(1);
 		}
 		;
 
@@ -480,6 +480,7 @@ literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, 
 	;
 
 array_def:	'[' array_def_items ']' { $$ = $2; }
+	|	'[' ']' { $$ = arrayexpr_new(); }
 	;
 
 array_def_items:array_def_items ',' expr { $$ = arrayexpr_append($1, $3); }

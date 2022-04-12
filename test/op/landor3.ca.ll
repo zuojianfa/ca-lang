@@ -67,19 +67,22 @@ outbb8:                                           ; preds = %outbb6, %outbb
   %a = alloca i1, align 1
   store volatile i1 %iftmp9, i1* %a, align 1
   %cond = load i1, i1* %a, align 1
-  br i1 %cond, label %thenbb10, label %elsebb
+  br i1 %cond, label %then0, label %cond1
 
-thenbb10:                                         ; preds = %outbb8
+cond1:                                            ; preds = %outbb8
+  br label %then1
+
+then0:                                            ; preds = %outbb8
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @6, i32 0, i32 0), i8* getelementptr inbounds ([7 x i8], [7 x i8]* @5, i32 0, i32 0))
-  br label %outbb12
+  br label %outbb11
 
-elsebb:                                           ; preds = %outbb8
-  %n11 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @8, i32 0, i32 0), i8* getelementptr inbounds ([8 x i8], [8 x i8]* @7, i32 0, i32 0))
-  br label %outbb12
+then1:                                            ; preds = %cond1
+  %n10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @8, i32 0, i32 0), i8* getelementptr inbounds ([8 x i8], [8 x i8]* @7, i32 0, i32 0))
+  br label %outbb11
 
-outbb12:                                          ; preds = %elsebb, %thenbb10
+outbb11:                                          ; preds = %then1, %then0
   br label %ret
 
-ret:                                              ; preds = %outbb12
+ret:                                              ; preds = %outbb11
   ret void
 }

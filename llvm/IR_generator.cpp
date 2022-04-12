@@ -1176,8 +1176,81 @@ static void walk_if_common(ASTNode *p) {
   }
 }
 
+static void walk_if_common2(ASTNode *p) {
+  if (!curr_fn)
+    return;
+
+  if (enable_debug_info())
+    diinfo->emit_location(p->begloc.row, p->begloc.col, curr_lexical_scope->discope);
+
+  // the clang always alloca in the header of the function, it may error
+  // occurs when alloca in other blocks. Answer: not exactly
+
+  // initialize BasicBlock
+  int condsize = vec_size(p->ifn.conds);
+  std::vector<BasicBlock *> condbbs;
+  std::vector<BasicBlock *> bodybbs;
+  BasicBlock *outbb = ir1.gen_bb("outbb");
+  for (int i = 0; i < condsize; ++i) {
+    char bbname[16];
+    sprintf(bbname, "cond%d", i+1);
+    condbbs.push_back(ir1.gen_bb(bbname));
+    sprintf(bbname, "then%d", i);
+    bodybbs.push_back(ir1.gen_bb(bbname));
+  }
+
+  if (p->ifn.remain) {
+    char bbname[16];
+    sprintf(bbname, "then%d", condsize);
+    bodybbs.push_back(ir1.gen_bb(bbname));
+  }
+
+  // condition part
+  for (int i = 0; i < condsize; ++i) {
+    ASTNode *condn = static_cast<ASTNode *>(vec_at(p->ifn.conds, i));
+    inference_expr_type(condn);
+    walk_stack(condn);
+    auto pair = pop_right_value("cond");
+    Value *condv = pair.first;
+    if (pair.second->type != BOOL) {
+      // condition must be bool type
+      yyerror("line: %d, col: %d: condition only accept `bool` type, but find `%s`",
+	      p->begloc.row, p->begloc.col, get_type_string(pair.second->type));
+      return;
+    }
+
+    ir1.builder().CreateCondBr(condv, bodybbs[i], condbbs[i]);
+    curr_fn->getBasicBlockList().push_back(condbbs[i]);
+    ir1.builder().SetInsertPoint(condbbs[i]);
+  }
+
+  ir1.builder().CreateBr(p->ifn.remain ? bodybbs[condsize] : outbb);
+
+  // body part
+  for (int i = 0; i < condsize; ++i) {
+    curr_fn->getBasicBlockList().push_back(bodybbs[i]);
+    ir1.builder().SetInsertPoint(bodybbs[i]);
+    ASTNode *bodyn = static_cast<ASTNode *>(vec_at(p->ifn.bodies, i));
+    walk_stack(bodyn);
+    ir1.builder().CreateBr(outbb);
+  }
+
+  if (p->ifn.remain) {
+    curr_fn->getBasicBlockList().push_back(bodybbs[condsize]);
+    ir1.builder().SetInsertPoint(bodybbs[condsize]);
+    walk_stack(p->ifn.remain);
+    ir1.builder().CreateBr(outbb);   
+  }
+
+  curr_fn->getBasicBlockList().push_back(outbb);
+  ir1.builder().SetInsertPoint(outbb);
+}
+
 static void walk_if(ASTNode *p) {
-  walk_if_common(p);
+  if (p->ifn.isexpr)
+    walk_if_common(p);
+  else
+    walk_if_common2(p);
 }
 
 static void walk_expr_ife(ASTNode *p) {
@@ -2083,7 +2156,7 @@ static void walk_expr_array(ASTNode *p) {
   Value *idxv0 = ir1.gen_int(0);
   std::vector<Value *> idxv(2, idxv0);
 
-  if (lefttype->getTypeID() == Type::PointerTyID)
+  if (vnodes->size() != 0 && lefttype->getTypeID() == Type::PointerTyID)
     lefttype = static_cast<PointerType *>(lefttype)->getElementType();
 
   for (size_t i = 0; i < values.size(); ++i) {

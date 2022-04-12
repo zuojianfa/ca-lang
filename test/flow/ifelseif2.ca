@@ -1,0 +1,15 @@
+fn main() {
+    let a = 1;
+    // single if
+    if (a == 1) {
+	print "if1...else0: a == 1\n";
+    }
+
+    // if + else
+    if (a == 2) {
+	print "if1...else1: a == 1\n";
+    } else {
+	print "if1...else1\n";
+    }
+}
+

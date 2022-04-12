@@ -23,3 +23,11 @@ do_test(flow "1 2 3 \n1.100000 2.200000 3.300000 \nAA { f1: 123, f2: C } AA { f1
 do_test(flow "\\[2, 3, 4\\]\n\\[3.300000, 6.600000, 9.900000\\]\n\\[AA { f1: 251, f2: D }, AA { f1: 917, f2: B }, AA { f1: 1583, f2: ! }\\]" ca for_ptr2.ca)
 do_test(flow "1:0 0 2 4 6 8 10 \n1 0 2 4 6 8 10 \n\n2:0 0 2 4 6 8 10 \n1 0 2 4 6 8 10 \n\n3:0 0 2 4 6 8 10 \n1 0 2 4 6 8 10" ca forwhileloop1.ca)
 
+do_test(flow "if1...else0: a == 1\nif1...else1: a == 1\nif2...else1: b == 2\nif2...else2\nif3...else2: c == 3\nif3...else3\nif5...else5: d == 4" ca ifelseif0.ca)
+do_test(flow "if1...else0: a == 1\nif2...else1: b == 2\nif1...else1\nif2...else2: b == 2\nif3...else3: b == 2\nif5...else5: b == 2\nif5...else5: d == 4\nif1...else1\nif2...else2" ca ifelseif1.ca)
+do_test(flow "if1...else0: a == 1\nif1...else1" ca ifelseif2.ca)
+do_test(flow "if2...else1: b == 2\nif2...else2: b == 2\nif3...else2: c == 3\nif3...else3\nif5...else5: d == 4\n" ca ifelseif3.ca)
+do_test(flow "6" ca ifelseif4.ca)
+do_test(flow "8 1 2 3 4 5 6 7" ca ifstmt1.ca)
+do_test(flow "2 \nb \\+ 1 != 4\n4 > 3\n1 \nb \\+ 1 = 4" ca ifstmt2.ca)
+

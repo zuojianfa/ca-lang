@@ -5,6 +5,7 @@ fn main() {
 	print "if1...else0: a == 1\n";
         let b = 2;
         // if + else + if
+	a = 2;
         if (a == 1) {
             print "if2...else1: a == 1\n";
         } else if (b == 2) {
@@ -15,6 +16,7 @@ fn main() {
     // if + else
     if (a == 1) {
 	print "if1...else1: a == 1\n";
+	let b = 2;
         if (a == 1) {
             print "if2...else2: a == 1\n";
         } else if (b == 2) {
@@ -33,6 +35,8 @@ fn main() {
         }
     } else {
 	print "if1...else1\n";
+	let b = 2;
+	let c = 3;
         if (a == 1) {
             print "if2...else2: a == 1\n";
         } else if (b == 2) {
@@ -43,6 +47,9 @@ fn main() {
             } else if (b == 2) {
                 print "if3...else3: b == 2\n";
                 // if + else + if + else + if + else + if + else + if + else
+		let c = 3;
+		let d = 4;
+		let e = 5;
                 if (a == 1) {
                     print "if5...else5: a == 1\n";
                 } else if (b == 2) {
@@ -68,6 +75,11 @@ fn main() {
 
     let d = 4;
     let e = 5;
+    let b = 2;
+    let c = 3;
+
+    b = 3;
+    c = 4;
     
     // if + else + if + else + if + else + if + else + if + else
     if (a == 1) {

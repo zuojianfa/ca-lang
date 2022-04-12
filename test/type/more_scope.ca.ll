@@ -95,9 +95,12 @@ entry:
   %v14 = load i32, i32* %b, align 4, !dbg !63
   %v25 = load i32, i32* %c, align 4, !dbg !63
   %eq = icmp eq i32 %v14, %v25, !dbg !64
-  br i1 %eq, label %thenbb, label %outbb, !dbg !64
+  br i1 %eq, label %then0, label %cond1, !dbg !64
 
-thenbb:                                           ; preds = %entry
+cond1:                                            ; preds = %entry
+  br label %outbb, !dbg !64
+
+then0:                                            ; preds = %entry
   %18 = alloca [3 x i32], align 4, !dbg !65
   %19 = getelementptr [3 x i32], [3 x i32]* %18, i32 0, i64 0, !dbg !65
   store volatile i32 1, i32* %19, align 4, !dbg !65
@@ -122,7 +125,7 @@ thenbb:                                           ; preds = %entry
   %n7 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @1, i32 0, i32 0)), !dbg !68
   br label %outbb, !dbg !68
 
-outbb:                                            ; preds = %thenbb, %entry
+outbb:                                            ; preds = %then0, %cond1
   br label %ret, !dbg !69
 
 ret:                                              ; preds = %outbb

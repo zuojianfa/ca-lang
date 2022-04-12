@@ -1473,6 +1473,23 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 
     break;
   }
+  case '>':
+  case '<':
+  case GE:
+  case LE:
+  case NE:
+  case EQ: {
+    // determine logical expresssion type, must be bool
+    datatype = catype_get_by_name(node->symtable, type);
+    if (datatype->type != BOOL) {
+      yyerror("line: %d, col: %d: `bool` required for determining logical operation, but `%s` type found",
+	      node->begloc.row, node->begloc.col, catype_get_type_name(datatype->signature));
+      return -1;
+    }
+
+    inference_expr_type(node);
+    break;
+  }
   case '+':
   case '-':
     assert(node->exprn.noperand == 2);
@@ -1513,6 +1530,8 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
       node->exprn.operands[1]->exprn.expr_type = secondca->signature;
       break;
     }
+  case LAND:
+  case LOR:
   case AS:
   case UMINUS:
   case IF_EXPR:

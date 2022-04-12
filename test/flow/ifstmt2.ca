@@ -1,0 +1,40 @@
+fn func(a: i32, b: i32) -> bool {
+    let c = a > b;
+    return c;
+}
+
+fn main() {
+    let a = 1;
+    let i = 0;
+    while (i < 2) {
+	if (a % 2 == 0) {
+	    print "1 \n";
+	    let b = 3;
+	    if (b + 1 == 4) {
+		print "b + 1 = 4\n";
+	    } else {
+		print "b + 1 != 4\n";
+	    }
+	} else {
+	    print "2 \n";
+	    let b = 2;
+	    if (b + 1 == 4) {
+		print "b + 1 = 4\n";
+	    } else {
+		let c = 5;
+		let d = 6;
+		print "b + 1 != 4\n";
+		if (func(4, 3)) {
+		    print "4 > 3\n";
+		} else if (func(c, d)) {
+		    print "c < d\n";
+		} else {
+		    print "c > d\n";
+		}
+	    }
+	}
+	a += 1;
+	i += 1;
+    }
+}
+

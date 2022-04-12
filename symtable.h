@@ -264,7 +264,7 @@ void tuplelist_pop();
 
 struct ASTNode *ifstmt_current();
 struct ASTNode *ifstmt_new_push();
-void ifstmt_pop();
+void ifstmt_pop(int isexpr);
 
 // type checking
 int check_i64_value_scope(int64_t lit, tokenid_t typetok);

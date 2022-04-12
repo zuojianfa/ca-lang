@@ -1,0 +1,21 @@
+fn main() {
+    let a = 2;
+    let b = 3;
+    let c = 4;
+    let d = 5;
+    let e = 6;
+    if (a == 1) {
+	print "1 ";
+    } else if (b == 2) {
+	print "2 ";
+    } else if (c == 3){
+	print "3 ";
+    } else if (d == 4) {
+	print "4 ";
+    } else if (e == 5) {
+	print "5 ";
+    } else {
+	print "6 ";
+    }
+}
+

@@ -1,0 +1,28 @@
+entry:cond0
+	br 1, b0, l1
+l1: cond1
+	br 1, b1, l2
+l2: cond2
+	br 1, b2, l3
+l3: cond3
+	br 1, b3, l4/out
+l4:
+	br b4/out
+
+b0:
+	cmds0
+	br out
+b1:
+	cmds1
+	br out
+b2:
+	cmds2
+	br out
+b3:
+	cmds3
+	br out
+b4:
+	cmds4
+	br out
+out:
+

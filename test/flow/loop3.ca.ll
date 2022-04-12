@@ -20,9 +20,12 @@ loopbb:                                           ; preds = %outbb, %entry
   store volatile i32 %add, i32* %i, align 4
   %v1 = load i32, i32* %i, align 4
   %gt = icmp sgt i32 %v1, 10
-  br i1 %gt, label %thenbb, label %outbb
+  br i1 %gt, label %then0, label %cond1
 
-thenbb:                                           ; preds = %loopbb
+cond1:                                            ; preds = %loopbb
+  br label %outbb
+
+then0:                                            ; preds = %loopbb
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @1, i32 0, i32 0), i8* getelementptr inbounds ([15 x i8], [15 x i8]* @0, i32 0, i32 0))
   br label %endloopbb
 
@@ -34,13 +37,13 @@ extra:                                            ; No predecessors!
   store volatile i32 %add1, i32* %a, align 4
   br label %outbb
 
-outbb:                                            ; preds = %extra, %loopbb
+outbb:                                            ; preds = %extra, %cond1
   %load = load i32, i32* %i, align 4
   %n2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0), i32 %load)
   %n3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @3, i32 0, i32 0), i8 32)
   br label %loopbb
 
-endloopbb:                                        ; preds = %thenbb
+endloopbb:                                        ; preds = %then0
   br label %ret
 
 ret:                                              ; preds = %endloopbb
