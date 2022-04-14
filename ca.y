@@ -67,13 +67,14 @@ extern int yychar, yylineno;
   StructFieldOp structfieldop; /* struct field operation */
   LeftValueId leftvalueid; /* any id that have left value */
   ForStmtId forstmtid; /* the for statement variable type: by value, by pointer, by reference */
+  IdGroup symnameids;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
 %token	<symnameid>	VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
-%token			LOOP FOR IN BREAK CONTINUE MATCH USE MOD
+%token			LOOP FOR IN BREAK CONTINUE MATCH USE MOD IGNORE
 %token			BAND BOR BXOR BNOT
 %token			ASSIGN_ADD ASSIGN_SUB ASSIGN_MUL ASSIGN_DIV ASSIGN_MOD ASSIGN_SHIFTL ASSIGN_SHIFTR ASSIGN_BAND ASSIGN_BOR ASSIGN_BXOR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM TUPLE
@@ -103,7 +104,7 @@ extern int yychar, yylineno;
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
 %type	<astnode>	paragraph fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
 %type			fn_args_p fn_args_call_or_tuple_p
-%type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def
+%type	<astnode>	ifstmt stmt_list_star block_body let_stmt let_stmt_assign assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
 %type	<forstmtid>	for_stmt_ident
 %type	<var>		iddef iddef_typed
@@ -115,6 +116,7 @@ extern int yychar, yylineno;
 %type	<structfieldop>	structfield_op
 %type	<leftvalueid>	left_value_id
 %type	<symnameid>	assign_op
+%type	<symnameids>	let_more_var
 
 %start program
 
@@ -234,8 +236,36 @@ attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); 
 	;
 
 let_stmt:	attrib_scope LET iddef '=' vardef_value ';'  { $$ = make_vardef($3, $5, 1); }
-	|	LET iddef '=' vardef_value ';'               { $$ = make_vardef($2, $4, 0); }
+//	|	LET iddef '=' vardef_value ';'               { $$ = make_vardef($2, $4, 0); }
+//	|	LET IDENT '(' ')' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+//	|	LET IDENT '{' '}' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+//	|	LET '(' ')' '=' vardef_value ';'             { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+//	|	LET let_more_var iddef '=' vardef_value ';'               { $$ = NULL; }
+//	|	LET let_more_var IDENT '(' ')' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+//	|	LET let_more_var IDENT '{' '}' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+//	|	LET let_more_var '(' ')' '=' vardef_value ';'             { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+
+	|	LET let_stmt_assign
+	|	LET let_more_var let_stmt_assign
 	;
+
+let_more_var:	let_more_var IDENT '@'
+	|	IDENT '@'
+	;
+
+let_stmt_assign:iddef '=' vardef_value ';'               { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+	|	IDENT '(' pattern_tuple_args ')' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+	|	IDENT '{' pattern_struct_args '}' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+	|	'(' pattern_tuple_args ')' '=' vardef_value ';'             { $$ = NULL; /* make_vardef($2, $4, 0); */ }
+
+pattern_tuple_args: // a,b,c,d a,..,d a,b,.. ..,c,d
+		
+	;
+
+pattern_struct_args:
+		
+	;
+
 
 assignment_stmt:left_value_id '=' expr ';'  { $$ = make_assign(&$1, $3); }
 	;

@@ -213,10 +213,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] support tuple struct type
 - [x] add tuple struct literal
 - [x] the named tuple and function cannot have the same name in the same scope, they are conflicting not like struct
-- [ ] if else if else ...
-- [ ] support never return type `!` like rust
+- [x] if else if else ...
+- [x] support multiple if-else else if statement
 - [ ] support multiple compile unit and link them together
-- [ ] support multiple if-else else if statement
 - [ ] support rust grammar
   - [x] heap allocate memory: `box`
   - [x] named tuple
@@ -249,6 +248,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [ ] default acceptor _
   - [ ] slice operator and infrastructure
   - [ ] function definition can be in any scope
+  - [ ] support never return type `!` like rust
 
 
 
@@ -297,13 +297,10 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-- [ ] debugging cmp3.ca, update .ll for ctest
-- [ ] function definition can be in any scope
-- [x] if else if else ...
+- [ ] pattern matching: let S(x) = A; let S{x} = A;
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
 - [ ] 'label1: loop
 - [ ] match
-- [ ] destructure operator: let S(x) = A; let S{x} = A;
 - [ ] mod scope
 - [ ] use package
 - [ ] default acceptor _
@@ -321,6 +318,7 @@ NEXT TODO:
 - [ ] set right line number for structure definition lines
 - [ ] refactor factor where to find CADataType object using quickest way **to distinguish which is unwinded typeid which winded typeid**
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
+- [ ] function definition can be in any scope
 
 # License
 See `LICENSE` file in this directory, for license in directory `cruntime` see cruntime/README.md

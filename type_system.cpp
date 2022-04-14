@@ -179,6 +179,7 @@ std::unordered_map<std::string, int> s_token_map = {
   {"return", RET},
   {"let",    LET},
   {"...",    VARG},
+  {"..",     IGNORE},
   {"struct", STRUCT},
   {"type",   TYPE},
   {"as",     AS},
