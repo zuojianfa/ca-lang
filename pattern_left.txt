@@ -1,0 +1,15 @@
+let_stmt_one_left
+	let_stmt_left_pattern
+		pattern_tuple_args_all
+			pattern_tuple_args
+				pattern_tuple_arg
+					let_stmt_one_left
+					let_stmt_more_left
+						let_stmt_one_left
+		pattern_struct_args_all
+			pattern_struct_args
+				pattern_struct_arg
+					let_stmt_one_left
+					let_stmt_more_left
+						let_stmt_one_left
+

@@ -219,10 +219,6 @@ typedef struct ForStmtId {
   int var;
 } ForStmtId;
 
-typedef struct IdGroup {
-  void *groups; // vec_new
-} IdGroup;
-
 typedef struct TLexicalBody {
   struct ASTNode *stmts;
   struct ASTNode *fnbuddy; /* if not null it is also a function body */

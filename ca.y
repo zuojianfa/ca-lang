@@ -68,6 +68,8 @@ extern int yychar, yylineno;
   LeftValueId leftvalueid; /* any id that have left value */
   ForStmtId forstmtid; /* the for statement variable type: by value, by pointer, by reference */
   IdGroup symnameids;
+  CAPattern *capattern;
+  PatternGroup *patterngroup;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
@@ -117,7 +119,8 @@ extern int yychar, yylineno;
 %type	<leftvalueid>	left_value_id
 %type	<symnameid>	assign_op
 %type	<symnameids>	let_more_var
-%type	<astnode>	let_stmt_left let_stmt_more_left_typed let_stmt_more_left let_stmt_one_left_typed let_stmt_one_left let_stmt_left_pattern pattern_tuple_args pattern_struct_args pattern_struct_arg pattern_tuple_arg
+%type	<capattern>	let_stmt_left let_stmt_one_left let_stmt_left_pattern let_stmt_one_left_typed pattern_tuple_arg let_stmt_more_left_typed let_stmt_more_left pattern_struct_arg
+%type	<patterngroup>	pattern_struct_args_all pattern_tuple_args_all pattern_tuple_args pattern_struct_args
 
 %start program
 
@@ -246,7 +249,7 @@ let_stmt:	attrib_scope LET iddef '=' vardef_value ';'  { $$ = make_vardef($3, $5
 //	|	LET let_more_var IDENT '{' '}' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
 //	|	LET let_more_var '(' ')' '=' vardef_value ';'             { $$ = NULL; /* make_vardef($2, $4, 0); */ }
 
-	|	LET let_stmt_left '=' vardef_value ';' { $$ = NULL; }
+	|	LET let_stmt_left '=' vardef_value ';' { $$ = NULL; } // PATTERN TODO: 
 	;
 
 let_stmt_left:	let_stmt_more_left_typed
@@ -256,14 +259,14 @@ let_stmt_left:	let_stmt_more_left_typed
 	;
 
 let_stmt_more_left_typed:
-		let_stmt_more_left ':' data_type
+		let_stmt_more_left ':' data_type { $1->datatype = $3; $$ = $1; }
 	;
 
 let_stmt_more_left:
-		let_more_var let_stmt_one_left { $$ = $2; /* TODO: realize it */}
+		let_more_var let_stmt_one_left { $2->morebind = $1; $$ = $2; }
 	;
 
-let_more_var:	let_more_var IDENT '@' {}
+let_more_var:	let_more_var IDENT '@' {}  // PATTERN TODO:
 	|	IDENT '@' { $$ = (IdGroup){NULL}; /* TODO; */ }
 	;
 
@@ -272,42 +275,72 @@ let_stmt_one_left:
 	;
 
 let_stmt_one_left_typed:
-		let_stmt_one_left ':' data_type
+		let_stmt_one_left ':' data_type { $1->datatype = $3; $$ = $1; }
 	;
 
-let_stmt_left_pattern: /* TODO: realize all following */ 
-		IDENT                              { $$ = NULL; } // simple pattern, simple assignment variable
-	|	IDENT '(' pattern_tuple_args ')'   { $$ = NULL; } // tuple type pattern match, for tuple/enum/union type
-	|	IDENT '{' pattern_struct_args '}'  { $$ = NULL; } // struct type pattern match, for struct/tuple type
-	|	'(' pattern_tuple_args ')'         { $$ = NULL; } // general tuple (unnamed) pattern match
-	|	'_'                                { $$ = NULL; } // ignorance the pattern
+let_stmt_left_pattern:
+		IDENT                                 { $$ = capattern_new($1, PT_Var, NULL); } // simple pattern, simple variable binding
+	|	IDENT '(' pattern_tuple_args_all ')'  { $$ = capattern_new($1, PT_Tuple, $3); } // tuple style pattern match, for tuple/enum/union type
+	|	IDENT '{' pattern_struct_args_all '}' { $$ = capattern_new($1, PT_Struct, $3); } // struct style pattern match, for struct/tuple type
+	|	'(' pattern_tuple_args_all ')'        { $$ = capattern_new(0, PT_GenTuple, $2); } // general tuple (unnamed) pattern match
+	|	'_'                                   { $$ = capattern_new(0, PT_IgnoreOne, NULL); } // ignorance the pattern
 //	|	IDENT ':' ':' IDENT // TODO: domain type or enum type
 
+pattern_tuple_args_all:  // PATTERN TODO: 
+		{ /* push arg list */ } pattern_tuple_args { $$= NULL; /* pop arg list */ }
+	|       { $$= NULL; }
+	;
+
 pattern_tuple_args: // a,b,c,d a,..,d a,b,.. ..,c,d, _
-		pattern_tuple_arg ',' pattern_tuple_args { $$ = NULL; }  // NEXT TODO:
-	|	pattern_tuple_arg
-	|       {$$= NULL; }
+		pattern_tuple_args ',' pattern_tuple_arg { $$ = NULL; }  // NEXT TODO:
+	|	pattern_tuple_arg { $$ = NULL; } // PATTERN TODO: 
 	;
 
 pattern_tuple_arg:
-		let_stmt_more_left { $$ = NULL; }
-	|	let_stmt_one_left  { $$ = NULL; }
-	|	IGNORE { $$ = NULL; } /* the ignore .. can appear at any place in a tuple pattern, but only have one ignore */
+		let_stmt_more_left
+	|	let_stmt_one_left
+	|	IGNORE {
+		/* the ignore .. can appear at any place in a tuple pattern, but only have one ignore */
+		$$ = capattern_new(0, PT_IgnoreRange, NULL);
+		}
+		;
+
+pattern_struct_args_all: // PATTERN TODO
+		{ /* push arg list */  } pattern_struct_args { /* pop arg list */ }
+	|	{ $$ = NULL; }
 
 // struct pattern only support field form, not allow no field variable list, so only support the last .., because the field can in any order
 pattern_struct_args: // NEXT TODO: 
-		pattern_struct_arg ',' pattern_struct_args
-	|	pattern_struct_arg
-	|	{ $$ = NULL; }
+		pattern_struct_args ',' pattern_struct_arg
+	|	pattern_struct_arg { $$ = NULL; } // PATTERN TODO: 
 	;
 
 pattern_struct_arg:
-		IDENT /* when the same as field name and as the variable */                                      { $$ = NULL; }
-	|	IDENT ':' let_stmt_more_left /* first is field name, second is the binded name */             { $$ = NULL; }
-	|	IDENT ':' let_stmt_one_left /* first is field name, second is the binded name */             { $$ = NULL; }
-	|	LITERAL ':' let_stmt_more_left /* when tuple treated as struct form, first is  */                { $$ = NULL; }
-	|	LITERAL ':' let_stmt_one_left /* when tuple treated as struct form, first is  */                { $$ = NULL; }
-	|	IGNORE { $$ = NULL; } /* the ignore .. only can appear at the end of struct pattern, and only have one */
+		IDENT                          {
+		/* when the same as field name and as the variable */
+		$$ = capattern_new($1, PT_Var, NULL); $$->fieldname = $1;
+		}
+	|	IDENT ':' let_stmt_more_left   {
+		/* first is field name, second is the binded name */
+		$3->fieldname = $1; $$ = $3;
+		}
+	|	IDENT ':' let_stmt_one_left    {
+		/* first is field name, second is the binded name */
+		$3->fieldname = $1; $$ = $3;
+		}
+	|	LITERAL ':' let_stmt_more_left {
+		/* when tuple treated as struct form, first is */
+		$3->fieldname = $1; $$ = $3;
+		$$ = NULL;
+		}
+	|	LITERAL ':' let_stmt_one_left  {
+		/* when tuple treated as struct form, first is */
+		$3->fieldname = $1; $$ = $3;
+		}
+	|	IGNORE {
+		/* the ignore .. only can appear at the end of struct pattern, and only have one */
+		$$ = capattern_new(0, PT_IgnoreRange, NULL);
+		}
 	;
 
 assignment_stmt:left_value_id '=' expr ';'  { $$ = make_assign(&$1, $3); }

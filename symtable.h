@@ -190,6 +190,53 @@ typedef struct CAVariable {
   void *llvm_value;
 } CAVariable;
 
+typedef struct IdGroup {
+  void *groups; // vec_new
+} IdGroup;
+
+typedef enum PatternType {
+  PT_Var,
+  PT_Tuple,
+  PT_GenTuple,
+  PT_Struct,
+  PT_IgnoreOne,
+  PT_IgnoreRange,
+} PatternType;
+
+typedef struct PatternGroup {
+  int size;
+  int capacity;
+  struct CAPattern **patterns;
+} PatternGroup;
+
+typedef struct CAP_Tuple {
+  int name;
+  PatternGroup *tupleitems; // vec for CAPattern *
+} CAP_Tuple;
+
+typedef struct CAP_GenTuple {
+  PatternGroup *tupleitems; // vec for CAPattern *
+} CAP_GenTuple;
+
+typedef struct CAP_Struct {
+  int name;
+  PatternGroup *structitems; // vec for CAPattern *
+} CAP_Struct;
+
+typedef struct CAPattern {
+  enum PatternType type;
+  typeid_t datatype;
+  int fieldname;  // used when type is structure
+  void *morebind; // vec int
+  SLoc loc;
+  union {
+    int name;
+    CAP_Tuple tuple;
+    CAP_GenTuple gentuple;
+    CAP_Struct structure;
+  } u;
+} CAPattern;
+
 typedef struct ST_ArgList {
   int argc;                 // function argument count
   int contain_varg;         // contain variable argument
@@ -285,6 +332,18 @@ struct ASTNode *arrayexpr_get(CAArrayExpr obj, int idx);
 
 CAVariable *cavar_create(int name, typeid_t datatype);
 void cavar_destroy(CAVariable **var);
+
+CAPattern *capattern_new(int name, PatternType type, PatternGroup *pg);
+void capattern_delete(CAPattern *cap);
+
+PatternGroup *patterngroup_new();
+void patterngroup_init(PatternGroup *pg);
+void patterngroup_destroy(PatternGroup *pg);
+void patterngroup_delete(PatternGroup *pg);
+void patterngroup_push(PatternGroup *pg, CAPattern *cap);
+void patterngroup_pop(PatternGroup *pg);
+CAPattern *patterngroup_top(PatternGroup *pg);
+CAPattern *patterngroup_at(PatternGroup *pg, int i);
 
 // the globally symbol name table, it store names and it's index
 int symname_init();

@@ -199,6 +199,30 @@ void cavar_destroy(CAVariable **var) {
   *var = nullptr;
 }
 
+CAPattern *capattern_new(int name, PatternType type, PatternGroup *pg) {
+  
+}
+
+void capattern_delete(CAPattern *cap) {}
+
+PatternGroup *patterngroup_new() {}
+
+void patterngroup_init(PatternGroup *pg) {}
+
+void patterngroup_destroy(PatternGroup *pg) {}
+
+void patterngroup_delete(PatternGroup *pg) {}
+
+void patterngroup_push(PatternGroup *pg, CAPattern *cap) {}
+
+void patterngroup_pop(PatternGroup *pg) {}
+
+CAPattern *patterngroup_top(PatternGroup *pg) {
+}
+
+CAPattern *patterngroup_at(PatternGroup *pg, int i) {}
+
+
 int symname_init() {
   s_symname_buffer.reserve(1024);
   s_symname_name2pos.clear();
