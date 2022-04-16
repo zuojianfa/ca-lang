@@ -728,7 +728,7 @@ int make_attrib_scope(int attrfn, int attrparam) {
   return attrparam;
 }
 
-ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global) {
+ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global) {
   dot_emit("stmt", "vardef");
 
   /* TODO: in the future realize multiple let statement in one scope */
@@ -771,6 +771,40 @@ ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global) {
   set_address(p, &idn->begloc, &exprn->endloc);
   p->symtable = symtable;
   return p;
+}
+
+ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
+  // NEXT TODO: parse each variable in CAPattern and record them in the symbol table for later use checking
+#if 0
+  SymTable *symtable = curr_symtable;
+  int id = var->name;
+  STEntry *entry = sym_getsym(symtable, id, 0);
+  if (entry) {
+    yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
+	    glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
+    return NULL;
+  }
+
+  entry = sym_insert(symtable, id, Sym_Variable);
+  entry->u.var = var;
+
+  ASTNode *idn = make_id(id, TTEId_VarDef);
+  idn->entry = entry;
+  idn->symtable = symtable;
+#endif
+
+  // NEXT TODO: make new structure of assignment with CAPattern
+#if 0
+  ASTNode *p = new_ASTNode(TTE_Assign);
+  p->assignn.id = idn;
+  p->assignn.expr = exprn;
+  p->assignn.op = -1;
+  set_address(p, &idn->begloc, &exprn->endloc);
+  p->symtable = symtable;
+  return p;
+#endif
+
+  return NULL;
 }
 
 ASTNode *make_vardef_zero_value() {
@@ -2331,21 +2365,25 @@ ASTNode *make_address(ASTNode *expr) {
   return node;
 }
 
-StructFieldOp make_element_field(ASTNode *expr, int fieldname, int direct, int tuple) {
-  if (tuple) {
-    const char *name = symname_get(fieldname);
-    int len = strlen(name);
-    int i = 0;
-    for (; i < len; ++i) {
-      if (name[i] < '0' || name[i] > '9')
-	break;
-    }
-
-    if (i != len || (len > 1 && name[0] == '0'))
-      yyerror("line: %d, col: %d: unknown field name `%s`", glineno, gcolno, name);
-
-    fieldname = atoi(name);
+int parse_tuple_fieldname(int fieldname) {
+  const char *name = symname_get(fieldname);
+  int len = strlen(name);
+  int i = 0;
+  for (; i < len; ++i) {
+    if (name[i] < '0' || name[i] > '9')
+      break;
   }
+
+  if (i != len || (len > 1 && name[0] == '0'))
+    yyerror("line: %d, col: %d: unknown field name `%s`", glineno, gcolno, name);
+
+  fieldname = atoi(name);
+  return fieldname;
+}
+
+StructFieldOp make_element_field(ASTNode *expr, int fieldname, int direct, int tuple) {
+  if (tuple)
+    fieldname = parse_tuple_fieldname(fieldname);
 
   StructFieldOp sfop = {expr, fieldname, direct, tuple};
   return sfop;

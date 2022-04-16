@@ -239,17 +239,9 @@ array_item_r: 	'['expr ']' { $$ = arrayitem_begin($2); }
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
 	;
 
-let_stmt:	attrib_scope LET iddef '=' vardef_value ';'  { $$ = make_vardef($3, $5, 1); }
-//	|	LET iddef '=' vardef_value ';'               { $$ = make_vardef($2, $4, 0); }
-//	|	LET IDENT '(' ')' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
-//	|	LET IDENT '{' '}' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
-//	|	LET '(' ')' '=' vardef_value ';'             { $$ = NULL; /* make_vardef($2, $4, 0); */ }
-//	|	LET let_more_var iddef '=' vardef_value ';'               { $$ = NULL; }
-//	|	LET let_more_var IDENT '(' ')' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
-//	|	LET let_more_var IDENT '{' '}' '=' vardef_value ';'       { $$ = NULL; /* make_vardef($2, $4, 0); */ }
-//	|	LET let_more_var '(' ')' '=' vardef_value ';'             { $$ = NULL; /* make_vardef($2, $4, 0); */ }
-
-	|	LET let_stmt_left '=' vardef_value ';' { $$ = NULL; } // PATTERN TODO: 
+let_stmt:	attrib_scope LET iddef '=' vardef_value ';'  { $$ = make_global_vardef($3, $5, 1); }
+//	|	LET iddef '=' vardef_value ';'               { $$ = make_global_vardef($2, $4, 0); }
+	|	LET let_stmt_left '=' vardef_value ';' { $$ = make_let_stmt($2, $4); }
 	;
 
 let_stmt_left:	let_stmt_more_left_typed
@@ -263,11 +255,11 @@ let_stmt_more_left_typed:
 	;
 
 let_stmt_more_left:
-		let_more_var let_stmt_one_left { $2->morebind = $1; $$ = $2; }
+		let_more_var let_stmt_one_left { $2->morebind = $1.groups; $$ = $2; }
 	;
 
-let_more_var:	let_more_var IDENT '@' {}  // PATTERN TODO:
-	|	IDENT '@' { $$ = (IdGroup){NULL}; /* TODO; */ }
+let_more_var:	let_more_var IDENT '@' { vec_append($$.groups, (void *)(long)$2); }
+	|	IDENT '@' { $$.groups = vec_new(); vec_append($$.groups, (void *)(long)$1); }
 	;
 
 let_stmt_one_left:
@@ -286,14 +278,14 @@ let_stmt_left_pattern:
 	|	'_'                                   { $$ = capattern_new(0, PT_IgnoreOne, NULL); } // ignorance the pattern
 //	|	IDENT ':' ':' IDENT // TODO: domain type or enum type
 
-pattern_tuple_args_all:  // PATTERN TODO: 
-		{ /* push arg list */ } pattern_tuple_args { $$= NULL; /* pop arg list */ }
-	|       { $$= NULL; }
+pattern_tuple_args_all:
+		pattern_tuple_args
+	|       { $$ = patterngroup_new(); }
 	;
 
 pattern_tuple_args: // a,b,c,d a,..,d a,b,.. ..,c,d, _
-		pattern_tuple_args ',' pattern_tuple_arg { $$ = NULL; }  // NEXT TODO:
-	|	pattern_tuple_arg { $$ = NULL; } // PATTERN TODO: 
+		pattern_tuple_args ',' pattern_tuple_arg { $$ = patterngroup_push($1, $3); }
+	|	pattern_tuple_arg { $$ = patterngroup_push(patterngroup_new(), $1); }
 	;
 
 pattern_tuple_arg:
@@ -305,14 +297,14 @@ pattern_tuple_arg:
 		}
 		;
 
-pattern_struct_args_all: // PATTERN TODO
-		{ /* push arg list */  } pattern_struct_args { /* pop arg list */ }
-	|	{ $$ = NULL; }
+pattern_struct_args_all:
+		pattern_struct_args
+	|	{ $$ = patterngroup_new(); }
 
 // struct pattern only support field form, not allow no field variable list, so only support the last .., because the field can in any order
-pattern_struct_args: // NEXT TODO: 
-		pattern_struct_args ',' pattern_struct_arg
-	|	pattern_struct_arg { $$ = NULL; } // PATTERN TODO: 
+pattern_struct_args:
+		pattern_struct_args ',' pattern_struct_arg { $$ = patterngroup_push($1, $3); }
+	|	pattern_struct_arg { $$ = patterngroup_push(patterngroup_new(), $1); }
 	;
 
 pattern_struct_arg:
@@ -330,12 +322,13 @@ pattern_struct_arg:
 		}
 	|	LITERAL ':' let_stmt_more_left {
 		/* when tuple treated as struct form, first is */
-		$3->fieldname = $1; $$ = $3;
-		$$ = NULL;
+		$3->fieldname = parse_tuple_fieldname($1.text);
+		$$ = $3;
 		}
 	|	LITERAL ':' let_stmt_one_left  {
 		/* when tuple treated as struct form, first is */
-		$3->fieldname = $1; $$ = $3;
+		$3->fieldname = parse_tuple_fieldname($1.text);
+		$$ = $3;
 		}
 	|	IGNORE {
 		/* the ignore .. only can appear at the end of struct pattern, and only have one */

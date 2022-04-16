@@ -1,9 +1,11 @@
 #include "ca.h"
+#include "ca_types.h"
 #include "symtable.h"
 #include "ca.tab.h"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -200,28 +202,84 @@ void cavar_destroy(CAVariable **var) {
 }
 
 CAPattern *capattern_new(int name, PatternType type, PatternGroup *pg) {
-  
+  CAPattern *cap = new CAPattern;
+  cap->type = type;
+  cap->datatype = typeid_novalue;
+  cap->fieldname = -1;
+  cap->morebind = nullptr;
+  cap->loc = (SLoc){glineno, gcolno};
+  switch (type) {
+  case PT_Var:
+    cap->u.name = name;
+    break;
+  case PT_Tuple:
+    cap->u.tuple.name = name;
+    cap->u.tuple.tupleitems = pg;
+    break;
+  case PT_GenTuple:
+    cap->u.gentuple.tupleitems = pg;
+    break;
+  case PT_Struct:
+    cap->u.structure.name = name;
+    cap->u.structure.structitems = pg;
+    break;
+  case PT_IgnoreOne:
+  case PT_IgnoreRange:
+    break;
+  }
+
+  return cap;
 }
 
-void capattern_delete(CAPattern *cap) {}
+void capattern_delete(CAPattern *cap) {
+  delete cap;
+}
 
-PatternGroup *patterngroup_new() {}
+PatternGroup *patterngroup_new() {
+  PatternGroup *pg = new PatternGroup;
+  pg->size = 0;
+  pg->capacity = 0;
+  pg->patterns = nullptr;
+  return pg;
+}
 
-void patterngroup_init(PatternGroup *pg) {}
+void patterngroup_reinit(PatternGroup *pg) {
+  pg->size = 0;
+  pg->capacity = 0;
+  delete[] pg->patterns;
+  pg->patterns = nullptr;
+}
 
-void patterngroup_destroy(PatternGroup *pg) {}
+void patterngroup_delete(PatternGroup *pg) {
+    delete[] pg->patterns;
+    delete pg;
+}
 
-void patterngroup_delete(PatternGroup *pg) {}
+PatternGroup *patterngroup_push(PatternGroup *pg, CAPattern *cap) {
+  if (pg->size >= pg->capacity) {
+    int newsize = (pg->size + 1) * 2;
+    pg->patterns = (CAPattern **)realloc(pg->patterns, sizeof(CAPattern *) * newsize);
+    pg->capacity = newsize;
+  }
 
-void patterngroup_push(PatternGroup *pg, CAPattern *cap) {}
+  pg->patterns[pg->size++] = cap;
+  return pg;
+}
 
-void patterngroup_pop(PatternGroup *pg) {}
+void patterngroup_pop(PatternGroup *pg) {
+  pg->size -= 1;
+}
 
 CAPattern *patterngroup_top(PatternGroup *pg) {
+  return pg->patterns[pg->size-1];
 }
 
-CAPattern *patterngroup_at(PatternGroup *pg, int i) {}
+CAPattern *patterngroup_at(PatternGroup *pg, int i) {
+  if (i >= pg->size || i < 0)
+    return nullptr;
 
+  return pg->patterns[i];
+}
 
 int symname_init() {
   s_symname_buffer.reserve(1024);

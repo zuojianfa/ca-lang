@@ -302,6 +302,7 @@ typedef struct CallParamAux {
 
 int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum, int assignop);
 int parse_lexical_char(const char *text);
+int parse_tuple_fieldname(int fieldname);
 int enable_emit_main();
 void check_return_type(typeid_t fnrettype);
 SymTable *push_new_symtable();
@@ -362,7 +363,8 @@ ASTNode *make_empty();
 ASTNode *make_expr(int op, int noperands, ...);
 ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
 ASTNode *make_id(int id, IdType idtype);
-ASTNode *make_vardef(CAVariable *var, ASTNode *exprn, int global);
+ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global);
+ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn);
 ASTNode *make_vardef_zero_value();
 ASTNode *make_assign(LeftValueId *lvid, ASTNode *exprn);
 ASTNode *make_assign_op(LeftValueId *lvid, int op, ASTNode *exprn);
