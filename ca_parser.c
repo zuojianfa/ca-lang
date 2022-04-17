@@ -790,6 +790,9 @@ void register_structpattern_symtable(CAPattern *cap, int withname, int withsub) 
     }
   }
 
+  if (!withname && !withsub)
+    capattern_register_variable(cap->name, type, &cap->loc);
+
   size_t size = vec_size(cap->morebind);
   for (size_t i = 0; i < size; ++i) {
     int name = (int)(long)vec_at(cap->morebind, i);

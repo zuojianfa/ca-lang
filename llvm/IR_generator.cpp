@@ -721,9 +721,6 @@ static Value *inplace_assignop_assistant(ASTNode *p, CADataType *idtype, Type *t
 // also generate a global variable for other use
 // `arrayleftvalue` for TTE_ArrayItemLeft type
 static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bool zeroinitial = false, Value *defval = nullptr) {
-  if (is_var_declare(p))
-    return walk_id_defv_declare(p, idtype, zeroinitial, defval);
-
   Value *var = nullptr;
   const char *name = symname_get(p->idn.i);
   Type *type = llvmtype_from_catype(idtype);
@@ -762,11 +759,15 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bo
 }
 
 static Value *walk_id(ASTNode *p) {
-  // NEXT TODO: this function seems not used directly here, so it can divide function walk_id_defv_declare from walk_id_defv NEXT
   CADataType *catype = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
   CHECK_GET_TYPE_VALUE(p, catype, p->entry->u.var->datatype);
 
-  Value *var = walk_id_defv(p, catype);
+  Value *var = nullptr;
+  if (is_var_declare(p))
+    //var = walk_id_defv_declare(p, idtype, false, nullptr);
+    yyerror("walk id should cannot come here");
+  else
+    var = walk_id_defv(p, catype);
 
   auto operands = std::make_unique<CalcOperand>(OT_Alloc, var, catype);
   oprand_stack.push_back(std::move(operands));
@@ -1568,7 +1569,11 @@ static void walk_assign(ASTNode *p) {
     zero_initialize = true;
   }
 
-  vp = walk_id_defv(idn, dt, assignop, zero_initialize, v);
+  Value *var = nullptr;
+  if (is_var_declare(idn))
+    vp = walk_id_defv_declare(idn, dt, zero_initialize, v);
+  else
+    vp = walk_id_defv(idn, dt, assignop, zero_initialize, v);
   
   // in fact the pushed value should not used, because value assignment syntax is
   // not an expresssion ande have no a value
@@ -1577,7 +1582,38 @@ static void walk_assign(ASTNode *p) {
 }
 
 static void walk_letbind(ASTNode *p) {
-  // NEXT TODO: for local and global variable binding
+  // NEXT TODO: for local and global variable binding, refactor walk_assign function
+  CAPattern *cap = p->letbindn.cap;
+  ASTNode *exprn = p->letbindn.expr;
+  if (cap->type == PT_Var) {
+    // here just mock for refactor the old code and make test run
+    ASTNode *idn = (ASTNode *)malloc(sizeof(ASTNode));
+    idn->type = TTE_Id;
+    idn->grammartype = NGT_None;
+
+    idn->idn.i = cap->name;
+    idn->idn.idtype = TTEId_VarDef;
+    idn->begloc = p->begloc;
+    idn->endloc = p->endloc;
+
+    STEntry *entry = sym_getsym(p->symtable, cap->name, 0);
+    idn->entry = entry;
+    idn->symtable = p->symtable;
+
+    ASTNode *oldp = (ASTNode *)malloc(sizeof(ASTNode));
+    oldp->type = TTE_Assign;
+    oldp->grammartype = NGT_None;
+    oldp->assignn.id = idn;
+    oldp->assignn.expr = exprn;
+    oldp->assignn.op = -1;
+    oldp->begloc = p->begloc;
+    oldp->endloc = p->endloc;
+    oldp->symtable = p->symtable;
+
+    walk_assign(oldp);
+  } else {
+    yyerror("multiple binding not unimplemented yet");
+  }
 }
 
 static void walk_expr_minus(ASTNode *p) {
