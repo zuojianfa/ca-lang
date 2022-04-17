@@ -728,6 +728,18 @@ int make_attrib_scope(int attrfn, int attrparam) {
   return attrparam;
 }
 
+void register_variable(CAVariable *cavar, SymTable *symtable) {
+  STEntry *entry = sym_getsym(symtable, cavar->name, 0);
+  if (entry) {
+    yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
+	    glineno, gcolno, symname_get(cavar->name), entry->sloc.row, entry->sloc.col);
+    return;
+  }
+
+  entry = sym_insert(symtable, cavar->name, Sym_Variable);
+  entry->u.var = cavar;
+}
+
 ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global) {
   dot_emit("stmt", "vardef");
 
@@ -749,62 +761,77 @@ ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global) {
     // all else generate local variable against main or defined function
   }
 
-  int id = var->name;
-  STEntry *entry = sym_getsym(symtable, id, 0);
-  if (entry) {
-    yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
-	    glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
-    return NULL;
-  }
+  register_variable(var, symtable);
 
-  entry = sym_insert(symtable, id, Sym_Variable);
-  entry->u.var = var;
+  CAPattern *cap = capattern_new(var->name, PT_Var, NULL);
 
-  ASTNode *idn = make_id(id, TTEId_VarDef);
-  idn->entry = entry;
-  idn->symtable = symtable;
-
-  ASTNode *p = new_ASTNode(TTE_Assign);
-  p->assignn.id = idn;
-  p->assignn.expr = exprn;
-  p->assignn.op = -1;
-  set_address(p, &idn->begloc, &exprn->endloc);
+  ASTNode *p = new_ASTNode(TTE_LetBind);
+  p->letbindn.cap = cap;
+  p->letbindn.expr = exprn;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &exprn->endloc);
   p->symtable = symtable;
   return p;
 }
 
-ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
-  // NEXT TODO: parse each variable in CAPattern and record them in the symbol table for later use checking
-#if 0
-  SymTable *symtable = curr_symtable;
-  int id = var->name;
-  STEntry *entry = sym_getsym(symtable, id, 0);
-  if (entry) {
-    yyerror("line: %d, col: %d: symbol '%s' already defined in scope on line %d, col %d.",
-	    glineno, gcolno, symname_get(id), entry->sloc.row, entry->sloc.col);
-    return NULL;
+void capattern_register_variable(int name, typeid_t datatype, SLoc *loc) {
+  CAVariable *cavar = cavar_create_with_loc(name, datatype, loc);
+  register_variable(cavar, curr_symtable);
+}
+
+void register_capattern_symtable(CAPattern *cap);
+void register_structpattern_symtable(CAPattern *cap, int withname, int withsub) {
+  typeid_t type = cap->datatype;
+  if (withname) {
+    type = sym_form_type_id(cap->name);
+    if (cap->datatype != typeid_novalue && cap->datatype != type) {
+      yyerror("line: %d, col: %d: left `%s` type not match right `%s`",
+	      glineno, gcolno, symname_get(cap->name), catype_get_type_name(cap->datatype));
+      return;
+    }
   }
 
-  entry = sym_insert(symtable, id, Sym_Variable);
-  entry->u.var = var;
+  size_t size = vec_size(cap->morebind);
+  for (size_t i = 0; i < size; ++i) {
+    int name = (int)(long)vec_at(cap->morebind, i);
+    capattern_register_variable(name, type, &cap->loc);
+  }
 
-  ASTNode *idn = make_id(id, TTEId_VarDef);
-  idn->entry = entry;
-  idn->symtable = symtable;
-#endif
+  // walk for structure items
+  if (withsub) {
+    PatternGroup *pg = cap->items;
+    for (int i = 0; i < pg->size; ++i)
+      register_capattern_symtable(pg->patterns[i]);
+  }
+}
 
-  // NEXT TODO: make new structure of assignment with CAPattern
-#if 0
-  ASTNode *p = new_ASTNode(TTE_Assign);
-  p->assignn.id = idn;
-  p->assignn.expr = exprn;
-  p->assignn.op = -1;
-  set_address(p, &idn->begloc, &exprn->endloc);
-  p->symtable = symtable;
+void register_capattern_symtable(CAPattern *cap) {
+  switch (cap->type) {
+  case PT_Var:
+    register_structpattern_symtable(cap, 0, 0);
+    break;
+  case PT_GenTuple:
+    register_structpattern_symtable(cap, 0, 1);
+    break;
+  case PT_Tuple:
+  case PT_Struct:
+    register_structpattern_symtable(cap, 1, 1);
+    break;
+  case PT_IgnoreOne:
+  case PT_IgnoreRange:
+    return;
+  }
+}
+
+ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
+  // parse variables (may with different datatype) in CAPattern and record them in the symbol table for later use
+  register_capattern_symtable(cap);
+
+  ASTNode *p = new_ASTNode(TTE_LetBind);
+  p->letbindn.cap = cap;
+  p->letbindn.expr = exprn;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &exprn->endloc);
+  p->symtable = exprn->symtable;
   return p;
-#endif
-
-  return NULL;
 }
 
 ASTNode *make_vardef_zero_value() {

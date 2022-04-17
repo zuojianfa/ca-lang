@@ -52,6 +52,7 @@ typedef enum {
   TTE_For,
   TTE_Box,
   TTE_Drop,
+  TTE_LetBind,
   TTE_Num,
 } ASTNodeType;
 
@@ -169,6 +170,12 @@ typedef struct TAssign {
   struct ASTNode *expr;
 } TAssign;
 
+
+typedef struct TLetBind {
+  CAPattern *cap;
+  struct ASTNode *expr;
+} TLetBind;
+
 typedef struct TArgList {
   int argc; /* number of arguments */
   struct ASTNode **exprs; /* operands */
@@ -276,6 +283,7 @@ typedef struct ASTNode {
     TFor forn;           /* for node */
     TBox boxn;           /* box node */
     TDrop dropn;         /* drop node */
+    TLetBind letbindn;   /* the binding operation for let */
   };
 } ASTNode;
 

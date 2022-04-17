@@ -209,32 +209,18 @@ typedef struct PatternGroup {
   struct CAPattern **patterns;
 } PatternGroup;
 
-typedef struct CAP_Tuple {
-  int name;
-  PatternGroup *tupleitems; // vec for CAPattern *
-} CAP_Tuple;
-
 typedef struct CAP_GenTuple {
-  PatternGroup *tupleitems; // vec for CAPattern *
+  PatternGroup *items; // vec for CAPattern *
 } CAP_GenTuple;
-
-typedef struct CAP_Struct {
-  int name;
-  PatternGroup *structitems; // vec for CAPattern *
-} CAP_Struct;
 
 typedef struct CAPattern {
   enum PatternType type;
   typeid_t datatype;
-  int fieldname;  // used when type is structure
+  int fieldname;  // used for locating the field of struct or tuple (with numeric field name)
   void *morebind; // vec int
   SLoc loc;
-  union {
-    int name;
-    CAP_Tuple tuple;
-    CAP_GenTuple gentuple;
-    CAP_Struct structure;
-  } u;
+  int name;  // struct name or tuple name or variable name
+  PatternGroup *items; // vec for CAPattern *
 } CAPattern;
 
 typedef struct ST_ArgList {
@@ -331,6 +317,7 @@ size_t arrayexpr_size(CAArrayExpr obj);
 struct ASTNode *arrayexpr_get(CAArrayExpr obj, int idx);
 
 CAVariable *cavar_create(int name, typeid_t datatype);
+CAVariable *cavar_create_with_loc(int name, typeid_t datatype, SLoc *loc);
 void cavar_destroy(CAVariable **var);
 
 CAPattern *capattern_new(int name, PatternType type, PatternGroup *pg);

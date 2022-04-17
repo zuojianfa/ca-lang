@@ -762,6 +762,7 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bo
 }
 
 static Value *walk_id(ASTNode *p) {
+  // NEXT TODO: this function seems not used directly here, so it can divide function walk_id_defv_declare from walk_id_defv NEXT
   CADataType *catype = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
   CHECK_GET_TYPE_VALUE(p, catype, p->entry->u.var->datatype);
 
@@ -1573,6 +1574,10 @@ static void walk_assign(ASTNode *p) {
   // not an expresssion ande have no a value
   auto u = std::make_unique<CalcOperand>(OT_Alloc, vp, dt);
   oprand_stack.push_back(std::move(u));
+}
+
+static void walk_letbind(ASTNode *p) {
+  // NEXT TODO: for local and global variable binding
 }
 
 static void walk_expr_minus(ASTNode *p) {
@@ -2712,6 +2717,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_for,
   (walk_fn_t)walk_box,
   (walk_fn_t)walk_drop,
+  (walk_fn_t)walk_letbind,
 };
 
 static int walk_stack(ASTNode *p) {

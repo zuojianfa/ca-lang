@@ -196,6 +196,12 @@ CAVariable *cavar_create(int name, typeid_t datatype) {
   return var;
 }
 
+CAVariable *cavar_create_with_loc(int name, typeid_t datatype, SLoc *loc) {
+  CAVariable *cavar = cavar_create(name, datatype);
+  cavar->loc = *loc;
+  return cavar;
+}
+
 void cavar_destroy(CAVariable **var) {
   delete *var;
   *var = nullptr;
@@ -210,18 +216,13 @@ CAPattern *capattern_new(int name, PatternType type, PatternGroup *pg) {
   cap->loc = (SLoc){glineno, gcolno};
   switch (type) {
   case PT_Var:
-    cap->u.name = name;
-    break;
-  case PT_Tuple:
-    cap->u.tuple.name = name;
-    cap->u.tuple.tupleitems = pg;
+    cap->name = name;
     break;
   case PT_GenTuple:
-    cap->u.gentuple.tupleitems = pg;
-    break;
+  case PT_Tuple:
   case PT_Struct:
-    cap->u.structure.name = name;
-    cap->u.structure.structitems = pg;
+    cap->name = name;
+    cap->items = pg;
     break;
   case PT_IgnoreOne:
   case PT_IgnoreRange:
@@ -507,6 +508,9 @@ void vec_append(void *handle, void *item) {
 }
 
 size_t vec_size(void *handle) {
+  if (!handle)
+    return 0;
+
   std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
   return vec->size();
 }

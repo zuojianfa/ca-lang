@@ -299,6 +299,7 @@ is scopeline the real skip function start for debugging? try it
 NEXT TODO:
 - [ ] pattern matching: let S(x) = A; let S{x} = A;
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
+- [ ] support let variable rebind to new type
 - [ ] 'label1: loop
 - [ ] match
 - [ ] mod scope
