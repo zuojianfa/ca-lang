@@ -144,7 +144,7 @@ r\"[^"]*\"	       	{
 
  /* \.		{ ULL(); return DOT; } */
 \/\/.*$         { ULL(); /* return COMMENT; */}
-[-()<>=+*/;{}.:,%!|^]	{ ULL(); return *yytext; }
+[-()<>=+*/;{}.:,%!|^@]	{ ULL(); return *yytext; }
 \#|\[|\]        { ULL(); return *yytext; }
 
 "&&"            { ULL(); return LAND; }

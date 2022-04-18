@@ -1,6 +1,6 @@
 fn main() {
     struct AA {f1: i32, f2: f32}
     struct BB {f3: AA, f4: i32}
-    let a = BB {f3: AA{32, 33.22}, f4: 66};
+    let a = BB {f3: AA{32, 33.22f32}, f4: 66};
     let BB{f1: va@AA{f1: v1, f2}, f2: v2} = a;
 }
