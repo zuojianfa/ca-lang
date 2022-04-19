@@ -1542,7 +1542,6 @@ static void walk_assign(ASTNode *p) {
   // variable of specified type with all zero value
   bool zero_initialize = false;
   Value *v = nullptr;
-  Value *vp = nullptr;
   if (exprn->type != TTE_VarDefZeroValue) {
     walk_stack(exprn);
     if (exprn->type == TTE_Expr && exprn->exprn.op == ADDRESS)
@@ -1569,7 +1568,7 @@ static void walk_assign(ASTNode *p) {
     zero_initialize = true;
   }
 
-  Value *var = nullptr;
+  Value *vp = nullptr;
   if (is_var_declare(idn))
     vp = walk_id_defv_declare(idn, dt, zero_initialize, v);
   else
@@ -1581,8 +1580,32 @@ static void walk_assign(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
+static void inference_letbind_type(CAPattern *cap, ASTNode *exprn) {
+  // NEXT TODO:
+}
+
+static void determine_letbind_type(CAPattern *cap, ASTNode *exprn) {
+  CADataType *catype = catype_get_by_name(exprn->symtable, cap->datatype);
+  CHECK_GET_TYPE_VALUE(exprn, catype, cap->datatype);
+
+  switch (cap->type) {
+  case PT_Var:
+  case PT_Tuple:
+  case PT_GenTuple:
+  case PT_Struct:
+  case PT_IgnoreOne:
+  case PT_IgnoreRange:
+    break;
+  }
+
+  // NEXT TODO:
+}
+
+static void capattern_bind_value(CAPattern *cap, Value *value) {
+  // NEXT TODO:
+}
+
 static void walk_letbind(ASTNode *p) {
-  // NEXT TODO: for local and global variable binding, refactor walk_assign function
   CAPattern *cap = p->letbindn.cap;
   ASTNode *exprn = p->letbindn.expr;
   if (cap->type == PT_Var) {
@@ -1612,6 +1635,40 @@ static void walk_letbind(ASTNode *p) {
 
     walk_assign(oldp);
   } else {
+    // NEXT TODO: for local and global variable binding, refactor walk_assign function
+    // 1. inference type for both side of binding, to determine the types of both side
+    if (exprn->type != TTE_VarDefZeroValue)
+      inference_letbind_type(cap, exprn);
+    else if (cap->datatype != typeid_novalue) {
+      determine_letbind_type(cap, exprn);
+    } else {
+      yyerror("line: %d, col: %d: a type postfix required for zero initialized value in bind operation",
+	      p->begloc.col, p->begloc.row);
+      return;
+    }
+
+    // 2. walk right side node and get Value
+    Value *v = nullptr;
+    if (exprn->type != TTE_VarDefZeroValue) {
+      walk_stack(exprn);
+
+      auto pair = pop_right_value("tmpexpr", false);
+      v = pair.first;
+      if (v == nullptr) {
+	yyerror("line: %d, col: %d: create value failed: `%s`", p->begloc.row, p->begloc.col);
+	return;
+      }
+      // if (!catype_check_identical(dt, pair.second)) {
+      // 	yyerror("line: %d, col: %d: expected a type `%s`, but found `%s`",
+      // 		p->begloc.row, p->begloc.col,
+      // 		catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
+      // 	return;
+      // }
+    }
+    
+    // 3. walk left side again and copy data from right side
+    capattern_bind_value(cap, v);
+
     yyerror("multiple binding not unimplemented yet");
   }
 }

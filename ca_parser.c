@@ -825,7 +825,44 @@ void register_capattern_symtable(CAPattern *cap) {
   }
 }
 
+static int capattern_check_ignore(CAPattern *cap) {
+  int count = 0;
+  switch (cap->type) {
+  case PT_Var:
+    return 0;
+  case PT_GenTuple:
+  case PT_Tuple:
+  case PT_Struct:
+    for (int i = 0; i < cap->items->size; ++i) {
+      if (cap->items->patterns[i]->type == PT_IgnoreRange)
+	count += 1;
+      else
+	if (capattern_check_ignore(cap->items->patterns[i]))
+	  return -1;
+    }
+
+    if (!count)
+      return 0;
+
+    // struct ignore range must be at the end
+    if (count > 1 || cap->type == PT_Struct && cap->items->patterns[cap->items->size-1]->type != PT_IgnoreRange)
+      return -1;
+
+    return 0;
+  case PT_IgnoreOne:
+    return 0;
+  case PT_IgnoreRange:
+    // the ignore range must be in tuple or struct
+    return -1;
+  }
+}
+
 ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
+  if (capattern_check_ignore(cap)) {
+    yyerror("line: %d, col: %d: capattern can only have one ignore range field", glineno, gcolno);
+    return NULL;
+  }
+  
   // parse variables (may with different datatype) in CAPattern and record them in the symbol table for later use
   register_capattern_symtable(cap);
 
