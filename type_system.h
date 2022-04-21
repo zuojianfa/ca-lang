@@ -37,6 +37,7 @@ CADataType *catype_get_primitive_by_token(tokenid_t token);
 bool catype_is_float(tokenid_t typetok);
 bool catype_is_complex_type(tokenid_t typetok);
 CADataType *catype_get_by_name(SymTable *symtable, typeid_t name);
+CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable);
 
 void put_post_function(typeid_t fnname, void *carrier);
 int exists_post_function(typeid_t fnname);

@@ -1729,6 +1729,41 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   return dt;
 }
 
+CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
+  switch (cap->type) {
+  case PT_GenTuple: {
+    typeid_t *types = new typeid_t[cap->items->size];
+    for (int i = 0; i < cap->items->size; ++i) {
+      CADataType *dt = catype_from_capattern(cap->items->patterns[i], symtable);
+      if (!dt)
+	return nullptr;
+
+      types[i] = dt->signature;
+    }
+
+    typeid_t type = sym_form_tuple_id(types, cap->items->size);
+    CADataType *catype = catype_get_by_name(symtable, type);
+    if (!catype)
+      yyerror("line: %d, col: %d: get type `%s` failed", cap->loc.row, cap->loc.col, catype_get_type_name(type));
+
+    return catype;
+  }
+  case PT_Tuple:
+  case PT_Struct: {
+    typeid_t type = sym_form_type_id(cap->name);
+    CADataType *catype = catype_get_by_name(symtable, type);
+    if (!catype)
+      yyerror("line: %d, col: %d: get type `%s` by pattern failed", cap->loc.row, cap->loc.col, catype_get_type_name(type));
+
+    return catype;
+  }
+  case PT_Var:
+  case PT_IgnoreOne:
+  case PT_IgnoreRange:
+    return nullptr;
+  }
+}
+
 static int64_t parse_binary_number(const char *text, int len) {
   int i = 0;
   for (i = 0; i < len; ++i) {

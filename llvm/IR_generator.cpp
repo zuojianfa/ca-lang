@@ -1580,8 +1580,37 @@ static void walk_assign(ASTNode *p) {
   oprand_stack.push_back(std::move(u));
 }
 
+static CADataType *capattern_check_get_type(CAPattern *cap, ASTNode *exprn) {
+  // the pattern type, cap->datatype and exprn type should all be identical
+  CADataType *catype = catype_from_capattern(cap, exprn->symtable);
+  if (cap->datatype) {
+    CADataType *postcatype = catype_get_by_name(exprn->symtable, cap->datatype);
+    CHECK_GET_TYPE_VALUE(exprn, postcatype, cap->datatype);
+
+    if (!catype) {
+      catype = postcatype;
+    } else if (postcatype->signature != catype->signature) {
+      yyerror("line: %d, col: %d: specified type `%s` not equal pattern type `%s`",
+	      cap->loc.row, cap->loc.col, catype_get_type_name(postcatype->signature),
+	      catype_get_type_name(catype->signature));
+      return nullptr;
+    }
+  }
+
+  return catype;
+}
+
+static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable *symtable);
+
 static void inference_letbind_type(CAPattern *cap, ASTNode *exprn) {
-  // NEXT TODO:
+  CADataType *catype = capattern_check_get_type(cap, exprn);
+  if (catype) {
+    determine_letbind_type(cap, catype, exprn->symtable);
+    determine_expr_type(exprn, catype->signature);
+    return;
+  }
+
+  // NEXT TODO: when cannot get datatype from pattern directly then get type from expression
 }
 
 static void register_variable_catype(int var, typeid_t type, SymTable *symtable) {
@@ -1611,8 +1640,6 @@ static int capattern_ignorerange_pos(CAPattern *cap) {
   return -1;
 }
 
-static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable *symtable);
-
 // determine variable types in pattern and do format checking for let binding operation
 static void determine_letbind_pattern_range(CAPattern *cap, CADataType *catype, SymTable *symtable, int from, int to, int typeoffset) {
   for (int i = from; i < to; ++i) {
@@ -1630,29 +1657,19 @@ static CADataType *struct_subcatype_from_fieldname(CADataType *catype, int field
 }
 
 static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype, SymTable *symtable, int tuple) {
-  if (catype->type != STRUCT || tuple != catype->struct_layout->tuple) {
+  // come here struct or named tuple must already defined datatype
+  if ((catype->type != STRUCT || tuple != catype->struct_layout->tuple)) {
     yyerror("line: %d, col: %d: required a %s type, but found `%s` type",
 	    cap->loc.row, cap->loc.col, tuple ? "tuple" : "struct",
 	    catype_get_type_name(catype->signature));
     return;
   }
 
-  if (cap->items->size > catype->struct_layout->fieldnum) {
+  if ((cap->items->size > catype->struct_layout->fieldnum)) {
     yyerror("line: %d, col: %d: pattern have more field `%d` than `%d` of datatype `%s`",
 	    cap->loc.row, cap->loc.col, cap->items->size, catype->struct_layout->fieldnum,
 	    catype_get_type_name(catype->signature));
     return;
-  }
-
-  if (cap->type != PT_GenTuple) {
-    typeid_t type = sym_form_type_id(cap->name);
-    CADataType *dt = catype_get_by_name(symtable, type);
-    if (dt->signature != catype->signature) {
-      yyerror("line: %d, col: %d: tuple type `%s` not match the determined type `%s`",
-	      cap->loc.row, cap->loc.col, symname_get(dt->signature),
-	      catype_get_type_name(catype->signature));
-      return;	
-    }
   }
 
   if (cap->morebind)
@@ -1776,17 +1793,13 @@ static void walk_letbind(ASTNode *p) {
     if (exprn->type != TTE_VarDefZeroValue) {
       // when is not zeroinitial
       inference_letbind_type(cap, exprn);
-    } else if (cap->datatype != typeid_novalue) {
+    } else {
       // when the pattern specified a type, example: let AA {f1, f2, ...}: datatype = __zero_initial__
-      CADataType *catype = catype_get_by_name(exprn->symtable, cap->datatype);
+      CADataType *catype = capattern_check_get_type(cap, exprn);
       CHECK_GET_TYPE_VALUE(exprn, catype, cap->datatype);
 
-      // NEXT TODO: catype can be null, cap->datatype can be typeid_novalue, and post datatype check in function determine_letbind_type
+      // catype can be null and the datatype must can obtain from pattern
       determine_letbind_type(cap, catype, exprn->symtable);
-    } else {
-      yyerror("line: %d, col: %d: a type postfix required for zero initialized value in bind operation",
-	      p->begloc.col, p->begloc.row);
-      return;
     }
 
     // 2. walk right side node and get Value
