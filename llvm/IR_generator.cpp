@@ -1584,34 +1584,6 @@ static void inference_letbind_type(CAPattern *cap, ASTNode *exprn) {
   // NEXT TODO:
 }
 
-void determine_letbind_1(CAPattern *cap, int withname, int withsub) {
-  typeid_t type = cap->datatype;
-  if (withname) {
-    type = sym_form_type_id(cap->name);
-    if (cap->datatype != typeid_novalue && cap->datatype != type) {
-      yyerror("line: %d, col: %d: left `%s` type not match right `%s`",
-	      glineno, gcolno, symname_get(cap->name), catype_get_type_name(cap->datatype));
-      return;
-    }
-  }
-
-  if (!withname && !withsub)
-    capattern_register_variable(cap->name, type, &cap->loc);
-
-  size_t size = vec_size(cap->morebind);
-  for (size_t i = 0; i < size; ++i) {
-    int name = (int)(long)vec_at(cap->morebind, i);
-    capattern_register_variable(name, type, &cap->loc);
-  }
-
-  // walk for structure items
-  if (withsub) {
-    PatternGroup *pg = cap->items;
-    for (int i = 0; i < pg->size; ++i)
-      register_capattern_symtable(pg->patterns[i]);
-  }
-}
-
 static void register_variable_catype(int var, typeid_t type, SymTable *symtable) {
   STEntry *entry = sym_getsym(symtable, var, 0);
   entry->u.var->datatype = type;
@@ -1640,10 +1612,106 @@ static int capattern_ignorerange_pos(CAPattern *cap) {
 }
 
 static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable *symtable);
-static void determine_letbind_pattern_range(CAPattern *cap, CADataType *catype, SymTable *symtable, int from, int to, int typeoffset){
+
+// determine variable types in pattern and do format checking for let binding operation
+static void determine_letbind_pattern_range(CAPattern *cap, CADataType *catype, SymTable *symtable, int from, int to, int typeoffset) {
   for (int i = from; i < to; ++i) {
     determine_letbind_type(cap->items->patterns[i], catype->struct_layout->fields[i + typeoffset].type, symtable);
   }
+}
+
+static CADataType *struct_subcatype_from_fieldname(CADataType *catype, int fieldname) {
+  for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
+    if (catype->struct_layout->fields[i].name == fieldname)
+      return catype->struct_layout->fields[i].type;
+  }
+
+  return nullptr;
+}
+
+static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype, SymTable *symtable, int tuple) {
+  if (catype->type != STRUCT || tuple != catype->struct_layout->tuple) {
+    yyerror("line: %d, col: %d: required a %s type, but found `%s` type",
+	    cap->loc.row, cap->loc.col, tuple ? "tuple" : "struct",
+	    catype_get_type_name(catype->signature));
+    return;
+  }
+
+  if (cap->items->size > catype->struct_layout->fieldnum) {
+    yyerror("line: %d, col: %d: pattern have more field `%d` than `%d` of datatype `%s`",
+	    cap->loc.row, cap->loc.col, cap->items->size, catype->struct_layout->fieldnum,
+	    catype_get_type_name(catype->signature));
+    return;
+  }
+
+  if (cap->type != PT_GenTuple) {
+    typeid_t type = sym_form_type_id(cap->name);
+    CADataType *dt = catype_get_by_name(symtable, type);
+    if (dt->signature != catype->signature) {
+      yyerror("line: %d, col: %d: tuple type `%s` not match the determined type `%s`",
+	      cap->loc.row, cap->loc.col, symname_get(dt->signature),
+	      catype_get_type_name(catype->signature));
+      return;	
+    }
+  }
+
+  if (cap->morebind)
+    bind_register_variable_catype(cap->morebind, catype->signature, symtable);
+
+  // determine variable position in tuple and related catype and recursive invoke this function
+  int ignorerangepos = capattern_ignorerange_pos(cap);
+  if (ignorerangepos == -1 && cap->items->size != catype->struct_layout->fieldnum) {
+    yyerror("line: %d, col: %d: pattern have less field `%d` than `%d` of datatype `%s`",
+	    cap->loc.row, cap->loc.col, cap->items->size, catype->struct_layout->fieldnum,
+	    catype_get_type_name(catype->signature));
+    return;
+  }
+
+  // implement variable position in struct
+  if (cap->type == PT_Struct) {
+    int endpos = cap->items->size;
+    if (ignorerangepos != -1) {
+      assert(ignorerangepos == cap->items->size - 1);
+      endpos = ignorerangepos;
+    }
+
+    assert(catype->struct_layout->tuple != 2);
+    for (int i = 0; i < endpos; ++i) {
+      int fieldname = cap->items->patterns[i]->fieldname;
+      assert(fieldname != -1);
+      CADataType *dt = nullptr;
+      if (catype->struct_layout->tuple == 1) {
+	// when it is a named tuple, the fieldname is the tuple item position
+	if (fieldname >= catype->struct_layout->fieldnum) {
+	  yyerror("line: %d, col: %d: tuple numbered field `%d` out of range `(0 ~ %d]` of datatype `%s`",
+		  cap->loc.row, cap->loc.col, fieldname, catype->struct_layout->fieldnum,
+		  catype_get_type_name(catype->signature));
+	  return;
+	}
+
+        dt = catype->struct_layout->fields[fieldname].type;
+      } else {
+	dt = struct_subcatype_from_fieldname(catype, fieldname);
+	if (!dt) {
+	  yyerror("line: %d, col: %d: cannot find field `%s` from datatype `%s`",
+		  cap->loc.row, cap->loc.col, symname_get(fieldname), catype_get_type_name(catype->signature));
+	  return;
+	}
+      }
+      determine_letbind_type(cap->items->patterns[i], dt, symtable);
+    }
+    return;
+  }
+
+  if (ignorerangepos == -1) {
+    // with no ignore range ..
+    determine_letbind_pattern_range(cap, catype, symtable, 0, cap->items->size, 0);
+  } else {
+    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
+    // handle starting and ending matches
+    determine_letbind_pattern_range(cap, catype, symtable, 0, ignorerangepos, 0);
+    determine_letbind_pattern_range(cap, catype, symtable, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size-1);
+  }  
 }
 
 static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable *symtable) {
@@ -1652,51 +1720,28 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
     capattern_register_variable_catype(cap, catype->signature, symtable);
     break;
   case PT_Tuple:
-    // TODO: check tuple name with the catype 
-    break;
   case PT_GenTuple:
-    if (catype->type != STRUCT || !catype->struct_layout->tuple) {
-      yyerror("line: %d, col: %d: required a tuple type, but found `%s` type",
-	      cap->loc.row, cap->loc.col, catype_get_type_name(catype->signature));
-      return;
-    }
-
-    if (cap->items->size > catype->struct_layout->fieldnum) {
-      yyerror("line: %d, col: %d: pattern have more field `%d` than `%d` of datatype `%s`",
-	      cap->loc.row, cap->loc.col, cap->items->size, catype->struct_layout->fieldnum,
-	      catype_get_type_name(catype->signature));
-      return;
-    }
-
-    if (cap->morebind)
-      bind_register_variable_catype(cap->morebind, catype->signature, symtable);
-
-    // NEXT TODO: determine variable position in tuple and related catype then recursive invoke this function
-    // the cap->fieldname only used in parent CAPattern to determine the child CAPattern's field position in catype, and do binding
-    int ignorerangepos = capattern_ignorerange_pos(cap);
-    if (ignorerangepos == -1) {
-      // with no ignore range ..
-      determine_letbind_pattern_range(cap, catype, symtable, 0, cap->items->size, 0);
-    } else {
-      // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
-      // handle starting and ending matches
-      determine_letbind_pattern_range(cap, catype, symtable, 0, ignorerangepos, 0);
-      determine_letbind_pattern_range(cap, catype, symtable, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size-1);
-    }
+    determine_letbind_type_for_struct(cap, catype, symtable, cap->type == PT_Tuple ? 1 : 2);
     break;
   case PT_Struct:
+    determine_letbind_type_for_struct(cap, catype, symtable, 0);
+    break;
   case PT_IgnoreOne:
+    break;
   case PT_IgnoreRange:
+    yyerror("inner error: should not come here, upper logic already processed");
+    break;
+  default:
+    yyerror("inner error: unknown pattern type: `%d`", cap->type);
     break;
   }
-
-  // NEXT TODO:
 }
 
 static void capattern_bind_value(CAPattern *cap, Value *value) {
   // NEXT TODO:
 }
 
+// NEXT TODO: for local and global variable binding, refactor walk_assign function
 static void walk_letbind(ASTNode *p) {
   CAPattern *cap = p->letbindn.cap;
   ASTNode *exprn = p->letbindn.expr;
@@ -1727,14 +1772,16 @@ static void walk_letbind(ASTNode *p) {
 
     walk_assign(oldp);
   } else {
-    // NEXT TODO: for local and global variable binding, refactor walk_assign function
     // 1. inference type for both side of binding, to determine the types of both side
-    if (exprn->type != TTE_VarDefZeroValue)
+    if (exprn->type != TTE_VarDefZeroValue) {
+      // when is not zeroinitial
       inference_letbind_type(cap, exprn);
-    else if (cap->datatype != typeid_novalue) {
+    } else if (cap->datatype != typeid_novalue) {
+      // when the pattern specified a type, example: let AA {f1, f2, ...}: datatype = __zero_initial__
       CADataType *catype = catype_get_by_name(exprn->symtable, cap->datatype);
       CHECK_GET_TYPE_VALUE(exprn, catype, cap->datatype);
 
+      // NEXT TODO: catype can be null, cap->datatype can be typeid_novalue, and post datatype check in function determine_letbind_type
       determine_letbind_type(cap, catype, exprn->symtable);
     } else {
       yyerror("line: %d, col: %d: a type postfix required for zero initialized value in bind operation",

@@ -216,7 +216,10 @@ typedef struct CAP_GenTuple {
 typedef struct CAPattern {
   enum PatternType type;
   typeid_t datatype;
-  int fieldname;  // used for locating the field of struct or tuple (with numeric field name)
+  // used for locating the field of struct or tuple (with numeric field name),
+  // only used in parent CAPattern to determine the child CAPattern's field position in catype, and do binding
+  int fieldname;
+
   void *morebind; // vec int
   SLoc loc;
   int name;  // struct name or tuple name or variable name
