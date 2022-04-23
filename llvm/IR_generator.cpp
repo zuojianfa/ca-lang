@@ -1718,13 +1718,21 @@ static void determine_letbind_pattern_range(CAPattern *cap, CADataType *catype, 
   }
 }
 
-static CADataType *struct_subcatype_from_fieldname(CADataType *catype, int fieldname) {
+static int struct_field_position_from_fieldname(CADataType *catype, int fieldname) {
   for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
     if (catype->struct_layout->fields[i].name == fieldname)
-      return catype->struct_layout->fields[i].type;
+      return i;
   }
 
-  return nullptr;
+  return -1;
+}
+
+static CADataType *struct_subcatype_from_fieldname(CADataType *catype, int fieldname) {
+  int pos = struct_field_position_from_fieldname(catype, fieldname);
+  if (pos == -1)
+    return nullptr;
+
+  return catype->struct_layout->fields[pos].type;
 }
 
 static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype, SymTable *symtable, int tuple) {
@@ -1825,41 +1833,116 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
   }
 }
 
-static Value *cavar_bind_llvmvalue(STEntry *entry, CADataType *idtype, Value *value) {
-  const char *name = symname_get(entry->u.var->name);
-  Type *type = llvmtype_from_catype(idtype);
+static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
+  STEntry *entry = sym_getsym(symtable, name, 0);
+  assert(entry);
+
+  CADataType *catype = catype_get_by_name(symtable, entry->u.var->datatype);
+
+  const char *varname = symname_get(entry->u.var->name);
+  Type *type = llvmtype_from_catype(catype);
   if (entry->sym_type != Sym_Variable) {
-    yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
+    yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, varname);
     return nullptr;
   }
 
-  Value *var = ir1.gen_var(type, name, nullptr);
+  Value *var = ir1.gen_var(type, varname, nullptr);
   // NEXT TODO: check whether llvmvalue should use value or pointer
-  aux_copy_llvmvalue_to_store(type, var, value, name);
+  aux_copy_llvmvalue_to_store(type, var, value, varname);
 
   if (enable_debug_info())
-    emit_local_var_dbginfo(curr_fn, name, idtype, var, entry->u.var->loc.row);
+    emit_local_var_dbginfo(curr_fn, varname, catype, var, entry->u.var->loc.row);
 
   entry->u.var->llvm_value = static_cast<void *>(var);
   return var;
 }
 
-static void capattern_bind_value(CAPattern *cap, Value *value, SymTable *symtable) {
-  // NEXT TODO: NEXT TODO: realize this function
+static void atmore_bind_variable_value(SymTable *symtable, void *morebind, Value *value) {
+  size_t size = vec_size(morebind);
+  for (size_t i = 0; i < size; ++i) {
+    int name = (int)(long)vec_at(morebind, i);
+    bind_variable_value(symtable, name, value);
+  }
+}
+
+static void capattern_bind_variable_value(SymTable *symtable, CAPattern *cap, Value *value) {
+  bind_variable_value(symtable, cap->name, value);
+  atmore_bind_variable_value(symtable, cap->morebind, value);
+}
+
+static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
+                                 Value *value, CADataType *catype);
+
+// determine variable types in pattern and do format checking for let binding operation
+static void capattern_bind_pattern_range(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype,
+					 int from, int to, int typeoffset) {
+  Value *idxv0 = ir1.gen_int((int)0);
+  std::vector<Value *> idxv(2, idxv0);
+
+  for (int i = from; i < to; ++i) {
+    Value *idxvi = ir1.gen_int((int)i);
+    idxv[1] = idxvi;
+    Value *subvalue = ir1.builder().CreateGEP(value, idxv);
+    capattern_bind_value(symtable, cap->items->patterns[i], subvalue,
+			 catype->struct_layout->fields[i + typeoffset].type);
+  }
+}
+
+static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype, int tuple) {
+  // when in this function the value should already come with the type of capattern
+  if (cap->morebind)
+    atmore_bind_variable_value(symtable, cap->morebind, value);
+
+  // get the ignore variant position in struct / tuple, the check should already checked previously
+  int ignorerangepos = capattern_ignorerange_pos(cap);
+
+  // implement variable position in struct
+  if (cap->type == PT_Struct) {
+    int endpos = cap->items->size;
+    if (ignorerangepos != -1) {
+      endpos = ignorerangepos;
+    }
+
+    Value *idxv0 = ir1.gen_int((int)0);
+    std::vector<Value *> idxv(2, idxv0);
+
+    for (int i = 0; i < endpos; ++i) {
+      int pos = cap->items->patterns[i]->fieldname;
+      if (tuple != 1)
+	pos = struct_field_position_from_fieldname(catype, pos);
+
+      // get elements address of structure
+      Value *idxvi = ir1.gen_int((int)i);
+      idxv[1] = idxvi;
+      Value *subvalue = ir1.builder().CreateGEP(value, idxv);
+      capattern_bind_value(symtable, cap->items->patterns[pos], subvalue, catype->struct_layout->fields[pos].type);
+    }
+    return;
+  }
+
+  // handle tuple value like upper
+  if (ignorerangepos == -1) {
+    // with no ignore range ..
+    capattern_bind_pattern_range(symtable, cap, value, catype, 0, cap->items->size, 0);
+  } else {
+    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
+    // handle starting and ending matches
+    capattern_bind_pattern_range(symtable, cap, value, catype, 0, ignorerangepos, 0);
+    capattern_bind_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size-1);
+  }  
+}
+
+static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype) {
   switch (cap->type) {
   case PT_Var:
-    STEntry *entry = sym_getsym(symtable, cap->name, 0);
-    assert(entry);
-    CADataType *catype = catype_get_by_name(symtable, entry->u.var->datatype);
-    CHECK_GET_TYPE_VALUE_LOC(cap->loc, catype, entry->u.var->datatype);
-    cavar_bind_llvmvalue(entry, catype, value);
+    capattern_bind_variable_value(symtable, cap, value);
     break;
   case PT_Tuple:
   case PT_GenTuple:
-    determine_letbind_type_for_struct(cap, catype, symtable, cap->type == PT_Tuple ? 1 : 2);
+    capattern_bind_struct_value(symtable, cap, value, catype, cap->type == PT_Tuple ? 1 : 2);
     break;
   case PT_Struct:
-    determine_letbind_type_for_struct(cap, catype, symtable, 0);
+    capattern_bind_struct_value(symtable, cap, value, catype, 0);
     break;
   case PT_IgnoreOne:
     break;
@@ -1870,28 +1953,6 @@ static void capattern_bind_value(CAPattern *cap, Value *value, SymTable *symtabl
     yyerror("inner error: unknown pattern type: `%d`", cap->type);
     break;
   }
-
-  
-  
-  // allocate new array and copy related elements to the array
-  StructType *structype = static_cast<StructType *>(llvmtype_from_catype(catype));
-  AllocaInst *structure = ir1.gen_var(structype);
-  Value *idxv0 = ir1.gen_int((int)0);
-  std::vector<Value *> idxv(2, idxv0);
-
-  for (size_t i = 0; i < values.size(); ++i) {
-    // get elements address of structure
-    Value *idxvi = ir1.gen_int((int)i);
-    idxv[1] = idxvi;
-    Value *dest = ir1.builder().CreateGEP(// structype, 
-					  structure, idxv);
-    Type *lefttype = structype->getStructElementType(i);
-    aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "field");
-  }
-  
-  auto u = std::make_unique<CalcOperand>(OT_Alloc, structure, catype);
-  oprand_stack.push_back(std::move(u));
-
 }
 
 // NEXT TODO: for local and global variable binding, refactor walk_assign function
@@ -1940,11 +2001,13 @@ static void walk_letbind(ASTNode *p) {
 
     // 2. walk right side node and get Value
     Value *v = nullptr;
+    CADataType *catype = nullptr;
     if (exprn->type != TTE_VarDefZeroValue) {
       walk_stack(exprn);
 
       auto pair = pop_right_value("tmpexpr", false);
       v = pair.first;
+      catype = pair.second;
       if (v == nullptr) {
 	yyerror("line: %d, col: %d: create value failed: `%s`", p->begloc.row, p->begloc.col);
 	return;
@@ -1958,7 +2021,7 @@ static void walk_letbind(ASTNode *p) {
     }
     
     // 3. walk left side again and copy data from right side
-    capattern_bind_value(cap, v, exprn->symtable);
+    capattern_bind_value(exprn->symtable, cap, v, catype);
 
     yyerror("multiple binding not unimplemented yet");
   }
