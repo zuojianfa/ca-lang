@@ -448,5 +448,14 @@ END_EXTERN_C
     }								\
   } while(0)
 
+#define CHECK_GET_TYPE_VALUE_LOC(loc, value, id)		\
+  do {								\
+    if (!(value)) {						\
+      const char *name_ = symname_get(id);			\
+      yyerror("line: %d, col: %d: cannot find data type '%s'",	\
+	      (loc).row, (loc).col, name_);			\
+    }								\
+  } while(0)
+
 #endif
 

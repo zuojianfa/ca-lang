@@ -1677,6 +1677,14 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
       inference_letbind_pattern_range(cap, tuplenode, ignorerangepos + 1, cap->items->size, tuplenode->arglistn.argc - cap->items->size-1);
     }
 
+    CADataType *catype = catype_from_capattern(cap, exprn->symtable);
+    if (!catype)
+      yyerror("line: %d, col: %d: get general tuple type `%s` failed from determined pattern", cap->loc.row, cap->loc.col);
+
+    if (cap->morebind)
+      bind_register_variable_catype(cap->morebind, catype->signature, exprn->symtable);
+
+    determine_expr_type(exprn, catype->signature);
     break;
   }
   case PT_Tuple:
@@ -1817,8 +1825,73 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
   }
 }
 
-static void capattern_bind_value(CAPattern *cap, Value *value) {
+static Value *cavar_bind_llvmvalue(STEntry *entry, CADataType *idtype, Value *value) {
+  const char *name = symname_get(entry->u.var->name);
+  Type *type = llvmtype_from_catype(idtype);
+  if (entry->sym_type != Sym_Variable) {
+    yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
+    return nullptr;
+  }
+
+  Value *var = ir1.gen_var(type, name, nullptr);
+  // NEXT TODO: check whether llvmvalue should use value or pointer
+  aux_copy_llvmvalue_to_store(type, var, value, name);
+
+  if (enable_debug_info())
+    emit_local_var_dbginfo(curr_fn, name, idtype, var, entry->u.var->loc.row);
+
+  entry->u.var->llvm_value = static_cast<void *>(var);
+  return var;
+}
+
+static void capattern_bind_value(CAPattern *cap, Value *value, SymTable *symtable) {
   // NEXT TODO: NEXT TODO: realize this function
+  switch (cap->type) {
+  case PT_Var:
+    STEntry *entry = sym_getsym(symtable, cap->name, 0);
+    assert(entry);
+    CADataType *catype = catype_get_by_name(symtable, entry->u.var->datatype);
+    CHECK_GET_TYPE_VALUE_LOC(cap->loc, catype, entry->u.var->datatype);
+    cavar_bind_llvmvalue(entry, catype, value);
+    break;
+  case PT_Tuple:
+  case PT_GenTuple:
+    determine_letbind_type_for_struct(cap, catype, symtable, cap->type == PT_Tuple ? 1 : 2);
+    break;
+  case PT_Struct:
+    determine_letbind_type_for_struct(cap, catype, symtable, 0);
+    break;
+  case PT_IgnoreOne:
+    break;
+  case PT_IgnoreRange:
+    yyerror("inner error: should not come here, upper logic already processed");
+    break;
+  default:
+    yyerror("inner error: unknown pattern type: `%d`", cap->type);
+    break;
+  }
+
+  
+  
+  // allocate new array and copy related elements to the array
+  StructType *structype = static_cast<StructType *>(llvmtype_from_catype(catype));
+  AllocaInst *structure = ir1.gen_var(structype);
+  Value *idxv0 = ir1.gen_int((int)0);
+  std::vector<Value *> idxv(2, idxv0);
+
+  for (size_t i = 0; i < values.size(); ++i) {
+    // get elements address of structure
+    Value *idxvi = ir1.gen_int((int)i);
+    idxv[1] = idxvi;
+    Value *dest = ir1.builder().CreateGEP(// structype, 
+					  structure, idxv);
+    Type *lefttype = structype->getStructElementType(i);
+    aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "field");
+  }
+  
+  auto u = std::make_unique<CalcOperand>(OT_Alloc, structure, catype);
+  oprand_stack.push_back(std::move(u));
+
 }
 
 // NEXT TODO: for local and global variable binding, refactor walk_assign function
@@ -1885,7 +1958,7 @@ static void walk_letbind(ASTNode *p) {
     }
     
     // 3. walk left side again and copy data from right side
-    capattern_bind_value(cap, v);
+    capattern_bind_value(cap, v, exprn->symtable);
 
     yyerror("multiple binding not unimplemented yet");
   }
