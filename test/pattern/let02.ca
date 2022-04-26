@@ -1,0 +1,88 @@
+fn main() {
+    struct A1 {
+        f1: i32,
+    }
+
+    let a11@a10@a1: A1 = __zero_init__;
+    print a1; print '\n';
+    print a10; print '\n';
+    a11.f1 = 3;
+    print a11; print '\n';
+
+    struct A2 {
+        f1: A1,
+        f2: i32,
+    }
+
+    struct A3 {
+        f1: A1,
+        f2: A2,
+        f3: i32,
+        f4: bool,
+    }
+
+    let a2: A2 = __zero_init__;
+    let a31@a3: A3 = __zero_init__;
+    print a2; print '\n';
+    print a3; print '\n';
+    a31.f3 = 33;
+    print a31; print '\n';
+
+    let A1{f1} = __zero_init__;
+    f1 = 2;
+    print f1; print ' ';
+    let A1{f1: v1} = __zero_init__;
+    print v1; print ' ';
+    let as1@A1{f1: v2} = __zero_init__;
+    print v2; print '\n';
+    print as1; print '\n';
+
+    let as2@A2{f1: v3, f2: v4} = __zero_init__;
+    print v3; print ' ';
+    print v4; print '\n';
+    print as2; print '\n';
+
+    let as3 @ A3 {f1: v5, f2: v6, f3: v7, f4: v8} = __zero_init__;
+    print "==\n";
+    print v5; print '\n';
+    print v6; print '\n';
+    print v7; print ' ';
+    print v8; print '\n';
+    print as3; print ' ';
+
+    //let a1 = A1{3};
+    //print a1;
+
+    // struct AA {
+    //     f1: i32,
+    //     f2: i32,
+    //     f3: char,
+    // }
+
+    // let aa = AA {3, 4, 'C'};
+    // print aa;
+
+    // let a: (i32, (i32, i32)) = __zero_init__;
+    // print a; print '\n';
+    // let (a1, b1): (i32, i32) = __zero_init__;
+    // print a1; print ' ';
+    // print b1; print '\n';
+    // a1 = 1;
+    // b1 = 2;
+    // print a1; print ' ';
+    // print b1; print '\n';
+
+    // type A = (i32, i32);
+    // let (a2, b2): A = __zero_init__;
+    // print a2; print ' ';
+    // print b2; print '\n';
+
+    // let m3@n3@(aa@a3, bb@b3): A = __zero_init__;
+    // print n3; print ' ';
+    // n3.0 = 1; n3.1 = 2;
+    // print n3; print '\n';
+    // print m3; print '\n';
+    // print a3; print ' ';
+    // print bb;
+}
+

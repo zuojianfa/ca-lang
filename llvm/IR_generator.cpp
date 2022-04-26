@@ -1583,7 +1583,7 @@ static void walk_assign(ASTNode *p) {
 static CADataType *capattern_check_get_type(CAPattern *cap, ASTNode *exprn) {
   // the pattern type, cap->datatype and exprn type should all be identical
   CADataType *catype = catype_from_capattern(cap, exprn->symtable);
-  if (cap->datatype) {
+  if (cap->datatype != typeid_novalue) {
     CADataType *postcatype = catype_get_by_name(exprn->symtable, cap->datatype);
     CHECK_GET_TYPE_VALUE(exprn, postcatype, cap->datatype);
 
@@ -1847,11 +1847,14 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
   }
 
   Value *var = ir1.gen_var(type, varname, nullptr);
-  // NEXT TODO: check whether llvmvalue should use value or pointer
-  aux_copy_llvmvalue_to_store(type, var, value, varname);
+  if (!value)
+    aux_set_zero_to_store(type, var);
+  else
+    // NEXT TODO: check whether llvmvalue should use value or pointer
+    aux_copy_llvmvalue_to_store(type, var, value, varname);
 
   if (enable_debug_info())
-    emit_local_var_dbginfo(curr_fn, varname, catype, var, entry->u.var->loc.row);
+    emit_local_var_dbginfo(curr_fn, varname, catype, var, entry->u.var->loc.row /* p->endloc.row */);
 
   entry->u.var->llvm_value = static_cast<void *>(var);
   return var;
@@ -1880,9 +1883,12 @@ static void capattern_bind_pattern_range(SymTable *symtable, CAPattern *cap, Val
   std::vector<Value *> idxv(2, idxv0);
 
   for (int i = from; i < to; ++i) {
-    Value *idxvi = ir1.gen_int((int)i);
-    idxv[1] = idxvi;
-    Value *subvalue = ir1.builder().CreateGEP(value, idxv);
+    Value *subvalue = nullptr;
+    if (value) {
+      Value *idxvi = ir1.gen_int((int)i);
+      idxv[1] = idxvi;
+      subvalue = ir1.builder().CreateGEP(value, idxv);
+    }
     capattern_bind_value(symtable, cap->items->patterns[i], subvalue,
 			 catype->struct_layout->fields[i + typeoffset].type);
   }
@@ -1911,11 +1917,15 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
       if (tuple != 1)
 	pos = struct_field_position_from_fieldname(catype, pos);
 
-      // get elements address of structure
-      Value *idxvi = ir1.gen_int((int)i);
-      idxv[1] = idxvi;
-      Value *subvalue = ir1.builder().CreateGEP(value, idxv);
-      capattern_bind_value(symtable, cap->items->patterns[pos], subvalue, catype->struct_layout->fields[pos].type);
+      Value *subvalue = nullptr;
+      if (value) {
+	// get elements address of structure
+	Value *idxvi = ir1.gen_int((int)i);
+	idxv[1] = idxvi;
+	subvalue = ir1.builder().CreateGEP(value, idxv);
+      }
+
+      capattern_bind_value(symtable, cap->items->patterns[i], subvalue, catype->struct_layout->fields[pos].type);
     }
     return;
   }
@@ -1959,6 +1969,7 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *valu
 static void walk_letbind(ASTNode *p) {
   CAPattern *cap = p->letbindn.cap;
   ASTNode *exprn = p->letbindn.expr;
+#if 0
   if (cap->type == PT_Var) {
     // here just mock for refactor the old code and make test run
     ASTNode *idn = (ASTNode *)malloc(sizeof(ASTNode));
@@ -1985,24 +1996,18 @@ static void walk_letbind(ASTNode *p) {
     oldp->symtable = p->symtable;
 
     walk_assign(oldp);
-  } else {
-    // 1. inference type for both side of binding, to determine the types of both side
-    if (exprn->type != TTE_VarDefZeroValue) {
-      // when is not zeroinitial
-      inference_letbind_type(cap, exprn);
-    } else {
-      // when the pattern specified a type, example: let AA {f1, f2, ...}: datatype = __zero_initial__
-      CADataType *catype = capattern_check_get_type(cap, exprn);
-      CHECK_GET_TYPE_VALUE(exprn, catype, cap->datatype);
-
-      // catype can be null and the datatype must can obtain from pattern
-      determine_letbind_type(cap, catype, exprn->symtable);
-    }
-
-    // 2. walk right side node and get Value
+  } else
+#endif
+  {
     Value *v = nullptr;
     CADataType *catype = nullptr;
+
     if (exprn->type != TTE_VarDefZeroValue) {
+      // 1. inference type for both side of binding, to determine the types of both side
+      // when is not zeroinitial
+      inference_letbind_type(cap, exprn);
+
+      // 2. walk right side node and get Value
       walk_stack(exprn);
 
       auto pair = pop_right_value("tmpexpr", false);
@@ -2018,12 +2023,19 @@ static void walk_letbind(ASTNode *p) {
       // 		catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
       // 	return;
       // }
+
+    } else {
+      // 1. inference type for both side of binding, to determine the types of both side
+      // when the pattern specified a type, example: let AA {f1, f2, ...}: datatype = __zero_initial__
+      catype = capattern_check_get_type(cap, exprn);
+      CHECK_GET_TYPE_VALUE(exprn, catype, cap->datatype);
+
+      // catype can be null and the datatype must can obtain from pattern
+      determine_letbind_type(cap, catype, exprn->symtable);
     }
-    
+
     // 3. walk left side again and copy data from right side
     capattern_bind_value(exprn->symtable, cap, v, catype);
-
-    yyerror("multiple binding not unimplemented yet");
   }
 }
 

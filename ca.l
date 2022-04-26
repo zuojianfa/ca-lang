@@ -155,6 +155,7 @@ r\"[^"]*\"	       	{
 "=="		{ ULL(); return EQ; }
 "!="		{ ULL(); return NE; }
 "..."		{ ULL(); return VARG; }
+".."		{ ULL(); return IGNORE; }
 "->"		{ ULL(); return ARROW; }
 "=>"		{ ULL(); return INFER; }
 \&		{ ULL(); return '&'; }

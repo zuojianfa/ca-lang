@@ -162,10 +162,15 @@ std::unordered_map<std::string, int> s_token_map = {
   {"uchar",  U8},
 #endif
 
+#if 0
   {">=",     GE},
   {"<=",     LE},
   {"==",     EQ},
   {"!=",     NE},
+  {"...",    VARG},
+  {"..",     IGNORE},
+#endif
+
   {"while",  WHILE},
   {"if",     IF},
   {"ife",    IFE},
@@ -178,8 +183,6 @@ std::unordered_map<std::string, int> s_token_map = {
   {"extern", EXTERN},
   {"return", RET},
   {"let",    LET},
-  {"...",    VARG},
-  {"..",     IGNORE},
   {"struct", STRUCT},
   {"type",   TYPE},
   {"as",     AS},
