@@ -2352,7 +2352,8 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
 
   // popup the structure member symbol table
   // after that will define type name in it
-  curr_symtable = pop_symtable();
+  if (!tuple)
+    curr_symtable = pop_symtable();
 
   // 0. check if current scope already exists such type and report error when already exists
   const char *structname = symname_get(id);

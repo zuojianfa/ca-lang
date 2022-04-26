@@ -174,6 +174,7 @@ r\"[^"]*\"	       	{
 
 "<<"		{ ULL(); return SHIFTL; }
 ">>"            { ULL(); return SHIFTR; }
+_		{ ULL(); return '_'; }
 
 
 ({letter}|_)+({letter}|{digit}|_)*	{

@@ -1674,7 +1674,7 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
       // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
       // handle starting and ending matches
       inference_letbind_pattern_range(cap, tuplenode, 0, ignorerangepos, 0);
-      inference_letbind_pattern_range(cap, tuplenode, ignorerangepos + 1, cap->items->size, tuplenode->arglistn.argc - cap->items->size-1);
+      inference_letbind_pattern_range(cap, tuplenode, ignorerangepos + 1, cap->items->size, tuplenode->arglistn.argc - cap->items->size);
     }
 
     CADataType *catype = catype_from_capattern(cap, exprn->symtable);
@@ -1806,8 +1806,8 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
     // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
     // handle starting and ending matches
     determine_letbind_pattern_range(cap, catype, symtable, 0, ignorerangepos, 0);
-    determine_letbind_pattern_range(cap, catype, symtable, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size-1);
-  }  
+    determine_letbind_pattern_range(cap, catype, symtable, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size);
+  }
 }
 
 static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable *symtable) {
@@ -1938,7 +1938,7 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
     // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
     // handle starting and ending matches
     capattern_bind_pattern_range(symtable, cap, value, catype, 0, ignorerangepos, 0);
-    capattern_bind_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size-1);
+    capattern_bind_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size);
   }  
 }
 
