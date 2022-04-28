@@ -1,0 +1,6 @@
+fn main () {
+    struct A1 { f1: i32, }
+    let A1{f1} = A1{f1: 100};
+    print f1;
+}
+

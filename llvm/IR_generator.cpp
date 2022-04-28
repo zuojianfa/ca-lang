@@ -1737,11 +1737,24 @@ static CADataType *struct_subcatype_from_fieldname(CADataType *catype, int field
 
 static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype, SymTable *symtable, int tuple) {
   // come here struct or named tuple must already defined datatype
-  if ((catype->type != STRUCT || tuple != catype->struct_layout->tuple)) {
-    yyerror("line: %d, col: %d: required a %s type, but found `%s` type",
-	    cap->loc.row, cap->loc.col, tuple ? "tuple" : "struct",
-	    catype_get_type_name(catype->signature));
+  if (catype->type != STRUCT) {
+    yyerror("line: %d, col: %d: required a struct type, but found `%s` type",
+	    cap->loc.row, cap->loc.col, catype_get_type_name(catype->signature));
     return;
+  }
+
+  if (cap->name) {
+    CADataType *dt = catype_from_capattern(cap, symtable);
+    if (dt->signature != catype->signature) {
+      yyerror("line: %d, col: %d: `%s` type required, but find `%s` pattern type",
+	      cap->loc.row, cap->loc.col, catype_get_type_name(catype->signature), catype_get_type_name(dt->signature));
+      return;
+    }
+  }
+
+  if (tuple != catype->struct_layout->tuple) {
+    // it means the tuple using struct form of match
+    // now allow
   }
 
   if ((cap->items->size > catype->struct_layout->fieldnum)) {
@@ -1914,7 +1927,7 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
 
     for (int i = 0; i < endpos; ++i) {
       int pos = cap->items->patterns[i]->fieldname;
-      if (tuple != 1)
+      if (catype->struct_layout->tuple == 0)
 	pos = struct_field_position_from_fieldname(catype, pos);
 
       Value *subvalue = nullptr;
@@ -1925,7 +1938,12 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
 	subvalue = ir1.builder().CreateGEP(value, idxv);
       }
 
-      capattern_bind_value(symtable, cap->items->patterns[i], subvalue, catype->struct_layout->fields[pos].type);
+      CADataType *btype = catype->struct_layout->fields[pos].type;
+      if (!catype_is_complex_type(btype->type)) {
+	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
+      }
+
+      capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype);
     }
     return;
   }

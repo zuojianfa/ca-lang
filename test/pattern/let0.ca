@@ -15,11 +15,12 @@ fn main() {
     print b2; print '\n';
 
     let m3@n3@(aa@a3, bb@b3): A = __zero_init__;
-    print n3; print ' ';
+    print n3; print '\n';
     n3.0 = 1; n3.1 = 2;
     print n3; print '\n';
     print m3; print '\n';
     print a3; print ' ';
-    print bb;
+    print aa; print ' ';
+    print bb; print ' ';
 }
 

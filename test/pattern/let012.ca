@@ -1,0 +1,19 @@
+fn main() {
+    struct AA { f1: i32, f2: i32, }
+    struct A1 ( AA, i32, i32, );
+    struct A2 { f1: A1, f2: (i32, bool), }
+    struct A3 (AA, A1, A2);
+
+    let a3@A3(aa@AA{f1, f2}, a1@(_, v1, _), a2@A2{f1: a2f1, f2: a2f2@(_, boo)}) = __zero_init__;
+    print a3; print '\n';
+    print aa; print '\n';
+    print f1; print ' ';
+    print f2; print ' ';
+    print v1; print '\n';
+    print a1; print '\n';
+    print a2; print '\n';
+    print a2f1; print '\n';
+    print a2f2; print ' ';
+    print boo; print '\n';
+}
+
