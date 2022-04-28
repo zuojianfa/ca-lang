@@ -18,6 +18,7 @@ do_test(pattern "line: 7, col: 50: `{A1;f1:{AA;f1:i32,f2:i32},f2:i32,f3:i32}` ty
 do_test(pattern "the symbol name `AAAA` is not a type" ca leterror4.ca)
 do_test(pattern "A1 { f1: 0 }\nA1 { f1: 0 }\nA1 { f1: 3 }\nAA { f1: 3, f2: 4, f3: C }\n\\( 0, \\( 0, 0 \\) \\)\n0 0\n1 2\n0 0\n====\n\\( 0, 0 \\) \\( 1, 2 \\)\n\\( 0, 0 \\)\n0 0 0" ca let1.ca)
 do_test(pattern "100" ca let110.ca)
-do_test(pattern "100" ca let11.ca)
-
+do_test(pattern "A1 { f1: 33 }\nA1 { f1: 33 }\nA1 { f1: 3 }\nA2 { f1: A1 { f1: 3 }, f2: 34 }\nA3 { f1: A1 { f1: 33 }, f2: A2 { f1: A1 { f1: 3 }, f2: 34 }, f3: 21, f4: 1 }\nA3 { f1: A1 { f1: 33 }, f2: A2 { f1: A1 { f1: 3 }, f2: 34 }, f3: 33, f4: 1 }\n12345 A1 { f1: 12345 }\n12345 12345\nA1 { f1: 12345 }\nA1 { f1: 54321 } 99\nA2 { f1: A1 { f1: 54321 }, f2: 99 }\n==\nA1 { f1: 3 }\nA2 { f1: A1 { f1: 54321 }, f2: 99 }\n986 1\nA3 { f1: A1 { f1: 3 }, f2: A2 { f1: A1 { f1: 54321 }, f2: 99 }, f3: 986, f4: 1 }" ca let11.ca)
+do_test(pattern "v60: C" ca let130.ca)
+do_test(pattern "1 2 C 3.400000 A\nAA { f1: 1, f2: 2, f3: C, f4: 3.400000, f5: A }\n1 2 C 3.400000 A\nAA { f1: 1, f2: 2, f3: C, f4: 3.400000, f5: A }\n4 5\nAA { f1: 4, f2: 5, f3: D, f4: 3.400000, f5: E }\n5 H A\nAA { f1: 4, f2: 5, f3: R, f4: 3.400000, f5: U }" ca let13.ca)
 

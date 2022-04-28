@@ -1933,13 +1933,13 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
       Value *subvalue = nullptr;
       if (value) {
 	// get elements address of structure
-	Value *idxvi = ir1.gen_int((int)i);
+	Value *idxvi = ir1.gen_int(pos);
 	idxv[1] = idxvi;
 	subvalue = ir1.builder().CreateGEP(value, idxv);
       }
 
       CADataType *btype = catype->struct_layout->fields[pos].type;
-      if (!catype_is_complex_type(btype->type)) {
+      if (subvalue && !catype_is_complex_type(btype->type)) {
 	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
       }
 

@@ -25,20 +25,22 @@ fn main() {
     a31.f3 = 33;
     print a31; print '\n';
 
-    let A1{f1} = A1{f1: 0};
+    let va1@A1{f1} = A1{f1: 12345};
     print f1; print ' ';
-    let A1{f1: v1} = __zero_init__;
+    print va1; print '\n';
+    let A1{f1: v1} = va1;
     print v1; print ' ';
-    let as1@A1{f1: v2} = __zero_init__;
+    let as1@A1{f1: v2} = va1;
     print v2; print '\n';
     print as1; print '\n';
 
-    let as2@A2{f1: v3, f2: v4} = __zero_init__;
+    let va2@A1 = A1{f1: 54321};
+    let as2@A2{f1: v3, f2: v4} = A2{f1: va2, f2: 99};
     print v3; print ' ';
     print v4; print '\n';
     print as2; print '\n';
 
-    let as3 @ A3 {f1: v5, f2: v6, f3: v7, f4: v8} = __zero_init__;
+    let as3 @ A3 {f1: v5, f2: v6, f3: v7, f4: v8} = A3{a11, as2, 986, true};
     print "==\n";
     print v5; print '\n';
     print v6; print '\n';

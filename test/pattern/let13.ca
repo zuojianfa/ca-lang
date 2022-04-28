@@ -1,0 +1,41 @@
+fn main() {
+    struct AA {
+        f1: i32,
+	f2: i32,
+	f3: char,
+	f4: f64,
+	f5: char,
+    }
+
+    let aa1@AA{f1,f2,f3,f4,f5} = AA{1, 2, 'C', 3.4, 'A'};
+    print f1; print ' ';
+    print f2; print ' ';
+    print f3; print ' ';
+    print f4; print ' ';
+    print f5; print '\n';
+    print aa1; print '\n';
+
+    let aa2@AA{f1:v1, f2: v2, f3: v3, f4: v4, f5: v5} = AA{1, 2, 'C', 3.4, 'A'};
+    print v1; print ' ';
+    print v2; print ' ';
+    print v3; print ' ';
+    print v4; print ' ';
+    print v5; print '\n';
+    print aa2; print '\n';
+
+    let aa3@AA{f1:v6, f2: v7, ..} = AA{4, 5, 'C', 3.4, 'A'};
+    print v6; print ' ';
+    print v7; print '\n';
+    aa3.f3 = 'D'; aa3.f5 = 'E';
+    print aa3; print '\n';
+
+    let aa31@AA{f2:v60, ..} = AA{4, 5, 'C', 3.4, 'A'};
+    print v60; print ' ';
+
+    let aa4@AA{f3:v8, f5: v9, ..} = AA{4, 5, 'H', 3.4, 'A'};
+    print v8; print ' ';
+    print v9; print '\n';
+    aa4.f3 = 'R'; aa4.f5 = 'U';
+    print aa4; print '\n';
+}
+
