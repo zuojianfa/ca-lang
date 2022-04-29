@@ -1,0 +1,10 @@
+fn echo(m: i32) -> i32 {
+    return m;
+}
+
+fn main() {
+    let a = 100;
+    let b = a;
+    //let a = echo(100);
+}
+

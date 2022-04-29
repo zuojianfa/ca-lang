@@ -2022,6 +2022,7 @@ static void walk_letbind(ASTNode *p) {
   {
     Value *v = nullptr;
     CADataType *catype = nullptr;
+    OperandType ot = OT_Alloc;
 
     if (exprn->type != TTE_VarDefZeroValue) {
       // 1. inference type for both side of binding, to determine the types of both side
@@ -2031,9 +2032,12 @@ static void walk_letbind(ASTNode *p) {
       // 2. walk right side node and get Value
       walk_stack(exprn);
 
-      auto pair = pop_right_value("tmpexpr", false);
-      v = pair.first;
-      catype = pair.second;
+      //auto pair = pop_right_value("tmpexpr", false);
+      //pair.first;
+      auto datao = pop_right_operand("tmpexpr", false);
+      v = datao->operand;
+      catype = datao->catype;
+      ot = datao->type;
       if (v == nullptr) {
 	yyerror("line: %d, col: %d: create value failed: `%s`", p->begloc.row, p->begloc.col);
 	return;
@@ -2054,6 +2058,9 @@ static void walk_letbind(ASTNode *p) {
       // catype can be null and the datatype must can obtain from pattern
       determine_letbind_type(cap, catype, exprn->symtable);
     }
+
+    if (v && ot == OT_Alloc && !catype_is_complex_type(catype->type))
+	  v = ir1.builder().CreateLoad(v, "pat");
 
     // 3. walk left side again and copy data from right side
     capattern_bind_value(exprn->symtable, cap, v, catype);
