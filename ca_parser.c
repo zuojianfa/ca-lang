@@ -2208,6 +2208,12 @@ int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry) 
   else
     formalparam = entry->u.f.arglists;
 
+  if (!formalparam) {
+    yyerror("line: %d, col: %d: cannot find arglist, seems `%s` is not a function or named tuple",
+	    glineno, gcolno, catype_get_type_name(fnname));
+    return -1;
+  }
+
   // check parameter number
   if(formalparam->contain_varg && formalparam->argc > param->arglistn.argc
      ||

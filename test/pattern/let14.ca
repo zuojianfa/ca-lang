@@ -1,44 +1,38 @@
 fn main() {
     struct BB (i32, i32, char, f64, char);
 
-    let BB(b1, b2, b3, b4, b5) = (1, 2, 'C', 6.6, 'A');
+    let BB(b1, b2, b3, b4, b5) = BB(1, 2, 'C', 6.6, 'A');
     print b1; print ' ';
     print b2; print ' ';
-    b3 = 'C'; b5 = 'A';
     print b3; print ' ';
     print b4; print ' ';
     print b5; print '\n';
 
-    let BB(c1, c2, c3, c4, ..) = __zero_init__;
+    let BB(c1, c2, c3, c4, ..) = BB(1, 2, 'D', 6.6, 'A');
     print c1; print ' ';
     print c2; print ' ';
-    c3 = 'D';
     print c3; print ' ';
     print c4; print '\n';
 
-    let BB(d1, d2, ..) = __zero_init__;
+    let BB(d1, d2, ..) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'A');
     print d1; print ' ';
     print d2; print '\n';
 
-    let BB(e1, .., e2) = __zero_init__;
-    e2 = 'B';
+    let BB(e1, .., e2) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'A');
     print e1; print ' ';
     print e2; print '\n';
 
-    let BB(.., f1, f2) = __zero_init__;
-    f2 = 'Q';
+    let BB(.., f1, f2) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'A');
     print f1; print ' ';
     print f2; print ' ';
 
-    let BB(.., g1) = __zero_init__;
-    g1 = 'P';
+    let BB(.., g1) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'X');
     print g1; print ' ';
 
-    let BB(h1,..) = __zero_init__;
+    let BB(h1,..) = BB(0x7fffffff, 0x7fffffff, 'D', 6.6, 'X');
     print h1; print '\n';
 
-    let bb@BB(..) = __zero_init__;
-    bb.2 = 'R'; bb.4 = 'S';
+    let bb@BB(..) = BB(0x7fffffff, 0x7fffffff, 'D', 6.6, 'X');
     print bb; print ' ';
 }
 

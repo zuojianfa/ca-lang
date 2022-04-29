@@ -1896,14 +1896,19 @@ static void capattern_bind_pattern_range(SymTable *symtable, CAPattern *cap, Val
   std::vector<Value *> idxv(2, idxv0);
 
   for (int i = from; i < to; ++i) {
+    int opos = i + typeoffset;
+    CADataType *btype = catype->struct_layout->fields[opos].type;
     Value *subvalue = nullptr;
     if (value) {
-      Value *idxvi = ir1.gen_int((int)i);
+      Value *idxvi = ir1.gen_int(opos);
       idxv[1] = idxvi;
       subvalue = ir1.builder().CreateGEP(value, idxv);
+
+      if (!catype_is_complex_type(btype->type))
+	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
     }
-    capattern_bind_value(symtable, cap->items->patterns[i], subvalue,
-			 catype->struct_layout->fields[i + typeoffset].type);
+
+    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype);
   }
 }
 
@@ -1930,17 +1935,15 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
       if (catype->struct_layout->tuple == 0)
 	pos = struct_field_position_from_fieldname(catype, pos);
 
+      CADataType *btype = catype->struct_layout->fields[pos].type;
       Value *subvalue = nullptr;
       if (value) {
 	// get elements address of structure
 	Value *idxvi = ir1.gen_int(pos);
 	idxv[1] = idxvi;
 	subvalue = ir1.builder().CreateGEP(value, idxv);
-      }
-
-      CADataType *btype = catype->struct_layout->fields[pos].type;
-      if (subvalue && !catype_is_complex_type(btype->type)) {
-	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
+	if (!catype_is_complex_type(btype->type))
+	  subvalue = ir1.builder().CreateLoad(subvalue, "pat");
       }
 
       capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype);
@@ -3486,7 +3489,7 @@ static void handle_post_functions() {
   for (auto itr = g_function_post_map.begin(); itr != g_function_post_map.end(); ++itr) {
     CallParamAux *paramaux = (CallParamAux *)itr->second;
     if (!paramaux->checked) {
-      yyerror("function `%s` is used but not defined", symname_get(itr->first));
+      yyerror("function or tuple expression `%s` is used but not defined", catype_get_type_name(itr->first));
       return;
     }
 

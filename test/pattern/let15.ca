@@ -1,0 +1,35 @@
+fn main() {
+    struct BB (i32, i32, char, f64, char);
+
+    let BB(b1, _, b3, _, b5) = BB(1, 2, 'Z', 6.6, 'z');
+    print b1; print ' ';
+    print b3; print ' ';
+    print b5; print '\n';
+
+    let BB(_, c2, c3, c4, _) = BB(1, 2, 'Z', 7.7, 'z');
+    print c2; print ' ';
+    print c3; print ' ';
+    print c4; print '\n';
+
+    let BB(d1, d2, _, _, _) = BB(1, 2, 'Z', 6.6, 'z');
+    print d1; print ' ';
+    print d2; print '\n';
+
+    let BB(e1, _, _, _, e2) = BB(1, 2, 'Z', 6.6, 'z');
+    print e1; print ' ';
+    print e2; print '\n';
+
+    let BB(_, _, _, f1, f2) = BB(1, 2, 'Z', 6.6791, 'x');
+    print f1; print ' ';
+    print f2; print ' ';
+
+    let BB(_, _, _, _, g1) = BB(1, 2, 'Z', 6.6, 'z');
+    print g1; print ' ';
+
+    let BB(h1,_,_,_ ,_) = BB(-200, 2, 'Z', 6.6, 'z');
+    print h1; print '\n';
+
+    let bb@BB(_,_ , _ ,_ , _) = BB(1, 2, 'U', 6.6, 'u');
+    print bb; print ' ';
+}
+
