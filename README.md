@@ -297,6 +297,7 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
+- [ ] let pattern almost finished except the test case failure that resulted from the line number changes in output or in llvm output, so next time can conbine it with the finer line number see following one. NEXT TODO should be focus on the line number and source code and then match pattern 
 - [ ] how to use the finer line number column number of any code, and how to show the fine source code????????????????????????????
 - [ ] let04.ca result into CMakeLists.txt, test gen tuple _,  debugging .0 .1 ... for tuple and struct, recursive struct, add array
 - [ ] pattern matching: let S(x) = A; let S{x} = A;

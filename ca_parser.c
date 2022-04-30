@@ -757,6 +757,15 @@ ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global) {
     if (curr_symtable == g_main_symtable && var->global) {
       // generate a global variable, use global symbol table here
       symtable = &g_root_symtable;
+
+      // TODO: FIXME, there are a bugs when declare the global variable with
+      // attribute, because when right expression is complex and/or is not in
+      // global scope (because when using generated main function the declared
+      // variable (in global scope) will be put into main function scope and the
+      // declared variable becoming non-global variable) then there be some bugs
+      // here just reassign the symtable using global table to fix it, but still
+      // have some bugs      
+      exprn->symtable = symtable;
     }
     // all else generate local variable against main or defined function
   }
@@ -764,6 +773,7 @@ ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global) {
   register_variable(var, symtable);
 
   CAPattern *cap = capattern_new(var->name, PT_Var, NULL);
+  cap->datatype = var->datatype;
 
   ASTNode *p = new_ASTNode(TTE_LetBind);
   p->letbindn.cap = cap;
@@ -863,17 +873,12 @@ ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
     yyerror("line: %d, col: %d: capattern can only have one ignore range field", glineno, gcolno);
     return NULL;
   }
-  
+
   // parse variables (may with different datatype) in CAPattern and record them in the symbol table for later use
-  if (curr_symtable == &g_root_symtable) {
-    if (cap->type == PT_Var) {
-      CAVariable *cavar = cavar_create_with_loc(cap->name, cap->datatype, &cap->loc);
-      return make_global_vardef(cavar, exprn, 0);
-    } else {
-      yyerror("line: %d, col: %d: left `%s` cannot do pattern match for `%s` globally",
-	      glineno, gcolno, symname_get(cap->name));
-      return NULL;
-    }
+  if (curr_symtable == &g_root_symtable && cap->type != PT_Var) {
+    yyerror("line: %d, col: %d: left `%s` cannot do pattern match for `%s` globally",
+	    glineno, gcolno, symname_get(cap->name));
+    return NULL;
   }
 
   register_capattern_symtable(cap);
