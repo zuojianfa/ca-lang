@@ -1859,15 +1859,23 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
     return nullptr;
   }
 
-  Value *var = ir1.gen_var(type, varname, nullptr);
-  if (!value)
-    aux_set_zero_to_store(type, var);
-  else
-    // NEXT TODO: check whether llvmvalue should use value or pointer
-    aux_copy_llvmvalue_to_store(type, var, value, varname);
+  Value *var = nullptr;
 
-  if (enable_debug_info())
-    emit_local_var_dbginfo(curr_fn, varname, catype, var, entry->u.var->loc.row /* p->endloc.row */);
+  if (is_create_global_var(entry)) { // or using condition: symtable == &g_root_symtable
+    var = ir1.gen_global_var(type, varname, value, false, value == nullptr);
+
+    if (enable_debug_info())
+      emit_global_var_dbginfo(varname, catype, entry->u.var->loc.row);
+  } else {
+    var = ir1.gen_var(type, varname, nullptr);
+    if (!value)
+      aux_set_zero_to_store(type, var);
+    else
+      aux_copy_llvmvalue_to_store(type, var, value, varname);
+
+    if (enable_debug_info())
+      emit_local_var_dbginfo(curr_fn, varname, catype, var, entry->u.var->loc.row /* p->endloc.row */);
+  }
 
   entry->u.var->llvm_value = static_cast<void *>(var);
   return var;

@@ -790,8 +790,9 @@ void register_structpattern_symtable(CAPattern *cap, int withname, int withsub) 
     }
   }
 
-  if (!withname && !withsub)
+  if (!withname && !withsub) {
     capattern_register_variable(cap->name, type, &cap->loc);
+  }
 
   size_t size = vec_size(cap->morebind);
   for (size_t i = 0; i < size; ++i) {
@@ -864,6 +865,17 @@ ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
   }
   
   // parse variables (may with different datatype) in CAPattern and record them in the symbol table for later use
+  if (curr_symtable == &g_root_symtable) {
+    if (cap->type == PT_Var) {
+      CAVariable *cavar = cavar_create_with_loc(cap->name, cap->datatype, &cap->loc);
+      return make_global_vardef(cavar, exprn, 0);
+    } else {
+      yyerror("line: %d, col: %d: left `%s` cannot do pattern match for `%s` globally",
+	      glineno, gcolno, symname_get(cap->name));
+      return NULL;
+    }
+  }
+
   register_capattern_symtable(cap);
 
   ASTNode *p = new_ASTNode(TTE_LetBind);
