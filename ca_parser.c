@@ -788,8 +788,8 @@ void capattern_register_variable(int name, typeid_t datatype, SLoc *loc) {
   register_variable(cavar, curr_symtable);
 }
 
-void register_capattern_symtable(CAPattern *cap);
-void register_structpattern_symtable(CAPattern *cap, int withname, int withsub) {
+void register_capattern_symtable(CAPattern *cap, SLoc *loc);
+void register_structpattern_symtable(CAPattern *cap, int withname, int withsub, SLoc *loc) {
   typeid_t type = cap->datatype;
   if (withname) {
     type = sym_form_type_id(cap->name);
@@ -801,34 +801,34 @@ void register_structpattern_symtable(CAPattern *cap, int withname, int withsub) 
   }
 
   if (!withname && !withsub) {
-    capattern_register_variable(cap->name, type, &cap->loc);
+    capattern_register_variable(cap->name, type, loc);
   }
 
   size_t size = vec_size(cap->morebind);
   for (size_t i = 0; i < size; ++i) {
     int name = (int)(long)vec_at(cap->morebind, i);
-    capattern_register_variable(name, type, &cap->loc);
+    capattern_register_variable(name, type, loc);
   }
 
   // walk for structure items
   if (withsub) {
     PatternGroup *pg = cap->items;
     for (int i = 0; i < pg->size; ++i)
-      register_capattern_symtable(pg->patterns[i]);
+      register_capattern_symtable(pg->patterns[i], loc);
   }
 }
 
-void register_capattern_symtable(CAPattern *cap) {
+void register_capattern_symtable(CAPattern *cap, SLoc *loc) {
   switch (cap->type) {
   case PT_Var:
-    register_structpattern_symtable(cap, 0, 0);
+    register_structpattern_symtable(cap, 0, 0, loc);
     break;
   case PT_GenTuple:
-    register_structpattern_symtable(cap, 0, 1);
+    register_structpattern_symtable(cap, 0, 1, loc);
     break;
   case PT_Tuple:
   case PT_Struct:
-    register_structpattern_symtable(cap, 1, 1);
+    register_structpattern_symtable(cap, 1, 1, loc);
     break;
   case PT_IgnoreOne:
   case PT_IgnoreRange:
@@ -881,7 +881,7 @@ ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
     return NULL;
   }
 
-  register_capattern_symtable(cap);
+  register_capattern_symtable(cap, &exprn->endloc);
 
   ASTNode *p = new_ASTNode(TTE_LetBind);
   p->letbindn.cap = cap;
@@ -1677,9 +1677,15 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     CALiteral *litv = &node->litn.litv;
     if (litv->postfixtypetok != tokenid_novalue && !litv->fixed_type) {
       // when literal carry a postfix like i32 u64 etc, determine them directly
-      CADataType *catype = catype_get_primitive_by_token(litv->postfixtypetok);
-      determine_primitive_literal_type(litv, catype);
+      CADataType *postcatype = catype_get_primitive_by_token(litv->postfixtypetok);
+      determine_primitive_literal_type(litv, postcatype);
       litv->fixed_type = 1;
+      if (postcatype->signature != catype->signature) {
+	yyerror("line: %d, col: %d: `%s` type required, but found `%s`\n",
+		node->begloc.row, node->begloc.col, catype_get_type_name(catype->signature),
+		catype_get_type_name(postcatype->signature));
+	return -1;	
+      }
     }
 
     if (litv->fixed_type)
