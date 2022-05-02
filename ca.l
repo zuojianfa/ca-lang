@@ -6,7 +6,6 @@ letter	[a-zA-Z]
 #include "ca.h"
 #include "ca.tab.h"
 #include "symtable.h"
-void yyerror(char *, ...);
 extern SymTable *curr_symtable;
 
 int glineno_prev = 1;

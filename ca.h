@@ -435,6 +435,9 @@ NodeChain *node_chain(RootTree *tree, ASTNode *p);
 CallParamAux *new_CallParamAux(ASTNode *param, int checked);
 void delete_CallParamAux(CallParamAux *paramaux);
 
+void yyerror(const char *s, ...);
+void caerror(SLoc *beg, SLoc *end, const char *s, ...);
+
 #ifdef __cplusplus
 END_EXTERN_C
 #endif
@@ -443,8 +446,8 @@ END_EXTERN_C
   do {								\
     if (!(value)) {						\
       const char *name_ = symname_get(id);			\
-      yyerror("line: %d, col: %d: cannot find data type '%s'",	\
-	      (p)->begloc.row, (p)->begloc.col, name_);		\
+      caerror(&((p)->begloc), &((p)->endloc), "cannot find data type '%s'", \
+	      name_);							\
     }								\
   } while(0)
 
@@ -452,9 +455,8 @@ END_EXTERN_C
   do {								\
     if (!(value)) {						\
       const char *name_ = symname_get(id);			\
-      yyerror("line: %d, col: %d: cannot find data type '%s'",	\
-	      (loc).row, (loc).col, name_);			\
-    }								\
+      caerror(&(loc), NULL, "cannot find data type '%s'", name_);	\
+    }									\
   } while(0)
 
 #endif

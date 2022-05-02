@@ -82,7 +82,6 @@ extern int glineno;
 extern int gcolno;
 extern int yychar, yylineno;
 
-void yyerror(const char *s, ...);
 int walk(RootTree *tree);
 
 int enable_emit_main() { return genv.emit_main; }
@@ -2658,6 +2657,20 @@ NodeChain *node_chain(RootTree *tree, ASTNode *p) {
 
 void yyerror(const char *s, ...) {
   fprintf(stderr, "[grammar line: %d, token: %d] ", yylineno, yychar);
+
+  va_list ap;
+  va_start(ap, s);
+  int n = vfprintf(stderr, s, ap);
+  va_end(ap);
+
+  fprintf(stderr, "\n");
+  exit(-1);
+}
+
+void caerror(SLoc *beg, SLoc *end, const char *s, ...) {
+  fprintf(stderr, "[grammar line: %d, token: %d] ", yylineno, yychar);
+  if (beg)
+    fprintf(stderr, "line: %d, col: %d: ", beg->row, beg->col);
 
   va_list ap;
   va_start(ap, s);
