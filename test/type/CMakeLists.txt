@@ -78,7 +78,7 @@ else()
 endif()
 
 do_test(type "3" ca typedef.ca)
-do_test(type "line: 9, col: 23: expected a type `i32`, but found `i64`" ca typehir.ca)
+do_test(type "line: 9, col: 20: `i32` type required, but found `i64`" ca typehir.ca)
 do_test(type "i32\nsize = 4, type: t:i32" ca typeof.ca)
 do_test(type "i32\nu64\n[*]i64\n\\[\\[i64; 2\\]; 2\\]\n[*]i64\n\\[[*]i64; 2\\]\n\\[\\[[*]i64; 2\\]; 2\\]\n\\[\\[[*]i64; 2\\]; 2\\]\n[*]\\[i64; 3\\]\ni64\ni64\n3432432\n3\n3223\n44324\n40\n80\n4\n8\n\\[1, 2, 3\\]\n\\[4, 5, 6\\]\nsize = 4, type: t:i32\nsize = 8, type: t:u64\n17\n17\n449\n\\(nil\\)\n0x2b67\n\\(nil\\)\nsize = 8, type: t:[*]i64\n\\[\\[3, 4\\], \\[12, 5\\]\\]\nsize = 32, type: t:\\[\\[i64;2\\];2\\]\n0x4ef60\nsize = 8, type: t:[*]i64\n\\[0x3, 0x4\\]\n\\[0x1e, 0x28\\]\nsize = 16, type: t:\\[[*]i64;2\\]\n\\[\\[0x3, 0x4\\], \\[0xc, 0x5\\]\\]\nsize = 32, type: t:\\[\\[[*]i64;2\\];2\\]\n\\[\\[0x3, 0x4\\], \\[0xc, 0x5\\]\\]\nsize = 32, type: t:\\[\\[[*]i64;2\\];2\\]\n\\(nil\\)\nsize = 8, type: t:[*]\\[i64;3\\]\n3\nsize = 8, type: t:i64\n321\nsize = 8, type: t:i64\n" ca typeof_rec.ca)
 do_test(type "101" ca typesimple.ca)

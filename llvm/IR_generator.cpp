@@ -2031,6 +2031,9 @@ static void walk_letbind(ASTNode *p) {
     Value *v = nullptr;
     CADataType *catype = nullptr;
     OperandType ot = OT_Alloc;
+    
+    if (enable_debug_info())
+	diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
     if (exprn->type != TTE_VarDefZeroValue) {
       // 1. inference type for both side of binding, to determine the types of both side
@@ -2068,7 +2071,7 @@ static void walk_letbind(ASTNode *p) {
     }
 
     if (v && ot == OT_Alloc && !catype_is_complex_type(catype->type))
-	  v = ir1.builder().CreateLoad(v, "pat");
+	  v = ir1.builder().CreateLoad(v, "tmpexpr");
 
     // 3. walk left side again and copy data from right side
     capattern_bind_value(exprn->symtable, cap, v, catype);
