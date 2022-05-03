@@ -25,7 +25,6 @@
 #include <unordered_map>
 
 BEGIN_EXTERN_C
-void yyerror(const char *s, ...);
 extern int glineno;
 extern int gcolno;
 extern SymTable *curr_symtable;

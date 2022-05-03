@@ -57,7 +57,6 @@
 
 BEGIN_EXTERN_C
 #include "ca.tab.h"
-void yyerror(const char *s, ...);
 END_EXTERN_C
 
 #include <unordered_map>

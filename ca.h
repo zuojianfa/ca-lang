@@ -442,19 +442,18 @@ void caerror(SLoc *beg, SLoc *end, const char *s, ...);
 END_EXTERN_C
 #endif
 
-#define CHECK_GET_TYPE_VALUE(p, value, id)			\
-  do {								\
-    if (!(value)) {						\
-      const char *name_ = symname_get(id);			\
-      caerror(&((p)->begloc), &((p)->endloc), "cannot find data type '%s'", \
-	      name_);							\
-    }								\
+#define CHECK_GET_TYPE_VALUE(p, value, id)				\
+  do {									\
+    if (!(value)) {							\
+      const char *name_ = symname_get(id);				\
+      caerror(&((p)->begloc), &((p)->endloc), "cannot find data type '%s'", name_); \
+    }									\
   } while(0)
 
-#define CHECK_GET_TYPE_VALUE_LOC(loc, value, id)		\
-  do {								\
-    if (!(value)) {						\
-      const char *name_ = symname_get(id);			\
+#define CHECK_GET_TYPE_VALUE_LOC(loc, value, id)			\
+  do {									\
+    if (!(value)) {							\
+      const char *name_ = symname_get(id);				\
       caerror(&(loc), NULL, "cannot find data type '%s'", name_);	\
     }									\
   } while(0)

@@ -57,7 +57,6 @@ BEGIN_EXTERN_C
 #include "symtable.h"
 #include "dotgraph.h"
 
-void yyerror(const char *s, ...);
 int yyparse(void);
 int yyparser_init();
 

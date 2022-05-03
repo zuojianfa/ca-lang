@@ -27,7 +27,6 @@ when use `-main` option: do following things
 */
 
 int yylex(void);
-void yyerror(const char *s, ...);
 
 extern RootTree *gtree;
 
