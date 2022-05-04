@@ -385,6 +385,12 @@ const char *string_c_str(void *handle);
 void string_pop_back(void *handle);
 void string_drop(void *handle);
 
+void source_info_init(const char *srcpath);
+const char *source_line(int lineno);
+const char *source_lines(int linefrom, int lineto);
+const char *source_region(SLoc beg, SLoc end);
+char *source_buffer();
+
 #ifdef __cplusplus
 END_EXTERN_C
 #endif

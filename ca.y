@@ -373,10 +373,6 @@ for_stmt_ident:	IDENT               { $$ = (ForStmtId){0, $1}; }
 	|	REF IDENT           { $$ = (ForStmtId){'&', $2}; }
 	;
 
-//ifstmt:		IF '(' expr ')' stmt_list_block %prec IFX { $$ = make_if(0, 2, $3, $5); }
-//	|	IF '(' expr ')' stmt_list_block ELSE stmt_list_block    { $$ = make_if(0, 3, $3, $5, $7); }
-//		;
-
 ifstmt:		{ ifstmt_new_push(); } ifstmt1 { $$ = ifstmt_current(); ifstmt_pop(0); }
 	;
 

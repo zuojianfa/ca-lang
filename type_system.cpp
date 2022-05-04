@@ -314,7 +314,8 @@ tokenid_t sym_primitive_token_from_id(typeid_t id) {
   if (itr != s_token_primitive_map.end())
     return itr->second;
 
-  yyerror("line: %d, col: %d: get primitive type token failed", glineno, gcolno);
+  SLoc stloc = {glineno, gcolno};
+  caerror(&stloc, NULL, "get primitive type token failed");
   return tokenid_novalue;
 }
 
@@ -792,7 +793,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     CADataType **outdt = retdt ? &dt : nullptr;
     int ret = catype_unwind_type_signature_inner(symtable, pch, namemap, checkset, sigbuf+sigi, tbuflen, &tsize, outdt);
     if (ret == -1) {
-      yyerror("unwind type `%s` failed");
+      yyerror("(internal) unwind type `%s` failed");
       return -1;
     }
 
@@ -848,7 +849,7 @@ static int catype_unwind_type_array(SymTable *symtable, const char *pchbegin,
   CADataType **outdt = retdt ? &dt : nullptr;
   int ret = catype_unwind_type_signature_inner(symtable, pch, prenamemap, rcheckset, sigbuf+sigi, tbuflen, &tmptypesize, outdt);
   if (ret == -1) {
-    yyerror("unwind type `%s` failed");
+    yyerror("(internal) unwind type `%s` failed");
     return -1;
   }
 
@@ -971,7 +972,8 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     *typesize = -2;
 
     if (!itr->second) {
-      yyerror("line: %d, col: %d: type `%s` should recursive defining", glineno, gcolno, namebuf);
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "type `%s` should recursive defining", namebuf);
       return -1;
     }
 
@@ -996,12 +998,12 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     namemap.insert(std::make_pair(namebuf, nullptr));
     int ret = catype_unwind_type_signature_inner(entry->u.datatype.idtable, caname, namemap, checkset, sigbuf, tbuflen, typesize, retdt);
     if (ret == -1) {
-      yyerror("unwind type `%s` failed", caname);
+      yyerror("(internal) unwind type `%s` failed", caname);
       return -1;
     }
 
     if (*(caname+ret)) {
-      yyerror("type contains extra text when unwind type `%s`", caname);
+      yyerror("(internal) type contains extra text when unwind type `%s`", caname);
       return -1;
     }
 
@@ -1066,7 +1068,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     int ret = catype_unwind_type_signature_inner(members->symtable, mtypename,
 						 namemap, checkset, sigbuf + sigi, tbuflen, &tsize, outdt);
     if (ret == -1) {
-      yyerror("unwind type `%s` failed");
+      yyerror("(internal) unwind type `%s` failed");
       return -1;
     }
 
@@ -1116,7 +1118,7 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name, int *ty
   int len = 4096 - 2;
   int ret = catype_unwind_type_signature_inner(symtable, caname, prenamemap, recursive_check_set, sigbuf+2, len, typesize, retdt);
   if (ret == -1) {
-    yyerror("unwind type signature `%s` failed", caname);
+    yyerror("(internal) unwind type signature `%s` failed", caname);
     return typeid_novalue;
   }
 
@@ -1354,7 +1356,7 @@ static CADataType *catype_formalize_type_compact(CADataType *datatype) {
 static typeid_t typeid_decrease_pointer(typeid_t type) {
   const char *name = catype_get_type_name(type);
   if(name[0] != '*') {
-    yyerror("Assertion `name[0] == '*'' failed");
+    yyerror("(internal) Assertion `name[0] == '*'' failed");
     return typeid_novalue;
   }
   typeid_t id = sym_form_type_id_by_str(name+1);
@@ -1652,7 +1654,7 @@ CADataType *catype_create_type_from_unwind(int unwind) {
   const char *unwindstr = symname_get(unwind);
 
   // TODO:
-  yyerror("unwinding...");
+  yyerror("(internal) unwinding...");
   return nullptr;
 }
 
@@ -1745,8 +1747,10 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
 
     typeid_t type = sym_form_tuple_id(types, cap->items->size);
     CADataType *catype = catype_get_by_name(symtable, type);
-    if (!catype)
-      yyerror("line: %d, col: %d: get type `%s` failed", cap->loc.row, cap->loc.col, catype_get_type_name(type));
+    if (!catype) {
+      caerror(&cap->loc, NULL, "get type `%s` failed", catype_get_type_name(type));
+      return NULL;
+    }
 
     return catype;
   }
@@ -1754,8 +1758,10 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
   case PT_Struct: {
     typeid_t type = sym_form_type_id(cap->name);
     CADataType *catype = catype_get_by_name(symtable, type);
-    if (!catype)
-      yyerror("line: %d, col: %d: get type `%s` by pattern failed", cap->loc.row, cap->loc.col, catype_get_type_name(type));
+    if (!catype) {
+      caerror(&cap->loc, NULL, "get type `%s` by pattern failed", catype_get_type_name(type));
+      return NULL;
+    }
 
     return catype;
   }
@@ -1871,13 +1877,15 @@ static typeid_t inference_primitive_literal_type(CALiteral *lit) {
     badscope = check_uchar_value_scope(lit->u.i64value, U8);
     break;
   default:
-    yyerror("line: %d, col: %d: void type have no literal value", glineno, gcolno);
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "void type have no literal value");
     return typeid_novalue;
   }
 
   if (badscope) {
-    yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	    glineno, gcolno, get_type_string(lit->littypetok), get_type_string(intentdeftype));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "bad literal value definition: %s cannot be %s",
+	    get_type_string(lit->littypetok), get_type_string(intentdeftype));
     return typeid_novalue;
   }
 
@@ -1900,7 +1908,7 @@ static typeid_t inference_array_literal(CALiteral *lit) {
     // type. when the other elements have different type, the later use will check for that
     typeid_t subid = inference_literal_type(sublit);
     if (!sublit->fixed_type) {
-      yyerror("after inference ot still cannot determine the literal type");
+      yyerror("(internal) after inference it still cannot determine the literal type");
       return typeid_novalue;
     }
 
@@ -1942,14 +1950,18 @@ typeid_t inference_literal_type(CALiteral *lit) {
   switch(lit->littypetok) {
   case ARRAY:
     return inference_array_literal(lit);
-  case STRUCT:
+  case STRUCT: {
     // not implemented
-    yyerror("line: %d, col: %d: not implemented the literal for struct type.", glineno, gcolno);
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "not implemented the literal for struct type.");
     return typeid_novalue;
-  case POINTER:
+  }
+  case POINTER: {
     // should never come here
-    yyerror("line: %d, col: %d: not implemented the literal for pointer type, should can never come here", glineno, gcolno);
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "not implemented the literal for pointer type, should can never come here");
     return typeid_novalue;
+  }
   default:
     return inference_primitive_literal_type(lit);
   }
@@ -1973,8 +1985,8 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
   // check convertable
   if (!is_literal_zero_value(lit) &&
       !literal_type_convertable(littypetok, typetok)) {
-    yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	    glineno, gcolno,
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "bad literal value definition: %s cannot be %s",
 	    get_type_string(littypetok), catype_get_type_name(catype->signature));
     return;
   }
@@ -2026,14 +2038,15 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
     badscope = check_uchar_value_scope(lit->u.i64value, typetok);
     break;
   default:
-    yyerror("line: %d, col: %d: %s type have no lexical value",
-	    glineno, gcolno, get_type_string(littypetok));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "%s type have no lexical value", get_type_string(littypetok));
     break;
   }
 
   if (badscope) {
-    yyerror("line: %d, col: %d: bad literal value definition: %s cannot be %s",
-	    glineno, gcolno, get_type_string(littypetok), get_type_string(typetok));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "bad literal value definition: %s cannot be %s",
+	    get_type_string(littypetok), get_type_string(typetok));
     return;
   }
 
@@ -2324,8 +2337,8 @@ int catype_check_identical_in_symtable_witherror(SymTable *st1, typeid_t type1, 
     return 1;
 
   if (exitwhenerror) {
-    yyerror("line: %d, col: %d: the type `%s` not identical type `%s`",
-	    loc->row, loc->col, symname_get(type1), symname_get(type2));
+    caerror(loc, NULL, "the type `%s` not identical type `%s`",
+	    symname_get(type1), symname_get(type2));
     exit(-1);
   }
 
@@ -2551,17 +2564,17 @@ static int can_type_binding(CALiteral *lit, tokenid_t typetok) {
   }
 }
 
-Value *gen_primitive_literal_value(CALiteral *value, tokenid_t typetok, SLoc loc) {
+static Value *gen_primitive_literal_value(CALiteral *value, tokenid_t typetok, SLoc *loc) {
   // check if literal value type matches the given typetok, if not match, report error
   if (!value->fixed_type && !can_type_binding(value, typetok)) {
-    yyerror("line: %d, col: %d: literal value type '%s' not match the variable type '%s'",
-	    loc.row, loc.col, get_type_string(typetok), get_type_string(typetok));
+    caerror(loc, NULL, "literal value type '%s' not match the variable type '%s'",
+	    get_type_string(typetok), get_type_string(typetok));
     return nullptr;
   }
 
   switch (typetok) {
   case VOID:
-    yyerror("line: %d, col: %d: void type have no literal value", loc.row, loc.col);
+    caerror(loc, NULL, "void type have no literal value");
     return nullptr;
   case I16:
     return ir1.gen_int((int16_t)parse_to_int64(value));
@@ -2658,14 +2671,14 @@ Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
     yyerror("the struct literal not implemented yet");
     return nullptr;
   default:
-    return gen_primitive_literal_value(lit, catype->type, loc);
+    return gen_primitive_literal_value(lit, catype->type, &loc);
   }
 }
 
 const char *get_printf_format(int type) {
   switch (type) {
   case VOID:
-    yyerror("void type have no format value");
+    yyerror("(internal) void type have no format value");
     return "\n";
   case I16:
     return "%d";
@@ -2768,7 +2781,7 @@ Value *create_def_value(int typetok) {
     break;
   }
   default:
-    yyerror("return type `%s` not implemented", get_type_string(typetok));
+    yyerror("(internal) return type `%s` not implemented", get_type_string(typetok));
     return nullptr;
     break;
   }

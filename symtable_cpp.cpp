@@ -6,7 +6,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <functional>
+#include <ios>
 #include <limits>
 #include <memory>
 #include <sstream>
@@ -16,6 +18,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <string>
+#include <sys/stat.h>
 #include <utility>
 #include <vector>
 #include <unordered_map>
@@ -39,6 +42,14 @@ static std::unordered_map<std::string, int> s_symname_name2pos;
 static std::stack<std::unique_ptr<ST_ArgListActual>> s_actualarglist_stack;
 static std::stack<std::unique_ptr<ST_ArgList>> s_tuplelist_stack;
 static std::stack<ASTNode *> s_ifstmt_stack;
+
+struct SourceInfo {
+  std::vector<std::string> content;
+  size_t size;
+  std::vector<char> buffer;
+};
+
+SourceInfo g_source_info;
 
 ST_ArgListActual *actualarglist_current() {
   return s_actualarglist_stack.top().get();
@@ -556,6 +567,78 @@ void string_pop_back(void *handle) {
 void string_drop(void *handle) {
   std::string *s = &string_deref(handle);
   delete s;
+}
+
+void source_info_init(const char *srcpath) {
+  std::ifstream ifs(srcpath, std::ios::binary | std::ios::in);
+  if (ifs.fail()) {
+    yyerror("read source file failed for source info");
+    return;
+  }
+
+  std::string line;
+  while (std::getline(ifs, line, '\n')) {
+    g_source_info.content.push_back(line);
+  }
+
+  struct stat statbuf;
+  lstat(srcpath, &statbuf);
+  g_source_info.size = statbuf.st_size;
+
+  ifs.close();
+
+  g_source_info.buffer.resize(g_source_info.size + 1);
+
+#if 0
+  printf("%zu\n", g_source_info.size());
+
+  std::for_each(g_source_info.begin(), g_source_info.end(), [](const std::string &s) {
+    printf("%s\n", s.c_str());
+  });
+#endif
+}
+
+const char *source_line(int lineno) {
+  if (lineno < 1 || lineno > g_source_info.content.size())
+    return "";
+
+  return g_source_info.content[lineno-1].c_str();
+}
+
+const char *source_lines(int linefrom, int lineto) {
+  if (linefrom < 1 || linefrom > g_source_info.content.size() ||
+      lineto < 1 || lineto > g_source_info.content.size() ||
+      linefrom > lineto)
+    return "";
+
+  if (linefrom == lineto)
+    g_source_info.content[linefrom-1].c_str();
+
+  char *buffer = &g_source_info.buffer[0];
+  size_t startpos = 0;
+  for (int i = linefrom-1; i < lineto; ++i) {
+    std::string &data = g_source_info.content[i];
+    memcpy(buffer + startpos, data.c_str(), data.length());
+    startpos += data.length();
+    buffer[startpos++] = '\n';
+  }
+
+  buffer[startpos] = 0;
+
+  return buffer;
+}
+
+const char *source_region(SLoc beg, SLoc end) {
+  if (beg.row < 1 || beg.row > g_source_info.content.size() ||
+      end.row < 1 || end.row > g_source_info.content.size() ||
+      beg.row > end.row)
+    return "";
+
+  return source_lines(beg.row, end.row);
+}
+
+char *source_buffer() {
+  return &g_source_info.buffer[0];
 }
 
 END_EXTERN_C

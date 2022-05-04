@@ -541,8 +541,8 @@ static Value *extract_value_from_array(ASTNode *node) {
   // print error or exit when out of bound
   for (int i = 0; i < size; ++i) {
     if (catype->type != ARRAY) {
-      yyerror("line: %d, col: %d: type `%d` not an array on index `%d`",
-	      node->begloc.row, node->begloc.col, catype->type, i);
+      caerror(&(node->begloc), &(node->endloc), "type `%d` not an array on index `%d`",
+	      catype->type, i);
       return nullptr;
     }
 
@@ -551,8 +551,8 @@ static Value *extract_value_from_array(ASTNode *node) {
     walk_stack(expr);
     std::pair<Value *, CADataType *> pair = pop_right_value("item", 1);
     if (!catype_is_integer(pair.second->type)) {
-      yyerror("line: %d, col: %d: array index type must be integer, but find `%s` on `%d`",
-	      node->begloc.row, node->begloc.col, catype_get_type_name(pair.second->signature), i);
+      caerror(&(node->begloc), &(node->endloc), "array index type must be integer, but find `%s` on `%d`",
+	      catype_get_type_name(pair.second->signature), i);
       return nullptr;
     }
 
@@ -576,8 +576,8 @@ static Value *extract_value_from_struct(ASTNode *node) {
 
   if (!node->sfopn.direct) {
     if (structcatype->type != POINTER) {
-      yyerror("line: %d, col: %d: get struct field indirectly need a pointer to struct type, but find `%s`",
-	      node->begloc.row, node->begloc.col, catype_get_type_name(structcatype->signature));
+      caerror(&(node->begloc), &(node->endloc), "get struct field indirectly need a pointer to struct type, but find `%s`",
+	      catype_get_type_name(structcatype->signature));
       return nullptr;
     }
 
@@ -586,8 +586,8 @@ static Value *extract_value_from_struct(ASTNode *node) {
   }
 
   if (structcatype->type != STRUCT) {
-    yyerror("line: %d, col: %d: get struct field directly need a struct type, but find `%s`",
-	    node->begloc.row, node->begloc.col, catype_get_type_name(structcatype->signature));
+    caerror(&(node->begloc), &(node->endloc), "get struct field directly need a struct type, but find `%s`",
+	    catype_get_type_name(structcatype->signature));
     return nullptr;
   }
 
@@ -602,9 +602,8 @@ static Value *extract_value_from_struct(ASTNode *node) {
   }
 
   if (fieldindex == structcatype->struct_layout->fieldnum) {
-    yyerror("line: %d, col: %d: cannot find field `%s` of struct `%s`",
-	    node->begloc.row, node->begloc.col, symname_get(node->sfopn.fieldname),
-	    catype_get_type_name(structcatype->signature));
+    caerror(&(node->begloc), &(node->endloc), "cannot find field `%s` of struct `%s`",
+	    symname_get(node->sfopn.fieldname), catype_get_type_name(structcatype->signature));
     return nullptr;   
   }
 
@@ -642,7 +641,7 @@ static Value *walk_id_defv_declare(ASTNode *p, CADataType *idtype, bool zeroinit
 
   STEntry *entry = p->entry;
   if (entry->sym_type != Sym_Variable) {
-    yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, name);
+    caerror(&(entry->sloc), NULL, "'%s' Not a variable", name);
     return nullptr;
   }
 
@@ -707,8 +706,7 @@ static Value *inplace_assignop_assistant(ASTNode *p, CADataType *idtype, Type *t
       vr = ir1.builder().CreateLShr(vl, vr, "lshr");
     break;
   default:
-    yyerror("line: %d, col: %d: unknown inside variable operator: `%d`",
-	    p->begloc.row, p->begloc.col, assignop);
+    caerror(&(p->begloc), &(p->endloc), "unknown inside variable operator: `%d`", assignop);
     return nullptr;
   }
 
@@ -792,8 +790,7 @@ static BasicBlock *walk_label(ASTNode *p) {
 
     auto itr = fn_debug_map.find(curr_fn);
     if (itr == fn_debug_map.end())
-      yyerror("line: %d, col: %d: cannot find function '%s' in map",
-	      p->begloc.row, p->begloc.col, curr_fn->getName().str().c_str());
+      caerror(&(p->begloc), &(p->endloc), "cannot find function '%s' in map", curr_fn->getName().str().c_str());
 
     auto &dbginfo = *itr->second;
     DILabel *dilabel = diinfo->dibuilder->createLabel(dbginfo.disp, label_name, diunit, p->endloc.row);
@@ -902,16 +899,17 @@ static void walk_for(ASTNode *p) {
   auto pair = pop_right_value("list", false);
   Value *lists = pair.first;
   if (pair.second->type != ARRAY) {
-    yyerror("line: %d, col: %d: currently only support iterate array in for statement, but find `%s`",
-	    p->begloc.row, p->begloc.col, catype_get_type_name(pair.second->signature));
+    caerror(&(p->begloc), &(p->endloc), "currently only support iterate array in for statement, but find `%s`",
+	    catype_get_type_name(pair.second->signature));
     return;
   }
 
   ForStmtId forvar = p->forn.var;
   STEntry *entry = sym_getsym(p->symtable, forvar.var, 0);
   if (!entry) {
-    yyerror("line: %d, col: %d: cannot find variable `%s` in symbol table",
-	    glineno, gcolno, symname_get(forvar.var));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "cannot find variable `%s` in symbol table",
+	    symname_get(forvar.var));
     return;
   }
 
@@ -1024,14 +1022,14 @@ static void walk_drop(ASTNode *p) {
 
   STEntry *entry = sym_getsym(p->symtable, p->dropn.var, 1);
   if (!entry) {
-    yyerror("line: %d, col: %d: cannot find variable `%s` in symbol table when dropping",
-	    glineno, gcolno, symname_get(p->dropn.var));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "cannot find variable `%s` in symbol table when dropping",
+	    symname_get(p->dropn.var));
     return;
   }
 
   if (entry->sym_type != Sym_Variable) {
-    yyerror("line: %d, col: %d: '%s' Not a variable when dropping", entry->sloc.col, entry->sloc.row,
-	    symname_get(p->dropn.var));
+    caerror(&(entry->sloc), NULL, "'%s' Not a variable when dropping", symname_get(p->dropn.var));
     return;
   }
 
@@ -1064,8 +1062,8 @@ static void walk_while(ASTNode *p) {
     // type into bool type, like following, but need generate compare with right
     // type not hardcoded `int` type
     //cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
-    yyerror("line: %d, col: %d: condition only accept `bool` type, but find `%s`",
-	    p->begloc.row, p->begloc.col, get_type_string(pair.second->type));
+    caerror(&(p->begloc), &(p->endloc), "condition only accept `bool` type, but find `%s`",
+	    get_type_string(pair.second->type));
     return;
   }
 
@@ -1116,8 +1114,8 @@ static void walk_if_common(ASTNode *p) {
     // type into bool type, like following, but need generate compare with right
     // type not hardcoded `int` type
     //cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
-    yyerror("line: %d, col: %d: condition only accept `bool` type, but find `%s`",
-	    p->begloc.row, p->begloc.col, get_type_string(pair.second->type));
+    caerror(&(p->begloc), &(p->endloc), "condition only accept `bool` type, but find `%s`",
+	    get_type_string(pair.second->type));
     return;
   }
 
@@ -1215,8 +1213,8 @@ static void walk_if_common2(ASTNode *p) {
     Value *condv = pair.first;
     if (pair.second->type != BOOL) {
       // condition must be bool type
-      yyerror("line: %d, col: %d: condition only accept `bool` type, but find `%s`",
-	      p->begloc.row, p->begloc.col, get_type_string(pair.second->type));
+      caerror(&(p->begloc), &(p->endloc), "condition only accept `bool` type, but find `%s`",
+	      get_type_string(pair.second->type));
       return;
     }
 
@@ -1492,8 +1490,8 @@ static void inference_assign_type(ASTNode *idn, ASTNode *exprn, int assignop = -
   if (expr_types[0] == typeid_novalue && expr_types[1] == typeid_novalue) {
     expr_types[1] = inference_expr_type(exprn);
     if (expr_types[1] == typeid_novalue) {
-      yyerror("line: %d, column: %d, inference expression type failed",
-	      exprn->begloc.row, exprn->begloc.col);
+      caerror(&(exprn->begloc), &(exprn->endloc), "inference expression type failed");
+      return;
     }
 
     // if (expr_types[1] != typeid_novalue) {
@@ -1530,8 +1528,7 @@ static void walk_assign(ASTNode *p) {
     break;
   }
   default:
-    yyerror("line: %d, col: %d: wrong type `%d` of left value assignment",
-	    p->begloc.row, p->begloc.col, idn->type);
+    caerror(&(p->begloc), &(p->endloc), "wrong type `%d` of left value assignment", idn->type);
     break;
   }
 
@@ -1549,8 +1546,7 @@ static void walk_assign(ASTNode *p) {
     auto pair = pop_right_value("tmpexpr", !iscomplextype);
     v = pair.first;
     if (assignop == -1 && !catype_check_identical(dt, pair.second)) {
-      yyerror("line: %d, col: %d: expected a type `%s`, but found `%s`",
-	      p->begloc.row, p->begloc.col,
+      caerror(&(p->begloc), &(p->endloc), "expected a type `%s`, but found `%s`",
 	      catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
       return;
     }
@@ -1559,8 +1555,8 @@ static void walk_assign(ASTNode *p) {
     assert(idn->type == TTE_Id);
     typeid_t id = get_expr_type_from_tree(idn);
     if (id == typeid_novalue) {
-      yyerror("line: %d, col: %d: type of variable '%s' must be determined for zero initialized value",
-	      idn->begloc.col, idn->begloc.row, symname_get(idn->idn.i));
+      caerror(&(idn->begloc), &(idn->endloc), "type of variable '%s' must be determined for zero initialized value",
+	      symname_get(idn->idn.i));
       return;
     }
 
@@ -1589,9 +1585,8 @@ static CADataType *capattern_check_get_type(CAPattern *cap, ASTNode *exprn) {
     if (!catype) {
       catype = postcatype;
     } else if (postcatype->signature != catype->signature) {
-      yyerror("line: %d, col: %d: specified type `%s` not equal pattern type `%s`",
-	      cap->loc.row, cap->loc.col, catype_get_type_name(postcatype->signature),
-	      catype_get_type_name(catype->signature));
+      caerror(&(cap->loc), NULL, "specified type `%s` not equal pattern type `%s`",
+	      catype_get_type_name(postcatype->signature), catype_get_type_name(catype->signature));
       return nullptr;
     }
   }
@@ -1651,8 +1646,7 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
   }
   case PT_GenTuple: {
     if (exprn->type != TTE_Expr || exprn->exprn.op != TUPLE || exprn->exprn.noperand != 1) {
-      yyerror("line: %d, col: %d: the right side expression is not a genral tuple type",
-	      cap->loc.row, cap->loc.col);
+      caerror(&(cap->loc), NULL, "the right side expression is not a genral tuple type");
       return;
     }
 
@@ -1661,8 +1655,8 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
 
     int ignorerangepos = capattern_ignorerange_pos(cap);
     if (ignorerangepos == -1 && cap->items->size != tuplenode->arglistn.argc) {
-      yyerror("line: %d, col: %d: pattern have different fields `%d` than `%d` of left expression",
-	      cap->loc.row, cap->loc.col, cap->items->size, tuplenode->arglistn.argc);
+      caerror(&(cap->loc), NULL, "pattern have different fields `%d` than `%d` of left expression",
+	      cap->items->size, tuplenode->arglistn.argc);
       return;
     }
 
@@ -1678,7 +1672,7 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
 
     CADataType *catype = catype_from_capattern(cap, exprn->symtable);
     if (!catype)
-      yyerror("line: %d, col: %d: get general tuple type `%s` failed from determined pattern", cap->loc.row, cap->loc.col);
+      caerror(&(cap->loc), NULL, "get general tuple type `%s` failed from determined pattern");
 
     if (cap->morebind)
       bind_register_variable_catype(cap->morebind, catype->signature, exprn->symtable);
@@ -1737,16 +1731,15 @@ static CADataType *struct_subcatype_from_fieldname(CADataType *catype, int field
 static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype, SymTable *symtable, int tuple) {
   // come here struct or named tuple must already defined datatype
   if (catype->type != STRUCT) {
-    yyerror("line: %d, col: %d: required a struct type, but found `%s` type",
-	    cap->loc.row, cap->loc.col, catype_get_type_name(catype->signature));
+    caerror(&(cap->loc), NULL, "required a struct type, but found `%s` type", catype_get_type_name(catype->signature));
     return;
   }
 
   if (cap->name) {
     CADataType *dt = catype_from_capattern(cap, symtable);
     if (dt->signature != catype->signature) {
-      yyerror("line: %d, col: %d: `%s` type required, but find `%s` pattern type",
-	      cap->loc.row, cap->loc.col, catype_get_type_name(catype->signature), catype_get_type_name(dt->signature));
+      caerror(&(cap->loc), NULL, "`%s` type required, but find `%s` pattern type",
+	      catype_get_type_name(catype->signature), catype_get_type_name(dt->signature));
       return;
     }
   }
@@ -1757,8 +1750,8 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
   }
 
   if ((cap->items->size > catype->struct_layout->fieldnum)) {
-    yyerror("line: %d, col: %d: pattern have more field `%d` than `%d` of datatype `%s`",
-	    cap->loc.row, cap->loc.col, cap->items->size, catype->struct_layout->fieldnum,
+    caerror(&(cap->loc), NULL, "pattern have more field `%d` than `%d` of datatype `%s`",
+	    cap->items->size, catype->struct_layout->fieldnum,
 	    catype_get_type_name(catype->signature));
     return;
   }
@@ -1769,8 +1762,8 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
   // determine variable position in tuple and related catype and recursive invoke this function
   int ignorerangepos = capattern_ignorerange_pos(cap);
   if (ignorerangepos == -1 && cap->items->size != catype->struct_layout->fieldnum) {
-    yyerror("line: %d, col: %d: pattern have less field `%d` than `%d` of datatype `%s`",
-	    cap->loc.row, cap->loc.col, cap->items->size, catype->struct_layout->fieldnum,
+    caerror(&(cap->loc), NULL, "pattern have less field `%d` than `%d` of datatype `%s`",
+	    cap->items->size, catype->struct_layout->fieldnum,
 	    catype_get_type_name(catype->signature));
     return;
   }
@@ -1791,9 +1784,8 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
       if (catype->struct_layout->tuple == 1) {
 	// when it is a named tuple, the fieldname is the tuple item position
 	if (fieldname >= catype->struct_layout->fieldnum) {
-	  yyerror("line: %d, col: %d: tuple numbered field `%d` out of range `(0 ~ %d]` of datatype `%s`",
-		  cap->loc.row, cap->loc.col, fieldname, catype->struct_layout->fieldnum,
-		  catype_get_type_name(catype->signature));
+	  caerror(&(cap->loc), NULL, "tuple numbered field `%d` out of range `(0 ~ %d]` of datatype `%s`",
+		  fieldname, catype->struct_layout->fieldnum, catype_get_type_name(catype->signature));
 	  return;
 	}
 
@@ -1801,8 +1793,8 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
       } else {
 	dt = struct_subcatype_from_fieldname(catype, fieldname);
 	if (!dt) {
-	  yyerror("line: %d, col: %d: cannot find field `%s` from datatype `%s`",
-		  cap->loc.row, cap->loc.col, symname_get(fieldname), catype_get_type_name(catype->signature));
+	  caerror(&(cap->loc), NULL, "cannot find field `%s` from datatype `%s`",
+		  symname_get(fieldname), catype_get_type_name(catype->signature));
 	  return;
 	}
       }
@@ -1854,7 +1846,7 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
   const char *varname = symname_get(entry->u.var->name);
   Type *type = llvmtype_from_catype(catype);
   if (entry->sym_type != Sym_Variable) {
-    yyerror("line: %d, col: %d: '%s' Not a variable", entry->sloc.col, entry->sloc.row, varname);
+    caerror(&(entry->sloc), NULL, "line: %d, col: %d: '%s' Not a variable", varname);
     return nullptr;
   }
 
@@ -2049,12 +2041,11 @@ static void walk_letbind(ASTNode *p) {
       catype = datao->catype;
       ot = datao->type;
       if (v == nullptr) {
-	yyerror("line: %d, col: %d: create value failed: `%s`", p->begloc.row, p->begloc.col);
+	caerror(&(p->begloc), &(p->endloc), "create value failed");
 	return;
       }
       // if (!catype_check_identical(dt, pair.second)) {
-      // 	yyerror("line: %d, col: %d: expected a type `%s`, but found `%s`",
-      // 		p->begloc.row, p->begloc.col,
+      // 	caerror(&(p->begloc), &(p->endloc), "expected a type `%s`, but found `%s`",
       // 		catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
       // 	return;
       // }
@@ -2129,14 +2120,13 @@ static void walk_unary_expr(ASTNode *p) {
     break;
   case BNOT:
     if (!is_bnot_type(dt->type)) {
-      yyerror("line: %d, col: %d: expected integer type for bitwise & logical not, but find `%s`",
-	      p->begloc.row, p->begloc.col, symname_get(dt->signature));
+      caerror(&(p->begloc), &(p->endloc), "expected integer type for bitwise & logical not, but find `%s`",
+	      symname_get(dt->signature));
       return;
     }
     break;
   default:
-    yyerror("line: %d, col: %d: unknown unary operator `%d`",
-	    p->begloc.row, p->begloc.col, p->exprn.op);
+    caerror(&(p->begloc), &(p->endloc), "unknown unary operator `%d`", p->exprn.op);
     return;
   }
 
@@ -2166,8 +2156,8 @@ static void walk_unary_expr(ASTNode *p) {
 static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tuple, STEntry *entry) {
   typeid_t fnname = name->idn.i;
   if (name->idn.idtype != IdType::TTEId_FnName) {
-      yyerror("line: %d, col: %d: the id: `%s` is not `%s` name",
-	      param->begloc.row, param->begloc.col, symname_get(fnname), tuple ? "tuple" : "function");
+      caerror(&(param->begloc), &(param->endloc), "the id: `%s` is not `%s` name",
+	      symname_get(fnname), tuple ? "tuple" : "function");
       return;
   }
 
@@ -2215,8 +2205,8 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
 
     // check the formal parameter and actual parameter type
     if (!catype_check_identical_in_symtable(name->symtable, realtype, param->symtable, formaltype)) {
-      yyerror("line: %d, col: %d: the %d parameter type '%s' not match the parameter declared type '%s'",
-	      param->begloc.row, param->begloc.col, i, catype_get_type_name(realtype), catype_get_type_name(formaltype));
+      caerror(&(param->begloc), &(param->endloc), "the %d parameter type '%s' not match the parameter declared type '%s'",
+	      i, catype_get_type_name(realtype), catype_get_type_name(formaltype));
       return;
     }
   }
@@ -2224,15 +2214,13 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
 
 static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<Value *> &values) {
   if (catype->type != STRUCT) {
-    yyerror("line: %d, col: %d: type `%s` is not a struct type",
-	    p->begloc.row, p->begloc.col, catype_get_type_name(catype->signature));
+    caerror(&(p->begloc), &(p->endloc), "type `%s` is not a struct type", catype_get_type_name(catype->signature));
     return;
   }
 
   if (catype->struct_layout->fieldnum != values.size()) {
-    yyerror("line: %d, col: %d: struct type `%s` expression field size: `%d` not equal to the struct field size: `%d`",
-	    p->begloc.row, p->begloc.col, catype_get_type_name(catype->signature),
-	    catype->struct_layout->fieldnum, values.size());
+    caerror(&(p->begloc), &(p->endloc), "struct type `%s` expression field size: `%d` not equal to the struct field size: `%d`",
+	    catype_get_type_name(catype->signature), catype->struct_layout->fieldnum, values.size());
     return;
   }
 
@@ -2302,15 +2290,14 @@ static void walk_expr_call(ASTNode *p) {
   STEntry *entry = nullptr;
   int istuple = extract_function_or_tuple(p->symtable, name->idn.i, &entry, &fnname, (void **)&fn);
   if (istuple == -1) {
-      yyerror("line: %d, col: %d: cannot find declared function: '%s'",
-	      p->begloc.row, p->begloc.col, fnname);
+      caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'", fnname);
+      return;
   }
 
   check_and_determine_param_type(name, args, istuple, entry);
 
   if (args->type != TTE_ArgList)
-    yyerror("line: %d, col: %d: not a argument list: '%s'",
-	    p->begloc.row, p->begloc.col, fnname);
+    caerror(&(p->begloc), &(p->endloc), "not a argument list: '%s'", fnname);
 
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
@@ -2326,8 +2313,7 @@ static void walk_expr_call(ASTNode *p) {
 
   auto itr = function_map.find(fnname);
   if (itr == function_map.end()) {
-    yyerror("line: %d, col: %d: cannot find function '%s' node",
-	    p->begloc.row, p->begloc.col, fnname);
+    caerror(&(p->begloc), &(p->endloc), "cannot find function '%s' node", fnname);
     return;
   }
  
@@ -2374,9 +2360,8 @@ static void walk_ret(ASTNode *p) {
       CADataType *retdt = catype_get_by_name(p->symtable, retty);
       CHECK_GET_TYPE_VALUE(retn, retdt, retty);
       typeid_t exprtype = get_expr_type_from_tree(retn);
-      yyerror("line: %d, column: %d, return value `%s` type '%s' not match function type '%s'",
-	      retn->begloc.row, retn->begloc.col, get_node_name_or_value(retn),
-	      symname_get(exprtype), symname_get(retty));
+      caerror(&(retn->begloc), &(retn->endloc), "return value `%s` type '%s' not match function type '%s'",
+	      get_node_name_or_value(retn), symname_get(exprtype), symname_get(retty));
       return;
     }
 
@@ -2387,8 +2372,7 @@ static void walk_ret(ASTNode *p) {
       diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
     if (rettype != ir1.void_type()) {
-      yyerror("line: %d, column: %d, void type function, cannot return a valuedd",
-	      p->begloc.row, p->begloc.col);
+      caerror(&(p->begloc), &(p->endloc), "void type function, cannot return a valued");
       return;
     }
   }
@@ -2416,8 +2400,7 @@ static void handle_pointer_op(ASTNode *p, CADataType *dt, Value *v1, CADataType 
     v3 = ir1.builder().CreateGEP(type, v1, v2, "pop");
     break;
   default:
-    yyerror("line: %d, column: %d, pointer operation only support `+` and `-`, but find `%c`",
-	    p->begloc.row, p->begloc.col, p->exprn.op);
+    caerror(&(p->begloc), &(p->endloc), "pointer operation only support `+` and `-`, but find `%c`", p->exprn.op);
     return;
   }
 
@@ -2493,8 +2476,8 @@ static void walk_expr_op2(ASTNode *p) {
   }
 
   if ((p->exprn.op != SHIFTL &&  p->exprn.op != SHIFTR) && !catype_check_identical_in_symtable(p->symtable, typeid1, p->symtable, typeid2)) {
-    yyerror("line: %d, column: %d, operation have 2 different types: '%s', '%s'",
-	    p->begloc.row, p->begloc.col, symname_get(typeid1), symname_get(typeid2));
+    caerror(&(p->begloc), &(p->endloc), "operation have 2 different types: '%s', '%s'",
+	    symname_get(typeid1), symname_get(typeid2));
     return;
   }
 
@@ -2576,8 +2559,7 @@ static void walk_expr_as(ASTNode *node) {
   
   Instruction::CastOps castopt = gen_cast_ops(exprcatype, astype);
   if (castopt == (ICO)-1) {
-    yyerror("line: %d, column: %d, cannot convert `%s` into `%s`",
-	    node->begloc.row, node->begloc.col,
+    caerror(&(node->begloc), &(node->endloc), "cannot convert `%s` into `%s`",
 	    catype_get_type_name(exprcatype->signature),
 	    catype_get_type_name(astype->type));
     return;
@@ -2641,10 +2623,8 @@ static void walk_expr_array(ASTNode *p) {
     lefttype = leftco.operand->getType();
     Type *type = co->operand->getType();
     if (lefttype != type) {
-      yyerror("line: %d, col: %d: array type have different element type: idx: %d, `%s` != `%s`",
-	      anode->begloc.row, anode->begloc.col, i,
-	      catype_get_type_name(leftco.catype->signature),
-	      catype_get_type_name(co->catype->signature));
+      caerror(&(anode->begloc), &(anode->endloc), "array type have different element type: idx: %d, `%s` != `%s`",
+	      i, catype_get_type_name(leftco.catype->signature), catype_get_type_name(co->catype->signature));
       return;
     }
 
@@ -2688,16 +2668,15 @@ static void walk_expr_struct(ASTNode *p) {
   CADataType *structcatype = catype_get_by_name(snode->symtable, structid);
   CHECK_GET_TYPE_VALUE(snode, structcatype, snode->exprasn.type);
   if (structcatype->type != STRUCT) {
-    yyerror("line: %d, col: %d: type `%s` is not a struct type",
-	    snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->signature));
+    caerror(&(snode->begloc), &(snode->endloc), "type `%s` is not a struct type",
+	    catype_get_type_name(structcatype->signature));
     return;
   }
 
   std::vector<void *> *vnodes = structexpr_deref(snode->snoden); 
   if (structcatype->struct_layout->fieldnum != vnodes->size()) {
-    yyerror("line: %d, col: %d: struct type `%s` expression field size: `%d` not equal to the struct field size: `%d`",
-	    snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->signature),
-	    structcatype->struct_layout->fieldnum, vnodes->size());
+    caerror(&(snode->begloc), &(snode->endloc), "struct type `%s` expression field size: `%d` not equal to the struct field size: `%d`",
+	    catype_get_type_name(structcatype->signature), structcatype->struct_layout->fieldnum, vnodes->size());
     return;
   }
 
@@ -2715,9 +2694,8 @@ static void walk_expr_struct(ASTNode *p) {
       CAStructNamed *namedexpr = static_cast<CAStructNamed *>(inode);
       order = structexpr_get_field_order(namedexpr->name, fields, vnodes->size());
       if (order == -1) {
-	yyerror("line: %d, col: %d: cannot find the field name in struct `%s` for the `%d` field `%s` in expression",
-		snode->begloc.row, snode->begloc.col, catype_get_type_name(structcatype->struct_layout->name), i,
-		symname_get(namedexpr->name));
+	caerror(&(snode->begloc), &(snode->endloc), "cannot find the field name in struct `%s` for the `%d` field `%s` in expression",
+		catype_get_type_name(structcatype->struct_layout->name), i, symname_get(namedexpr->name));
 	return;
       }
 
@@ -2733,8 +2711,8 @@ static void walk_expr_struct(ASTNode *p) {
     bool iscomplextype = catype_is_complex_type(fields[order].type->type);
     auto pair = pop_right_value("field", !iscomplextype);
     if (pair.second->signature != fields[order].type->signature) {
-      yyerror("line: %d, col: %d: the field `%d`'s type `%s` of struct expression is different from the struct definition: `%s`",
-	      snode->begloc.row, snode->begloc.col, i, catype_get_type_name(pair.second->signature),
+      caerror(&(snode->begloc), &(snode->endloc), "the field `%d`'s type `%s` of struct expression is different from the struct definition: `%s`",
+	      i, catype_get_type_name(pair.second->signature),
 	      catype_get_type_name(fields[order].type->signature));
       return;
     }
@@ -2748,9 +2726,8 @@ static void walk_expr_struct(ASTNode *p) {
     std::sort(copy.begin(), copy.end());
     for (int i = 1; i < copy.size(); ++i) {
       if (copy[i-1] == copy[i]) {
-	yyerror("line: %d, col: %d: multiple expression specified for field `%s` in struct `%s`",
-		snode->begloc.row, snode->begloc.col, symname_get(fields[i].type->signature),
-		symname_get(structcatype->struct_layout->name));
+	caerror(&(snode->begloc), &(snode->endloc), "multiple expression specified for field `%s` in struct `%s`",
+		symname_get(fields[i].type->signature), symname_get(structcatype->struct_layout->name));
 	return;
       }
     }
@@ -2828,8 +2805,7 @@ static void walk_expr_deref(ASTNode *rexpr) {
   walk_stack(expr);
   auto pair = pop_right_value("deref", false);
   if (pair.second->type != POINTER) {
-    yyerror("line: %d, col: %d:  cannot deref type `%s`",
-	    rexpr->begloc.row, rexpr->begloc.col,
+    caerror(&(rexpr->begloc), &(rexpr->endloc), " cannot deref type `%s`",
 	    catype_get_type_name(pair.second->signature));
     return;
   }
@@ -2937,8 +2913,9 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
     STEntry *preventry = sym_getsym(prevargs->symtable, prevargs->argnames[i], 0);
     STEntry *currentry = sym_getsym(currargs->symtable, currargs->argnames[i], 0);
     if (!preventry || !currentry || preventry->sym_type != Sym_Variable || currentry->sym_type != Sym_Variable) {
-      yyerror("line: %d, col: %d: function '%s' internal error: symbol table entry error",
-	      glineno, gcolno, catype_get_function_name(fnname));
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "function '%s' internal error: symbol table entry error",
+	      catype_get_function_name(fnname));
       return -1;
     }
 
@@ -2946,8 +2923,9 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
     CADataType *currcatype = catype_get_by_name(currargs->symtable, currentry->u.var->datatype);
 
     if (prevcatype->signature != currcatype->signature) {
-      yyerror("line: %d, col: %d: function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
-	      glineno, gcolno, catype_get_function_name(fnname),
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
+	      catype_get_function_name(fnname),
 	      catype_get_type_name(prevcatype->signature),
 	      catype_get_type_name(currcatype->signature),
 	      prev->sloc.row, prev->sloc.col);
@@ -2960,8 +2938,9 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
 
   // check if function return type is the same as declared
   if (prevret->signature != currret->signature) {
-    yyerror("line: %d, col: %d: function '%s' return type not identical, see: line %d, col %d.",
-	    glineno, gcolno, catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "function '%s' return type not identical, see: line %d, col %d.",
+	    catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
 
@@ -3135,8 +3114,7 @@ static void walk_struct(ASTNode *node) {
 static void walk_typedef(ASTNode *node) {
   CADataType *dt = catype_get_by_name(node->symtable, node->typedefn.newtype);
   if (!dt) {
-    yyerror("line: %d, col: %d: get type (or unwind type) `%s` failed",
-	    node->begloc.col, node->begloc.row,
+    caerror(&(node->begloc), &(node->endloc), "get type (or unwind type) `%s` failed",
 	    symname_get(node->typedefn.newtype));
   }
 }

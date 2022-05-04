@@ -96,8 +96,11 @@ ASTNode *new_ASTNode(ASTNodeType nodetype) {
   ASTNode *p;
 
   /* allocate node */
-  if ((p = malloc(sizeof(ASTNode))) == NULL)
-    caerror(&(SLoc){glineno, gcolno}, NULL, "out of memory");
+  if ((p = malloc(sizeof(ASTNode))) == NULL) {
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "out of memory");
+    return NULL;
+  }
 
   p->seq = ++g_node_seqno;
   p->type = nodetype;
@@ -312,7 +315,8 @@ static void check_expr_arglists(ST_ArgList *al) {
       int name = al->argnames[i];
       STEntry *entry = sym_getsym(curr_symtable, name, 0);
       if (!entry) {
-	caerror(&(SLoc){glineno, gcolno}, NULL, "cannot get entry for %s\n",
+	SLoc stloc = {glineno, gcolno};
+	caerror(&stloc, NULL, "cannot get entry for %s\n",
 		symname_get(name));
 	return;
       }
@@ -322,7 +326,8 @@ static void check_expr_arglists(ST_ArgList *al) {
     }
 
     if (noperands > 1 && void_count > 0) {
-      caerror(&(SLoc){glineno, gcolno}, NULL, "void function should only have void");
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "void function should only have void");
       return;
     }
 }
@@ -372,8 +377,9 @@ ASTNode *make_stmt_ret_expr(ASTNode *expr) {
 }
 
 ASTNode *make_stmt_ret() {
-  /* if (curr_fn_rettype != sym_form_type_id_from_token(VOID)) */
-  /*   caerror(&(SLoc){glineno, gcolno}, NULL, "function have no return type"); */
+  /* if (curr_fn_rettype != sym_form_type_id_from_token(VOID)) {*/
+  /*   SLoc stloc = {glineno, gcolno};
+       caerror(&stloc, NULL, "function have no return type"); }*/
 
   ASTNode *p = new_ASTNode(TTE_Ret);
   p->retn.expr = NULL;
@@ -414,14 +420,16 @@ typeid_t make_pointer_type(typeid_t type) {
 
 typeid_t make_array_type(typeid_t type, LitBuffer *size) {
   if (size->typetok != U64) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "array size not usize (u64) type, but `%s` type",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "array size not usize (u64) type, but `%s` type",
 	    get_type_string(size->typetok));
     return typeid_novalue;
   }
 
   const char *text = symname_get(size->text);
   if (!text) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "get literal size failed");
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "get literal size failed");
     return typeid_novalue;
   }
 
@@ -448,13 +456,15 @@ ASTNode *make_type_def(int id, typeid_t type) {
   typeid_t newtype = sym_form_type_id(id);
   CADataType *primtype = catype_get_primitive_by_name(newtype);
   if (primtype) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "type alias id `%s` cannot be primitive type", symname_get(id));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "type alias id `%s` cannot be primitive type", symname_get(id));
     return NULL;
   }
 
   STEntry *entry = sym_getsym(curr_symtable, newtype, 0);
   if (entry) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "type `%s` defined multiple times", symname_get(id));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "type `%s` defined multiple times", symname_get(id));
     return NULL;
   }
 
@@ -486,7 +496,8 @@ void make_type_postfix(IdToken *idt, int id, int typetok) {
 
 void check_return_type(typeid_t fnrettype) {
   if (fnrettype == sym_form_type_id_from_token(VOID)) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "void type function, cannot return a value");
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "void type function, cannot return a value");
   }
 }
 
@@ -578,14 +589,16 @@ int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
   
     int name = var->name;
     if (arglist->argc >= MAX_ARGS) {
-	caerror(&(SLoc){glineno, gcolno}, NULL, "too many args '%s', max args support is %d",
+	SLoc stloc = {glineno, gcolno};
+	caerror(&stloc, NULL, "too many args '%s', max args support is %d",
 		symname_get(name), MAX_ARGS);
 	return -1;
     }
 
     STEntry *entry = sym_getsym(st, name, 0);
     if (entry) {
-	caerror(&(SLoc){glineno, gcolno}, NULL, "parameter '%s' already defined on line %d, col %d.",
+	SLoc stloc = {glineno, gcolno};
+	caerror(&stloc, NULL, "parameter '%s' already defined on line %d, col %d.",
 		symname_get(name), entry->sloc.row, entry->sloc.col);
 	return -1;
     }
@@ -607,7 +620,8 @@ int add_fn_args_actual(SymTable *st, ASTNode *arg) {
     // single variable can get the name) in order to support this, it should use
     // the full text functionality, such as according to line column number to get
     // the text from the source file
-    caerror(&(SLoc){glineno, gcolno}, NULL, "too many args '%s', max args support is %d",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "too many args '%s', max args support is %d",
 	    "todo:get the args text :)", MAX_ARGS);
 	    
     return -1;
@@ -710,12 +724,14 @@ int make_attrib_scope(int attrfn, int attrparam) {
   const char *scope = symname_get(attrfn);
   const char *global = symname_get(attrparam);
   if (strcmp(scope, "scope")) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "attribute function here only support `scope`");
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "attribute function here only support `scope`");
     return -1;
   }
 
   if (strcmp(global, "global") && strcmp(global, "local")) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "attribute function only support `scope`");
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "attribute function only support `scope`");
     return -1;
   }
 
@@ -725,7 +741,8 @@ int make_attrib_scope(int attrfn, int attrparam) {
 void register_variable(CAVariable *cavar, SymTable *symtable) {
   STEntry *entry = sym_getsym(symtable, cavar->name, 0);
   if (entry) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "symbol '%s' already defined in scope on line %d, col %d.",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "symbol '%s' already defined in scope on line %d, col %d.",
 	    symname_get(cavar->name), entry->sloc.row, entry->sloc.col);
     return;
   }
@@ -788,7 +805,8 @@ void register_structpattern_symtable(CAPattern *cap, int withname, int withsub, 
   if (withname) {
     type = sym_form_type_id(cap->name);
     if (cap->datatype != typeid_novalue && cap->datatype != type) {
-      caerror(&(SLoc){glineno, gcolno}, NULL, "left `%s` type not match right `%s`",
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "left `%s` type not match right `%s`",
 	      symname_get(cap->name), catype_get_type_name(cap->datatype));
       return;
     }
@@ -864,13 +882,15 @@ static int capattern_check_ignore(CAPattern *cap) {
 
 ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
   if (capattern_check_ignore(cap)) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "capattern can only have one ignore range field");
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "capattern can only have one ignore range field");
     return NULL;
   }
 
   // parse variables (may with different datatype) in CAPattern and record them in the symbol table for later use
   if (curr_symtable == &g_root_symtable && cap->type != PT_Var) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "left `%s` cannot do pattern match for `%s` globally", symname_get(cap->name));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "left `%s` cannot do pattern match for `%s` globally", symname_get(cap->name));
     return NULL;
   }
 
@@ -904,7 +924,8 @@ static ASTNode *make_assign_var(int id, ASTNode *exprn) {
 
   STEntry *entry = sym_getsym(curr_symtable, id, 1);
   if (!entry) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "symbol '%s' not defined", symname_get(id));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "symbol '%s' not defined", symname_get(id));
     return NULL;
   }
 
@@ -949,9 +970,11 @@ ASTNode *make_assign(LeftValueId *lvid, ASTNode *exprn) {
     return make_arrayitem_left_assign(lvid->aitem, exprn);
   case LVT_StructOp:
     return make_structfield_left_assign(lvid->structfieldop, exprn);
-  default:
-    caerror(&(SLoc){glineno, gcolno}, NULL, "unknown assignment type");
+  default: {
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "unknown assignment type");
     return NULL;
+  }
   }
 }
 
@@ -972,9 +995,11 @@ ASTNode *make_goto(int labelid) {
     case Sym_Label:
     case Sym_Label_Hanging:
       break;
-    default:
-      caerror(&(SLoc){glineno, gcolno}, NULL, "label name '%s' appear but not aim to be a label", symname_get(labelid));
+    default: {
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "label name '%s' appear but not aim to be a label", symname_get(labelid));
       return NULL;
+    }
     }
   } else {
     entry = sym_insert(curr_fn_symtable, lpos, Sym_Label_Hanging);
@@ -996,15 +1021,19 @@ ASTNode *make_label_def(int labelid) {
   STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
   if (entry) {
     switch(entry->sym_type) {
-    case Sym_Label:
-      caerror(&(SLoc){glineno, gcolno}, NULL, "Label '%s' redefinition", name);
+    case Sym_Label: {
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "Label '%s' redefinition", name);
       return NULL;
+    }
     case Sym_Label_Hanging:
       entry->sym_type = Sym_Label;
       break;
-    default:
-      caerror(&(SLoc){glineno, gcolno}, NULL, "label name '%s' appear but not aim to be a label", name);
+    default: {
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "label name '%s' appear but not aim to be a label", name);
       return NULL;
+    }
     }
   } else {
     entry = sym_insert(curr_fn_symtable, lpos, Sym_Label);
@@ -1150,9 +1179,11 @@ int parse_lexical_char(const char *text) {
   default:
     n = atoi(text+1);
     return n;
-
-    caerror(&(SLoc){glineno, gcolno}, NULL, "unimplemented special character", glineno, gcolno);
+    {
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "unimplemented special character", glineno, gcolno);
     return -1;
+    }
   }
 }
 
@@ -1216,7 +1247,8 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       typeid_t typeid = inference_expr_type(node);
       if (i == 0) prevtypeid = typeid;
       if (prevtypeid != typeid) {
-	caerror(&(SLoc){glineno, gcolno}, NULL, "array element `%d` have different type `%s` != `%s`",
+	SLoc stloc = {glineno, gcolno};
+	caerror(&stloc, NULL, "array element `%d` have different type `%s` != `%s`",
 		i, catype_get_type_name(prevtypeid), catype_get_type_name(typeid));
 	return typeid_novalue;
       }
@@ -1410,7 +1442,8 @@ typeid_t inference_expr_type(ASTNode *p) {
     return inference_expr_expr_type(p);
   case TTE_If:
     if (!p->ifn.isexpr) {
-      caerror(&(SLoc){glineno, gcolno}, NULL, "if statement is not if expression");
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "if statement is not if expression");
       return typeid_novalue;
     }
 
@@ -1420,7 +1453,8 @@ typeid_t inference_expr_type(ASTNode *p) {
     if (p->ifn.remain) {
       typeid_t type2 = inference_expr_type(p->ifn.remain);
       if (!catype_check_identical_in_symtable(p->symtable, type1, p->symtable, type2)) {
-	caerror(&(SLoc){glineno, gcolno}, NULL, "if expression type not same `%s` != `%s`",
+	SLoc stloc = {glineno, gcolno};
+	caerror(&stloc, NULL, "if expression type not same `%s` != `%s`",
 		symname_get(type1), symname_get(type2));
 	return typeid_novalue;
       }
@@ -1433,9 +1467,11 @@ typeid_t inference_expr_type(ASTNode *p) {
     typedt = catype_get_by_name(p->boxn.expr->symtable, type1);
     exprdt = catype_make_pointer_type(typedt);
     return exprdt->signature;
-  default:
-    caerror(&(SLoc){glineno, gcolno}, NULL, "the expression already typed, no need to do inference");
+  default: {
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "the expression already typed, no need to do inference");
     return typeid_novalue;
+  }
   }
 }
 
@@ -1750,7 +1786,8 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     return determine_expr_expr_type(node, type);
   case TTE_If:
     if (!node->ifn.isexpr) {
-      caerror(&(SLoc){glineno, gcolno}, NULL, "if statement is not if expression");
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "if statement is not if expression");
       return -1;
     }
 
@@ -1831,8 +1868,11 @@ ASTNode *make_expr(int op, int noperands, ...) {
     p->exprn.op = op;
     p->exprn.noperand = noperands;
 
-    if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL)
-      caerror(&(SLoc){glineno, gcolno}, NULL, "out of memory");
+    if ((p->exprn.operands = malloc(noperands * sizeof(ASTNode))) == NULL) {
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "out of memory");
+      return NULL;
+    }
 
     // try to inference the expression type here
     va_start(ap, noperands);
@@ -1876,8 +1916,11 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al) {
   ASTNode *p = new_ASTNode(TTE_ArgList);
   p->arglistn.argc = argc;
 
-  if (al && (p->arglistn.exprs = (ASTNode **)malloc(argc * sizeof(ASTNode))) == NULL)
-    caerror(&(SLoc){glineno, gcolno}, NULL, "out of memory");
+  if (al && (p->arglistn.exprs = (ASTNode **)malloc(argc * sizeof(ASTNode))) == NULL) {
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "out of memory");
+    return NULL;
+  }
 
   for (int i = 0; i < argc; i++)
     p->arglistn.exprs[i] = al->args[i];
@@ -1984,7 +2027,8 @@ ASTNode *make_loop(ASTNode *loopbody) {
 void make_for_var_entry(int id) {
   STEntry *entry = sym_getsym(curr_symtable, id, 0);
   if (entry) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "strange variable '%s' already defined in scope on line %d, col %d.",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "strange variable '%s' already defined in scope on line %d, col %d.",
 	    symname_get(id), entry->sloc.row, entry->sloc.col);
     return;
   }
@@ -2045,62 +2089,22 @@ ASTNode *make_elsepart(ASTNode *p, ASTNode *body) {
   return p;
 }
 
-#if 0
-ASTNode *make_if(int isexpr, int argc, ...) {
-    dot_emit("stmt", "if");
-    // or
-    dot_emit("ifstmt", "ifelse");
-    // or
-    dot_emit("ifexpr", "ife");
-    
-    // TODO: implement multiple if else nodes
-    va_list ap;
-
-    int ncond = argc / 2;
-    int remainder = argc % 2;
-
-    ASTNode *p = new_ASTNode(TTE_If);
-    p->ifn.ncond = ncond;
-    p->ifn.isexpr = isexpr;
-    if ((p->ifn.conds = malloc(ncond * sizeof(ASTNode))) == NULL)
-      caerror(&(SLoc){glineno, gcolno}, NULL, "out of memory");
-
-    if ((p->ifn.bodies = malloc(ncond * sizeof(ASTNode))) == NULL)
-      caerror(&(SLoc){glineno, gcolno}, NULL, "out of memory");
-
-    va_start(ap, argc);
-    for (int i = 0; i < ncond; i++) {
-	p->ifn.conds[i] = va_arg(ap, ASTNode*);
-	p->ifn.bodies[i] = va_arg(ap, ASTNode*);
-    }
-
-    p->ifn.remain = remainder ? va_arg(ap, ASTNode*) : NULL;
-    va_end(ap);
-
-    set_address(p, &p->ifn.conds[0]->begloc,
-		remainder ? &p->ifn.remain->endloc : &p->ifn.bodies[ncond-1]->endloc);
-
-    if (isexpr)
-      return make_expr(IF_EXPR, 1, p);
-    else
-      return p;
-}
-#endif
-
 // compare if the previous defined function proto is the same as the current defining
 static int pre_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currargs, typeid_t rettype) {
   ST_ArgList *prevargs = prev->u.f.arglists;
 
   /* check if function declaration is the same */
   if (currargs->argc != prevargs->argc) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "function '%s' parameter number not identical with previous, see: line %d, col %d.",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "function '%s' parameter number not identical with previous, see: line %d, col %d.",
 	    catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
 
   // check parameter types
   if (prevargs->contain_varg != currargs->contain_varg) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "function '%s' variable parameter not identical, see: line %d, col %d.",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "function '%s' variable parameter not identical, see: line %d, col %d.",
 	    catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }
@@ -2130,7 +2134,8 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   SLoc end = {glineno, gcolno};
 
   if (check_tuple_name(fnid)) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "function '%s' already defined as tuple in previous",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "function '%s' already defined as tuple in previous",
 	    symname_get(fnid));
     return NULL;
   }
@@ -2160,7 +2165,8 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   } else {
     if (entry) {
       if (entry->sym_type == Sym_FnDef) {
-	caerror(&(SLoc){glineno, gcolno}, NULL, "function '%s' already defined on line %d, col %d.",
+	SLoc stloc = {glineno, gcolno};
+	caerror(&stloc, NULL, "function '%s' already defined on line %d, col %d.",
 		symname_get(fnname), entry->sloc.row, entry->sloc.col);
 	return NULL;
       }
@@ -2170,7 +2176,8 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
 	SLoc loc = {glineno, gcolno};
 	entry->sloc = loc;
       } else {
-	caerror(&(SLoc){glineno, gcolno}, NULL, "name '%s' is not a function defined on line %d, col %d.",
+	SLoc stloc = {glineno, gcolno};
+	caerror(&stloc, NULL, "name '%s' is not a function defined on line %d, col %d.",
 		symname_get(fnname), entry->sloc.row, entry->sloc.col);
 	return NULL;
       }
@@ -2203,7 +2210,8 @@ int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry) 
     formalparam = entry->u.f.arglists;
 
   if (!formalparam) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "cannot find arglist, seems `%s` is not a function or named tuple",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "cannot find arglist, seems `%s` is not a function or named tuple",
 	    catype_get_type_name(fnname));
     return -1;
   }
@@ -2212,7 +2220,8 @@ int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry) 
   if(formalparam->contain_varg && formalparam->argc > param->arglistn.argc
      ||
      !formalparam->contain_varg && formalparam->argc != param->arglistn.argc) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "actual parameter number `%d` not match formal parameter number `%d`",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "actual parameter number `%d` not match formal parameter number `%d`",
 	    param->arglistn.argc, formalparam->argc);
     return -1;
   }
@@ -2262,7 +2271,8 @@ ASTNode *make_ident_expr(int id) {
 
   STEntry *entry = sym_getsym(curr_symtable, id, 1);
   if (!entry) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "Variable name '%s' not defined", symname_get(id));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "Variable name '%s' not defined", symname_get(id));
     return NULL;
   }
 
@@ -2297,7 +2307,8 @@ int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
   // TODO: combine with add_fn_args into one function
   int name = var->name;
   if (arglist->argc >= MAX_ARGS) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "too many struct members '%s', max member supports are %d",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "too many struct members '%s', max member supports are %d",
 	    symname_get(name), MAX_ARGS);
     return -1;
   }
@@ -2317,7 +2328,8 @@ int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
 
 int add_tuple_member(ST_ArgList *arglist, typeid_t tid) {
   if (arglist->argc >= MAX_ARGS) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "too many struct members '%d', max member supports are `%d`",
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "too many struct members '%d', max member supports are `%d`",
 	    arglist->argc, MAX_ARGS);
     return -1;
   }
@@ -2358,20 +2370,23 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
   // 0. check if current scope already exists such type and report error when already exists
   const char *structname = symname_get(id);
   if (check_function_name(id)) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "tuple '%s' already defined as function in previous", structname);
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "tuple '%s' already defined as function in previous", structname);
     return NULL;
   }
 
   typeid_t structtype = sym_form_type_id(id);
   STEntry *entry = sym_getsym(curr_symtable, structtype, 0);
   if (entry) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "type '%s' already defined", symname_get(id));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "type '%s' already defined", symname_get(id));
     return NULL;
   }
 
   CADataType *primtype = catype_get_primitive_by_name(structtype);
   if (primtype) {
-    caerror(&(SLoc){glineno, gcolno}, NULL, "struct type id `%s` cannot be primitive type", symname_get(id));
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "struct type id `%s` cannot be primitive type", symname_get(id));
     return NULL;
   }
 
@@ -2439,8 +2454,11 @@ int parse_tuple_fieldname(int fieldname) {
       break;
   }
 
-  if (i != len || (len > 1 && name[0] == '0'))
-    caerror(&(SLoc){glineno, gcolno}, NULL, "unknown field name `%s`", name);
+  if (i != len || (len > 1 && name[0] == '0')) {
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "unknown field name `%s`", name);
+    return -1;
+  }
 
   fieldname = atoi(name);
   return fieldname;
@@ -2501,8 +2519,11 @@ ASTNode *make_stmt_list_zip() {
   int len = oldlist->len;
   ASTNode *p = new_ASTNode(TTE_StmtList);
   p->stmtlistn.nstmt = len;
-  if ((p->stmtlistn.stmts = (ASTNode **)malloc(len * sizeof(ASTNode))) == NULL)
-    caerror(&(SLoc){glineno, gcolno}, NULL, "out of memory");
+  if ((p->stmtlistn.stmts = (ASTNode **)malloc(len * sizeof(ASTNode))) == NULL) {
+    SLoc stloc = {glineno, gcolno};
+    caerror(&stloc, NULL, "out of memory");
+    return NULL;
+  }
 
   for (int i = 0; i < len; ++i)
     p->stmtlistn.stmts[i] = oldlist->stmtlist[i];
@@ -2636,10 +2657,34 @@ void yyerror(const char *s, ...) {
   exit(-1);
 }
 
-void caerror(SLoc *beg, SLoc *end, const char *s, ...) {
+void caerror(const SLoc *beg, const SLoc *end, const char *s, ...) {
   fprintf(stderr, "[grammar line: %d, token: %d] ", yylineno, yychar);
-  if (beg)
-    fprintf(stderr, "line: %d, col: %d: ", beg->row, beg->col);
+  int linefrom = -1;
+  int lineto = -1;
+  int firstcol = -1;
+  int lastcol = -1;
+  if (beg) {
+    fprintf(stderr, "line: %d, col: %d:\n", beg->row, beg->col);
+    linefrom = beg->row;
+    firstcol = beg->col;
+
+    lineto = beg->row;
+    lastcol = beg->col;
+  }
+
+  if (end) {
+    lineto = end->row;
+    lastcol = end->col;
+  }
+
+  const char *sourceline = source_lines(linefrom, lineto);
+  fprintf(stderr, "%s", sourceline);
+
+  char *buffer = source_buffer();
+  memset(buffer, ' ', firstcol);
+  buffer[firstcol - 1] = '^';
+  buffer[firstcol] = 0;
+  fprintf(stderr, "%s\n", buffer);
 
   va_list ap;
   va_start(ap, s);
@@ -2660,6 +2705,7 @@ int yyparser_init() {
     lexical_init();
     catype_init();
     dot_init();
+    source_info_init(genv.src_path);
 
     if (sym_init(&g_root_symtable, NULL)) {
 	yyerror("init symbol table failed\n");

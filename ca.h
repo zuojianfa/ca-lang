@@ -436,7 +436,7 @@ CallParamAux *new_CallParamAux(ASTNode *param, int checked);
 void delete_CallParamAux(CallParamAux *paramaux);
 
 void yyerror(const char *s, ...);
-void caerror(SLoc *beg, SLoc *end, const char *s, ...);
+void caerror(const SLoc *beg, const SLoc *end, const char *s, ...);
 
 #ifdef __cplusplus
 END_EXTERN_C
