@@ -159,6 +159,9 @@ typedef struct CALiteral {
 
   // when littypetok is STRUCT ARRAY POINTER CSTRING, and fixed_type true, then it is used
   CADataType *catype;
+
+  SLoc begloc; // the literal start location
+  SLoc endloc; // the literal end location
   union {
     int64_t  i64value;      // store either signed or unsigned integer value
     double   f64value;      // store floating point value

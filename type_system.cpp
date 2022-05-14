@@ -314,8 +314,7 @@ tokenid_t sym_primitive_token_from_id(typeid_t id) {
   if (itr != s_token_primitive_map.end())
     return itr->second;
 
-  SLoc stloc = {glineno, gcolno};
-  caerror(&stloc, NULL, "get primitive type token failed");
+  yyerror("get primitive type `%s` token failed", name);
   return tokenid_novalue;
 }
 
@@ -972,8 +971,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
     *typesize = -2;
 
     if (!itr->second) {
-      SLoc stloc = {glineno, gcolno};
-      caerror(&stloc, NULL, "type `%s` should recursive defining", namebuf);
+      caerror(&entry->sloc, NULL, "type `%s` should recursive defining", namebuf);
       return -1;
     }
 
@@ -1877,14 +1875,12 @@ static typeid_t inference_primitive_literal_type(CALiteral *lit) {
     badscope = check_uchar_value_scope(lit->u.i64value, U8);
     break;
   default:
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "void type have no literal value");
+    caerror(&lit->begloc, &lit->endloc, "void type have no literal value");
     return typeid_novalue;
   }
 
   if (badscope) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "bad literal value definition: %s cannot be %s",
+    caerror(&lit->begloc, &lit->endloc, "bad literal value definition: %s cannot be %s",
 	    get_type_string(lit->littypetok), get_type_string(intentdeftype));
     return typeid_novalue;
   }
@@ -1952,14 +1948,12 @@ typeid_t inference_literal_type(CALiteral *lit) {
     return inference_array_literal(lit);
   case STRUCT: {
     // not implemented
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "not implemented the literal for struct type.");
+    caerror(&lit->begloc, &lit->endloc, "not implemented the literal for struct type.");
     return typeid_novalue;
   }
   case POINTER: {
     // should never come here
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "not implemented the literal for pointer type, should can never come here");
+    caerror(&lit->begloc, &lit->endloc, "not implemented the literal for pointer type, should can never come here");
     return typeid_novalue;
   }
   default:
@@ -1985,8 +1979,7 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
   // check convertable
   if (!is_literal_zero_value(lit) &&
       !literal_type_convertable(littypetok, typetok)) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "bad literal value definition: %s cannot be %s",
+    caerror(&lit->begloc, &lit->endloc, "bad literal value definition: %s cannot be %s",
 	    get_type_string(littypetok), catype_get_type_name(catype->signature));
     return;
   }
@@ -2038,14 +2031,12 @@ void determine_primitive_literal_type(CALiteral *lit, CADataType *catype) {
     badscope = check_uchar_value_scope(lit->u.i64value, typetok);
     break;
   default:
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "%s type have no lexical value", get_type_string(littypetok));
+    caerror(&lit->begloc, &lit->endloc, "%s type have no lexical value", get_type_string(littypetok));
     break;
   }
 
   if (badscope) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "bad literal value definition: %s cannot be %s",
+    caerror(&lit->begloc, &lit->endloc, "bad literal value definition: %s cannot be %s",
 	    get_type_string(littypetok), get_type_string(typetok));
     return;
   }

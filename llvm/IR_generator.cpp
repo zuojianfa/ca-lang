@@ -907,8 +907,7 @@ static void walk_for(ASTNode *p) {
   ForStmtId forvar = p->forn.var;
   STEntry *entry = sym_getsym(p->symtable, forvar.var, 0);
   if (!entry) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "cannot find variable `%s` in symbol table",
+    caerror(&p->forn.listnode->begloc, &p->forn.listnode->endloc, "cannot find variable `%s` in symbol table",
 	    symname_get(forvar.var));
     return;
   }
@@ -1022,14 +1021,13 @@ static void walk_drop(ASTNode *p) {
 
   STEntry *entry = sym_getsym(p->symtable, p->dropn.var, 1);
   if (!entry) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "cannot find variable `%s` in symbol table when dropping",
+    caerror(&p->begloc, &p->endloc, "cannot find variable `%s` in symbol table when dropping",
 	    symname_get(p->dropn.var));
     return;
   }
 
   if (entry->sym_type != Sym_Variable) {
-    caerror(&(entry->sloc), NULL, "'%s' Not a variable when dropping", symname_get(p->dropn.var));
+    caerror(&p->begloc, &p->endloc, "'%s' Not a variable when dropping", symname_get(p->dropn.var));
     return;
   }
 
@@ -2913,8 +2911,7 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
     STEntry *preventry = sym_getsym(prevargs->symtable, prevargs->argnames[i], 0);
     STEntry *currentry = sym_getsym(currargs->symtable, currargs->argnames[i], 0);
     if (!preventry || !currentry || preventry->sym_type != Sym_Variable || currentry->sym_type != Sym_Variable) {
-      SLoc stloc = {glineno, gcolno};
-      caerror(&stloc, NULL, "function '%s' internal error: symbol table entry error",
+      caerror(&prev->sloc, NULL, "function '%s' internal error: symbol table entry error",
 	      catype_get_function_name(fnname));
       return -1;
     }
@@ -2923,8 +2920,7 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
     CADataType *currcatype = catype_get_by_name(currargs->symtable, currentry->u.var->datatype);
 
     if (prevcatype->signature != currcatype->signature) {
-      SLoc stloc = {glineno, gcolno};
-      caerror(&stloc, NULL, "function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
+      caerror(&prev->sloc, NULL, "function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
 	      catype_get_function_name(fnname),
 	      catype_get_type_name(prevcatype->signature),
 	      catype_get_type_name(currcatype->signature),
@@ -2938,8 +2934,7 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
 
   // check if function return type is the same as declared
   if (prevret->signature != currret->signature) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "function '%s' return type not identical, see: line %d, col %d.",
+    caerror(&prev->sloc, NULL, "function '%s' return type not identical, see: line %d, col %d.",
 	    catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
     return -1;
   }

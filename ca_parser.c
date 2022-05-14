@@ -306,12 +306,10 @@ ASTNode *make_fn_decl(ASTNode *proto) {
 
 static void check_expr_arglists(ST_ArgList *al) {
     int noperands = al->argc;
-    ASTNode *p;
-    int i;
 
     // for checking void type function, can only have void parameter
     int void_count = 0;
-    for (i = 0; i < noperands; ++i) {
+    for (int i = 0; i < noperands; ++i) {
       int name = al->argnames[i];
       STEntry *entry = sym_getsym(curr_symtable, name, 0);
       if (!entry) {
@@ -645,7 +643,9 @@ ASTNode *make_literal(CALiteral *litv) {
 
     ASTNode *p = new_ASTNode(TTE_Literal);
     p->litn.litv = *litv;
-    set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+    p->litn.litv.begloc = (SLoc){glineno_prev, gcolno_prev};
+    p->litn.litv.endloc = (SLoc){glineno, gcolno};
+    set_address(p, &p->litn.litv.begloc, &p->litn.litv.endloc);
 
     return p;
 }
@@ -2676,6 +2676,12 @@ void caerror(const SLoc *beg, const SLoc *end, const char *s, ...) {
     lineto = end->row;
     lastcol = end->col;
   }
+
+  if (firstcol < 1)
+    firstcol = 1;
+
+  if (lastcol < 1)
+    lastcol = 1;
 
   const char *sourceline = source_lines(linefrom, lineto);
   fprintf(stderr, "%s", sourceline);
