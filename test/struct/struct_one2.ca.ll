@@ -1,13 +1,13 @@
 ; ModuleID = 'struct_one2.ca'
 source_filename = "struct_one2.ca"
 
+%A22 = type { %AA, %A1, i8 }
 %AA = type { i32, double, i8 }
 %A1 = type { double, i32, i8 }
-%A2 = type { %AA, %A1 }
+%A21 = type { i8, %AA, %A1 }
 %C1 = type { i8 }
 %A3 = type { %AA, %A1, %C1 }
-%A21 = type { i8, %AA, %A1 }
-%A22 = type { %AA, %A1, i8 }
+%A2 = type { %AA, %A1 }
 
 @0 = private unnamed_addr constant [2 x i8] c"C\00", align 1
 @1 = private unnamed_addr constant [3 x i8] c"AA\00", align 1
@@ -227,106 +227,116 @@ declare i32 @printf(i8*, ...)
 
 define void @main() !dbg !4 {
 entry:
-  %0 = alloca %AA, align 8, !dbg !63
-  %1 = getelementptr %AA, %AA* %0, i32 0, i32 0, !dbg !63
-  store volatile i32 32, i32* %1, align 4, !dbg !63
-  %2 = getelementptr %AA, %AA* %0, i32 0, i32 1, !dbg !63
-  store volatile double 4.430000e+01, double* %2, align 8, !dbg !63
-  %3 = getelementptr %AA, %AA* %0, i32 0, i32 2, !dbg !63
-  store volatile i8 67, i8* %3, align 1, !dbg !63
-  %a = alloca %AA, align 8, !dbg !63
-  %4 = bitcast %AA* %a to i8*, !dbg !63
-  %5 = bitcast %AA* %0 to i8*, !dbg !63
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %4, i8* align 8 %5, i64 24, i1 false), !dbg !63
+  %sc1 = alloca i64, align 8
+  %sa3 = alloca i64, align 8
+  %sc = alloca i64, align 8
+  %sb = alloca i64, align 8
+  %sa = alloca i64, align 8
+  %f4 = alloca double, align 8
+  %f3 = alloca i8*, align 8
+  %f21 = alloca double, align 8
+  %f2 = alloca i32, align 4
+  %f1 = alloca double, align 8
+  %a22 = alloca %A22, align 8
+  %a21 = alloca %A21, align 8
+  %c1 = alloca %C1, align 8
+  %0 = alloca %C1, align 8
+  %a3 = alloca %A3, align 8
+  %1 = alloca %A3, align 8
+  %2 = alloca %C1, align 8
+  %3 = alloca %A1, align 8
+  %4 = alloca %AA, align 8
+  %c = alloca %A2, align 8
+  %5 = alloca %A2, align 8
+  %6 = alloca %A1, align 8
+  %7 = alloca %AA, align 8
+  %b = alloca %A1, align 8
+  %8 = alloca %A1, align 8
+  %a = alloca %AA, align 8
+  %9 = alloca %AA, align 8
+  %10 = getelementptr %AA, %AA* %9, i32 0, i32 0, !dbg !63
+  store volatile i32 32, i32* %10, align 4, !dbg !63
+  %11 = getelementptr %AA, %AA* %9, i32 0, i32 1, !dbg !63
+  store volatile double 4.430000e+01, double* %11, align 8, !dbg !63
+  %12 = getelementptr %AA, %AA* %9, i32 0, i32 2, !dbg !63
+  store volatile i8 67, i8* %12, align 1, !dbg !63
+  %13 = bitcast %AA* %a to i8*, !dbg !63
+  %14 = bitcast %AA* %9 to i8*, !dbg !63
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %13, i8* align 8 %14, i64 24, i1 false), !dbg !63
   call void @llvm.dbg.declare(metadata %AA* %a, metadata !9, metadata !DIExpression()), !dbg !64
-  %6 = alloca %A1, align 8, !dbg !65
-  %7 = getelementptr %A1, %A1* %6, i32 0, i32 0, !dbg !65
-  store volatile double 4.430000e+01, double* %7, align 8, !dbg !65
-  %8 = getelementptr %A1, %A1* %6, i32 0, i32 1, !dbg !65
-  store volatile i32 32, i32* %8, align 4, !dbg !65
-  %9 = getelementptr %A1, %A1* %6, i32 0, i32 2, !dbg !65
-  store volatile i8 68, i8* %9, align 1, !dbg !65
-  %b = alloca %A1, align 8, !dbg !65
-  %10 = bitcast %A1* %b to i8*, !dbg !65
-  %11 = bitcast %A1* %6 to i8*, !dbg !65
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %10, i8* align 8 %11, i64 16, i1 false), !dbg !65
+  %15 = getelementptr %A1, %A1* %8, i32 0, i32 0, !dbg !65
+  store volatile double 4.430000e+01, double* %15, align 8, !dbg !65
+  %16 = getelementptr %A1, %A1* %8, i32 0, i32 1, !dbg !65
+  store volatile i32 32, i32* %16, align 4, !dbg !65
+  %17 = getelementptr %A1, %A1* %8, i32 0, i32 2, !dbg !65
+  store volatile i8 68, i8* %17, align 1, !dbg !65
+  %18 = bitcast %A1* %b to i8*, !dbg !65
+  %19 = bitcast %A1* %8 to i8*, !dbg !65
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %18, i8* align 8 %19, i64 16, i1 false), !dbg !65
   call void @llvm.dbg.declare(metadata %A1* %b, metadata !18, metadata !DIExpression()), !dbg !66
-  %12 = alloca %AA, align 8, !dbg !67
-  %13 = getelementptr %AA, %AA* %12, i32 0, i32 0, !dbg !67
-  store volatile i32 32, i32* %13, align 4, !dbg !67
-  %14 = getelementptr %AA, %AA* %12, i32 0, i32 1, !dbg !67
-  store volatile double 4.430000e+01, double* %14, align 8, !dbg !67
-  %15 = getelementptr %AA, %AA* %12, i32 0, i32 2, !dbg !67
-  store volatile i8 67, i8* %15, align 1, !dbg !67
-  %16 = alloca %A1, align 8, !dbg !68
-  %17 = getelementptr %A1, %A1* %16, i32 0, i32 0, !dbg !68
-  store volatile double 4.430000e+01, double* %17, align 8, !dbg !68
-  %18 = getelementptr %A1, %A1* %16, i32 0, i32 1, !dbg !68
-  store volatile i32 32, i32* %18, align 4, !dbg !68
-  %19 = getelementptr %A1, %A1* %16, i32 0, i32 2, !dbg !68
-  store volatile i8 68, i8* %19, align 1, !dbg !68
-  %20 = alloca %A2, align 8, !dbg !68
-  %21 = getelementptr %A2, %A2* %20, i32 0, i32 0, !dbg !68
-  %22 = bitcast %AA* %21 to i8*, !dbg !68
-  %23 = bitcast %AA* %12 to i8*, !dbg !68
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %22, i8* align 1 %23, i64 24, i1 false), !dbg !68
-  %24 = getelementptr %A2, %A2* %20, i32 0, i32 1, !dbg !68
-  %25 = bitcast %A1* %24 to i8*, !dbg !68
-  %26 = bitcast %A1* %16 to i8*, !dbg !68
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %25, i8* align 1 %26, i64 16, i1 false), !dbg !68
-  %c = alloca %A2, align 8, !dbg !68
-  %27 = bitcast %A2* %c to i8*, !dbg !68
-  %28 = bitcast %A2* %20 to i8*, !dbg !68
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %27, i8* align 8 %28, i64 40, i1 false), !dbg !68
+  %20 = getelementptr %AA, %AA* %7, i32 0, i32 0, !dbg !67
+  store volatile i32 32, i32* %20, align 4, !dbg !67
+  %21 = getelementptr %AA, %AA* %7, i32 0, i32 1, !dbg !67
+  store volatile double 4.430000e+01, double* %21, align 8, !dbg !67
+  %22 = getelementptr %AA, %AA* %7, i32 0, i32 2, !dbg !67
+  store volatile i8 67, i8* %22, align 1, !dbg !67
+  %23 = getelementptr %A1, %A1* %6, i32 0, i32 0, !dbg !68
+  store volatile double 4.430000e+01, double* %23, align 8, !dbg !68
+  %24 = getelementptr %A1, %A1* %6, i32 0, i32 1, !dbg !68
+  store volatile i32 32, i32* %24, align 4, !dbg !68
+  %25 = getelementptr %A1, %A1* %6, i32 0, i32 2, !dbg !68
+  store volatile i8 68, i8* %25, align 1, !dbg !68
+  %26 = getelementptr %A2, %A2* %5, i32 0, i32 0, !dbg !68
+  %27 = bitcast %AA* %26 to i8*, !dbg !68
+  %28 = bitcast %AA* %7 to i8*, !dbg !68
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %27, i8* align 1 %28, i64 24, i1 false), !dbg !68
+  %29 = getelementptr %A2, %A2* %5, i32 0, i32 1, !dbg !68
+  %30 = bitcast %A1* %29 to i8*, !dbg !68
+  %31 = bitcast %A1* %6 to i8*, !dbg !68
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %30, i8* align 1 %31, i64 16, i1 false), !dbg !68
+  %32 = bitcast %A2* %c to i8*, !dbg !68
+  %33 = bitcast %A2* %5 to i8*, !dbg !68
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %32, i8* align 8 %33, i64 40, i1 false), !dbg !68
   call void @llvm.dbg.declare(metadata %A2* %c, metadata !24, metadata !DIExpression()), !dbg !69
-  %29 = alloca %AA, align 8, !dbg !70
-  %30 = getelementptr %AA, %AA* %29, i32 0, i32 0, !dbg !70
-  store volatile i32 32, i32* %30, align 4, !dbg !70
-  %31 = getelementptr %AA, %AA* %29, i32 0, i32 1, !dbg !70
-  store volatile double 4.430000e+01, double* %31, align 8, !dbg !70
-  %32 = getelementptr %AA, %AA* %29, i32 0, i32 2, !dbg !70
-  store volatile i8 67, i8* %32, align 1, !dbg !70
-  %33 = alloca %A1, align 8, !dbg !71
-  %34 = getelementptr %A1, %A1* %33, i32 0, i32 0, !dbg !71
-  store volatile double 4.430000e+01, double* %34, align 8, !dbg !71
-  %35 = getelementptr %A1, %A1* %33, i32 0, i32 1, !dbg !71
-  store volatile i32 32, i32* %35, align 4, !dbg !71
-  %36 = getelementptr %A1, %A1* %33, i32 0, i32 2, !dbg !71
-  store volatile i8 68, i8* %36, align 1, !dbg !71
-  %37 = alloca %C1, align 8, !dbg !72
-  %38 = getelementptr %C1, %C1* %37, i32 0, i32 0, !dbg !72
-  store volatile i8 66, i8* %38, align 1, !dbg !72
-  %39 = alloca %A3, align 8, !dbg !72
-  %40 = getelementptr %A3, %A3* %39, i32 0, i32 0, !dbg !72
-  %41 = bitcast %AA* %40 to i8*, !dbg !72
-  %42 = bitcast %AA* %29 to i8*, !dbg !72
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %41, i8* align 1 %42, i64 24, i1 false), !dbg !72
-  %43 = getelementptr %A3, %A3* %39, i32 0, i32 1, !dbg !72
-  %44 = bitcast %A1* %43 to i8*, !dbg !72
-  %45 = bitcast %A1* %33 to i8*, !dbg !72
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %44, i8* align 1 %45, i64 16, i1 false), !dbg !72
-  %46 = getelementptr %A3, %A3* %39, i32 0, i32 2, !dbg !72
-  %47 = bitcast %C1* %46 to i8*, !dbg !72
-  %48 = bitcast %C1* %37 to i8*, !dbg !72
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %47, i8* align 1 %48, i64 1, i1 false), !dbg !72
-  %a3 = alloca %A3, align 8, !dbg !72
-  %49 = bitcast %A3* %a3 to i8*, !dbg !72
-  %50 = bitcast %A3* %39 to i8*, !dbg !72
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %49, i8* align 8 %50, i64 48, i1 false), !dbg !72
+  %34 = getelementptr %AA, %AA* %4, i32 0, i32 0, !dbg !70
+  store volatile i32 32, i32* %34, align 4, !dbg !70
+  %35 = getelementptr %AA, %AA* %4, i32 0, i32 1, !dbg !70
+  store volatile double 4.430000e+01, double* %35, align 8, !dbg !70
+  %36 = getelementptr %AA, %AA* %4, i32 0, i32 2, !dbg !70
+  store volatile i8 67, i8* %36, align 1, !dbg !70
+  %37 = getelementptr %A1, %A1* %3, i32 0, i32 0, !dbg !71
+  store volatile double 4.430000e+01, double* %37, align 8, !dbg !71
+  %38 = getelementptr %A1, %A1* %3, i32 0, i32 1, !dbg !71
+  store volatile i32 32, i32* %38, align 4, !dbg !71
+  %39 = getelementptr %A1, %A1* %3, i32 0, i32 2, !dbg !71
+  store volatile i8 68, i8* %39, align 1, !dbg !71
+  %40 = getelementptr %C1, %C1* %2, i32 0, i32 0, !dbg !72
+  store volatile i8 66, i8* %40, align 1, !dbg !72
+  %41 = getelementptr %A3, %A3* %1, i32 0, i32 0, !dbg !72
+  %42 = bitcast %AA* %41 to i8*, !dbg !72
+  %43 = bitcast %AA* %4 to i8*, !dbg !72
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %42, i8* align 1 %43, i64 24, i1 false), !dbg !72
+  %44 = getelementptr %A3, %A3* %1, i32 0, i32 1, !dbg !72
+  %45 = bitcast %A1* %44 to i8*, !dbg !72
+  %46 = bitcast %A1* %3 to i8*, !dbg !72
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %45, i8* align 1 %46, i64 16, i1 false), !dbg !72
+  %47 = getelementptr %A3, %A3* %1, i32 0, i32 2, !dbg !72
+  %48 = bitcast %C1* %47 to i8*, !dbg !72
+  %49 = bitcast %C1* %2 to i8*, !dbg !72
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %48, i8* align 1 %49, i64 1, i1 false), !dbg !72
+  %50 = bitcast %A3* %a3 to i8*, !dbg !72
+  %51 = bitcast %A3* %1 to i8*, !dbg !72
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %50, i8* align 8 %51, i64 48, i1 false), !dbg !72
   call void @llvm.dbg.declare(metadata %A3* %a3, metadata !29, metadata !DIExpression()), !dbg !73
-  %51 = alloca %C1, align 8, !dbg !74
-  %52 = getelementptr %C1, %C1* %51, i32 0, i32 0, !dbg !74
+  %52 = getelementptr %C1, %C1* %0, i32 0, i32 0, !dbg !74
   store volatile i8 65, i8* %52, align 1, !dbg !74
-  %c1 = alloca %C1, align 8, !dbg !74
   %53 = bitcast %C1* %c1 to i8*, !dbg !74
-  %54 = bitcast %C1* %51 to i8*, !dbg !74
+  %54 = bitcast %C1* %0 to i8*, !dbg !74
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %53, i8* align 8 %54, i64 1, i1 false), !dbg !74
   call void @llvm.dbg.declare(metadata %C1* %c1, metadata !38, metadata !DIExpression()), !dbg !75
-  %a21 = alloca %A21, align 8, !dbg !76
   %55 = bitcast %A21* %a21 to i8*, !dbg !76
   call void @llvm.memset.p0i8.i64(i8* align 8 %55, i8 0, i64 48, i1 false), !dbg !76
   call void @llvm.dbg.declare(metadata %A21* %a21, metadata !39, metadata !DIExpression()), !dbg !77
-  %a22 = alloca %A22, align 8, !dbg !78
   %56 = bitcast %A22* %a22 to i8*, !dbg !78
   call void @llvm.memset.p0i8.i64(i8* align 8 %56, i8 0, i64 48, i1 false), !dbg !78
   call void @llvm.dbg.declare(metadata %A22* %a22, metadata !45, metadata !DIExpression()), !dbg !79
@@ -346,34 +356,24 @@ entry:
   %65 = getelementptr inbounds %A22, %A22* %a22, i32 0, i32 1, !dbg !85
   %66 = getelementptr inbounds %A1, %A1* %65, i32 0, i32 2, !dbg !85
   store volatile i8 75, i8* %66, align 1, !dbg !85
-  %f1 = alloca double, align 8, !dbg !86
   store volatile double 1.234000e+00, double* %f1, align 8, !dbg !86
   call void @llvm.dbg.declare(metadata double* %f1, metadata !51, metadata !DIExpression()), !dbg !87
-  %f2 = alloca i32, align 4, !dbg !88
   store volatile i32 1234, i32* %f2, align 4, !dbg !88
   call void @llvm.dbg.declare(metadata i32* %f2, metadata !52, metadata !DIExpression()), !dbg !89
-  %f21 = alloca double, align 8, !dbg !90
   store volatile double 2.234000e+00, double* %f21, align 8, !dbg !90
   call void @llvm.dbg.declare(metadata double* %f21, metadata !53, metadata !DIExpression()), !dbg !91
-  %f3 = alloca i8*, align 8, !dbg !92
   store volatile i8* getelementptr inbounds ([2 x i8], [2 x i8]* @0, i32 0, i32 0), i8** %f3, align 8, !dbg !92
   call void @llvm.dbg.declare(metadata i8** %f3, metadata !54, metadata !DIExpression()), !dbg !93
-  %f4 = alloca double, align 8, !dbg !94
   store volatile double 3.234000e+00, double* %f4, align 8, !dbg !94
   call void @llvm.dbg.declare(metadata double* %f4, metadata !56, metadata !DIExpression()), !dbg !95
-  %sa = alloca i64, align 8, !dbg !96
   store volatile i64 24, i64* %sa, align 4, !dbg !96
   call void @llvm.dbg.declare(metadata i64* %sa, metadata !57, metadata !DIExpression()), !dbg !97
-  %sb = alloca i64, align 8, !dbg !98
   store volatile i64 16, i64* %sb, align 4, !dbg !98
   call void @llvm.dbg.declare(metadata i64* %sb, metadata !59, metadata !DIExpression()), !dbg !99
-  %sc = alloca i64, align 8, !dbg !100
   store volatile i64 40, i64* %sc, align 4, !dbg !100
   call void @llvm.dbg.declare(metadata i64* %sc, metadata !60, metadata !DIExpression()), !dbg !101
-  %sa3 = alloca i64, align 8, !dbg !102
   store volatile i64 48, i64* %sa3, align 4, !dbg !102
   call void @llvm.dbg.declare(metadata i64* %sa3, metadata !61, metadata !DIExpression()), !dbg !103
-  %sc1 = alloca i64, align 8, !dbg !104
   store volatile i64 1, i64* %sc1, align 4, !dbg !104
   call void @llvm.dbg.declare(metadata i64* %sc1, metadata !62, metadata !DIExpression()), !dbg !105
   %load = load %AA, %AA* %a, align 8, !dbg !106

@@ -651,7 +651,7 @@ static Value *walk_id_defv_declare(ASTNode *p, CADataType *idtype, bool zeroinit
     if (enable_debug_info())
       emit_global_var_dbginfo(name, idtype, p->endloc.row);
   } else {
-    var = ir1.gen_var(type, name, nullptr);
+    var = ir1.gen_entry_block_var(curr_fn, type, name, nullptr);
 
     if (zeroinitial)
       aux_set_zero_to_store(type, var);
@@ -823,7 +823,7 @@ static void walk_label_goto(ASTNode *label) {
 
   // to avoid verify error of 'Terminator found in the middle of a basic block!'
   BasicBlock *extrabb = ir1.gen_bb("extra", curr_fn);
-  ir1.builder().SetInsertPoint(extrabb);  
+  ir1.builder().SetInsertPoint(extrabb);
 }
 
 static void walk_stmtlist(ASTNode *p) {
@@ -932,11 +932,11 @@ static void walk_for(ASTNode *p) {
   // scanner index llvm value
   Value *valuezero = ir1.gen_int((size_t)0);
   Value *valueone = ir1.gen_int((size_t)1);
-  Value *indexvslot = ir1.gen_var(ir1.int_type<size_t>(), "idx", valuezero);
+  Value *indexvslot = ir1.gen_entry_block_var(curr_fn, ir1.int_type<size_t>(), "idx", valuezero);
 
   const char *itemname = symname_get(cavar->name);
   Type *itemtype = llvmtype_from_catype(itemcatype);
-  Value *itemvar = ir1.gen_var(itemtype, itemname, nullptr);
+  Value *itemvar = ir1.gen_entry_block_var(curr_fn, itemtype, itemname, nullptr);
   if (enable_debug_info())
     emit_local_var_dbginfo(curr_fn, itemname, itemcatype, itemvar, p->forn.listnode->endloc.row);
 
@@ -1004,7 +1004,7 @@ static void walk_box(ASTNode *p) {
 
   // 2. invoke alloca to allocate pointer type and
   // 3. store the heap allocated address into the memory
-  Value *stackv = ir1.gen_var(type, "bindptr", heapv);
+  Value *stackv = ir1.gen_entry_block_var(curr_fn, type, "bindptr", heapv);
   
   // 4. copy Value willv into heap allocated space
   Type *pointeellvmty = llvmtype_from_catype(pointeety);
@@ -1096,7 +1096,7 @@ static void walk_if_common(ASTNode *p) {
   // occurs when alloca in other blocks. Answer: not exactly
   Value *tmpc = nullptr; // for storing if expression temporary value
   if (isexpr)
-    tmpc = ir1.gen_var(ir1.int_type<int>(), "tmpc");
+    tmpc = ir1.gen_entry_block_var(curr_fn, ir1.int_type<int>(), "tmpc");
 
   BasicBlock *thenbb = ir1.gen_bb("thenbb");
   BasicBlock *outbb = ir1.gen_bb("outbb");
@@ -1856,7 +1856,17 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
     if (enable_debug_info())
       emit_global_var_dbginfo(varname, catype, entry->u.var->loc.row);
   } else {
+#if 1
+    var = ir1.gen_entry_block_var(curr_fn, type, varname, nullptr);
+#else
+    BasicBlock *currbb = ir1.builder().GetInsertBlock();
+    BasicBlock *entrybb = &curr_fn->getEntryBlock();
+    BasicBlock::iterator itr = entrybb->getFirstInsertionPt();
+    ir1.builder().SetInsertPoint(entrybb, itr);
     var = ir1.gen_var(type, varname, nullptr);
+    ir1.builder().SetInsertPoint(currbb);
+#endif
+
     if (!value)
       aux_set_zero_to_store(type, var);
     else
@@ -1987,83 +1997,52 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *valu
 static void walk_letbind(ASTNode *p) {
   CAPattern *cap = p->letbindn.cap;
   ASTNode *exprn = p->letbindn.expr;
-#if 0
-  if (cap->type == PT_Var) {
-    // here just mock for refactor the old code and make test run
-    ASTNode *idn = (ASTNode *)malloc(sizeof(ASTNode));
-    idn->type = TTE_Id;
-    idn->grammartype = NGT_None;
-
-    idn->idn.i = cap->name;
-    idn->idn.idtype = TTEId_VarDef;
-    idn->begloc = p->begloc;
-    idn->endloc = p->endloc;
-
-    STEntry *entry = sym_getsym(p->symtable, cap->name, 0);
-    idn->entry = entry;
-    idn->symtable = p->symtable;
-
-    ASTNode *oldp = (ASTNode *)malloc(sizeof(ASTNode));
-    oldp->type = TTE_Assign;
-    oldp->grammartype = NGT_None;
-    oldp->assignn.id = idn;
-    oldp->assignn.expr = exprn;
-    oldp->assignn.op = -1;
-    oldp->begloc = p->begloc;
-    oldp->endloc = p->endloc;
-    oldp->symtable = p->symtable;
-
-    walk_assign(oldp);
-  } else
-#endif
-  {
-    Value *v = nullptr;
-    CADataType *catype = nullptr;
-    OperandType ot = OT_Alloc;
+  Value *v = nullptr;
+  CADataType *catype = nullptr;
+  OperandType ot = OT_Alloc;
     
-    if (enable_debug_info())
-	diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+  if (enable_debug_info())
+    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
-    if (exprn->type != TTE_VarDefZeroValue) {
-      // 1. inference type for both side of binding, to determine the types of both side
-      // when is not zeroinitial
-      inference_letbind_type(cap, exprn);
+  if (exprn->type != TTE_VarDefZeroValue) {
+    // 1. inference type for both side of binding, to determine the types of both side
+    // when is not zeroinitial
+    inference_letbind_type(cap, exprn);
 
-      // 2. walk right side node and get Value
-      walk_stack(exprn);
+    // 2. walk right side node and get Value
+    walk_stack(exprn);
 
-      //auto pair = pop_right_value("tmpexpr", false);
-      //pair.first;
-      auto datao = pop_right_operand("tmpexpr", false);
-      v = datao->operand;
-      catype = datao->catype;
-      ot = datao->type;
-      if (v == nullptr) {
-	caerror(&(p->begloc), &(p->endloc), "create value failed");
-	return;
-      }
-      // if (!catype_check_identical(dt, pair.second)) {
-      // 	caerror(&(p->begloc), &(p->endloc), "expected a type `%s`, but found `%s`",
-      // 		catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
-      // 	return;
-      // }
-
-    } else {
-      // 1. inference type for both side of binding, to determine the types of both side
-      // when the pattern specified a type, example: let AA {f1, f2, ...}: datatype = __zero_initial__
-      catype = capattern_check_get_type(cap, exprn);
-      CHECK_GET_TYPE_VALUE(exprn, catype, cap->datatype);
-
-      // catype can be null and the datatype must can obtain from pattern
-      determine_letbind_type(cap, catype, exprn->symtable);
+    //auto pair = pop_right_value("tmpexpr", false);
+    //pair.first;
+    auto datao = pop_right_operand("tmpexpr", false);
+    v = datao->operand;
+    catype = datao->catype;
+    ot = datao->type;
+    if (v == nullptr) {
+      caerror(&(p->begloc), &(p->endloc), "create value failed");
+      return;
     }
+    // if (!catype_check_identical(dt, pair.second)) {
+    // 	caerror(&(p->begloc), &(p->endloc), "expected a type `%s`, but found `%s`",
+    // 		catype_get_type_name(dt->signature), catype_get_type_name(pair.second->signature));
+    // 	return;
+    // }
 
-    if (v && ot == OT_Alloc && !catype_is_complex_type(catype->type))
-	  v = ir1.builder().CreateLoad(v, "tmpexpr");
+  } else {
+    // 1. inference type for both side of binding, to determine the types of both side
+    // when the pattern specified a type, example: let AA {f1, f2, ...}: datatype = __zero_initial__
+    catype = capattern_check_get_type(cap, exprn);
+    CHECK_GET_TYPE_VALUE(exprn, catype, cap->datatype);
 
-    // 3. walk left side again and copy data from right side
-    capattern_bind_value(exprn->symtable, cap, v, catype);
+    // catype can be null and the datatype must can obtain from pattern
+    determine_letbind_type(cap, catype, exprn->symtable);
   }
+
+  if (v && ot == OT_Alloc && !catype_is_complex_type(catype->type))
+    v = ir1.builder().CreateLoad(v, "tmpexpr");
+
+  // 3. walk left side again and copy data from right side
+  capattern_bind_value(exprn->symtable, cap, v, catype);
 }
 
 static void walk_expr_minus(ASTNode *p) {
@@ -2224,7 +2203,7 @@ static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<V
 
   // allocate new array and copy related elements to the array
   StructType *structype = static_cast<StructType *>(llvmtype_from_catype(catype));
-  AllocaInst *structure = ir1.gen_var(structype);
+  AllocaInst *structure = ir1.gen_entry_block_var(curr_fn, structype);
   Value *idxv0 = ir1.gen_int((int)0);
   std::vector<Value *> idxv(2, idxv0);
 
@@ -2323,7 +2302,7 @@ static void walk_expr_call(ASTNode *p) {
   Value *newv = callret;
   if (!isvoidty) {
     optype = OT_Alloc;
-    newv = ir1.gen_var(rettype, "calltmp", callret);
+    newv = ir1.gen_entry_block_var(curr_fn, rettype, "calltmp", callret);
   }
 
   auto operands = std::make_unique<CalcOperand>(optype, newv, retdt);
@@ -2570,7 +2549,7 @@ static void walk_expr_as(ASTNode *node) {
   if (array2ptr) {
     Type *stype = llvmtype_from_catype(astype);
     v = ir1.gen_cast_value(ICO::BitCast, v, stype, "ptrcast");
-    v = ir1.gen_var(stype, "tmpptr", v);
+    v = ir1.gen_entry_block_var(curr_fn, stype, "tmpptr", v);
   } else {
     if (castopt != (ICO)0) {
       Type *stype = llvmtype_from_catype(astype);
@@ -2632,7 +2611,7 @@ static void walk_expr_array(ASTNode *p) {
 
   // allocate new array and copy related elements to the array
   Type *arraytype = llvmtype_from_catype(arraycatype);
-  AllocaInst *arr = ir1.gen_var(arraytype);
+  AllocaInst *arr = ir1.gen_entry_block_var(curr_fn, arraytype);
   Value *idxv0 = ir1.gen_int(0);
   std::vector<Value *> idxv(2, idxv0);
 
@@ -2754,7 +2733,7 @@ static void walk_expr_struct(ASTNode *p) {
 
   // allocate new array and copy related elements to the array
   StructType *structype = static_cast<StructType *>(llvmtype_from_catype(structcatype));
-  AllocaInst *structure = ir1.gen_var(structype);
+  AllocaInst *structure = ir1.gen_entry_block_var(curr_fn, structype);
   Value *idxv0 = ir1.gen_int((int)0);
   std::vector<Value *> idxv(2, idxv0);
 
@@ -3047,7 +3026,7 @@ static Function *walk_fn_define(ASTNode *p) {
   CADataType *retdt = catype_get_by_name(p->symtable, p->fndefn.fn_decl->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, p->fndefn.fn_decl->fndecln.ret);
   if (retdt->type != VOID) {
-    p->fndefn.retslot = (void *)ir1.gen_var(fn->getReturnType(), "retslot");
+    p->fndefn.retslot = (void *)ir1.gen_entry_block_var(curr_fn, fn->getReturnType(), "retslot");
   } else {
     p->fndefn.retslot = nullptr;
   }
@@ -3247,7 +3226,7 @@ static int llvm_codegen_begin(RootTree *tree) {
 
     init_fn_param_info(main_fn, arglist, tree->root_symtable, tree->begloc_main.row);
     main_fn_node->fndefn.retslot =
-      (void *)ir1.gen_var(main_fn->getReturnType(), "retslot", ir1.gen_int<int>(0));
+      (void *)ir1.gen_entry_block_var(curr_fn, main_fn->getReturnType(), "retslot", ir1.gen_int<int>(0));
   }
 
   initialize_inner_functions();

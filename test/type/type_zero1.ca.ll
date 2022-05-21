@@ -33,34 +33,34 @@ declare i32 @printf(i8*, ...)
 
 define void @main() {
 entry:
+  %a11 = alloca i8, align 1
+  %a10 = alloca i8, align 1
+  %a9 = alloca i1, align 1
+  %a8 = alloca double, align 8
+  %a7 = alloca float, align 4
+  %a6 = alloca i64, align 8
+  %a5 = alloca i32, align 4
+  %a4 = alloca i8, align 1
+  %a3 = alloca i64, align 8
+  %a2 = alloca i32, align 4
   %a1 = alloca i8, align 1
   call void @llvm.memset.p0i8.i64(i8* align 1 %a1, i8 0, i64 1, i1 false)
-  %a2 = alloca i32, align 4
   %0 = bitcast i32* %a2 to i8*
   call void @llvm.memset.p0i8.i64(i8* align 4 %0, i8 0, i64 4, i1 false)
-  %a3 = alloca i64, align 8
   %1 = bitcast i64* %a3 to i8*
   call void @llvm.memset.p0i8.i64(i8* align 8 %1, i8 0, i64 8, i1 false)
-  %a4 = alloca i8, align 1
   call void @llvm.memset.p0i8.i64(i8* align 1 %a4, i8 0, i64 1, i1 false)
-  %a5 = alloca i32, align 4
   %2 = bitcast i32* %a5 to i8*
   call void @llvm.memset.p0i8.i64(i8* align 4 %2, i8 0, i64 4, i1 false)
-  %a6 = alloca i64, align 8
   %3 = bitcast i64* %a6 to i8*
   call void @llvm.memset.p0i8.i64(i8* align 8 %3, i8 0, i64 8, i1 false)
-  %a7 = alloca float, align 4
   %4 = bitcast float* %a7 to i8*
   call void @llvm.memset.p0i8.i64(i8* align 4 %4, i8 0, i64 4, i1 false)
-  %a8 = alloca double, align 8
   %5 = bitcast double* %a8 to i8*
   call void @llvm.memset.p0i8.i64(i8* align 8 %5, i8 0, i64 8, i1 false)
-  %a9 = alloca i1, align 1
   %6 = bitcast i1* %a9 to i8*
   call void @llvm.memset.p0i8.i64(i8* align 1 %6, i8 0, i64 1, i1 false)
-  %a10 = alloca i8, align 1
   call void @llvm.memset.p0i8.i64(i8* align 1 %a10, i8 0, i64 1, i1 false)
-  %a11 = alloca i8, align 1
   call void @llvm.memset.p0i8.i64(i8* align 1 %a11, i8 0, i64 1, i1 false)
   %load = load i8, i8* %a1, align 1
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i8 %load)

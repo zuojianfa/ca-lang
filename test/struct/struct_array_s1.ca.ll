@@ -7,21 +7,21 @@ declare i32 @printf(i8*, ...)
 
 define void @main() !dbg !4 {
 entry:
-  %0 = alloca [3 x i32], align 4, !dbg !17
-  %1 = getelementptr [3 x i32], [3 x i32]* %0, i32 0, i64 0, !dbg !17
-  store volatile i32 1, i32* %1, align 4, !dbg !17
-  %2 = getelementptr [3 x i32], [3 x i32]* %0, i32 0, i64 1, !dbg !17
-  store volatile i32 2, i32* %2, align 4, !dbg !17
-  %3 = getelementptr [3 x i32], [3 x i32]* %0, i32 0, i64 2, !dbg !17
-  store volatile i32 3, i32* %3, align 4, !dbg !17
-  %4 = alloca %AA, align 8, !dbg !17
-  %5 = getelementptr %AA, %AA* %4, i32 0, i32 0, !dbg !17
+  %a = alloca %AA, align 8
+  %0 = alloca %AA, align 8
+  %1 = alloca [3 x i32], align 4
+  %2 = getelementptr [3 x i32], [3 x i32]* %1, i32 0, i64 0, !dbg !17
+  store volatile i32 1, i32* %2, align 4, !dbg !17
+  %3 = getelementptr [3 x i32], [3 x i32]* %1, i32 0, i64 1, !dbg !17
+  store volatile i32 2, i32* %3, align 4, !dbg !17
+  %4 = getelementptr [3 x i32], [3 x i32]* %1, i32 0, i64 2, !dbg !17
+  store volatile i32 3, i32* %4, align 4, !dbg !17
+  %5 = getelementptr %AA, %AA* %0, i32 0, i32 0, !dbg !17
   %6 = bitcast [3 x i32]* %5 to i8*, !dbg !17
-  %7 = bitcast [3 x i32]* %0 to i8*, !dbg !17
+  %7 = bitcast [3 x i32]* %1 to i8*, !dbg !17
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %6, i8* align 1 %7, i64 12, i1 false), !dbg !17
-  %a = alloca %AA, align 8, !dbg !17
   %8 = bitcast %AA* %a to i8*, !dbg !17
-  %9 = bitcast %AA* %4 to i8*, !dbg !17
+  %9 = bitcast %AA* %0 to i8*, !dbg !17
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %8, i8* align 8 %9, i64 12, i1 false), !dbg !17
   call void @llvm.dbg.declare(metadata %AA* %a, metadata !9, metadata !DIExpression()), !dbg !18
   br label %ret, !dbg !19

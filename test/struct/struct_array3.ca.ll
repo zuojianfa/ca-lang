@@ -1,9 +1,9 @@
 ; ModuleID = 'struct_array3.ca'
 source_filename = "struct_array3.ca"
 
+%A2 = type { [2 x [2 x %AA]] }
 %AA = type { i32, [3 x i32] }
 %A1 = type { double, %AA }
-%A2 = type { [2 x [2 x %AA]] }
 
 @0 = private unnamed_addr constant [3 x i8] c"AA\00", align 1
 @1 = private unnamed_addr constant [6 x i8] c"%s { \00", align 1
@@ -132,72 +132,72 @@ declare i32 @printf(i8*, ...)
 
 define void @main() !dbg !4 {
 entry:
-  %0 = alloca [3 x i32], align 4, !dbg !32
-  %1 = getelementptr [3 x i32], [3 x i32]* %0, i32 0, i64 0, !dbg !32
-  store volatile i32 1, i32* %1, align 4, !dbg !32
-  %2 = getelementptr [3 x i32], [3 x i32]* %0, i32 0, i64 1, !dbg !32
-  store volatile i32 2, i32* %2, align 4, !dbg !32
-  %3 = getelementptr [3 x i32], [3 x i32]* %0, i32 0, i64 2, !dbg !32
-  store volatile i32 3, i32* %3, align 4, !dbg !32
-  %4 = alloca %AA, align 8, !dbg !32
-  %5 = getelementptr %AA, %AA* %4, i32 0, i32 0, !dbg !32
-  store volatile i32 321, i32* %5, align 4, !dbg !32
-  %6 = getelementptr %AA, %AA* %4, i32 0, i32 1, !dbg !32
-  %7 = bitcast [3 x i32]* %6 to i8*, !dbg !32
-  %8 = bitcast [3 x i32]* %0 to i8*, !dbg !32
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %7, i8* align 1 %8, i64 12, i1 false), !dbg !32
-  %aa = alloca %AA, align 8, !dbg !32
-  %9 = bitcast %AA* %aa to i8*, !dbg !32
-  %10 = bitcast %AA* %4 to i8*, !dbg !32
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %9, i8* align 8 %10, i64 16, i1 false), !dbg !32
+  %a2 = alloca %A2, align 8
+  %0 = alloca %A2, align 8
+  %1 = alloca [2 x [2 x %AA]], align 8
+  %2 = alloca [2 x %AA], align 8
+  %3 = alloca [2 x %AA], align 8
+  %a1 = alloca %A1, align 8
+  %4 = alloca %A1, align 8
+  %aa = alloca %AA, align 8
+  %5 = alloca %AA, align 8
+  %6 = alloca [3 x i32], align 4
+  %7 = getelementptr [3 x i32], [3 x i32]* %6, i32 0, i64 0, !dbg !32
+  store volatile i32 1, i32* %7, align 4, !dbg !32
+  %8 = getelementptr [3 x i32], [3 x i32]* %6, i32 0, i64 1, !dbg !32
+  store volatile i32 2, i32* %8, align 4, !dbg !32
+  %9 = getelementptr [3 x i32], [3 x i32]* %6, i32 0, i64 2, !dbg !32
+  store volatile i32 3, i32* %9, align 4, !dbg !32
+  %10 = getelementptr %AA, %AA* %5, i32 0, i32 0, !dbg !32
+  store volatile i32 321, i32* %10, align 4, !dbg !32
+  %11 = getelementptr %AA, %AA* %5, i32 0, i32 1, !dbg !32
+  %12 = bitcast [3 x i32]* %11 to i8*, !dbg !32
+  %13 = bitcast [3 x i32]* %6 to i8*, !dbg !32
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %12, i8* align 1 %13, i64 12, i1 false), !dbg !32
+  %14 = bitcast %AA* %aa to i8*, !dbg !32
+  %15 = bitcast %AA* %5 to i8*, !dbg !32
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %14, i8* align 8 %15, i64 16, i1 false), !dbg !32
   call void @llvm.dbg.declare(metadata %AA* %aa, metadata !9, metadata !DIExpression()), !dbg !33
-  %11 = alloca %A1, align 8, !dbg !34
-  %12 = getelementptr %A1, %A1* %11, i32 0, i32 0, !dbg !34
-  store volatile double 3.141590e+00, double* %12, align 8, !dbg !34
-  %13 = getelementptr %A1, %A1* %11, i32 0, i32 1, !dbg !34
-  %14 = bitcast %AA* %13 to i8*, !dbg !34
-  %15 = bitcast %AA* %aa to i8*, !dbg !34
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %14, i8* align 1 %15, i64 16, i1 false), !dbg !34
-  %a1 = alloca %A1, align 8, !dbg !34
-  %16 = bitcast %A1* %a1 to i8*, !dbg !34
-  %17 = bitcast %A1* %11 to i8*, !dbg !34
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %16, i8* align 8 %17, i64 24, i1 false), !dbg !34
+  %16 = getelementptr %A1, %A1* %4, i32 0, i32 0, !dbg !34
+  store volatile double 3.141590e+00, double* %16, align 8, !dbg !34
+  %17 = getelementptr %A1, %A1* %4, i32 0, i32 1, !dbg !34
+  %18 = bitcast %AA* %17 to i8*, !dbg !34
+  %19 = bitcast %AA* %aa to i8*, !dbg !34
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %18, i8* align 1 %19, i64 16, i1 false), !dbg !34
+  %20 = bitcast %A1* %a1 to i8*, !dbg !34
+  %21 = bitcast %A1* %4 to i8*, !dbg !34
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %20, i8* align 8 %21, i64 24, i1 false), !dbg !34
   call void @llvm.dbg.declare(metadata %A1* %a1, metadata !18, metadata !DIExpression()), !dbg !35
-  %18 = alloca [2 x %AA], align 8, !dbg !36
-  %19 = getelementptr [2 x %AA], [2 x %AA]* %18, i32 0, i64 0, !dbg !36
-  %20 = bitcast %AA* %19 to i8*, !dbg !36
-  %21 = bitcast %AA* %aa to i8*, !dbg !36
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %20, i8* align 1 %21, i64 16, i1 false), !dbg !36
-  %22 = getelementptr [2 x %AA], [2 x %AA]* %18, i32 0, i64 1, !dbg !36
+  %22 = getelementptr [2 x %AA], [2 x %AA]* %3, i32 0, i64 0, !dbg !36
   %23 = bitcast %AA* %22 to i8*, !dbg !36
   %24 = bitcast %AA* %aa to i8*, !dbg !36
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %23, i8* align 1 %24, i64 16, i1 false), !dbg !36
-  %25 = alloca [2 x %AA], align 8, !dbg !36
-  %26 = getelementptr [2 x %AA], [2 x %AA]* %25, i32 0, i64 0, !dbg !36
-  %27 = bitcast %AA* %26 to i8*, !dbg !36
-  %28 = bitcast %AA* %aa to i8*, !dbg !36
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %27, i8* align 1 %28, i64 16, i1 false), !dbg !36
-  %29 = getelementptr [2 x %AA], [2 x %AA]* %25, i32 0, i64 1, !dbg !36
-  %30 = bitcast %AA* %29 to i8*, !dbg !36
-  %31 = bitcast %AA* %aa to i8*, !dbg !36
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %30, i8* align 1 %31, i64 16, i1 false), !dbg !36
-  %32 = alloca [2 x [2 x %AA]], align 8, !dbg !36
-  %33 = getelementptr [2 x [2 x %AA]], [2 x [2 x %AA]]* %32, i32 0, i64 0, !dbg !36
-  %34 = bitcast [2 x %AA]* %33 to i8*, !dbg !36
-  %35 = bitcast [2 x %AA]* %18 to i8*, !dbg !36
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %34, i8* align 1 %35, i64 32, i1 false), !dbg !36
-  %36 = getelementptr [2 x [2 x %AA]], [2 x [2 x %AA]]* %32, i32 0, i64 1, !dbg !36
-  %37 = bitcast [2 x %AA]* %36 to i8*, !dbg !36
-  %38 = bitcast [2 x %AA]* %25 to i8*, !dbg !36
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %37, i8* align 1 %38, i64 32, i1 false), !dbg !36
-  %39 = alloca %A2, align 8, !dbg !36
-  %40 = getelementptr %A2, %A2* %39, i32 0, i32 0, !dbg !36
+  %25 = getelementptr [2 x %AA], [2 x %AA]* %3, i32 0, i64 1, !dbg !36
+  %26 = bitcast %AA* %25 to i8*, !dbg !36
+  %27 = bitcast %AA* %aa to i8*, !dbg !36
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %26, i8* align 1 %27, i64 16, i1 false), !dbg !36
+  %28 = getelementptr [2 x %AA], [2 x %AA]* %2, i32 0, i64 0, !dbg !36
+  %29 = bitcast %AA* %28 to i8*, !dbg !36
+  %30 = bitcast %AA* %aa to i8*, !dbg !36
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %29, i8* align 1 %30, i64 16, i1 false), !dbg !36
+  %31 = getelementptr [2 x %AA], [2 x %AA]* %2, i32 0, i64 1, !dbg !36
+  %32 = bitcast %AA* %31 to i8*, !dbg !36
+  %33 = bitcast %AA* %aa to i8*, !dbg !36
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %32, i8* align 1 %33, i64 16, i1 false), !dbg !36
+  %34 = getelementptr [2 x [2 x %AA]], [2 x [2 x %AA]]* %1, i32 0, i64 0, !dbg !36
+  %35 = bitcast [2 x %AA]* %34 to i8*, !dbg !36
+  %36 = bitcast [2 x %AA]* %3 to i8*, !dbg !36
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %35, i8* align 1 %36, i64 32, i1 false), !dbg !36
+  %37 = getelementptr [2 x [2 x %AA]], [2 x [2 x %AA]]* %1, i32 0, i64 1, !dbg !36
+  %38 = bitcast [2 x %AA]* %37 to i8*, !dbg !36
+  %39 = bitcast [2 x %AA]* %2 to i8*, !dbg !36
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %38, i8* align 1 %39, i64 32, i1 false), !dbg !36
+  %40 = getelementptr %A2, %A2* %0, i32 0, i32 0, !dbg !36
   %41 = bitcast [2 x [2 x %AA]]* %40 to i8*, !dbg !36
-  %42 = bitcast [2 x [2 x %AA]]* %32 to i8*, !dbg !36
+  %42 = bitcast [2 x [2 x %AA]]* %1 to i8*, !dbg !36
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %41, i8* align 1 %42, i64 64, i1 false), !dbg !36
-  %a2 = alloca %A2, align 8, !dbg !36
   %43 = bitcast %A2* %a2 to i8*, !dbg !36
-  %44 = bitcast %A2* %39 to i8*, !dbg !36
+  %44 = bitcast %A2* %0 to i8*, !dbg !36
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %43, i8* align 8 %44, i64 64, i1 false), !dbg !36
   call void @llvm.dbg.declare(metadata %A2* %a2, metadata !24, metadata !DIExpression()), !dbg !37
   %load = load %AA, %AA* %aa, align 4, !dbg !38

@@ -10,6 +10,7 @@ declare i32 @printf(i8*, ...)
 
 define void @main() {
 entry:
+  %a = alloca i32, align 4
   %i = alloca i32, align 4
   store volatile i32 0, i32* %i, align 4
   br label %condbb
@@ -33,7 +34,6 @@ then0:                                            ; preds = %whilebb
   br label %endwhilebb
 
 extra:                                            ; No predecessors!
-  %a = alloca i32, align 4
   store volatile i32 2, i32* %a, align 4
   %1 = load i32, i32* %a, align 4
   %add1 = add i32 %1, 2

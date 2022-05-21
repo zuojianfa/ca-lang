@@ -1,9 +1,9 @@
 ; ModuleID = 'type_scope1.ca'
 source_filename = "type_scope1.ca"
 
-%AA = type { i32, i1 }
-%AA.0 = type { i1 }
 %AA.1 = type { double }
+%AA.0 = type { i1 }
+%AA = type { i32, i1 }
 
 @a = internal global i32 34, align 4
 @0 = private unnamed_addr constant [3 x i8] c"AA\00", align 1
@@ -39,38 +39,38 @@ declare i32 @printf(i8*, ...)
 
 define void @func1() !dbg !8 {
 entry:
-  %0 = alloca %AA, align 8, !dbg !30
-  %1 = getelementptr %AA, %AA* %0, i32 0, i32 0, !dbg !30
-  store volatile i32 3231, i32* %1, align 4, !dbg !30
-  %2 = getelementptr %AA, %AA* %0, i32 0, i32 1, !dbg !30
-  store volatile i1 true, i1* %2, align 1, !dbg !30
-  %a = alloca %AA, align 8, !dbg !30
-  %3 = bitcast %AA* %a to i8*, !dbg !30
-  %4 = bitcast %AA* %0 to i8*, !dbg !30
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %3, i8* align 8 %4, i64 8, i1 false), !dbg !30
+  %a6 = alloca %AA.1, align 8
+  %0 = alloca %AA.1, align 8
+  %a1 = alloca %AA.0, align 8
+  %1 = alloca %AA.0, align 8
+  %a = alloca %AA, align 8
+  %2 = alloca %AA, align 8
+  %3 = getelementptr %AA, %AA* %2, i32 0, i32 0, !dbg !30
+  store volatile i32 3231, i32* %3, align 4, !dbg !30
+  %4 = getelementptr %AA, %AA* %2, i32 0, i32 1, !dbg !30
+  store volatile i1 true, i1* %4, align 1, !dbg !30
+  %5 = bitcast %AA* %a to i8*, !dbg !30
+  %6 = bitcast %AA* %2 to i8*, !dbg !30
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %5, i8* align 8 %6, i64 8, i1 false), !dbg !30
   call void @llvm.dbg.declare(metadata %AA* %a, metadata !13, metadata !DIExpression()), !dbg !31
-  %5 = alloca %AA.0, align 8, !dbg !32
-  %6 = getelementptr %AA.0, %AA.0* %5, i32 0, i32 0, !dbg !32
-  store volatile i1 true, i1* %6, align 1, !dbg !32
-  %a1 = alloca %AA.0, align 8, !dbg !32
-  %7 = bitcast %AA.0* %a1 to i8*, !dbg !32
-  %8 = bitcast %AA.0* %5 to i8*, !dbg !32
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %7, i8* align 8 %8, i64 1, i1 false), !dbg !32
+  %7 = getelementptr %AA.0, %AA.0* %1, i32 0, i32 0, !dbg !32
+  store volatile i1 true, i1* %7, align 1, !dbg !32
+  %8 = bitcast %AA.0* %a1 to i8*, !dbg !32
+  %9 = bitcast %AA.0* %1 to i8*, !dbg !32
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %8, i8* align 8 %9, i64 1, i1 false), !dbg !32
   call void @llvm.dbg.declare(metadata %AA.0* %a1, metadata !19, metadata !DIExpression()), !dbg !33
   %load = load %AA.0, %AA.0* %a1, align 1, !dbg !34
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @1, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0)), !dbg !34
   %n2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @3, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0)), !dbg !34
-  %9 = extractvalue %AA.0 %load, 0, !dbg !34
-  %10 = zext i1 %9 to i32, !dbg !34
-  %n3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @4, i32 0, i32 0), i32 %10), !dbg !34
+  %10 = extractvalue %AA.0 %load, 0, !dbg !34
+  %11 = zext i1 %10 to i32, !dbg !34
+  %n3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @4, i32 0, i32 0), i32 %11), !dbg !34
   %n4 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @5, i32 0, i32 0)), !dbg !34
   %n5 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @7, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @6, i32 0, i32 0)), !dbg !35
-  %11 = alloca %AA.1, align 8, !dbg !36
-  %12 = getelementptr %AA.1, %AA.1* %11, i32 0, i32 0, !dbg !36
+  %12 = getelementptr %AA.1, %AA.1* %0, i32 0, i32 0, !dbg !36
   store volatile double 1.011100e+02, double* %12, align 8, !dbg !36
-  %a6 = alloca %AA.1, align 8, !dbg !36
   %13 = bitcast %AA.1* %a6 to i8*, !dbg !36
-  %14 = bitcast %AA.1* %11 to i8*, !dbg !36
+  %14 = bitcast %AA.1* %0 to i8*, !dbg !36
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %13, i8* align 8 %14, i64 8, i1 false), !dbg !36
   call void @llvm.dbg.declare(metadata %AA.1* %a6, metadata !25, metadata !DIExpression()), !dbg !37
   %load7 = load %AA.1, %AA.1* %a6, align 8, !dbg !38
@@ -94,13 +94,13 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 define void @main() !dbg !41 {
 entry:
+  %a = alloca %AA, align 8, !dbg !44
+  %0 = alloca %AA, align 8, !dbg !44
   call void @func1(), !dbg !44
-  %0 = alloca %AA, align 8, !dbg !45
   %1 = getelementptr %AA, %AA* %0, i32 0, i32 0, !dbg !45
   store volatile i32 321, i32* %1, align 4, !dbg !45
   %2 = getelementptr %AA, %AA* %0, i32 0, i32 1, !dbg !45
   store volatile i1 true, i1* %2, align 1, !dbg !45
-  %a = alloca %AA, align 8, !dbg !45
   %3 = bitcast %AA* %a to i8*, !dbg !45
   %4 = bitcast %AA* %0 to i8*, !dbg !45
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %3, i8* align 8 %4, i64 8, i1 false), !dbg !45

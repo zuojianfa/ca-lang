@@ -1,8 +1,8 @@
 ; ModuleID = 'array_struct1.ca'
 source_filename = "array_struct1.ca"
 
-%AA = type { i32, i1 }
 %A1 = type { [2 x %AA] }
+%AA = type { i32, i1 }
 
 @0 = private unnamed_addr constant [2 x i8] c"[\00", align 1
 @1 = private unnamed_addr constant [3 x i8] c"AA\00", align 1
@@ -253,7 +253,9 @@ declare i32 @printf(i8*, ...)
 
 define void @main() !dbg !4 {
 entry:
-  %aaa = alloca [3 x %AA], align 8, !dbg !29
+  %aa1 = alloca [2 x %A1], align 8
+  %pa = alloca i32*, align 8
+  %aaa = alloca [3 x %AA], align 8
   %0 = bitcast [3 x %AA]* %aaa to i8*, !dbg !29
   call void @llvm.memset.p0i8.i64(i8* align 8 %0, i8 0, i64 24, i1 false), !dbg !29
   call void @llvm.dbg.declare(metadata [3 x %AA]* %aaa, metadata !9, metadata !DIExpression()), !dbg !30
@@ -352,7 +354,6 @@ entry:
   %n52 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @69, i32 0, i32 0), i8 10), !dbg !39
   %35 = getelementptr inbounds [3 x %AA], [3 x %AA]* %aaa, i32 0, i32 2, !dbg !40
   %36 = getelementptr inbounds %AA, %AA* %35, i32 0, i32 0, !dbg !40
-  %pa = alloca i32*, align 8, !dbg !40
   store volatile i32* %36, i32** %pa, align 8, !dbg !40
   call void @llvm.dbg.declare(metadata i32** %pa, metadata !19, metadata !DIExpression()), !dbg !41
   %deref = load i32*, i32** %pa, align 8, !dbg !42
@@ -403,7 +404,6 @@ entry:
   %n83 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @105, i32 0, i32 0)), !dbg !46
   %n84 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([2 x i8], [2 x i8]* @106, i32 0, i32 0)), !dbg !46
   %n85 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @107, i32 0, i32 0), i8 10), !dbg !47
-  %aa1 = alloca [2 x %A1], align 8, !dbg !48
   %49 = bitcast [2 x %A1]* %aa1 to i8*, !dbg !48
   call void @llvm.memset.p0i8.i64(i8* align 8 %49, i8 0, i64 32, i1 false), !dbg !48
   call void @llvm.dbg.declare(metadata [2 x %A1]* %aa1, metadata !21, metadata !DIExpression()), !dbg !49

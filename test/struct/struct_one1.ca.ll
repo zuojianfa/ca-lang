@@ -1,10 +1,10 @@
 ; ModuleID = 'struct_one1.ca'
 source_filename = "struct_one1.ca"
 
-%AA = type { i32 }
-%A1 = type { double }
-%A2 = type { i32, double }
 %A3 = type { double, i32 }
+%A2 = type { i32, double }
+%A1 = type { double }
+%AA = type { i32 }
 
 @0 = private unnamed_addr constant [3 x i8] c"AA\00", align 1
 @1 = private unnamed_addr constant [6 x i8] c"%s { \00", align 1
@@ -47,40 +47,40 @@ declare i32 @printf(i8*, ...)
 
 define void @main() !dbg !4 {
 entry:
-  %0 = alloca %AA, align 8, !dbg !29
-  %1 = getelementptr %AA, %AA* %0, i32 0, i32 0, !dbg !29
-  store volatile i32 32, i32* %1, align 4, !dbg !29
-  %aa = alloca %AA, align 8, !dbg !29
-  %2 = bitcast %AA* %aa to i8*, !dbg !29
-  %3 = bitcast %AA* %0 to i8*, !dbg !29
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %2, i8* align 8 %3, i64 4, i1 false), !dbg !29
+  %a3 = alloca %A3, align 8
+  %0 = alloca %A3, align 8
+  %a2 = alloca %A2, align 8
+  %1 = alloca %A2, align 8
+  %a1 = alloca %A1, align 8
+  %2 = alloca %A1, align 8
+  %aa = alloca %AA, align 8
+  %3 = alloca %AA, align 8
+  %4 = getelementptr %AA, %AA* %3, i32 0, i32 0, !dbg !29
+  store volatile i32 32, i32* %4, align 4, !dbg !29
+  %5 = bitcast %AA* %aa to i8*, !dbg !29
+  %6 = bitcast %AA* %3 to i8*, !dbg !29
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %5, i8* align 8 %6, i64 4, i1 false), !dbg !29
   call void @llvm.dbg.declare(metadata %AA* %aa, metadata !9, metadata !DIExpression()), !dbg !30
-  %4 = alloca %A1, align 8, !dbg !31
-  %5 = getelementptr %A1, %A1* %4, i32 0, i32 0, !dbg !31
-  store volatile double 4.430000e+01, double* %5, align 8, !dbg !31
-  %a1 = alloca %A1, align 8, !dbg !31
-  %6 = bitcast %A1* %a1 to i8*, !dbg !31
-  %7 = bitcast %A1* %4 to i8*, !dbg !31
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %6, i8* align 8 %7, i64 8, i1 false), !dbg !31
+  %7 = getelementptr %A1, %A1* %2, i32 0, i32 0, !dbg !31
+  store volatile double 4.430000e+01, double* %7, align 8, !dbg !31
+  %8 = bitcast %A1* %a1 to i8*, !dbg !31
+  %9 = bitcast %A1* %2 to i8*, !dbg !31
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %8, i8* align 8 %9, i64 8, i1 false), !dbg !31
   call void @llvm.dbg.declare(metadata %A1* %a1, metadata !14, metadata !DIExpression()), !dbg !32
-  %8 = alloca %A2, align 8, !dbg !33
-  %9 = getelementptr %A2, %A2* %8, i32 0, i32 0, !dbg !33
-  store volatile i32 32, i32* %9, align 4, !dbg !33
-  %10 = getelementptr %A2, %A2* %8, i32 0, i32 1, !dbg !33
-  store volatile double 4.430000e+01, double* %10, align 8, !dbg !33
-  %a2 = alloca %A2, align 8, !dbg !33
-  %11 = bitcast %A2* %a2 to i8*, !dbg !33
-  %12 = bitcast %A2* %8 to i8*, !dbg !33
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %11, i8* align 8 %12, i64 16, i1 false), !dbg !33
+  %10 = getelementptr %A2, %A2* %1, i32 0, i32 0, !dbg !33
+  store volatile i32 32, i32* %10, align 4, !dbg !33
+  %11 = getelementptr %A2, %A2* %1, i32 0, i32 1, !dbg !33
+  store volatile double 4.430000e+01, double* %11, align 8, !dbg !33
+  %12 = bitcast %A2* %a2 to i8*, !dbg !33
+  %13 = bitcast %A2* %1 to i8*, !dbg !33
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %12, i8* align 8 %13, i64 16, i1 false), !dbg !33
   call void @llvm.dbg.declare(metadata %A2* %a2, metadata !19, metadata !DIExpression()), !dbg !34
-  %13 = alloca %A3, align 8, !dbg !35
-  %14 = getelementptr %A3, %A3* %13, i32 0, i32 0, !dbg !35
+  %14 = getelementptr %A3, %A3* %0, i32 0, i32 0, !dbg !35
   store volatile double 4.430000e+01, double* %14, align 8, !dbg !35
-  %15 = getelementptr %A3, %A3* %13, i32 0, i32 1, !dbg !35
+  %15 = getelementptr %A3, %A3* %0, i32 0, i32 1, !dbg !35
   store volatile i32 32, i32* %15, align 4, !dbg !35
-  %a3 = alloca %A3, align 8, !dbg !35
   %16 = bitcast %A3* %a3 to i8*, !dbg !35
-  %17 = bitcast %A3* %13 to i8*, !dbg !35
+  %17 = bitcast %A3* %0 to i8*, !dbg !35
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %16, i8* align 8 %17, i64 16, i1 false), !dbg !35
   call void @llvm.dbg.declare(metadata %A3* %a3, metadata !24, metadata !DIExpression()), !dbg !36
   %load = load %AA, %AA* %aa, align 4, !dbg !37

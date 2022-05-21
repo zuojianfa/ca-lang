@@ -42,6 +42,13 @@ declare i32 @strlen(i8*)
 
 define void @main() {
 entry:
+  %f = alloca i32, align 4
+  %e = alloca i32*, align 8
+  %d = alloca i32, align 4
+  %c = alloca i32, align 4
+  %ppa = alloca i32**, align 8
+  %pa = alloca i32*, align 8
+  %a = alloca [4 x i32], align 4
   %0 = alloca [4 x i32], align 4
   %1 = getelementptr [4 x i32], [4 x i32]* %0, i32 0, i64 0
   store volatile i32 1, i32* %1, align 4
@@ -51,14 +58,11 @@ entry:
   store volatile i32 1, i32* %3, align 4
   %4 = getelementptr [4 x i32], [4 x i32]* %0, i32 0, i64 3
   store volatile i32 1, i32* %4, align 4
-  %a = alloca [4 x i32], align 4
   %5 = bitcast [4 x i32]* %a to i8*
   %6 = bitcast [4 x i32]* %0 to i8*
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 4 %5, i8* align 4 %6, i64 16, i1 false)
   %7 = bitcast [4 x i32]* %a to i32*
-  %pa = alloca i32*, align 8
   store volatile i32* %7, i32** %pa, align 8
-  %ppa = alloca i32**, align 8
   store volatile i32** %pa, i32*** %ppa, align 8
   %load = load i32*, i32** %pa, align 8
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i32* %load)
@@ -106,7 +110,6 @@ entry:
   %v133 = load i32*, i32** %pa, align 8
   %pop34 = getelementptr i32, i32* %v133, i32 1
   %deref = load i32, i32* %pop34, align 4
-  %c = alloca i32, align 4
   store volatile i32 %deref, i32* %c, align 4
   %v135 = load i32*, i32** %pa, align 8
   %pop36 = getelementptr i32, i32* %v135, i32 1
@@ -120,7 +123,6 @@ entry:
   %pop44 = getelementptr i32, i32* %v143, i32 1
   %pop45 = getelementptr i32, i32* %pop44, i32 2
   %deref46 = load i32, i32* %pop45, align 4
-  %d = alloca i32, align 4
   store volatile i32 %deref46, i32* %d, align 4
   %v147 = load i32*, i32** %pa, align 8
   %pop48 = getelementptr i32, i32* %v147, i32 1
@@ -133,7 +135,6 @@ entry:
   %n55 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @29, i32 0, i32 0), i8 10)
   %deref56 = load i32**, i32*** %ppa, align 8
   %tmpexpr = load i32*, i32** %deref56, align 8
-  %e = alloca i32*, align 8
   store volatile i32* %tmpexpr, i32** %e, align 8
   %deref57 = load i32**, i32*** %ppa, align 8
   %load58 = load i32*, i32** %deref57, align 8
@@ -143,7 +144,6 @@ entry:
   %v162 = load i32*, i32** %deref61, align 8
   %pop63 = getelementptr i32, i32* %v162, i32 1
   %deref64 = load i32, i32* %pop63, align 4
-  %f = alloca i32, align 4
   store volatile i32 %deref64, i32* %f, align 4
   %load65 = load i32, i32* %f, align 4
   %n66 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @32, i32 0, i32 0), i32 %load65)

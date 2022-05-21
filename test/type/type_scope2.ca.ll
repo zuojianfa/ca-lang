@@ -1,35 +1,35 @@
 ; ModuleID = 'type_scope2.ca'
 source_filename = "type_scope2.ca"
 
-%AA = type { i32, i1 }
 %AA.0 = type { double }
+%AA = type { i32, i1 }
 
 declare i32 @printf(i8*, ...)
 
 define void @main() !dbg !4 {
 entry:
-  %0 = alloca %AA, align 8, !dbg !24
-  %1 = getelementptr %AA, %AA* %0, i32 0, i32 0, !dbg !24
-  store volatile i32 3231, i32* %1, align 4, !dbg !24
-  %2 = getelementptr %AA, %AA* %0, i32 0, i32 1, !dbg !24
-  store volatile i1 true, i1* %2, align 1, !dbg !24
-  %a = alloca %AA, align 8, !dbg !24
-  %3 = bitcast %AA* %a to i8*, !dbg !24
-  %4 = bitcast %AA* %0 to i8*, !dbg !24
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %3, i8* align 8 %4, i64 8, i1 false), !dbg !24
+  %b = alloca i1, align 1
+  %a1 = alloca %AA.0, align 8
+  %0 = alloca %AA.0, align 8
+  %c = alloca i32, align 4
+  %a = alloca %AA, align 8
+  %1 = alloca %AA, align 8
+  %2 = getelementptr %AA, %AA* %1, i32 0, i32 0, !dbg !24
+  store volatile i32 3231, i32* %2, align 4, !dbg !24
+  %3 = getelementptr %AA, %AA* %1, i32 0, i32 1, !dbg !24
+  store volatile i1 true, i1* %3, align 1, !dbg !24
+  %4 = bitcast %AA* %a to i8*, !dbg !24
+  %5 = bitcast %AA* %1 to i8*, !dbg !24
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %4, i8* align 8 %5, i64 8, i1 false), !dbg !24
   call void @llvm.dbg.declare(metadata %AA* %a, metadata !9, metadata !DIExpression()), !dbg !25
-  %c = alloca i32, align 4, !dbg !26
   store volatile i32 1, i32* %c, align 4, !dbg !26
   call void @llvm.dbg.declare(metadata i32* %c, metadata !16, metadata !DIExpression()), !dbg !27
-  %5 = alloca %AA.0, align 8, !dbg !28
-  %6 = getelementptr %AA.0, %AA.0* %5, i32 0, i32 0, !dbg !28
+  %6 = getelementptr %AA.0, %AA.0* %0, i32 0, i32 0, !dbg !28
   store volatile double 1.011100e+02, double* %6, align 8, !dbg !28
-  %a1 = alloca %AA.0, align 8, !dbg !28
   %7 = bitcast %AA.0* %a1 to i8*, !dbg !28
-  %8 = bitcast %AA.0* %5 to i8*, !dbg !28
+  %8 = bitcast %AA.0* %0 to i8*, !dbg !28
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %7, i8* align 8 %8, i64 8, i1 false), !dbg !28
   call void @llvm.dbg.declare(metadata %AA.0* %a1, metadata !17, metadata !DIExpression()), !dbg !29
-  %b = alloca i1, align 1, !dbg !30
   store volatile i1 true, i1* %b, align 1, !dbg !30
   call void @llvm.dbg.declare(metadata i1* %b, metadata !23, metadata !DIExpression()), !dbg !31
   br label %ret, !dbg !32

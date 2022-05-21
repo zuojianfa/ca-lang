@@ -5,9 +5,10 @@ declare i32 @printf(i8*, ...)
 
 define void @main() {
 entry:
+  %e = alloca i1, align 1
+  %b = alloca i32, align 4
   %a = alloca i32, align 4
   store volatile i32 1, i32* %a, align 4
-  %b = alloca i32, align 4
   store volatile i32 2, i32* %b, align 4
   %v1 = load i32, i32* %a, align 4
   %v2 = load i32, i32* %b, align 4
@@ -22,7 +23,6 @@ thenbb:                                           ; preds = %entry
 
 outbb:                                            ; preds = %thenbb, %entry
   %iftmp = phi i1 [ %gt, %thenbb ], [ %lt, %entry ]
-  %e = alloca i1, align 1
   store volatile i1 %iftmp, i1* %e, align 1
   br label %ret
 

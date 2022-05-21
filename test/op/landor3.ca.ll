@@ -15,9 +15,9 @@ declare i32 @printf(i8*, ...)
 
 define i1 @func1(i32 %seq) {
 entry:
+  %retslot = alloca i1, align 1
   %seq1 = alloca i32, align 4
   store volatile i32 %seq, i32* %seq1, align 4
-  %retslot = alloca i1, align 1
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @1, i32 0, i32 0), i8* getelementptr inbounds ([15 x i8], [15 x i8]* @0, i32 0, i32 0))
   %load = load i32, i32* %seq1, align 4
   %n2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0), i32 %load)
@@ -35,11 +35,13 @@ ret:                                              ; preds = %afterret, %entry
 
 define void @main() {
 entry:
+  %a = alloca i1, align 1
+  %calltmp4 = alloca i1, align 1
+  %calltmp = alloca i1, align 1
   br i1 true, label %thenbb, label %outbb
 
 thenbb:                                           ; preds = %entry
   %func1 = call i1 @func1(i32 1)
-  %calltmp = alloca i1, align 1
   store volatile i1 %func1, i1* %calltmp, align 1
   %v2 = load i1, i1* %calltmp, align 1
   br label %outbb
@@ -53,7 +55,6 @@ thenbb1:                                          ; preds = %outbb
 
 thenbb2:                                          ; preds = %thenbb1
   %func13 = call i1 @func1(i32 3)
-  %calltmp4 = alloca i1, align 1
   store volatile i1 %func13, i1* %calltmp4, align 1
   %v25 = load i1, i1* %calltmp4, align 1
   br label %outbb6
@@ -64,7 +65,6 @@ outbb6:                                           ; preds = %thenbb2, %thenbb1
 
 outbb8:                                           ; preds = %outbb6, %outbb
   %iftmp9 = phi i1 [ %iftmp7, %outbb6 ], [ %iftmp, %outbb ]
-  %a = alloca i1, align 1
   store volatile i1 %iftmp9, i1* %a, align 1
   %cond = load i1, i1* %a, align 1
   br i1 %cond, label %then0, label %cond1

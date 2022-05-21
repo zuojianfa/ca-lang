@@ -5,10 +5,10 @@ declare i32 @printf(i8*, ...)
 
 define void @main() !dbg !4 {
 entry:
-  %a = alloca double, align 8, !dbg !14
+  %a1 = alloca i32, align 4
+  %a = alloca double, align 8
   store volatile double 3.140000e+00, double* %a, align 8, !dbg !14
   call void @llvm.dbg.declare(metadata double* %a, metadata !9, metadata !DIExpression()), !dbg !15
-  %a1 = alloca i32, align 4, !dbg !16
   store volatile i32 4, i32* %a1, align 4, !dbg !16
   call void @llvm.dbg.declare(metadata i32* %a1, metadata !11, metadata !DIExpression()), !dbg !17
   br label %ret, !dbg !18

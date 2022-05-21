@@ -45,7 +45,8 @@ declare i32 @printf(i8*, ...)
 
 define void @main() !dbg !4 {
 entry:
-  %0 = alloca %AA, align 8, !dbg !28
+  %a = alloca %AA, align 8
+  %0 = alloca %AA, align 8
   %1 = getelementptr %AA, %AA* %0, i32 0, i32 0, !dbg !28
   store volatile i8 33, i8* %1, align 1, !dbg !28
   %2 = getelementptr %AA, %AA* %0, i32 0, i32 1, !dbg !28
@@ -62,7 +63,6 @@ entry:
   store volatile i32 432432, i32* %7, align 4, !dbg !28
   %8 = getelementptr %AA, %AA* %0, i32 0, i32 7, !dbg !28
   store volatile i64 32132132, i64* %8, align 4, !dbg !28
-  %a = alloca %AA, align 8, !dbg !28
   %9 = bitcast %AA* %a to i8*, !dbg !28
   %10 = bitcast %AA* %0 to i8*, !dbg !28
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %9, i8* align 8 %10, i64 32, i1 false), !dbg !28
