@@ -371,7 +371,8 @@ STEntry *sym_insert(SymTable *st, int name, SymType type) {
   entry->sym_name = name;
   entry->sym_type = type;
   // entry->sloc = ?; TODO: assign a location
-  entry->u.var = nullptr;
+  entry->u.varshielding.current = nullptr;
+  entry->u.varshielding.varlist = nullptr;
   auto result = t->insert(std::make_pair(name, std::move(entry)));
 
   return result.first->second.get();
@@ -515,6 +516,21 @@ void *vec_new() {
 void vec_append(void *handle, void *item) {
   std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
   vec->push_back(item);
+}
+
+void *vec_front(void *handle) {
+  std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
+  return vec->empty() ? nullptr : vec->front();
+}
+
+void *vec_popfront(void *handle) {
+  std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
+  if (vec->empty())
+    return nullptr;
+
+  auto front = vec->front();
+  vec->erase(vec->begin());
+  return front;
 }
 
 size_t vec_size(void *handle) {

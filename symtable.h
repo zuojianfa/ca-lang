@@ -255,6 +255,11 @@ typedef struct ST_ArgListActual {
   struct ASTNode *args[MAX_ARGS];  // function argument name
 } ST_ArgListActual;
 
+typedef struct CAVariableShielding {
+  CAVariable *current;
+  void *varlist;
+} CAVariableShielding;
+
 // for the labels the symbol name will append a prefix of 'l:' which is
 // impossible to be as a variable name. example: l:l1
 // for function it will append a prefix of 'f:'. example: f:fibs
@@ -267,7 +272,8 @@ typedef struct STEntry {
       ST_ArgList *arglists; // when type is Sym_ArgList
       typeid_t rettype;
     } f;                // when type is Sym_ArgList and contains return type
-    CAVariable *var;    // when sym_type are Sym_Variable Sym_Member
+    //CAVariable *var;    // when sym_type are Sym_Variable Sym_Member
+    CAVariableShielding varshielding;  // when sym_type are Sym_Variable Sym_Member
     //CADataType *datatype; // when sym_type is Sym_DataType
     struct {
       int tuple;    // 1: when it is a tuple else it is a struct
@@ -377,6 +383,8 @@ int buffer_binary_end(void *handle, int *len);
 
 void *vec_new();
 void vec_append(void *handle, void *item);
+void *vec_front(void *handle);
+void *vec_popfront(void *handle);
 size_t vec_size(void *handle);
 void *vec_at(void *handle, int index);
 void vec_reverse(void *handle);

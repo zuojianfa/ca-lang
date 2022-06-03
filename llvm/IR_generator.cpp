@@ -333,8 +333,8 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     if (entry->sym_type != Sym_Variable)
       yyerror("symbol type is not variable: (%d != %d)", entry->sym_type, Sym_Variable);
 
-    CADataType *dt = catype_get_by_name(st, entry->u.var->datatype);
-    CHECK_GET_TYPE_VALUE(curr_fn_node, dt, entry->u.var->datatype);
+    CADataType *dt = catype_get_by_name(st, entry->u.varshielding.current->datatype);
+    CHECK_GET_TYPE_VALUE(curr_fn_node, dt, entry->u.varshielding.current->datatype);
 
     Type *type = llvmtype_from_catype(dt);
     AllocaInst *slot = ir1.gen_var(type, name, &arg);
@@ -349,7 +349,7 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     }
 
     // save the value into symbol table
-    entry->u.var->llvm_value = static_cast<void *>(slot);
+    entry->u.varshielding.current->llvm_value = static_cast<void *>(slot);
 
     ++i;
   }
@@ -507,8 +507,8 @@ static Value *walk_literal(ASTNode *p) {
 static Value *get_deref_expr_value(ASTNode *expr) {
   STEntry *entry = expr->entry;
   if (entry) {
-    assert(entry->u.var->llvm_value != nullptr);
-    Value *var = static_cast<Value *>(entry->u.var->llvm_value);
+    assert(entry->u.varshielding.current->llvm_value != nullptr);
+    Value *var = static_cast<Value *>(entry->u.varshielding.current->llvm_value);
     var = ir1.builder().CreateLoad(var, "derefo");
     return var;
   }
@@ -627,11 +627,11 @@ static Value *extract_value_from_struct(ASTNode *node) {
 static inline bool is_create_global_var(STEntry *entry) {
   // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
   // here determine if `#[scope(global)]` is specified
-  return curr_fn == main_fn && (!main_fn || entry->u.var->global);
+  return curr_fn == main_fn && (!main_fn || entry->u.varshielding.current->global);
 }
 
 static inline bool is_var_declare(ASTNode *p) {
-  return p->type == TTE_Id && p->entry->u.var->llvm_value == nullptr;
+  return p->type == TTE_Id && p->entry->u.varshielding.current->llvm_value == nullptr;
 }
 
 static Value *walk_id_defv_declare(ASTNode *p, CADataType *idtype, bool zeroinitial, Value *defval) {
@@ -662,7 +662,7 @@ static Value *walk_id_defv_declare(ASTNode *p, CADataType *idtype, bool zeroinit
       emit_local_var_dbginfo(curr_fn, name, idtype, var, p->endloc.row);
   }
 
-  entry->u.var->llvm_value = static_cast<void *>(var);
+  entry->u.varshielding.current->llvm_value = static_cast<void *>(var);
   return var;
 }
 
@@ -729,7 +729,7 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bo
 
   switch (p->type) {
   case TTE_Id:
-    var = static_cast<Value *>(p->entry->u.var->llvm_value);
+    var = static_cast<Value *>(p->entry->u.varshielding.current->llvm_value);
     break;
   case TTE_DerefLeft:
     var = get_deref_expr_value(p->deleftn.expr);
@@ -756,8 +756,8 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bo
 }
 
 static Value *walk_id(ASTNode *p) {
-  CADataType *catype = catype_get_by_name(p->symtable, p->entry->u.var->datatype);
-  CHECK_GET_TYPE_VALUE(p, catype, p->entry->u.var->datatype);
+  CADataType *catype = catype_get_by_name(p->symtable, p->entry->u.varshielding.current->datatype);
+  CHECK_GET_TYPE_VALUE(p, catype, p->entry->u.varshielding.current->datatype);
 
   Value *var = nullptr;
   if (is_var_declare(p))
@@ -912,7 +912,7 @@ static void walk_for(ASTNode *p) {
     return;
   }
 
-  CAVariable *cavar = entry->u.var;
+  CAVariable *cavar = entry->u.varshielding.current;
 
   CADataType *itemcatype = nullptr;
   if (is_forstmt_pointer_var(forvar)) {
@@ -1031,7 +1031,7 @@ static void walk_drop(ASTNode *p) {
     return;
   }
 
-  Value *boxedv = static_cast<Value *>(entry->u.var->llvm_value);
+  Value *boxedv = static_cast<Value *>(entry->u.varshielding.current->llvm_value);
   Value *heapv = ir1.builder().CreateLoad(boxedv, "heapv");
   llvmcode_drop(heapv);
 }
@@ -1597,7 +1597,7 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype,
 
 static void register_variable_catype(int var, typeid_t type, SymTable *symtable) {
   STEntry *entry = sym_getsym(symtable, var, 0);
-  entry->u.var->datatype = type;
+  entry->u.varshielding.current->datatype = type;
 }
 
 static void bind_register_variable_catype(void *morebind, typeid_t type, SymTable *symtable) {
@@ -1839,9 +1839,9 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
   STEntry *entry = sym_getsym(symtable, name, 0);
   assert(entry);
 
-  CADataType *catype = catype_get_by_name(symtable, entry->u.var->datatype);
+  CADataType *catype = catype_get_by_name(symtable, entry->u.varshielding.current->datatype);
 
-  const char *varname = symname_get(entry->u.var->name);
+  const char *varname = symname_get(entry->u.varshielding.current->name);
   Type *type = llvmtype_from_catype(catype);
   if (entry->sym_type != Sym_Variable) {
     caerror(&(entry->sloc), NULL, "line: %d, col: %d: '%s' Not a variable", varname);
@@ -1854,7 +1854,7 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
     var = ir1.gen_global_var(type, varname, value, false, value == nullptr);
 
     if (enable_debug_info())
-      emit_global_var_dbginfo(varname, catype, entry->u.var->loc.row);
+      emit_global_var_dbginfo(varname, catype, entry->u.varshielding.current->loc.row);
   } else {
 #if 1
     var = ir1.gen_entry_block_var(curr_fn, type, varname, nullptr);
@@ -1873,10 +1873,10 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
       aux_copy_llvmvalue_to_store(type, var, value, varname);
 
     if (enable_debug_info())
-      emit_local_var_dbginfo(curr_fn, varname, catype, var, entry->u.var->loc.row /* p->endloc.row */);
+      emit_local_var_dbginfo(curr_fn, varname, catype, var, entry->u.varshielding.current->loc.row /* p->endloc.row */);
   }
 
-  entry->u.var->llvm_value = static_cast<void *>(var);
+  entry->u.varshielding.current->llvm_value = static_cast<void *>(var);
   return var;
 }
 
@@ -1993,6 +1993,61 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *valu
   }
 }
 
+static void varshielding_rotate_variable(CAVariableShielding *shielding) {
+  if (vec_size(shielding->varlist)) {
+    vec_append(shielding->varlist, shielding->current);
+    shielding->current = (CAVariable *)vec_popfront(shielding->varlist);
+  }
+}
+
+static void varshielding_rotate_capattern_variable_single(int name, SymTable *symtable) {
+  STEntry *entry = sym_getsym(symtable, name, 0);
+  varshielding_rotate_variable(&entry->u.varshielding);
+}
+
+static void varshielding_rotate_capattern_variable_bind(void *morebind, SymTable *symtable) {
+  size_t size = vec_size(morebind);
+  for (size_t i = 0; i < size; ++i) {
+    int name = (int)(long)vec_at(morebind, i);
+    STEntry *entry = sym_getsym(symtable, name, 0);
+    varshielding_rotate_variable(&entry->u.varshielding);
+  }
+}
+
+static void varshielding_rotate_capattern_variable(CAPattern *cap, SymTable *symtable) {
+  varshielding_rotate_capattern_variable_single(cap->name, symtable);
+  varshielding_rotate_capattern_variable_bind(cap->morebind, symtable);
+}
+
+static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable);
+static void varshielding_rotate_capattern_struct(CAPattern *cap, SymTable *symtable) {
+  varshielding_rotate_capattern_variable_bind(cap->morebind, symtable);
+
+  PatternGroup *pg = cap->items;
+  for (int i = 0; i < pg->size; ++i) {
+    varshielding_rotate_capattern(pg->patterns[i], symtable);
+  }
+}
+
+static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable) {
+  switch (cap->type) {
+  case PT_Var:
+    varshielding_rotate_capattern_variable(cap, symtable);
+    break;
+  case PT_Tuple:
+  case PT_GenTuple:
+  case PT_Struct:
+    varshielding_rotate_capattern_struct(cap, symtable);
+    break;
+  case PT_IgnoreOne:
+  case PT_IgnoreRange:
+    break;
+  default:
+    yyerror("inner error: unknown pattern type: `%d`", cap->type);
+    break;
+  }
+}
+
 // NEXT TODO: for local and global variable binding, refactor walk_assign function
 static void walk_letbind(ASTNode *p) {
   CAPattern *cap = p->letbindn.cap;
@@ -2003,6 +2058,8 @@ static void walk_letbind(ASTNode *p) {
     
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
+
+  varshielding_rotate_capattern(cap, p->symtable);
 
   if (exprn->type != TTE_VarDefZeroValue) {
     // 1. inference type for both side of binding, to determine the types of both side
@@ -2158,7 +2215,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
 	datatype = formalparam->types[i];
       } else {
 	STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
-	datatype = paramentry->u.var->datatype;
+	datatype = paramentry->u.varshielding.current->datatype;
       }
 
       CADataType *dt = catype_get_by_name(name->symtable, datatype);
@@ -2895,8 +2952,8 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
       return -1;
     }
 
-    CADataType *prevcatype = catype_get_by_name(prevargs->symtable, preventry->u.var->datatype);
-    CADataType *currcatype = catype_get_by_name(currargs->symtable, currentry->u.var->datatype);
+    CADataType *prevcatype = catype_get_by_name(prevargs->symtable, preventry->u.varshielding.current->datatype);
+    CADataType *currcatype = catype_get_by_name(currargs->symtable, currentry->u.varshielding.current->datatype);
 
     if (prevcatype->signature != currcatype->signature) {
       caerror(&prev->sloc, NULL, "function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
@@ -2962,8 +3019,8 @@ static Function *walk_fn_declare(ASTNode *p) {
       return nullptr;
     }
 
-    CADataType *dt = catype_get_by_name(p->symtable, entry->u.var->datatype);
-    CHECK_GET_TYPE_VALUE(p, dt, entry->u.var->datatype);
+    CADataType *dt = catype_get_by_name(p->symtable, entry->u.varshielding.current->datatype);
+    CHECK_GET_TYPE_VALUE(p, dt, entry->u.varshielding.current->datatype);
 
     Type *type = llvmtype_from_catype(dt);
     params.push_back(type);

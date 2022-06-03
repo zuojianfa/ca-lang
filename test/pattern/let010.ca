@@ -38,6 +38,7 @@ fn main() {
     let bb@BB{1: d12, 0: d11, ..} = __zero_init__;
     print d11; print ' ';
     print d12; print '\n';
+    bb.2 = 'C'; bb.4 = 'A';
     print bb; print '\n';
 
     let BB{4: h1,..} = __zero_init__;

@@ -1055,7 +1055,7 @@ static int catype_unwind_type_name(SymTable *symtable, const char *pch,
       }
 
       sigi += sprintf(sigbuf + sigi, "%s:", argname);
-      membertype = nameentry->u.var->datatype;
+      membertype = nameentry->u.varshielding.current->datatype;
     }
 
     const char *mtypename = catype_get_type_name(membertype);
@@ -1746,8 +1746,8 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
     typeid_t type = sym_form_tuple_id(types, cap->items->size);
     CADataType *catype = catype_get_by_name(symtable, type);
     if (!catype) {
-      caerror(&cap->loc, NULL, "get type `%s` failed", catype_get_type_name(type));
-      return NULL;
+      caerror(&cap->loc, nullptr, "get type `%s` failed", catype_get_type_name(type));
+      return nullptr;
     }
 
     return catype;
@@ -1757,13 +1757,28 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
     typeid_t type = sym_form_type_id(cap->name);
     CADataType *catype = catype_get_by_name(symtable, type);
     if (!catype) {
-      caerror(&cap->loc, NULL, "get type `%s` by pattern failed", catype_get_type_name(type));
+      caerror(&cap->loc, nullptr, "get type `%s` by pattern failed", catype_get_type_name(type));
       return NULL;
     }
 
     return catype;
   }
-  case PT_Var:
+  case PT_Var: {
+    STEntry *entry = sym_getsym(symtable, cap->name, 0);
+    if (!entry)
+      return nullptr;
+
+    if (entry->sym_type != SymType::Sym_Variable) {
+      caerror(&cap->loc, nullptr, "bad entry type `%d`, should be `variable`", entry->sym_type);
+      return nullptr;
+    }
+
+    if (entry->u.varshielding.current->datatype == typeid_novalue)
+      return nullptr;
+
+    CADataType *catype = catype_get_by_name(symtable, entry->u.varshielding.current->datatype);
+    return catype;
+  }
   case PT_IgnoreOne:
   case PT_IgnoreRange:
     return nullptr;

@@ -67,4 +67,6 @@ add_subdirectory(op)
 add_subdirectory(flow)
 add_subdirectory(box)
 add_subdirectory(tuple)
+add_subdirectory(pattern)
+add_subdirectory(shielding)
 

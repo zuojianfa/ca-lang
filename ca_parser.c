@@ -319,7 +319,7 @@ static void check_expr_arglists(ST_ArgList *al) {
 	return;
       }
 
-      if (entry->u.var->datatype == sym_form_type_id_from_token(VOID))
+      if (entry->u.varshielding.current->datatype == sym_form_type_id_from_token(VOID))
 	void_count += 1;
     }
 
@@ -583,7 +583,7 @@ SymTable *pop_symtable() {
 int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
   dot_emit("fn_args_p", "fn_args_p ',' iddef_typed");
   // or
-  dot_emit("fn_args_p", "iddef_typed"); 
+  dot_emit("fn_args_p", "iddef_typed");
   
     int name = var->name;
     if (arglist->argc >= MAX_ARGS) {
@@ -602,7 +602,7 @@ int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
     }
 
     entry = sym_insert(st, name, Sym_Variable);
-    entry->u.var = cavar_create(name, var->datatype);
+    entry->u.varshielding.current = cavar_create(name, var->datatype);
     arglist->argnames[arglist->argc++] = name;
     return 0;
 }
@@ -741,14 +741,26 @@ int make_attrib_scope(int attrfn, int attrparam) {
 void register_variable(CAVariable *cavar, SymTable *symtable) {
   STEntry *entry = sym_getsym(symtable, cavar->name, 0);
   if (entry) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "symbol '%s' already defined in scope on line %d, col %d.",
-	    symname_get(cavar->name), entry->sloc.row, entry->sloc.col);
-    return;
+    if (entry->sym_type != Sym_Variable) {
+      SLoc stloc = {glineno, gcolno};
+      caerror(&stloc, NULL, "symbol '%s' already defined with a non-variable type `%d` in scope on line %d, col %d.",
+	      symname_get(cavar->name), entry->sym_type, entry->sloc.row, entry->sloc.col);
+      return;
+    }
+
+    vec_append(entry->u.varshielding.varlist, entry->u.varshielding.current);
+  } else {
+    entry = sym_insert(symtable, cavar->name, Sym_Variable);
+    entry->u.varshielding.varlist = vec_new();
   }
 
-  entry = sym_insert(symtable, cavar->name, Sym_Variable);
-  entry->u.var = cavar;
+  // NEXT TODO: for shadowing, determine how to chain the different shadowing variables with different type
+  // option 1. make CAVariable objects for each shadowing variables
+  // option 2. all shadowing in one CAVariable object
+  // NEXT TODO: I choose option 1: because, it only need rotation the variable list in symbol entry for both stage parse stage and llvm gen stage
+  // 
+
+  entry->u.varshielding.current = cavar;
 }
 
 ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global) {
@@ -848,42 +860,48 @@ void register_capattern_symtable(CAPattern *cap, SLoc *loc) {
   }
 }
 
-static int capattern_check_ignore(CAPattern *cap) {
+static const char *capattern_check_ignore(CAPattern *cap) {
   int count = 0;
   switch (cap->type) {
   case PT_Var:
-    return 0;
+    return NULL;
   case PT_GenTuple:
   case PT_Tuple:
   case PT_Struct:
     for (int i = 0; i < cap->items->size; ++i) {
       if (cap->items->patterns[i]->type == PT_IgnoreRange)
 	count += 1;
-      else
-	if (capattern_check_ignore(cap->items->patterns[i]))
-	  return -1;
+      else {
+	const char *error = capattern_check_ignore(cap->items->patterns[i]);
+	if (error)
+	  return error;
+      }
     }
 
     if (!count)
-      return 0;
+      return NULL;
 
     // struct ignore range must be at the end
-    if (count > 1 || cap->type == PT_Struct && cap->items->patterns[cap->items->size-1]->type != PT_IgnoreRange)
-      return -1;
+    if (count > 1)
+      return "capattern: can only have one ignore range field";
 
-    return 0;
+    if (cap->type == PT_Struct && cap->items->patterns[cap->items->size-1]->type != PT_IgnoreRange)
+      return "capattern: can only have one ignore range field and must be in last field for a struct style pattern matching";
+
+    return NULL;
   case PT_IgnoreOne:
-    return 0;
+    return NULL;
   case PT_IgnoreRange:
     // the ignore range must be in tuple or struct
-    return -1;
+    return "capattern: the ignore range must be in tuple or struct";
   }
 }
 
 ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
-  if (capattern_check_ignore(cap)) {
+  const char *error = NULL;
+  if ((error = capattern_check_ignore(cap)) != NULL) {
     SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "capattern can only have one ignore range field");
+    caerror(&stloc, NULL, error);
     return NULL;
   }
 
@@ -1099,7 +1117,7 @@ typeid_t get_expr_type_from_tree(ASTNode *node) {
       return typeid_novalue;
     }
 
-    return node->entry->u.var->datatype;
+    return node->entry->u.varshielding.current->datatype;
   case TTE_DerefLeft: {
     ASTNode *expr = node->deleftn.expr;
     typeid_t innerid = get_expr_type_from_tree(expr);
@@ -1420,7 +1438,7 @@ typeid_t inference_expr_type(ASTNode *p) {
     if (p->idn.idtype == TTEId_FnName)
       return typeid_novalue;
 
-    return p->entry->u.var->datatype;
+    return p->entry->u.varshielding.current->datatype;
   case TTE_As:
     type1 = inference_expr_type(p->exprasn.expr);
     // TODO: handle when complex type
@@ -1596,7 +1614,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
       return -1;
     }
 
-    CADataType *idcatype = catype_get_by_name(idnode->symtable, idnode->entry->u.var->datatype);
+    CADataType *idcatype = catype_get_by_name(idnode->symtable, idnode->entry->u.varshielding.current->datatype);
 
     if (idcatype->signature != datatype->pointer_layout->type->signature) {
       caerror(&(node->begloc), &(node->endloc), "variable address type `%s` cannot be type of `%s`",
@@ -1726,14 +1744,14 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
       }
     }
 
-    if (node->entry->u.var->datatype == typeid_novalue)
-      node->entry->u.var->datatype = catype->signature;
+    if (node->entry->u.varshielding.current->datatype == typeid_novalue)
+      node->entry->u.varshielding.current->datatype = catype->signature;
     else if (!catype_check_identical_in_symtable(node->symtable,
-				     node->entry->u.var->datatype,
+				     node->entry->u.varshielding.current->datatype,
 				     node->symtable, type)) {
       // fprintf(stderr, 
       caerror(&(node->begloc), &(node->endloc), "determine different type `%s` != `%s`\n",
-	      symname_get(type), symname_get(node->entry->u.var->datatype));
+	      symname_get(type), symname_get(node->entry->u.varshielding.current->datatype));
       return 0;
     }
 
@@ -2035,7 +2053,7 @@ void make_for_var_entry(int id) {
 
   entry = sym_insert(curr_symtable, id, Sym_Variable);
   CAVariable *cavar = cavar_create(id, typeid_novalue);
-  entry->u.var = cavar;
+  entry->u.varshielding.current = cavar;
 }
 
 ASTNode *make_for(ForStmtId id, ASTNode *listnode, ASTNode *stmts) {
@@ -2321,7 +2339,7 @@ int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
   }
 
   entry = sym_insert(st, name, Sym_Member);
-  entry->u.var = cavar_create(name, var->datatype);
+  entry->u.varshielding.current = cavar_create(name, var->datatype);
   arglist->argnames[arglist->argc++] = name;
   return 0;
 }
