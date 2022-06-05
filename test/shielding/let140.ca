@@ -1,0 +1,11 @@
+fn main() {
+    struct BB (i32, i32);
+    let BB(b1, b2): BB = BB(1, 2);
+    print b1; print ' ';
+    print b2; print ' ';
+
+    let BB(b3, b4) = (3, 4);
+    print b3; print ' ';
+    print b4; print ' ';
+}
+

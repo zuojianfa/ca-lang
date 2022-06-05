@@ -523,6 +523,11 @@ void *vec_front(void *handle) {
   return vec->empty() ? nullptr : vec->front();
 }
 
+void vec_pushfront(void *handle, void *item) {
+  std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
+  vec->insert(vec->begin(), item);
+}
+
 void *vec_popfront(void *handle) {
   std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
   if (vec->empty())
@@ -531,6 +536,16 @@ void *vec_popfront(void *handle) {
   auto front = vec->front();
   vec->erase(vec->begin());
   return front;
+}
+
+void *vec_popback(void *handle) {
+  std::vector<void *> *vec = static_cast<std::vector<void *> *>(handle);
+  if (vec->empty())
+    return nullptr;
+
+  auto back = vec->back();
+  vec->pop_back();
+  return back;
 }
 
 size_t vec_size(void *handle) {

@@ -1,0 +1,52 @@
+fn main() {
+    struct BB (i32, i32, char, f64, char);
+
+    let BB{0:b1, 1:b2, 2:b3, 3:b4, 4:b5}: BB = __zero_init__;
+    print b1; print ' ';
+    print b2; print ' ';
+    b3 = 'C'; b5 = 'A';
+    print b3; print ' ';
+    print b4; print ' ';
+    print b5; print '\n';
+
+    let BB{3:b14, 1:b12, 4:b15, 2:b13, 0:b11}: BB = __zero_init__;
+    print b11; print ' ';
+    print b12; print ' ';
+    b13 = 'C'; b15 = 'A';
+    print b13; print ' ';
+    print b14; print ' ';
+    print b15; print '\n';
+
+    let BB{0: c1, 1: c2, 2: c3, 3: c4, ..} = __zero_init__;
+    print c1; print ' ';
+    print c2; print ' ';
+    c3 = 'D';
+    print c3; print ' ';
+    print c4; print '\n';
+
+    let BB{2: c13, 1: c12, 0: c11, 3: c14, ..} = __zero_init__;
+    print c11; print ' ';
+    print c12; print ' ';
+    c13 = 'D';
+    print c13; print ' ';
+    print c14; print '\n';
+
+    let BB{0: d1, 1: d2, ..} = __zero_init__;
+    print d1; print ' ';
+    print d2; print '\n';
+
+    let bb@BB{1: d12, 0: d11, ..} = __zero_init__;
+    print d11; print ' ';
+    print d12; print '\n';
+    bb.2 = 'C'; bb.4 = 'A';
+    print bb; print '\n';
+
+    let BB{4: h1,..} = __zero_init__;
+    h1 = 'A';
+    print h1; print '\n';
+
+    let bbb@BB{..} = __zero_init__;
+    bbb.2 = 'R'; bbb.4 = 'S';
+    print bbb; print ' ';
+}
+

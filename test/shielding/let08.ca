@@ -1,0 +1,41 @@
+fn main() {
+    type BB = (i32, i32, char, f64, char);
+
+    let (b1, _, b3, _, b5): BB = __zero_init__;
+    print b1; print ' ';
+    b3 = 'C'; b5 = 'A';
+    print b3; print ' ';
+    print b5; print '\n';
+
+    let (_, c2, c3, c4, _): BB = __zero_init__;
+    print c2; print ' ';
+    c3 = 'D';
+    print c3; print ' ';
+    print c4; print '\n';
+
+    let (d1, d2, _, _, _): BB = __zero_init__;
+    print d1; print ' ';
+    print d2; print '\n';
+
+    let (e1, _, _, _, e2): BB = __zero_init__;
+    e2 = 'B';
+    print e1; print ' ';
+    print e2; print '\n';
+
+    let (_, _, _, f1, f2): BB = __zero_init__;
+    f2 = 'Q';
+    print f1; print ' ';
+    print f2; print ' ';
+
+    let (_, _, _, _, g1): BB = __zero_init__;
+    g1 = 'P';
+    print g1; print ' ';
+
+    let (h1,_,_,_ ,_): BB = __zero_init__;
+    print h1; print '\n';
+
+    let bb@(_,_ , _ ,_ , _): BB = __zero_init__;
+    bb.2 = 'R'; bb.4 = 'S';
+    print bb; print ' ';
+}
+

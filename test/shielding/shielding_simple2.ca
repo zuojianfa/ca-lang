@@ -1,0 +1,17 @@
+fn main() {
+    let a = 1;
+    let b = 1.2;
+    print a; print ' ';
+    print b; print ' ';
+    let a = 2.2;
+    print a; print '\n';
+
+    struct AA {f1: i32, f2: char, f3: f64}
+    let a = AA{f1: 134, f2: 'C', f3: 3.14159};
+    print a; print '\n';
+    let b = 'A';
+    print b; print ' ';
+    let b = (1,2,3);
+    print b;
+}
+

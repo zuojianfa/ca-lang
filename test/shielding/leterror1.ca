@@ -1,0 +1,9 @@
+fn main() {
+    struct BB (i32, i32, char, f64, char);
+
+    let BB{0: e1, _, 1: e2} = __zero_init__;
+    e2 = 'B';
+    print e1; print ' ';
+    print e2; print '\n';
+}
+

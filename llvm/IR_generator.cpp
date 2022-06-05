@@ -1631,12 +1631,16 @@ static void inference_letbind_pattern_range(CAPattern *cap, ASTNode *tuplenode, 
   }
 }
 
+static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bool is_back = false);
 static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
   switch (cap->type) {
   case PT_IgnoreOne:
   case PT_IgnoreRange:
   case PT_Var: {
+    // for variable shielding, resolving `let a = a;` statement
+    varshielding_rotate_capattern(cap, exprn->symtable, true);
     typeid_t type = inference_expr_type(exprn);
+    varshielding_rotate_capattern(cap, exprn->symtable, false);
     if (cap->type == PT_Var)
       capattern_register_variable_catype(cap, type, exprn->symtable);
 
@@ -1675,7 +1679,9 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
     if (cap->morebind)
       bind_register_variable_catype(cap->morebind, catype->signature, exprn->symtable);
 
+    varshielding_rotate_capattern(cap, exprn->symtable, true);
     determine_expr_type(exprn, catype->signature);
+    varshielding_rotate_capattern(cap, exprn->symtable, false);
     break;
   }
   case PT_Tuple:
@@ -1683,7 +1689,11 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
     // named struct / tuple must can create a type according to it's name
     CADataType *catype = capattern_check_get_type(cap, exprn);
     CHECK_GET_TYPE_VALUE(exprn, catype, cap->name);
+
+    varshielding_rotate_capattern(cap, exprn->symtable, true);
     determine_expr_type(exprn, catype->signature);
+    varshielding_rotate_capattern(cap, exprn->symtable, false);
+
     determine_letbind_type(cap, catype, exprn->symtable);
     break;
     }
@@ -1694,7 +1704,10 @@ static void inference_letbind_type(CAPattern *cap, ASTNode *exprn) {
   CADataType *catype = capattern_check_get_type(cap, exprn);
   if (catype) {
     determine_letbind_type(cap, catype, exprn->symtable);
+
+    varshielding_rotate_capattern(cap, exprn->symtable, true);
     determine_expr_type(exprn, catype->signature);
+    varshielding_rotate_capattern(cap, exprn->symtable, false);
     return;
   }
 
@@ -1993,51 +2006,55 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *valu
   }
 }
 
-static void varshielding_rotate_variable(CAVariableShielding *shielding) {
+static void varshielding_rotate_variable(CAVariableShielding *shielding, bool is_back = false) {
   if (vec_size(shielding->varlist)) {
-    vec_append(shielding->varlist, shielding->current);
-    shielding->current = (CAVariable *)vec_popfront(shielding->varlist);
+    if (is_back) {
+      vec_pushfront(shielding->varlist, shielding->current);
+      shielding->current = (CAVariable *)vec_popback(shielding->varlist);
+    } else {
+      vec_append(shielding->varlist, shielding->current);
+      shielding->current = (CAVariable *)vec_popfront(shielding->varlist);
+    }
   }
 }
 
-static void varshielding_rotate_capattern_variable_single(int name, SymTable *symtable) {
+static void varshielding_rotate_capattern_variable_single(int name, SymTable *symtable, bool is_back = false) {
   STEntry *entry = sym_getsym(symtable, name, 0);
-  varshielding_rotate_variable(&entry->u.varshielding);
+  varshielding_rotate_variable(&entry->u.varshielding, is_back);
 }
 
-static void varshielding_rotate_capattern_variable_bind(void *morebind, SymTable *symtable) {
+static void varshielding_rotate_capattern_variable_bind(void *morebind, SymTable *symtable, bool is_back = false) {
   size_t size = vec_size(morebind);
   for (size_t i = 0; i < size; ++i) {
     int name = (int)(long)vec_at(morebind, i);
     STEntry *entry = sym_getsym(symtable, name, 0);
-    varshielding_rotate_variable(&entry->u.varshielding);
+    varshielding_rotate_variable(&entry->u.varshielding, is_back);
   }
 }
 
-static void varshielding_rotate_capattern_variable(CAPattern *cap, SymTable *symtable) {
-  varshielding_rotate_capattern_variable_single(cap->name, symtable);
-  varshielding_rotate_capattern_variable_bind(cap->morebind, symtable);
+static void varshielding_rotate_capattern_variable(CAPattern *cap, SymTable *symtable, bool is_back = false) {
+  varshielding_rotate_capattern_variable_single(cap->name, symtable, is_back);
+  varshielding_rotate_capattern_variable_bind(cap->morebind, symtable, is_back);
 }
 
-static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable);
-static void varshielding_rotate_capattern_struct(CAPattern *cap, SymTable *symtable) {
-  varshielding_rotate_capattern_variable_bind(cap->morebind, symtable);
+static void varshielding_rotate_capattern_struct(CAPattern *cap, SymTable *symtable, bool is_back = false) {
+  varshielding_rotate_capattern_variable_bind(cap->morebind, symtable, is_back);
 
   PatternGroup *pg = cap->items;
   for (int i = 0; i < pg->size; ++i) {
-    varshielding_rotate_capattern(pg->patterns[i], symtable);
+    varshielding_rotate_capattern(pg->patterns[i], symtable, is_back);
   }
 }
 
-static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable) {
+static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bool is_back) {
   switch (cap->type) {
   case PT_Var:
-    varshielding_rotate_capattern_variable(cap, symtable);
+    varshielding_rotate_capattern_variable(cap, symtable, is_back);
     break;
   case PT_Tuple:
   case PT_GenTuple:
   case PT_Struct:
-    varshielding_rotate_capattern_struct(cap, symtable);
+    varshielding_rotate_capattern_struct(cap, symtable, is_back);
     break;
   case PT_IgnoreOne:
   case PT_IgnoreRange:
@@ -2067,7 +2084,9 @@ static void walk_letbind(ASTNode *p) {
     inference_letbind_type(cap, exprn);
 
     // 2. walk right side node and get Value
+    varshielding_rotate_capattern(cap, exprn->symtable, true);
     walk_stack(exprn);
+    varshielding_rotate_capattern(cap, exprn->symtable, false);
 
     //auto pair = pop_right_value("tmpexpr", false);
     //pair.first;

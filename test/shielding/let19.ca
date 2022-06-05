@@ -1,0 +1,42 @@
+fn main() {
+    type BB = (i32, i32, char, f64, char);
+
+    let (b1, _, b3, .., b5): BB = (1, 2, 'C', 6.6, 'A');
+    print b1; print ' ';
+    print b3; print ' ';
+    print b5; print '\n';
+
+    let (b11, _, .., b51): BB = (6, 2, 'C', 6.6, 'A');
+    print b11; print ' ';
+    print b51; print '\n';
+
+    let cc@(_, c2, .., c4, _): BB = (1, 2, 'C', 6.6, 'A');
+    print c2; print ' ';
+    print c4; print '\n';
+    cc.2 = 'F'; cc.4 = 'L';
+    print cc; print '\n';
+
+    let (d1, .., _, _, _): BB = (1, 2, 'C', 6.6, 'A');
+    print 'C';
+    print d1; print ' ';
+
+    let (d11, _, ..): BB = (1, 2, 'C', 6.6, 'A');
+    print 'Z';
+    print d11; print ' ';
+
+    let (.., _, _, _, e2): BB = (1, 2, 'C', 6.6, 'A');
+    print e2; print '\n';
+
+    let (_, .., f2): BB = (1, 2, 'C', 6.6, 'A');
+    print f2; print ' ';
+
+    let (.., _, g1): BB = (1, 2, 'C', 6.6, 'A');
+    print g1; print ' ';
+
+    let (h1,.., _): BB = (1, 2, 'C', 6.6, 'A');
+    print h1; print '\n';
+
+    let bb@(_, .. , _): BB = (1, 2, 'C', 6.6, 'A');
+    print bb; print ' ';
+}
+

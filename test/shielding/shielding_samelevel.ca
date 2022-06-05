@@ -1,0 +1,11 @@
+fn main() {
+    let a = 1;
+    let a = a + 1;
+    print a; print '\n';
+
+    let (a, b, c) = (1, 2.2, 'Z');
+    let (a, b, c) = (a, b, c);
+    print a; print ' ';
+    print b; print ' ';
+    print c;
+}
