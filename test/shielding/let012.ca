@@ -15,5 +15,24 @@ fn main() {
     print a2f1; print '\n';
     print a2f2; print ' ';
     print boo; print '\n';
+
+    a3.0.f1 = 123;
+    a3.0.f2 = 321;
+    (a3.1).1 = 456;
+    (a3.1).2 = 654;
+    (a3.2).f2.0 = 0xcc;
+    (a3.2).f2.1 = true;
+
+    let a3@A3(aa@AA{f1, f2}, a1@(_, v1, _), a2@A2{f1: a2f1, f2: a2f2@(_, boo)}) = a3;
+    print a3; print '\n';
+    print aa; print '\n';
+    print f1; print ' ';
+    print f2; print ' ';
+    print v1; print '\n';
+    print a1; print '\n';
+    print a2; print '\n';
+    print a2f1; print '\n';
+    print a2f2; print ' ';
+    print boo; print '\n';
 }
 

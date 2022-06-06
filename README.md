@@ -215,6 +215,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] the named tuple and function cannot have the same name in the same scope, they are conflicting not like struct
 - [x] if else if else ...
 - [x] support multiple if-else else if statement
+- [x] well error messages of line number
 - [ ] support multiple compile unit and link them together
 - [ ] support rust grammar
   - [x] heap allocate memory: `box`
@@ -223,6 +224,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [x] tuple operation .0 .1
   - [x] loop
   - [x] type statement, used to define type aliases
+  - [x] let pattern matching: let S(x) = A; let S{x} = A;
+  - [x] support let variable rebind to new type
   - [x] for i in list
 	- [x] for *i in list
 	- [ ] for &i in list
@@ -297,12 +300,9 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-- [ ] let pattern almost finished except the test case failure that resulted from the line number changes in output or in llvm output, so next time can conbine it with the finer line number see following one. NEXT TODO should be focus on the line number and source code and then match pattern 
-- [ ] how to use the finer line number column number of any code, and how to show the fine source code????????????????????????????
-- [ ] let04.ca result into CMakeLists.txt, test gen tuple _,  debugging .0 .1 ... for tuple and struct, recursive struct, add array
-- [ ] pattern matching: let S(x) = A; let S{x} = A;
+- [ ] handle the same bind: struct AA {f1: i32, f2: char, }  let AA {f1: a, f2: a} = AA {f1: 32, f2: 'F'};
+- [ ] handle multiple tuple elements like a.1.2
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
-- [ ] support let variable rebind to new type
 - [ ] 'label1: loop
 - [ ] match
 - [ ] mod scope

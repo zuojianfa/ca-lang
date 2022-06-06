@@ -9,36 +9,36 @@ fn main() {
     print b4; print ' ';
     print b5; print '\n';
 
-    let BB(c1, c2, c3, c4, ..) = __zero_init__;
-    print c1; print ' ';
-    print c2; print ' ';
-    c3 = 'D';
-    print c3; print ' ';
-    print c4; print '\n';
+    let BB(b1, b2, b3, b4, ..) = __zero_init__;
+    print b1; print ' ';
+    print b2; print ' ';
+    b3 = 'D';
+    print b3; print ' ';
+    print b4; print '\n';
 
-    let BB(d1, d2, ..) = __zero_init__;
-    print d1; print ' ';
-    print d2; print '\n';
+    let BB(b1, b2, ..) = __zero_init__;
+    print b1; print ' ';
+    print b2; print '\n';
 
-    let BB(e1, .., e2) = __zero_init__;
-    e2 = 'B';
-    print e1; print ' ';
-    print e2; print '\n';
+    let BB(b1, .., b2) = __zero_init__;
+    b2 = 'B';
+    print b1; print ' ';
+    print b2; print '\n';
 
-    let BB(.., f1, f2) = __zero_init__;
-    f2 = 'Q';
-    print f1; print ' ';
-    print f2; print ' ';
+    let BB(.., b1, b2) = __zero_init__;
+    b2 = 'Q';
+    print b1; print ' ';
+    print b2; print ' ';
 
-    let BB(.., g1) = __zero_init__;
-    g1 = 'P';
-    print g1; print ' ';
+    let BB(.., b1) = __zero_init__;
+    b1 = 'P';
+    print b1; print ' ';
 
-    let BB(h1,..) = __zero_init__;
-    print h1; print '\n';
+    let BB(b1,..) = __zero_init__;
+    print b1; print '\n';
 
-    let bb@BB(..) = __zero_init__;
-    bb.2 = 'R'; bb.4 = 'S';
-    print bb; print ' ';
+    let b1@BB(..) = __zero_init__;
+    b1.2 = 'R'; b1.4 = 'S';
+    print b1; print ' ';
 }
 

@@ -3,11 +3,11 @@ fn main() {
         f1: i32,
     }
 
-    let a11@a10@a1a: A1 = __zero_init__;
+    let a1@a0@a1a: A1 = __zero_init__;
     print a1a; print '\n';
-    print a10; print '\n';
-    a11.f1 = 3;
-    print a11; print '\n';
+    print a0; print '\n';
+    a1.f1 = 3;
+    print a1; print '\n';
 
     let a12 = A1{3};
     struct AA {
@@ -19,8 +19,8 @@ fn main() {
     let aa = AA {3, 4, 'C'};
     print aa; print '\n';
 
-    let a: (i32, (i32, i32)) = __zero_init__;
-    print a; print '\n';
+    let aa: (i32, (i32, i32)) = __zero_init__;
+    print aa; print '\n';
     let (a1, b1): (i32, i32) = __zero_init__;
     print a1; print ' ';
     print b1; print '\n';
@@ -30,18 +30,18 @@ fn main() {
     print b1; print '\n';
 
     type A = (i32, i32);
-    let (a2, b2): A = __zero_init__;
-    print a2; print ' ';
-    print b2; print '\n';
+    let (a1, b1): A = __zero_init__;
+    print a1; print ' ';
+    print b1; print '\n';
 
-    let m3@n3@(aaa@a3, bbb@b3): A = __zero_init__;
+    let aa@n3@(a1@a3, b1@b3): A = __zero_init__;
     print "====\n";
     print n3; print ' ';
     n3.0 = 1; n3.1 = 2;
     print n3; print '\n';
-    print m3; print '\n';
+    print aa; print '\n';
     print a3; print ' ';
-    print aaa; print ' ';
-    print bbb;
+    print a1; print ' ';
+    print b1;
 }
 

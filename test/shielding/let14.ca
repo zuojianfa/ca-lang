@@ -8,31 +8,31 @@ fn main() {
     print b4; print ' ';
     print b5; print '\n';
 
-    let BB(c1, c2, c3, c4, ..) = BB(1, 2, 'D', 6.6, 'A');
-    print c1; print ' ';
-    print c2; print ' ';
-    print c3; print ' ';
-    print c4; print '\n';
+    let BB(b1, b2, b3, b4, ..) = BB(1, 2, 'D', 6.6, 'A');
+    print b1; print ' ';
+    print b2; print ' ';
+    print b3; print ' ';
+    print b4; print '\n';
 
-    let BB(d1, d2, ..) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'A');
-    print d1; print ' ';
-    print d2; print '\n';
+    let BB(b1, b2, ..) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'A');
+    print b1; print ' ';
+    print b2; print '\n';
 
-    let BB(e1, .., e2) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'A');
-    print e1; print ' ';
-    print e2; print '\n';
+    let BB(b1, .., b2) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'A');
+    print b1; print ' ';
+    print b2; print '\n';
 
     let BB(.., f1, f2) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'A');
     print f1; print ' ';
     print f2; print ' ';
 
-    let BB(.., g1) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'X');
-    print g1; print ' ';
+    let BB(.., b1) = BB(0x12345678, 0x7fffffff, 'D', 6.6, 'X');
+    print b1; print ' ';
 
-    let BB(h1,..) = BB(0x7fffffff, 0x7fffffff, 'D', 6.6, 'X');
-    print h1; print '\n';
+    let BB(b1,..) = BB(0x7fffffff, 0x7fffffff, 'D', 6.6, 'X');
+    print b1; print '\n';
 
-    let bb@BB(..) = BB(0x7fffffff, 0x7fffffff, 'D', 6.6, 'X');
-    print bb; print ' ';
+    let b1@BB(..) = BB(0x7fffffff, 0x7fffffff, 'D', 6.6, 'X');
+    print b1; print ' ';
 }
 

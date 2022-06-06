@@ -18,27 +18,27 @@ fn main() {
     print f5; print '\n';
     print aa1; print '\n';
 
-    let aa2@AA{f1:v1, f2: v2, f3: v3, f4: v4, f5: v5} = __zero_init__;
+    let aa2@AA{f1, f2, f3: v3, f4, f5: v5} = __zero_init__;
     v3 = 'C'; v5 = 'A';
     aa2.f3 = 'C';
     aa2.f5 = 'A';
-    print v1; print ' ';
-    print v2; print ' ';
+    print f1; print ' ';
+    print f2; print ' ';
     print v3; print ' ';
-    print v4; print ' ';
+    print f4; print ' ';
     print v5; print '\n';
     print aa2; print '\n';
 
-    let aa3@AA{f1:v6, f2: v7, ..} = __zero_init__;
-    print v6; print ' ';
-    print v7; print '\n';
+    let aa3@AA{f1, f2, ..} = __zero_init__;
+    print f1; print ' ';
+    print f2; print '\n';
     aa3.f3 = 'D'; aa3.f5 = 'E';
     print aa3; print '\n';
 
-    let aa4@AA{f3:v8, f5: v9, ..} = __zero_init__;
-    v8 = 'H'; v9 = 'A';
-    print v8; print ' ';
-    print v9; print '\n';
+    let aa4@AA{f3, f5, ..} = __zero_init__;
+    f3 = 'H'; f5 = 'A';
+    print f3; print ' ';
+    print f5; print '\n';
     aa4.f3 = 'R'; aa4.f5 = 'U';
     print aa4; print '\n';
 }

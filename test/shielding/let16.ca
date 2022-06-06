@@ -6,9 +6,9 @@ fn main() {
     print b3; print ' ';
     print b5; print '\n';
 
-    let BB(b11, _, .., b51) = BB(1, 2, 'Z', 6.6, 'B');
-    print b11; print ' ';
-    print b51; print '\n';
+    let BB(b1, _, .., b5) = BB(1, 2, 'Z', 6.6, 'B');
+    print b1; print ' ';
+    print b5; print '\n';
 
     let cc@BB(_, c2, .., c4, _) = BB(1, 2, 'G', 6.6, 'g');
     print c2; print ' ';
@@ -17,25 +17,25 @@ fn main() {
     cc.2 = 'F'; cc.4 = 'L';
     print cc; print '\n';
 
-    let BB(d1, .., _, _, _) = BB(1, 2, 'J', 6.6, 'z');
-    print d1; print ' ';
+    let BB(b1, .., _, _, _) = BB(1, 2, 'J', 6.6, 'z');
+    print b1; print ' ';
 
-    let BB(d11, _, ..) = BB(1, 2, 'Z', 6.6, 'z');
-    print d11; print ' ';
+    let BB(b1, _, ..) = BB(1, 2, 'Z', 6.6, 'z');
+    print b1; print ' ';
 
-    let BB(.., _, _, _, e2) = BB(1, 2, 'Z', 6.6, 'T');
-    print e2; print '\n';
+    let BB(.., _, _, _, b2) = BB(1, 2, 'Z', 6.6, 'T');
+    print b2; print '\n';
 
-    let BB(_, .., f2) = BB(1, 2, 'Z', 6.6, 'z');
-    print f2; print ' ';
+    let BB(_, .., b2) = BB(1, 2, 'Z', 6.6, 'z');
+    print b2; print ' ';
 
-    let BB(.., _, g1) = BB(1, 2, 'Z', 6.6, 'z');
-    print g1; print ' ';
+    let BB(.., _, b1) = BB(1, 2, 'Z', 6.6, 'z');
+    print b1; print ' ';
 
-    let BB(h1,.., _) = BB(-1, 2, 'Z', 6.6, 'z');
-    print h1; print '\n';
+    let BB(b1,.., _) = BB(-1, 2, 'Z', 6.6, 'z');
+    print b1; print '\n';
 
-    let bb@BB(_, .. , _) = BB(1, 2, 'K', 6.6, 'k');
-    print bb; print ' ';
+    let b1@BB(_, .. , _) = BB(1, 2, 'K', 6.6, 'k');
+    print b1; print ' ';
 }
 

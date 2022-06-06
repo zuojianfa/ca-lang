@@ -10,20 +10,20 @@ fn main() {
     print a20; print '\n';
 
     struct A3 (AA, A1, A2);
-    let a3@A3(va1, va2, va3) = __zero_init__;
-    print a3; print '\n';
+    let a2@A3(va1, va2, va3) = __zero_init__;
+    print a2; print '\n';
     print va1; print '\n';
     print va2; print '\n';
     print va3; print '\n';
 
-    let a4@A3{1: vb1@A1{f1: cc1, f2: cc2, f3: cc3}, 2: vb2, 0: vb3} = __zero_init__;
+    let a2@A3{1: vb1@A1{f1: va1, f2: va2, f3: va3}, 2: vb2, 0: vb3} = __zero_init__;
     print "======\n";
-    print a4; print '\n';
+    print a2; print '\n';
     print vb1; print '\n';
     print vb2; print '\n';
     print vb3; print '\n';
-    print cc1; print '\n';
-    print cc2; print ' ';
-    print cc3; print ' ';
+    print va1; print '\n';
+    print va2; print ' ';
+    print va3; print ' ';
 }
 

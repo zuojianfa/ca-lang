@@ -1,9 +1,0 @@
-fn main() {
-    struct AA { f1: i32, f2: i32, }
-    struct A1 { f1: AA, f2: i32, f3: i32, }
-    struct A2 { f1: A1, f2: i32, }
-    struct A3 (AA, A1, A2);
-
-    let a4@A3{1: vb1@AA{f1: cc1, f2: cc2, f3: cc3}, 2: vb2, 0: vb3} = __zero_init__;
-}
-

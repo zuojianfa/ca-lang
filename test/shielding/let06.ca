@@ -7,43 +7,43 @@ fn main() {
     print b3; print ' ';
     print b5; print '\n';
 
-    let BB(b11, _, .., b51) = __zero_init__;
-    b11 = 6;
-    print b11; print ' ';
-    b51 = 'A';
-    print b51; print '\n';
+    let BB(b1, _, .., b5) = __zero_init__;
+    b1 = 6;
+    print b1; print ' ';
+    b5 = 'A';
+    print b5; print '\n';
 
-    let cc@BB(_, c2, .., c4, _) = __zero_init__;
+    let b1@BB(_, c2, .., c4, _) = __zero_init__;
     print c2; print ' ';
     print c4; print '\n';
-    cc.2 = 'F'; cc.4 = 'L';
-    print cc; print '\n';
+    b1.2 = 'F'; b1.4 = 'L';
+    print b1; print '\n';
 
     let BB(d1, .., _, _, _) = __zero_init__;
     print 'C';
     print d1; print ' ';
 
-    let BB(d11, _, ..) = __zero_init__;
+    let BB(d1, _, ..) = __zero_init__;
     print 'Z';
-    print d11; print ' ';
+    print d1; print ' ';
 
-    let BB(.., _, _, _, e2) = __zero_init__;
-    e2 = 'B';
-    print e2; print '\n';
+    let BB(.., _, _, _, b1) = __zero_init__;
+    b1 = 'B';
+    print b1; print '\n';
 
-    let BB(_, .., f2) = __zero_init__;
-    f2 = 'Q';
-    print f2; print ' ';
+    let BB(_, .., c2) = __zero_init__;
+    c2 = 'Q';
+    print c2; print ' ';
 
-    let BB(.., _, g1) = __zero_init__;
-    g1 = 'P';
-    print g1; print ' ';
+    let BB(.., _, b1) = __zero_init__;
+    b1 = 'P';
+    print b1; print ' ';
 
-    let BB(h1,.., _) = __zero_init__;
-    print h1; print '\n';
+    let BB(b1,.., _) = __zero_init__;
+    print b1; print '\n';
 
-    let bb@BB(_, .. , _) = __zero_init__;
-    bb.2 = 'R'; bb.4 = 'S';
-    print bb; print ' ';
+    let b1@BB(_, .. , _) = __zero_init__;
+    b1.2 = 'R'; b1.4 = 'S';
+    print b1; print ' ';
 }
 

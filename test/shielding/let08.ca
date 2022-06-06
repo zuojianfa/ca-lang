@@ -7,35 +7,35 @@ fn main() {
     print b3; print ' ';
     print b5; print '\n';
 
-    let (_, c2, c3, c4, _): BB = __zero_init__;
+    let (_, c2, b3, c4, _): BB = __zero_init__;
     print c2; print ' ';
-    c3 = 'D';
-    print c3; print ' ';
+    b3 = 'D';
+    print b3; print ' ';
     print c4; print '\n';
 
-    let (d1, d2, _, _, _): BB = __zero_init__;
-    print d1; print ' ';
-    print d2; print '\n';
+    let (b1, b2, _, _, _): BB = __zero_init__;
+    print b1; print ' ';
+    print b2; print '\n';
 
-    let (e1, _, _, _, e2): BB = __zero_init__;
-    e2 = 'B';
-    print e1; print ' ';
-    print e2; print '\n';
+    let (b1, _, _, _, b2): BB = __zero_init__;
+    b2 = 'B';
+    print b1; print ' ';
+    print b2; print '\n';
 
-    let (_, _, _, f1, f2): BB = __zero_init__;
-    f2 = 'Q';
-    print f1; print ' ';
-    print f2; print ' ';
+    let (_, _, _, b1, b2): BB = __zero_init__;
+    b2 = 'Q';
+    print b1; print ' ';
+    print b2; print ' ';
 
-    let (_, _, _, _, g1): BB = __zero_init__;
-    g1 = 'P';
-    print g1; print ' ';
+    let (_, _, _, _, b1): BB = __zero_init__;
+    b1 = 'P';
+    print b1; print ' ';
 
-    let (h1,_,_,_ ,_): BB = __zero_init__;
-    print h1; print '\n';
+    let (b1,_,_,_ ,_): BB = __zero_init__;
+    print b1; print '\n';
 
-    let bb@(_,_ , _ ,_ , _): BB = __zero_init__;
-    bb.2 = 'R'; bb.4 = 'S';
-    print bb; print ' ';
+    let b1@(_,_ , _ ,_ , _): BB = __zero_init__;
+    b1.2 = 'R'; b1.4 = 'S';
+    print b1; print ' ';
 }
 
