@@ -8,40 +8,41 @@ fn main() {
     print b4; print ' ';
     print b5; print '\n';
 
-    let BB{3:b14, 1:b12, 4:b15, 2:b13, 0:b11}: BB = (1, 2, 'C', 6.6, 'A');
-    print b11; print ' ';
-    print b12; print ' ';
-    print b13; print ' ';
-    print b14; print ' ';
-    print b15; print '\n';
+    let BB{3:b4, 1:b2, 4:b5, 2:b3, 0:b1}: BB = (1, 2, 'C', 6.6, 'A');
+    print b1; print ' ';
+    print b2; print ' ';
+    print b3; print ' ';
+    print b4; print ' ';
+    print b5; print '\n';
 
-    let BB{0: c1, 1: c2, 2: c3, 3: c4, ..} = (1, 2, 'C', 6.6, 'A');
+    let BB{0: b1, 1: b2, 2: b3, 3: b4, ..} = (1, 2, 'C', 6.6, 'A');
+    print b1; print ' ';
+    print b2; print ' ';
+    print b3; print ' ';
+    print b4; print '\n';
+
+    let BB{2: c3, 1: c2, 0: c1, 3: c4, ..} = (1, 2, 'C', 6.6, 'A');
     print c1; print ' ';
     print c2; print ' ';
     print c3; print ' ';
     print c4; print '\n';
 
-    let BB{2: c13, 1: c12, 0: c11, 3: c14, ..} = (1, 2, 'C', 6.6, 'A');
-    print c11; print ' ';
-    print c12; print ' ';
-    print c13; print ' ';
-    print c14; print '\n';
-
-    let BB{0: d1, 1: d2, ..} = (1, 2, 'C', 6.6, 'A');
+    let c1@BB{0: d1, 1: d2, ..} = (1, 2, 'C', 6.6, 'A');
+    print c1; print '\n';
     print d1; print ' ';
     print d2; print '\n';
 
-    let bb@BB{1: d12, 0: d11, ..} = (1, 2, 'C', 6.6, 'A');
-    print d11; print ' ';
-    print d12; print '\n';
+    let bb@BB{1: d2, 0: d1, ..} = (1, 2, 'C', 6.6, 'A');
+    print d1; print ' ';
+    print d2; print '\n';
     print bb; print '\n';
 
-    let BB{4: h1,..} = (1, 2, 'C', 6.6, 'C');
-    print h1; print '\n';
+    let BB{4: d1,..} = (1, 2, 'C', 6.6, 'C');
+    print d1; print '\n';
 
-    let bbb@BB{..} = (1, 2, 'C', 6.6, 'A');
-    print bbb; print '\n';
-    bbb.2 = 'R'; bbb.4 = 'S';
-    print bbb; print ' ';
+    let d1@BB{..} = (1, 2, 'C', 6.6, 'A');
+    print d1; print '\n';
+    d1.2 = 'R'; d1.4 = 'S';
+    print d1; print ' ';
 }
 

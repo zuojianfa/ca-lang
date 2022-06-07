@@ -2,7 +2,7 @@ fn main() {
     struct AA {f1: i32, f2: f32}
     struct BB {f3: AA, f4: i32}
     let a = BB {f3: AA{32, 33.22f32}, f4: 66};
-    let BB{f3: va@AA{f1: v1, f2}, f4: v2} = a;
-    print va; print '\n';
-    print v2;
+    let BB{f3: a@AA{f1, f2}, f4} = a;
+    print a; print '\n';
+    print f4;
 }

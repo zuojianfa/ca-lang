@@ -1,6 +1,0 @@
-fn main() {
-    let (a, b) = (3i32, 4i32);
-    print a; print ' ';
-    print b;
-}
-

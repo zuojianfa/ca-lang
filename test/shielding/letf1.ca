@@ -3,9 +3,8 @@ fn echo(m: i32) -> i32 {
 }
 
 fn main() {
-    //let a = 100;
-    //let b = a;
-    let a = echo(100);
+    let a = 100;
+    let a = echo(a);
     print a;
 }
 

@@ -8,31 +8,31 @@ fn main() {
     print b4; print ' ';
     print b5; print '\n';
 
-    let (c1, c2, c3, c4, ..): BB = (1, 2, 'C', 6.6, 'A');
-    print c1; print ' ';
-    print c2; print ' ';
-    print c3; print ' ';
-    print c4; print '\n';
+    let (b1, b2, b3, b4, ..): BB = (1, 2, 'C', 6.6, 'A');
+    print b1; print ' ';
+    print b2; print ' ';
+    print b3; print ' ';
+    print b4; print '\n';
 
-    let (d1, d2, ..): BB = (1, 2, 'Z', 6.6, 'z');
-    print d1; print ' ';
-    print d2; print '\n';
+    let (b1, b2, ..): BB = (1, 2, 'Z', 6.6, 'z');
+    print b1; print ' ';
+    print b2; print '\n';
 
-    let (e1, .., e2): BB = (1, 2, 'Z', 6.6, 'z');
-    print e1; print ' ';
-    print e2; print '\n';
+    let (b1, .., b2): BB = (1, 2, 'Z', 6.6, 'z');
+    print b1; print ' ';
+    print b2; print '\n';
 
-    let (.., f1, f2): BB = (1, 2, 'Z', 6.6, 'z');
-    print f1; print ' ';
-    print f2; print ' ';
+    let (.., b1, b2): BB = (1, 2, 'Z', 6.6, 'z');
+    print b1; print ' ';
+    print b2; print ' ';
 
-    let (.., g1): BB = (1, 2, 'Z', 6.6, 'z');
-    print g1; print ' ';
+    let (.., b1): BB = (1, 2, 'Z', 6.6, 'z');
+    print b1; print ' ';
 
-    let (h1,..): BB = (1, 2, 'Z', 6.6, 'z');
-    print h1; print '\n';
+    let (b1,..): BB = (1, 2, 'Z', 6.6, 'z');
+    print b1; print '\n';
 
-    let bb@(..): BB = (1, 2, 'Z', 6.6, 'z');
-    print bb; print ' ';
+    let b1@(..): BB = (1, 2, 'Z', 6.6, 'z');
+    print b1; print ' ';
 }
 

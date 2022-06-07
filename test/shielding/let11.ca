@@ -19,6 +19,7 @@ fn main() {
     }
 
     let a2: A2 = A2 {f1: a11, f2: 34};
+    print a2; print '\n';
     let a2@a3: A3 = A3 {a1, a2, 21, true};
     print a2; print '\n';
     print a3; print '\n';
