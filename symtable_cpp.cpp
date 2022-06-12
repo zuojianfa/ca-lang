@@ -11,6 +11,7 @@
 #include <ios>
 #include <limits>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <stack>
 #include <stdint.h>
@@ -670,6 +671,29 @@ const char *source_region(SLoc beg, SLoc end) {
 
 char *source_buffer() {
   return &g_source_info.buffer[0];
+}
+
+void *set_new() {
+  std::set<void *> *set = new std::set<void *>;
+  return static_cast<void *>(set);
+}
+
+void set_insert(void *handle, void *item) {
+  std::set<void *> *set = static_cast<std::set<void *> *>(handle);
+  set->insert(item);
+}
+
+int set_exists(void *handle, void *item) {
+  std::set<void *> *set = static_cast<std::set<void *> *>(handle);
+  if (set->find(item) != set->end())
+    return true;
+
+  return false;
+}
+
+void set_drop(void *handle) {
+  std::set<void *> *set = static_cast<std::set<void *> *>(handle);
+  delete set;
 }
 
 END_EXTERN_C

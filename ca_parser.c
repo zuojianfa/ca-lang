@@ -806,13 +806,20 @@ ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global) {
   return p;
 }
 
-void capattern_register_variable(int name, typeid_t datatype, SLoc *loc) {
+static void capattern_register_variable(int name, typeid_t datatype, SLoc *loc, void *sethandler) {
+  if (set_exists(sethandler, (void *)(long)name)) {
+    caerror(loc, NULL, "the variable `%s` already exists in the same binding", symname_get(name));
+    return;
+  }
+
+  set_insert(sethandler, (void *)(long)name);
+
   CAVariable *cavar = cavar_create_with_loc(name, datatype, loc);
   register_variable(cavar, curr_symtable);
 }
 
-void register_capattern_symtable(CAPattern *cap, SLoc *loc);
-void register_structpattern_symtable(CAPattern *cap, int withname, int withsub, SLoc *loc) {
+static void register_capattern_symtable(CAPattern *cap, SLoc *loc, void *sethandler);
+void register_structpattern_symtable(CAPattern *cap, int withname, int withsub, SLoc *loc, void *sethandler) {
   typeid_t type = cap->datatype;
   if (withname) {
     type = sym_form_type_id(cap->name);
@@ -825,34 +832,34 @@ void register_structpattern_symtable(CAPattern *cap, int withname, int withsub, 
   }
 
   if (!withname && !withsub) {
-    capattern_register_variable(cap->name, type, loc);
+    capattern_register_variable(cap->name, type, loc, sethandler);
   }
 
   size_t size = vec_size(cap->morebind);
   for (size_t i = 0; i < size; ++i) {
     int name = (int)(long)vec_at(cap->morebind, i);
-    capattern_register_variable(name, type, loc);
+    capattern_register_variable(name, type, loc, sethandler);
   }
 
   // walk for structure items
   if (withsub) {
     PatternGroup *pg = cap->items;
     for (int i = 0; i < pg->size; ++i)
-      register_capattern_symtable(pg->patterns[i], loc);
+      register_capattern_symtable(pg->patterns[i], loc, sethandler);
   }
 }
 
-void register_capattern_symtable(CAPattern *cap, SLoc *loc) {
+static void register_capattern_symtable(CAPattern *cap, SLoc *loc, void *sethandler) {
   switch (cap->type) {
   case PT_Var:
-    register_structpattern_symtable(cap, 0, 0, loc);
+    register_structpattern_symtable(cap, 0, 0, loc, sethandler);
     break;
   case PT_GenTuple:
-    register_structpattern_symtable(cap, 0, 1, loc);
+    register_structpattern_symtable(cap, 0, 1, loc, sethandler);
     break;
   case PT_Tuple:
   case PT_Struct:
-    register_structpattern_symtable(cap, 1, 1, loc);
+    register_structpattern_symtable(cap, 1, 1, loc, sethandler);
     break;
   case PT_IgnoreOne:
   case PT_IgnoreRange:
@@ -912,7 +919,9 @@ ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
     return NULL;
   }
 
-  register_capattern_symtable(cap, &exprn->endloc);
+  void *sethandler = set_new();
+  register_capattern_symtable(cap, &exprn->endloc, sethandler);
+  set_drop(sethandler);
 
   ASTNode *p = new_ASTNode(TTE_LetBind);
   p->letbindn.cap = cap;

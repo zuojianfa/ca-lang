@@ -404,6 +404,11 @@ const char *source_lines(int linefrom, int lineto);
 const char *source_region(SLoc beg, SLoc end);
 char *source_buffer();
 
+void *set_new();
+void set_insert(void *handle, void *item);
+int set_exists(void *handle, void *item);
+void set_drop(void *handle);
+
 #ifdef __cplusplus
 END_EXTERN_C
 #endif
