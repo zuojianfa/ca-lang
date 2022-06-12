@@ -1,0 +1,21 @@
+fn main() {
+    struct AA {
+        a1: i32,
+        a2: bool,
+    }
+
+    struct BB {
+        b1: AA,
+        b2: i32,
+    }
+
+    struct CC {
+        c1: BB,
+        c2: f64,
+    }
+
+    let cc = CC {c1: BB {b1: AA {32, true}, b2: 64 }, c2: 128.33};
+
+    print cc.c1.b1;
+}
+

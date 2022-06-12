@@ -2492,10 +2492,42 @@ int parse_tuple_fieldname(int fieldname) {
 }
 
 StructFieldOp make_element_field(ASTNode *expr, int fieldname, int direct, int tuple) {
+#if 1
+  int count = 0;
+  if (tuple) {
+    // patches for a list of tuples aa.1.2.0: FIXME
+    const char *name = symname_get(fieldname);
+    int len = strlen(name);
+    char *names = strdup(name);
+    char *pname = names;
+    int i = 0;
+    for (; i < len; ++i) {
+      if (names[i] == '.') {
+	names[i] = '\0';
+
+	int subname = symname_check_insert(pname);
+	fieldname = parse_tuple_fieldname(subname);
+	StructFieldOp sfop = {expr, fieldname, count ? 1 : direct, tuple};
+	expr = make_structfield_right(sfop);
+
+	count += 1;
+	pname = names + i + 1;
+      }
+    }
+
+    if (count)
+      fieldname = symname_check_insert(pname);
+
+    free(names);
+
+    fieldname = parse_tuple_fieldname(fieldname);
+  }
+#else 
   if (tuple)
     fieldname = parse_tuple_fieldname(fieldname);
+#endif
 
-  StructFieldOp sfop = {expr, fieldname, direct, tuple};
+  StructFieldOp sfop = {expr, fieldname, count ? 1 : direct, tuple};
   return sfop;
 }
 

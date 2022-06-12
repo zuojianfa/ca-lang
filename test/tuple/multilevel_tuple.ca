@@ -1,0 +1,25 @@
+fn main() {
+    struct AA (
+        i32,
+	bool,
+    );
+
+    struct BB (
+        AA,
+        i32,
+    );
+
+    struct CC (
+        BB,
+        f64,
+    );
+
+    let cc = CC (BB ( AA (32, true), 64 ), 128.33);
+
+    cc.0.0.1 = true;
+    print cc.0.0.0; print ' ';
+    print cc.0.0.1; print '\n';
+    print cc.0.0; print ' ';
+    print cc.0.1;
+}
+
