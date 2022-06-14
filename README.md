@@ -226,6 +226,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [x] type statement, used to define type aliases
   - [x] let pattern matching: let S(x) = A; let S{x} = A;
   - [x] support let variable rebind to new type
+  - [x] support array definition by repeated number let a = [(1,2); 3];
   - [x] for i in list
 	- [x] for *i in list
 	- [ ] for &i in list

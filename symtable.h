@@ -327,6 +327,7 @@ CAArrayExpr arrayexpr_new();
 CAArrayExpr arrayexpr_append(CAArrayExpr obj, struct ASTNode *expr);
 size_t arrayexpr_size(CAArrayExpr obj);
 struct ASTNode *arrayexpr_get(CAArrayExpr obj, int idx);
+CAArrayExpr arrayexpr_fill(CAArrayExpr obj, struct ASTNode *expr, size_t n);
 
 CAVariable *cavar_create(int name, typeid_t datatype);
 CAVariable *cavar_create_with_loc(int name, typeid_t datatype, SLoc *loc);

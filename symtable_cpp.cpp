@@ -197,6 +197,12 @@ ASTNode *arrayexpr_get(CAArrayExpr obj, int idx) {
   return static_cast<std::vector<ASTNode *> *>(obj.data)->at(idx);
 }
 
+CAArrayExpr arrayexpr_fill(CAArrayExpr obj, ASTNode *expr, size_t n) {
+  std::vector<ASTNode *> *vs = static_cast<std::vector<ASTNode *> *>(obj.data);
+  vs->resize(n, expr);
+  return obj;  
+}
+
 CAVariable *cavar_create(int name, typeid_t datatype) {
   CAVariable *var = new CAVariable;
   var->datatype = datatype;

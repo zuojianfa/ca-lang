@@ -575,6 +575,7 @@ literal:	LITERAL { dot_emit("literal", "LITERAL"); create_literal(&$$, $1.text, 
 
 array_def:	'[' array_def_items ']' { $$ = $2; }
 	|	'[' ']' { $$ = arrayexpr_new(); }
+	|	'['expr ';' literal ']' { $$ = make_array_def_fill($2, &$4); }
 	;
 
 array_def_items:array_def_items ',' expr { $$ = arrayexpr_append($1, $3); }

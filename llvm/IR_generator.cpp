@@ -758,6 +758,8 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bo
 static Value *walk_id(ASTNode *p) {
   CADataType *catype = catype_get_by_name(p->symtable, p->entry->u.varshielding.current->datatype);
   CHECK_GET_TYPE_VALUE(p, catype, p->entry->u.varshielding.current->datatype);
+  
+  p->entry->u.varshielding.current->datatype = catype->signature;
 
   Value *var = nullptr;
   if (is_var_declare(p))
@@ -2303,6 +2305,8 @@ static void walk_expr_tuple(ASTNode *p, STEntry *entry, std::vector<Value *> &va
   typeid_t structid = entry->u.datatype.id;
   CADataType *structcatype = catype_get_by_name(entry->u.datatype.idtable, structid);
   CHECK_GET_TYPE_VALUE(p, structcatype, structid);
+
+  p->exprn.expr_type = structcatype->signature;
 
   walk_expr_tuple_common(p, structcatype, values);
 }

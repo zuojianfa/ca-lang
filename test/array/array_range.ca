@@ -1,0 +1,18 @@
+fn main () {
+    struct AA {
+        f1: i32,
+        f2: i32,
+    }
+
+    let a = [AA {1,2}; 7];
+    print a; print '\n';
+
+    struct TT (
+        i32,
+        i32
+    );
+
+    let a = [TT(3,4); 9];
+    print a;
+}
+

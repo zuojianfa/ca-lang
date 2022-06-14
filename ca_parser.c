@@ -658,6 +658,19 @@ ASTNode *make_array_def(CAArrayExpr expr) {
   return node;
 }
 
+CAArrayExpr make_array_def_fill(ASTNode *expr, CALiteral *lit) {
+  if (lit->littypetok != U64) {
+    caerror(&lit->begloc, &lit->endloc, "litreal is not a valid type",
+	    get_type_string(lit->littypetok));
+    return (CAArrayExpr){NULL};
+  }
+
+  CAArrayExpr caexpr = arrayexpr_new();
+  inference_literal_type(lit);
+  caexpr = arrayexpr_fill(caexpr, expr, lit->u.i64value);
+  return caexpr;
+}
+
 ASTNode *make_struct_expr(CAStructExpr expr) {
   ASTNode *p = new_ASTNode(TTE_StructExpr);
   p->snoden = expr;
@@ -1283,7 +1296,8 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       prevtypeid = typeid;
     }
 
-    CADataType *subcatype = catype_get_primitive_by_name(prevtypeid);
+    //CADataType *subcatype = catype_get_primitive_by_name(prevtypeid);
+    CADataType *subcatype = catype_get_by_name(node->symtable, prevtypeid);
     CADataType *catype = catype_make_array_type(subcatype, size, 0);
     type1 = catype->signature;
     break;

@@ -21,4 +21,7 @@ do_test(array "\\[\\[\\[1, 2\\], \\[3, 4\\]\\], \\[\\[5, 6\\], \\[7, 8\\]\\]\\]\
 do_test(array "\\[AA { f1: 0, f2: 0 }, AA { f1: 0, f2: 0 }, AA { f1: 0, f2: 0 }\\]\n\\[AA { f1: 99, f2: 1 }, AA { f1: 88, f2: 1 }, AA { f1: 77, f2: 0 }\\]\n7782\n\\[AA { f1: 99, f2: 1 }, AA { f1: 88, f2: 1 }, AA { f1: 82, f2: 0 }\\]\n\\[A1 { af1: \\[AA { f1: 0, f2: 0 }, AA { f1: 0, f2: 0 }\\] }, A1 { af1: \\[AA { f1: 0, f2: 0 }, AA { f1: 0, f2: 0 }\\] }\\]\n\\[A1 { af1: \\[AA { f1: 666, f2: 0 }, AA { f1: 555, f2: 1 }\\] }, A1 { af1: \\[AA { f1: 732, f2: 1 }, AA { f1: 897, f2: 1 }\\] }\\]\n897 1 732 1 555 1 666 0" ca array_struct1.ca)
 do_testf(array "array_struct1.ca.ll" "array_struct1.ca.ll.tmp" ca -g -ll array_struct1.ca array_struct1.ca.ll.tmp)
 do_test(array "good" ca array_empty.ca)
-
+do_test(array "\\[AA { f1: 1, f2: 2 }, AA { f1: 1, f2: 2 }, AA { f1: 1, f2: 2 }, AA { f1: 1, f2: 2 }, AA { f1: 1, f2: 2 }, AA { f1: 1, f2: 2 }, AA { f1: 1, f2: 2 }\\]\n\\[TT \\( 3, 4 \\), TT \\( 3, 4 \\), TT \\( 3, 4 \\), TT \\( 3, 4 \\), TT \\( 3, 4 \\), TT \\( 3, 4 \\), TT \\( 3, 4 \\), TT \\( 3, 4 \\), TT \\( 3, 4 \\)\\]" ca array_range.ca)
+do_test(array "\\[\\[AA { f1: 3, f2: 4 }, AA { f1: 3, f2: 4 }, AA { f1: 3, f2: 4 }\\], \\[AA { f1: 3, f2: 4 }, AA { f1: 3, f2: 4 }, AA { f1: 3, f2: 4 }\\]\\]\n\\[\\[TT \\( 10, 11 \\), TT \\( 10, 11 \\), TT \\( 10, 11 \\)\\], \\[TT \\( 10, 11 \\), TT \\( 10, 11 \\), TT \\( 10, 11 \\)\\]\\]" ca array_range2.ca)
+do_test(array "[TT \\( 3, 4 \\), TT \\( 5, 6 \\), TT \\( 7, 8 \\)]" ca array_literal_struct.ca)
+do_test(array "\\[\\( 1, 2 \\), \\( 1, 2 \\), \\( 1, 2 \\), \\( 1, 2 \\)\\]" ca array_range3.ca)

@@ -380,6 +380,7 @@ ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
 ASTNode *make_array_def(CAArrayExpr expr);
+CAArrayExpr make_array_def_fill(ASTNode *expr, CALiteral *literal);
 ASTNode *make_struct_expr(CAStructExpr expr);
 ASTNode *make_tuple_expr(CAStructExpr expr);
 ASTNode *make_arrayitem_right(ArrayItem ai);
