@@ -53,6 +53,7 @@ typedef enum {
   TTE_Box,
   TTE_Drop,
   TTE_LetBind,
+  TTE_Range,
   TTE_Num,
 } ASTNodeType;
 
@@ -176,6 +177,10 @@ typedef struct TLetBind {
   struct ASTNode *expr;
 } TLetBind;
 
+typedef struct TRange {
+  GeneralRange range;
+} TRange;
+
 typedef struct TArgList {
   int argc; /* number of arguments */
   struct ASTNode **exprs; /* operands */
@@ -284,6 +289,7 @@ typedef struct ASTNode {
     TBox boxn;           /* box node */
     TDrop dropn;         /* drop node */
     TLetBind letbindn;   /* the binding operation for let */
+    TRange rangen;       /* range node */
   };
 } ASTNode;
 
@@ -379,6 +385,7 @@ ASTNode *make_assign_op(LeftValueId *lvid, int op, ASTNode *exprn);
 ASTNode *make_goto(int labelid);
 ASTNode *make_label_def(int labelid);
 ASTNode *make_literal(CALiteral *litv);
+ASTNode *make_general_range(GeneralRange *range);
 ASTNode *make_array_def(CAArrayExpr expr);
 CAArrayExpr make_array_def_fill(ASTNode *expr, CALiteral *literal);
 ASTNode *make_struct_expr(CAStructExpr expr);

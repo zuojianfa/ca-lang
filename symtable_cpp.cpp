@@ -702,5 +702,24 @@ void set_drop(void *handle) {
   delete set;
 }
 
+GeneralRange *general_range_init(GeneralRange *gr, short inclusive,
+				 struct ASTNode *start, struct ASTNode *end) {
+  gr->inclusive = inclusive;
+  gr->start = start;
+  gr->end = end;
+
+  GeneralRangeType type = FullRange;
+  if (!start && !end)
+    gr->type = FullRange;
+  else if (start && end)
+    gr->type = inclusive ? InclusiveRange : RightExclusiveRange;
+  else if (start)
+    gr->type = inclusive ? InclusiveRangeFrom : RightExclusiveRangeFrom;
+  else
+    gr->type = inclusive ? InclusiveRangeTo : RightExclusiveRangeTo;
+
+  return gr;
+}
+
 END_EXTERN_C
 

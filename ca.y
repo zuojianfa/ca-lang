@@ -69,19 +69,21 @@ extern int yychar, yylineno;
   IdGroup symnameids;
   CAPattern *capattern;
   PatternGroup *patterngroup;
+  GeneralRange range;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
 %token	<symnameid>	VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 %token	<symnameid>	IDENT
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
-%token			LOOP FOR IN BREAK CONTINUE MATCH USE MOD IGNORE
+%token			LOOP FOR IN BREAK CONTINUE MATCH USE MOD
 %token			BAND BOR BXOR BNOT
 %token			ASSIGN_ADD ASSIGN_SUB ASSIGN_MUL ASSIGN_DIV ASSIGN_MOD ASSIGN_SHIFTL ASSIGN_SHIFTR ASSIGN_BAND ASSIGN_BOR ASSIGN_BXOR
-%token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM TUPLE
+%token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM TUPLE RANGE
 %token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL REF
 %nonassoc		IFX
 %nonassoc		ELSE
+%left			IGNORE IRANGE
 %left			BOX DROP
 %left			LOR
 %left			LAND
@@ -120,6 +122,7 @@ extern int yychar, yylineno;
 %type	<symnameids>	let_more_var
 %type	<capattern>	let_stmt_left let_stmt_one_left let_stmt_left_pattern let_stmt_one_left_typed pattern_tuple_arg let_stmt_more_left_typed let_stmt_more_left pattern_struct_arg
 %type	<patterngroup>	pattern_struct_args_all pattern_tuple_args_all pattern_tuple_args pattern_struct_args
+%type	<range>		general_range
 
 %start program
 
@@ -233,6 +236,15 @@ array_item:	expr array_item_r { $$ = arrayitem_end($2, $1); }
 
 array_item_r: 	'['expr ']' { $$ = arrayitem_begin($2); }
 	|	'['expr ']' array_item_r { $$ = arrayitem_append($4, $2); }
+	;
+
+general_range:	IGNORE           { general_range_init(&$$, 0, NULL, NULL); } // .., full range
+	|	IGNORE expr      { general_range_init(&$$, 0, NULL, $2);   } // .. b, range to
+	|	IRANGE expr      { general_range_init(&$$, 1, NULL, $2);   } // ..= b, inclusive range to
+	|	expr IGNORE      { general_range_init(&$$, 0, $1, NULL);   } // a .., range from
+	|	expr IRANGE      { general_range_init(&$$, 1, $1, NULL);   } // a ..=, inclusive range from
+	|	expr IGNORE expr { general_range_init(&$$, 0, $1, $3);     } // a .. b, range
+	|	expr IRANGE expr { general_range_init(&$$, 1, $1, $3);     } // a ..= b, inclusive range
 	;
 
 attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); }
@@ -435,6 +447,7 @@ label_id:	IDENT		      { dot_emit("label_id", "IDENT"); $$ = $1; }
 		;
 
 expr:     	literal               { $$ = make_literal(&$1); }
+	|	general_range         { $$ = make_general_range(&$1); }
 	|	array_def             { $$ = make_array_def($1); }
 	|	array_item            { $$ = make_arrayitem_right($1); }
 	|	struct_expr           { $$ = make_struct_expr($1); }

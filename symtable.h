@@ -39,17 +39,35 @@ typedef enum CADTStatus {
 } CADTStatus;
 
 typedef struct CADataType {
-  tokenid_t type;       // type type: I16 I32 I64 ... STRUCT ARRAY
+  tokenid_t type;       // type type: I16 I32 I64 ... STRUCT ARRAY, RANGE
   typeid_t formalname; // type name symname_xxx
   size_t size;       // type size
   typeid_t signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table
   CADTStatus status;   // only when status is not None, the signature can be used directly
   union {
-    struct CAStruct *struct_layout;  // when type is STRUCT
+    struct CAStruct *struct_layout;  // when type is STRUCT, TUPLE
     struct CAArray *array_layout;    // when type is ARRAY
     struct CAPointer *pointer_layout;// when type is POINTER
+    struct CARange *range_layout;    // when type is RANGE
   };
 } CADataType;
+
+typedef enum GeneralRangeType {
+  FullRange,
+  InclusiveRange,
+  InclusiveRangeTo,
+  InclusiveRangeFrom,
+  RightExclusiveRange,
+  RightExclusiveRangeTo,
+  RightExclusiveRangeFrom,
+} GeneralRangeType;
+
+typedef struct CARange {
+  GeneralRangeType type;
+  int inclusive;
+  CADataType *start;
+  CADataType *end;
+} CARange;
 
 typedef struct CAStructField {
   int name;           // field name
@@ -289,6 +307,17 @@ typedef struct SymTable {
   struct SymTable *parent;
 } SymTable;
 
+// The general range inner object, have no type definition grammar, just have
+// inner type:
+// when both start and end are NULL, then it is 
+
+typedef struct GeneralRange {
+  short type;  // GeneralRangeType
+  short inclusive;
+  struct ASTNode *start;
+  struct ASTNode *end;
+} GeneralRange;
+
 // parameter handling
 // because function call can use embed form:
 // let a = func1(1 + func2(2 + func3(3, 4))), so the actual argument list should
@@ -409,6 +438,9 @@ void *set_new();
 void set_insert(void *handle, void *item);
 int set_exists(void *handle, void *item);
 void set_drop(void *handle);
+
+GeneralRange *general_range_init(GeneralRange *gr, short inclusive,
+				 struct ASTNode *start, struct ASTNode *end);
 
 #ifdef __cplusplus
 END_EXTERN_C

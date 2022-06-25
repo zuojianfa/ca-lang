@@ -302,6 +302,7 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
+  How to represent range, the range is a type?
 - [ ] 'label1: loop
 - [ ] match
 - [ ] mod scope

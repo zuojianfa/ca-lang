@@ -650,6 +650,14 @@ ASTNode *make_literal(CALiteral *litv) {
     return p;
 }
 
+ASTNode *make_general_range(GeneralRange *range) {
+  ASTNode *p = new_ASTNode(TTE_Range);
+  p->rangen.range = *range;
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  ASTNode *node = make_expr(RANGE, 1, p);
+  return node;
+}
+
 ASTNode *make_array_def(CAArrayExpr expr) {
   ASTNode *p = new_ASTNode(TTE_ArrayDef);
   p->anoden.aexpr = expr;

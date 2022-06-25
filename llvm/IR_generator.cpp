@@ -2123,6 +2123,29 @@ static void walk_letbind(ASTNode *p) {
   capattern_bind_value(exprn->symtable, cap, v, catype);
 }
 
+static void walk_range(ASTNode *p) {
+  GeneralRange *range = &p->rangen.range;
+  Value *start_value = nullptr;
+  Value *end_value = nullptr;
+  CADataType *start_type = nullptr;
+  CADataType *end_type = nullptr;
+  if (range->start) {
+    walk_range(range->start);
+    auto pair = pop_right_value();
+    start_value = pair.first;
+    start_type = pair.second;
+  }
+
+  if (range->end) {
+    walk_range(range->end);
+    auto pair = pop_right_value();
+    end_value = pair.first;
+    end_type = pair.second;
+  }
+  
+  // NEXT TODO: 
+}
+
 static void walk_expr_minus(ASTNode *p) {
   typeid_t type = get_expr_type_from_tree(p->exprn.operands[0]);
   CADataType *dt = catype_get_by_name(p->symtable, type);
@@ -2897,6 +2920,12 @@ static void walk_expr_box(ASTNode *expr) {
   oprand_stack.push_back(std::move(pair));
 }
 
+static void walk_expr_range(ASTNode *expr) {
+  ASTNode *range_expr = expr->exprn.operands[0];
+  walk_stack(range_expr);
+  // NEXT TODO: 
+}
+
 static void walk_expr(ASTNode *p) {
   // not allow global assign value, global variable definition is not assign
   if (!curr_fn)
@@ -2956,6 +2985,9 @@ static void walk_expr(ASTNode *p) {
     break;
   case BOX:
     walk_expr_box(p);
+    break;
+  case RANGE:
+    walk_expr_range(p);
     break;
   default:
     walk_expr_op2(p);
@@ -3247,6 +3279,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_box,
   (walk_fn_t)walk_drop,
   (walk_fn_t)walk_letbind,
+  (walk_fn_t)walk_range,
 };
 
 static int walk_stack(ASTNode *p) {
