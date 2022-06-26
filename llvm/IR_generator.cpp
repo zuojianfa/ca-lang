@@ -964,7 +964,7 @@ static void walk_for(ASTNode *p) {
   std::vector<Value *> idxv(2, valuezero);
   idxv[1] = indexv;
   Value *listitemvslot = ir1.builder().CreateInBoundsGEP(lists, idxv);
-  bool iscomplextype = catype_is_complex_type(itemcatype->type);
+  bool iscomplextype = catype_is_complex_type(itemcatype);
   Value *listitemv = listitemvslot;
   if (!iscomplextype && !is_forstmt_pointer_var(forvar))
     listitemv = ir1.builder().CreateLoad(listitemvslot);
@@ -1256,6 +1256,40 @@ static void walk_expr_ife(ASTNode *p) {
   walk_if_common(p);
 }
 
+static void dbgprint_complex(Function *fn, CADataType *catype, Value *v);
+static void dbgprint_complex_range(Function *fn, CADataType *catype, Value *v) {
+  GeneralRangeType range_type = catype->range_layout->type;
+  switch (range_type) {
+  case FullRange:
+    // should not come here
+    llvmcode_printf(fn, "..", nullptr);
+    break;
+  case InclusiveRange:
+  case RightExclusiveRange: {
+    Value *v1 = ir1.builder().CreateExtractValue(v, 0);
+    assert(catype->range_layout->range->type == STRUCT);
+    assert(catype->range_layout->range->struct_layout->tuple == 2);
+    dbgprint_complex(fn, catype->range_layout->range->struct_layout->fields[0].type, v1);
+    llvmcode_printf(fn, range_type == InclusiveRange ? "..=" : "..", nullptr);
+    Value *v2 = ir1.builder().CreateExtractValue(v, 1);
+    dbgprint_complex(fn, catype->range_layout->range->struct_layout->fields[1].type, v2);
+    break;
+  }
+  case InclusiveRangeTo:
+  case RightExclusiveRangeTo:
+    llvmcode_printf(fn, range_type == InclusiveRangeTo ? "..=" : "..", nullptr);
+  case RangeFrom:
+    dbgprint_complex(fn, catype->range_layout->range, v);
+    if (catype->range_layout->type == RangeFrom)
+      llvmcode_printf(fn, "..", nullptr);
+
+    break;
+  default:
+    yyerror("bad range type: %d", catype->range_layout->type);
+    break;
+  }
+}
+
 static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
   int len = 0;
   switch(catype->type) {
@@ -1316,6 +1350,10 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
     //yyerror("dbgprint for struct type not implmeneted yet");
     break;
   }
+  case RANGE: {
+    dbgprint_complex_range(fn, catype, v);
+    break;
+  }
   default:
     // output each of primitive type
     llvmcode_printf_primitive(fn, catype, v);
@@ -1336,7 +1374,7 @@ static void walk_dbgprint(ASTNode *p) {
   if (!printf_fn)
     yyerror("cannot find declared extern printf function");
 
-  if (catype_is_complex_type(pair.second->type)) {
+  if (catype_is_complex_type(pair.second)) {
     dbgprint_complex(printf_fn, pair.second, v);
     return;
   }
@@ -1532,7 +1570,7 @@ static void walk_assign(ASTNode *p) {
     break;
   }
 
-  bool iscomplextype = catype_is_complex_type(dt->type);
+  bool iscomplextype = catype_is_complex_type(dt);
 
   // when zero_initialize is true, it means to initialize the new allocated
   // variable of specified type with all zero value
@@ -1926,7 +1964,7 @@ static void capattern_bind_pattern_range(SymTable *symtable, CAPattern *cap, Val
       idxv[1] = idxvi;
       subvalue = ir1.builder().CreateGEP(value, idxv);
 
-      if (!catype_is_complex_type(btype->type))
+      if (!catype_is_complex_type(btype))
 	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
     }
 
@@ -1964,7 +2002,7 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
 	Value *idxvi = ir1.gen_int(pos);
 	idxv[1] = idxvi;
 	subvalue = ir1.builder().CreateGEP(value, idxv);
-	if (!catype_is_complex_type(btype->type))
+	if (!catype_is_complex_type(btype))
 	  subvalue = ir1.builder().CreateLoad(subvalue, "pat");
       }
 
@@ -2116,34 +2154,60 @@ static void walk_letbind(ASTNode *p) {
     determine_letbind_type(cap, catype, exprn->symtable);
   }
 
-  if (v && ot == OT_Alloc && !catype_is_complex_type(catype->type))
+  if (v && ot == OT_Alloc && !catype_is_complex_type(catype))
     v = ir1.builder().CreateLoad(v, "tmpexpr");
 
   // 3. walk left side again and copy data from right side
   capattern_bind_value(exprn->symtable, cap, v, catype);
 }
 
+static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<Value *> &values);
 static void walk_range(ASTNode *p) {
   GeneralRange *range = &p->rangen.range;
   Value *start_value = nullptr;
   Value *end_value = nullptr;
   CADataType *start_type = nullptr;
   CADataType *end_type = nullptr;
+
+
+  bool iscomplextype = false;
   if (range->start) {
-    walk_range(range->start);
-    auto pair = pop_right_value();
+    walk_stack(range->start);
+    iscomplextype = catype_is_complex_type(oprand_stack.back()->catype);
+    auto pair = pop_right_value("start", !iscomplextype);
     start_value = pair.first;
     start_type = pair.second;
   }
 
   if (range->end) {
-    walk_range(range->end);
-    auto pair = pop_right_value();
+    walk_stack(range->end);
+    iscomplextype = catype_is_complex_type(oprand_stack.back()->catype);
+    auto pair = pop_right_value("end", !iscomplextype);
     end_value = pair.first;
     end_type = pair.second;
   }
+
+  CADataType *catype = catype_from_range(p, (GeneralRangeType)range->type, range->inclusive, start_type, end_type);
+  CHECK_GET_TYPE_VALUE(p, catype, 0);
+  Value *value = nullptr;
+  if (start_value && end_value) {
+    std::vector<Value *> values;
+    values.push_back(start_value);
+    values.push_back(end_value);
+
+    walk_expr_tuple_common(p, catype->range_layout->range, values);
+    auto pair = pop_right_value("range", false);
+    value = pair.first;
+  } else if (start_value) {
+    value = start_value;
+  } else if (end_value) {
+    value = end_value;
+  } else {
+    // when full range, there is no llvm value counterparter, so just use the integer value
+    value = ir1.gen_int(0);
+  }
   
-  // NEXT TODO: 
+  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, value, catype));
 }
 
 static void walk_expr_minus(ASTNode *p) {
@@ -2340,7 +2404,7 @@ static void llvmvalue_from_exprs(ASTNode **exprs, int len, std::vector<Value *> 
     walk_stack(exprs[i]);
     bool iscomplextype = false;
     if (!isvalue)
-      iscomplextype = catype_is_complex_type(oprand_stack.back()->catype->type);
+      iscomplextype = catype_is_complex_type(oprand_stack.back()->catype);
 
     auto pair = pop_right_value("exprarg", !iscomplextype);
     argv.push_back(pair.first);
@@ -2684,7 +2748,7 @@ static void walk_expr_array(ASTNode *p) {
   std::vector<Value *> values;
   Type *lefttype = nullptr;
   CalcOperand leftco;
-  bool iscomplextype = catype_is_complex_type(arraycatype->array_layout->type->type);
+  bool iscomplextype = catype_is_complex_type(arraycatype->array_layout->type);
   typeid_t leftsubtypeid = arraycatype->array_layout->type->signature;
   for (size_t i = 0; i < vnodes->size(); ++i) {
     ASTNode *subnode = (*vnodes)[i];
@@ -2788,7 +2852,7 @@ static void walk_expr_struct(ASTNode *p) {
     }
 
     walk_stack(fieldnode);
-    bool iscomplextype = catype_is_complex_type(fields[order].type->type);
+    bool iscomplextype = catype_is_complex_type(fields[order].type);
     auto pair = pop_right_value("field", !iscomplextype);
     if (pair.second->signature != fields[order].type->signature) {
       caerror(&(snode->begloc), &(snode->endloc), "the field `%d`'s type `%s` of struct expression is different from the struct definition: `%s`",
@@ -2923,7 +2987,9 @@ static void walk_expr_box(ASTNode *expr) {
 static void walk_expr_range(ASTNode *expr) {
   ASTNode *range_expr = expr->exprn.operands[0];
   walk_stack(range_expr);
-  // NEXT TODO: 
+
+  // NEXT TODO:
+  //auto pair = pop_right_value();
 }
 
 static void walk_expr(ASTNode *p) {

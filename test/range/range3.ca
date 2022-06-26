@@ -1,13 +1,13 @@
 fn main() {
-    1..5;
-    let a = 0..6;
+    1..=5;
+    let a = 0..=6;
     print a; print '\n';
-    let b = 1..7;
+    let b = 1..=7;
     print b; print '\n';
 
     let r1 = 22;
     let r2 = 33;
-    let r3 = r1 .. r2;
+    let r3 = r1 ..= r2;
     print r3; print '\n';
 
     struct AA {
@@ -16,7 +16,7 @@ fn main() {
 
     let o1 = AA {f1: 2};
     let o2 = AA {f1: 200};
-    let o3 = o1 .. o2;
+    let o3 = o1 ..= o2;
     print o3; print '\n';
 
     struct A1 {
@@ -26,13 +26,13 @@ fn main() {
 
     let o1 = A1 {f1: 2, f2: 3.3};
     let o2 = A1 {f1: 200, f2: 44.4};
-    let o3 = o1 .. o2;
+    let o3 = o1 ..= o2;
     print o3; print '\n';
 
     struct T1 (A1, A1);
     let t1 = T1(o1, o2);
     let t2 = T1(o2, o1);
-    let t3 = t1..t2;
+    let t3 = t1..=t2;
     print t3; print '\n';
 }
 

@@ -48,18 +48,17 @@ typedef struct CADataType {
     struct CAStruct *struct_layout;  // when type is STRUCT, TUPLE
     struct CAArray *array_layout;    // when type is ARRAY
     struct CAPointer *pointer_layout;// when type is POINTER
-    struct CARange *range_layout;    // when type is RANGE
+    struct CARange *range_layout;    // when type is RANGE, the llvm::Value can be of single type or a tuple type infact
   };
 } CADataType;
 
 typedef enum GeneralRangeType {
-  FullRange,
-  InclusiveRange,
-  InclusiveRangeTo,
-  InclusiveRangeFrom,
-  RightExclusiveRange,
-  RightExclusiveRangeTo,
-  RightExclusiveRangeFrom,
+  FullRange,                 // ..
+  InclusiveRange,            // a..=b
+  InclusiveRangeTo,          // ..=b
+  RightExclusiveRange,       // a..b
+  RightExclusiveRangeTo,     // ..b
+  RangeFrom,                 // a..
 } GeneralRangeType;
 
 typedef struct CARange {
@@ -67,6 +66,7 @@ typedef struct CARange {
   int inclusive;
   CADataType *start;
   CADataType *end;
+  CADataType *range; // when start end have value then range type is used, and it is a tuple type
 } CARange;
 
 typedef struct CAStructField {

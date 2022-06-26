@@ -1357,6 +1357,28 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     type1 = catype->signature;
     break;
   }
+  case RANGE: {
+    ASTNode *anode = node->exprn.operands[0];
+    GeneralRange *range = &anode->rangen.range;
+    CADataType *start_type = NULL;
+    CADataType *end_type = NULL;
+    typeid_t startid = range->start ? inference_expr_type(range->start) : typeid_novalue;
+    typeid_t endid = range->end ? inference_expr_type(range->end) : typeid_novalue;
+    if (range->start) {
+      start_type = catype_get_by_name(anode->symtable, startid);
+      CHECK_GET_TYPE_VALUE(anode, start_type, startid);
+    }
+
+    if (range->end) {
+      end_type = catype_get_by_name(anode->symtable, endid);
+      CHECK_GET_TYPE_VALUE(anode, end_type, endid);
+    }
+
+    CADataType *catype = catype_from_range(anode, (GeneralRangeType)range->type, range->inclusive, start_type, end_type);
+    CHECK_GET_TYPE_VALUE(anode, catype, 0);
+    type1 = catype->signature;
+    break;
+  }
   case STRUCTITEM: {
     assert(node->exprn.noperand == 1);
     ASTNode *p = node->exprn.operands[0];

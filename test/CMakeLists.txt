@@ -69,4 +69,5 @@ add_subdirectory(box)
 add_subdirectory(tuple)
 add_subdirectory(pattern)
 add_subdirectory(shielding)
+add_subdirectory(range)
 

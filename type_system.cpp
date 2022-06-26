@@ -43,6 +43,7 @@
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/ir1.h"
 #include <algorithm>
+#include <alloca.h>
 #include <array>
 #include <cassert>
 #include <cctype>
@@ -1785,6 +1786,107 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
   }
 }
 
+CADataType *catype_make_tuple_type(SymTable *symtable, CADataType **catypes, int len) {
+  typeid_t *args = (typeid_t *)alloca(len * sizeof(typeid_t));
+  for (int i = 0; i < len; ++i)
+    args[i] = catypes[i]->signature;
+
+  typeid_t type = sym_form_tuple_id(args, len);
+
+  typeid_t windst = sym_form_symtable_type_id(symtable, type);
+  auto itr = s_symtable_type_map.find(windst);
+  if (itr != s_symtable_type_map.end())
+    return itr->second;
+
+  auto itr2 = s_type_map.find(type);
+  if (itr2 != s_type_map.end()) {
+    s_symtable_type_map.insert(std::make_pair(type, itr2->second));
+    return itr2->second;
+  }
+
+  CADataType *dt = catype_make_type_symname(type, STRUCT, 0);
+  CAStruct *castruct = new CAStruct;
+  castruct->tuple = 2;
+  castruct->name = 0;
+  castruct->fieldnum = 0;
+  castruct->capacity = len;
+  castruct->packed = 0;
+  castruct->fieldmaxalign = 1;
+  castruct->fields = new CAStructField[castruct->capacity];
+
+  size_t size = 0;
+  for (int i = 0; i < len; ++i) {
+    castruct_add_member(castruct, 0, catypes[i]);
+    size += catypes[i]->size;
+  }
+  
+    //range = catype_get_by_name(symtable, type);
+  
+  dt->struct_layout = castruct;
+  dt->size = size;
+
+  s_symtable_type_map.insert(std::make_pair(windst, dt));
+  s_type_map.insert(std::make_pair(type, dt));
+
+  return dt;
+}
+
+CADataType *catype_from_range(ASTNode *node, GeneralRangeType type, int inclusive, CADataType *startdt, CADataType *enddt) {
+  SymTable *symtable = node->symtable;
+  char sigbuf[4096] = {0, };
+  CADataType *range = nullptr;
+  if (startdt && enddt) {
+    if (startdt->signature != enddt->signature) {
+      caerror(&node->begloc, &node->endloc, "expect type `%s`, but found `%s`, both side of range need to be same type",
+	      catype_get_type_name(startdt->signature), catype_get_type_name(enddt->signature));
+      return nullptr;
+    }
+
+    CADataType *catypes[2] = {startdt, enddt};
+    range = catype_make_tuple_type(symtable, catypes, 2);
+    sprintf(sigbuf, "t:%s%s%s",
+	    catype_get_type_name(startdt->signature),
+	    inclusive ? "..=" : "..",
+	    catype_get_type_name(enddt->signature));
+  } else if (startdt) {
+    range = startdt;
+    sprintf(sigbuf, "t:%s..", catype_get_type_name(range->signature));
+  } else if (enddt) {
+    range = enddt;
+    sprintf(sigbuf, "t:%s%s",
+	    inclusive ? "..=" : "..",
+	    catype_get_type_name(range->signature));
+  } else {
+    strcpy(sigbuf, "t:..");
+  }
+
+  auto datatype = new CADataType;
+  datatype->range_layout = new CARange;
+  datatype->range_layout->inclusive = inclusive;
+  datatype->range_layout->start = startdt;
+  datatype->range_layout->end = enddt;
+  datatype->range_layout->type = type;
+  datatype->range_layout->range = range;
+  
+  int formalname = symname_check_insert(sigbuf);
+  datatype->status = CADT_Expand;
+  datatype->formalname = formalname;
+  datatype->type = RANGE;
+  datatype->size = range ? range->size : 0;
+  datatype->signature = formalname;
+
+  typeid_t windst = sym_form_symtable_type_id(symtable, formalname);
+  auto itr = s_symtable_type_map.find(windst);
+  if (itr == s_symtable_type_map.end())
+    s_symtable_type_map.insert(std::make_pair(windst, datatype));
+
+  auto itr2 = s_type_map.find(formalname);
+  if (itr2 == s_type_map.end())
+    s_type_map.insert(std::make_pair(formalname, datatype));
+  
+  return datatype;
+}
+
 static int64_t parse_binary_number(const char *text, int len) {
   int i = 0;
   for (i = 0; i < len; ++i) {
@@ -2517,6 +2619,24 @@ static Type *llvmtype_from_catype_inner(CADataType *catype, std::map<CADataType 
     // following code generated unnamed struct, but not used yet
     //StructType *sttype = StructType::get(ir1.ctx(), fields, pack);
     return sttype;
+  }
+  case RANGE: {
+    switch (catype->range_layout->type) {
+    case FullRange:
+      // should not come here
+      //yyerror("should not come here for full range");
+      //return nullptr;
+      return ir1.int_type<int>();
+    case InclusiveRange:
+    case RightExclusiveRange:
+    case InclusiveRangeTo:
+    case RightExclusiveRangeTo:
+    case RangeFrom:
+      return llvmtype_from_catype_inner(catype->range_layout->range, rcheck);
+    default:
+      yyerror("bad range type: %d", catype->range_layout->type);
+      return nullptr;
+    }
   }
   default:
     return llvmtype_from_token(catype->type);
@@ -3306,11 +3426,27 @@ bool catype_is_float(tokenid_t typetok) {
   return (typetok == F32 || typetok == F64);
 }
 
-bool catype_is_complex_type(tokenid_t typetok) {
-  switch (typetok) {
+bool catype_is_complex_type(CADataType *catype) {
+  switch (catype->type) {
   case ARRAY:
   case STRUCT:
     return true;
+  case RANGE:
+    switch (catype->range_layout->type) {
+    case FullRange:
+      // should not come here
+      //yyerror("should not come here for full range");
+      return true;
+    case InclusiveRange:
+    case RightExclusiveRange:
+    case InclusiveRangeTo:
+    case RightExclusiveRangeTo:
+    case RangeFrom:
+      return catype_is_complex_type(catype->range_layout->range);
+    default:
+      yyerror("bad range type: %d", catype->range_layout->type);
+      return false;
+    }
   case POINTER:
   default:
     return false;

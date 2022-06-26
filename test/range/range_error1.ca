@@ -1,0 +1,13 @@
+fn main() {
+    let r = (1..=4) ..= (6..=9);
+    print r; print '\n';
+
+    let a = 3..6;
+    let b = 8..20;
+    let c = a .. b;
+    print c; print '\n';
+
+    let d = c .. r;
+    print d; print '\n';
+}
+

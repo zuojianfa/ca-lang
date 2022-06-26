@@ -461,3 +461,26 @@ this should can speed up the find performance
 struct A {a: i32, b: *A} => {Aid; aid:i32id, bid:*Aid}, Aid == symname_check_insert("t:Aid")
 ```
 
+# project
+## How to
+### Add a new type
+- add related token in `ca.y`, example `RANGE`
+- add related grammar structure in `ca.y` 
+- add related function in `ca_parser.c`, example: `make_struct_expr`
+- inference type in `inference_expr_expr_type` or `inference_expr_type`
+- determine type in `determine_expr_expr_type` or `determine_expr_type` when needed
+- add in `walk_expr`
+- add in `CADataType` when needed
+- create `DIType` function in `ditype_create_from_catype` in `IR_generator.cpp` when needed
+- handle `walk_literal` for literal value of new type when needed
+- add in `walk_dbgprint` or `dbgprint_complex` for `print` function when needed
+- add in `determine_letbind_type_for_struct` when needed
+- add `walk_expr_xxxx` function in `walk_expr` when needed
+- add in `debug_catype_datatype_aux` for print datatype
+- add in `catype_unwind_type_signature` when needed 
+- add in `inference_literal_type` when needed
+- add in `determine_literal_type` when needed
+- add in `catype_clone_thin` when needed
+- add in `llvmtype_from_catype_inner` when needed
+- add in `gen_literal_value`
+

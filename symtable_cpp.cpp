@@ -714,7 +714,7 @@ GeneralRange *general_range_init(GeneralRange *gr, short inclusive,
   else if (start && end)
     gr->type = inclusive ? InclusiveRange : RightExclusiveRange;
   else if (start)
-    gr->type = inclusive ? InclusiveRangeFrom : RightExclusiveRangeFrom;
+    gr->type = RangeFrom;
   else
     gr->type = inclusive ? InclusiveRangeTo : RightExclusiveRangeTo;
 
