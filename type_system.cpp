@@ -1703,6 +1703,13 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   if (itr != s_symtable_type_map.end())
     return itr->second;
 
+  // find type from global (signature) table
+  auto itr2 = s_type_map.find(name);
+  if (itr2 != s_type_map.end()) {
+    s_symtable_type_map.insert(std::make_pair(windst, itr2->second));
+    return itr2->second;
+  }
+
   // step 2: get unwind id
   int typesize = 0;
   CADataType *dt = nullptr;
@@ -1712,7 +1719,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   }
 
   // step 3: find type from global (signature) table
-  auto itr2 = s_type_map.find(unwind);
+  itr2 = s_type_map.find(unwind);
   if (itr2 != s_type_map.end()) {
     s_symtable_type_map.insert(std::make_pair(windst, itr2->second));
     return itr2->second;
@@ -3427,6 +3434,9 @@ bool catype_is_float(tokenid_t typetok) {
 }
 
 bool catype_is_complex_type(CADataType *catype) {
+  if (catype->type == RANGE && catype->range_layout->range)
+    return catype_is_complex_type(catype->range_layout->range);
+
   switch (catype->type) {
   case ARRAY:
   case STRUCT:
@@ -3442,7 +3452,8 @@ bool catype_is_complex_type(CADataType *catype) {
     case InclusiveRangeTo:
     case RightExclusiveRangeTo:
     case RangeFrom:
-      return catype_is_complex_type(catype->range_layout->range);
+      //return catype_is_complex_type(catype->range_layout->range);
+      return true;
     default:
       yyerror("bad range type: %d", catype->range_layout->type);
       return false;

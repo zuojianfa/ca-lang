@@ -1,0 +1,23 @@
+fn main() {
+    let a = 3..;
+    let aa = a .. a;
+    print aa; print '\n';
+
+    let aaa = aa .. aa;
+    print aaa; print '\n';
+
+    let a = ..4;
+    let aa = a .. a;
+    print aa; print '\n';
+
+    let aaa = aa .. aa;
+    print aaa; print '\n';
+
+    let a = ..=5;
+    let aa = a .. a;
+    print aa; print '\n';
+
+    let aaa = aa .. aa;
+    print aaa;
+}
+

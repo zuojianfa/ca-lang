@@ -1,4 +1,29 @@
 fn main() {
-    let a = 3..;   
+    let a = 3..;
+    print a; print '\n';
+
+    let b = a;
+    print b; print '\n';
+
+    struct AA {
+        f1: i32,
+        f2: bool,
+        f3: f64,
+    }
+
+    let aar0 = AA{f1: 21, f2: true, f3: 323.22} ..;
+    print aar0; print '\n';
+
+    let aa = AA{f1: 21, f2: true, f3: 323.22};
+    let aar = aa ..;
+    print aar; print '\n';
+
+    struct TT (
+        AA, i32, f32,
+    );
+
+    let tt = TT(aa, 32, 3.2);
+    let ttr = tt..;
+    print ttr;
 }
 

@@ -900,9 +900,11 @@ static void walk_for(ASTNode *p) {
   walk_stack(p->forn.listnode);
   auto pair = pop_right_value("list", false);
   Value *lists = pair.first;
-  if (pair.second->type != ARRAY) {
+
+  CADataType *list_type = pair.second;
+  if (list_type->type != ARRAY && list_type->type != RANGE) {
     caerror(&(p->begloc), &(p->endloc), "currently only support iterate array in for statement, but find `%s`",
-	    catype_get_type_name(pair.second->signature));
+	    catype_get_type_name(list_type->signature));
     return;
   }
 
@@ -917,19 +919,53 @@ static void walk_for(ASTNode *p) {
   CAVariable *cavar = entry->u.varshielding.current;
 
   CADataType *itemcatype = nullptr;
+
+  // the reference use the same type as value
+  switch (list_type->type) {
+  case ARRAY:
+    itemcatype = list_type->array_layout->type;
+    break;
+  case RANGE:
+    if (list_type->range_layout->range->type == STRUCT)
+      itemcatype = list_type->range_layout->range->struct_layout->fields[0].type;
+    else
+      itemcatype = list_type->range_layout->range;
+
+    break;
+  }
+
   if (is_forstmt_pointer_var(forvar)) {
-    itemcatype = pair.second->array_layout->type;
     itemcatype = catype_make_pointer_type(itemcatype);
-  } else {
-    // the reference use the same type as value
-    itemcatype = pair.second->array_layout->type;
   }
   
   cavar->datatype = itemcatype->signature;
 
-  size_t listsize = pair.second->array_layout->dimarray[0];
-  // list size llvm value
-  Value *listsizev = ir1.gen_int(listsize);
+  Value *listsizev = nullptr;
+  if (list_type->type == ARRAY) {
+    size_t listsize = list_type->array_layout->dimarray[0];
+
+    // list size llvm value
+    listsizev = ir1.gen_int(listsize);
+  } else {
+
+    lists
+      ;
+    // NEXT TODO: 
+    Value *idxv0 = ir1.gen_int(0);
+    std::vector<Value *> idxv(2, idxv0);
+
+    if (vnodes->size() != 0 && lefttype->getTypeID() == Type::PointerTyID)
+      lefttype = static_cast<PointerType *>(lefttype)->getElementType();
+
+    for (size_t i = 0; i < values.size(); ++i) {
+      // get elements address of arr
+      Value *idxvi = ir1.gen_int(i);
+      idxv[1] = idxvi;
+      Value *dest = ir1.builder().CreateGEP(arr, idxv);
+      aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "tmpsuba");
+    }
+
+  }
 
   // scanner index llvm value
   Value *valuezero = ir1.gen_int((size_t)0);
@@ -1256,8 +1292,8 @@ static void walk_expr_ife(ASTNode *p) {
   walk_if_common(p);
 }
 
-static void dbgprint_complex(Function *fn, CADataType *catype, Value *v);
-static void dbgprint_complex_range(Function *fn, CADataType *catype, Value *v) {
+static void dbgprint_value(Function *fn, CADataType *catype, Value *v);
+static void dbgprint_value_range(Function *fn, CADataType *catype, Value *v) {
   GeneralRangeType range_type = catype->range_layout->type;
   switch (range_type) {
   case FullRange:
@@ -1269,17 +1305,17 @@ static void dbgprint_complex_range(Function *fn, CADataType *catype, Value *v) {
     Value *v1 = ir1.builder().CreateExtractValue(v, 0);
     assert(catype->range_layout->range->type == STRUCT);
     assert(catype->range_layout->range->struct_layout->tuple == 2);
-    dbgprint_complex(fn, catype->range_layout->range->struct_layout->fields[0].type, v1);
+    dbgprint_value(fn, catype->range_layout->range->struct_layout->fields[0].type, v1);
     llvmcode_printf(fn, range_type == InclusiveRange ? "..=" : "..", nullptr);
     Value *v2 = ir1.builder().CreateExtractValue(v, 1);
-    dbgprint_complex(fn, catype->range_layout->range->struct_layout->fields[1].type, v2);
+    dbgprint_value(fn, catype->range_layout->range->struct_layout->fields[1].type, v2);
     break;
   }
   case InclusiveRangeTo:
   case RightExclusiveRangeTo:
     llvmcode_printf(fn, range_type == InclusiveRangeTo ? "..=" : "..", nullptr);
   case RangeFrom:
-    dbgprint_complex(fn, catype->range_layout->range, v);
+    dbgprint_value(fn, catype->range_layout->range, v);
     if (catype->range_layout->type == RangeFrom)
       llvmcode_printf(fn, "..", nullptr);
 
@@ -1290,7 +1326,7 @@ static void dbgprint_complex_range(Function *fn, CADataType *catype, Value *v) {
   }
 }
 
-static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
+static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
   int len = 0;
   switch(catype->type) {
   case ARRAY:
@@ -1307,7 +1343,7 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
       //Type* array_t =  llvm::PointerType::getUnqual(v->getType());
       Value *subv = ir1.builder().CreateExtractValue(v, i);
 
-      dbgprint_complex(fn, catype->array_layout->type, subv);
+      dbgprint_value(fn, catype->array_layout->type, subv);
       if (i < len - 1)
 	llvmcode_printf(fn, ", ", nullptr);
     }
@@ -1340,7 +1376,7 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
       }
 
       Value *subv = ir1.builder().CreateExtractValue(v, i);
-      dbgprint_complex(fn, fields[i].type, subv);
+      dbgprint_value(fn, fields[i].type, subv);
 
       if (i < len - 1)
 	llvmcode_printf(fn, ", ", nullptr);
@@ -1351,7 +1387,7 @@ static void dbgprint_complex(Function *fn, CADataType *catype, Value *v) {
     break;
   }
   case RANGE: {
-    dbgprint_complex_range(fn, catype, v);
+    dbgprint_value_range(fn, catype, v);
     break;
   }
   default:
@@ -1374,34 +1410,12 @@ static void walk_dbgprint(ASTNode *p) {
   if (!printf_fn)
     yyerror("cannot find declared extern printf function");
 
-  if (catype_is_complex_type(pair.second)) {
-    dbgprint_complex(printf_fn, pair.second, v);
-    return;
-  }
-
   if (p->printn.expr->litn.litv.littypetok == CSTRING) {
     llvmcode_printf(printf_fn, "%s", v, nullptr);
     return;
   }
 
-  llvmcode_printf_primitive(printf_fn, pair.second, v);
-
-#if 0
-  const char *format = "%d\n";
-
-  // handle expression value transfer
-  format = get_printf_format(pair.second->type);
-  v = tidy_value_with_arith(v, pair.second->type);
-
-  Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
-  std::vector<Value *> printf_args(1, format_str);
-  printf_args.push_back(v);
-
-  if (enable_debug_info())
-    diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
-
-  ir1.builder().CreateCall(printf_fn, printf_args, "n");
-#endif
+  dbgprint_value(printf_fn, pair.second, v);
 }
 
 static void walk_dbgprinttype(ASTNode *p) {
@@ -2168,23 +2182,27 @@ static void walk_range(ASTNode *p) {
   Value *end_value = nullptr;
   CADataType *start_type = nullptr;
   CADataType *end_type = nullptr;
-
+  OperandType start_optype = OT_Const;
+  OperandType end_optype = OT_Const;
+  OperandType optype = OT_Const;
 
   bool iscomplextype = false;
   if (range->start) {
     walk_stack(range->start);
     iscomplextype = catype_is_complex_type(oprand_stack.back()->catype);
-    auto pair = pop_right_value("start", !iscomplextype);
-    start_value = pair.first;
-    start_type = pair.second;
+    auto co = pop_right_operand("start", !iscomplextype);
+    start_value = co->operand;
+    start_type = co->catype;
+    start_optype = co->type;
   }
 
   if (range->end) {
     walk_stack(range->end);
     iscomplextype = catype_is_complex_type(oprand_stack.back()->catype);
-    auto pair = pop_right_value("end", !iscomplextype);
-    end_value = pair.first;
-    end_type = pair.second;
+    auto co = pop_right_operand("end", !iscomplextype);
+    end_value = co->operand;
+    end_type = co->catype;
+    end_optype = co->type;
   }
 
   CADataType *catype = catype_from_range(p, (GeneralRangeType)range->type, range->inclusive, start_type, end_type);
@@ -2196,18 +2214,22 @@ static void walk_range(ASTNode *p) {
     values.push_back(end_value);
 
     walk_expr_tuple_common(p, catype->range_layout->range, values);
-    auto pair = pop_right_value("range", false);
-    value = pair.first;
+    auto co = pop_right_operand("range", false);
+    value = co->operand;
+    optype = co->type;
   } else if (start_value) {
     value = start_value;
+    optype = start_optype;
   } else if (end_value) {
     value = end_value;
+    optype = end_optype;
   } else {
     // when full range, there is no llvm value counterparter, so just use the integer value
     value = ir1.gen_int(0);
+    optype = OT_Const;
   }
   
-  oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Alloc, value, catype));
+  oprand_stack.push_back(std::make_unique<CalcOperand>(optype, value, catype));
 }
 
 static void walk_expr_minus(ASTNode *p) {

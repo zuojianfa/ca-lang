@@ -1,5 +1,11 @@
 fn main() {
     let r = ..;
-    print r;
+    print r; print '\n';
+
+    let r2 = 2..3;
+    print r2; print '\n';
+
+    let r3 = 20..=33;
+    print r3; print '\n';
 }
 

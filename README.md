@@ -227,6 +227,9 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [x] let pattern matching: let S(x) = A; let S{x} = A;
   - [x] support let variable rebind to new type
   - [x] support array definition by repeated number let a = [(1,2); 3];
+  - [x] range type supported
+  - [ ] range used in for
+  - [ ] range used in array defination
   - [x] for i in list
 	- [x] for *i in list
 	- [ ] for &i in list
@@ -303,6 +306,13 @@ is scopeline the real skip function start for debugging? try it
 NEXT TODO:
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
   How to represent range, the range is a type?
+  - [x] range type
+  - [ ] range used in for
+  - [ ] range used in array defination
+
+- [ ] range used in for
+  - [ ] range used in array defination
+
 - [ ] 'label1: loop
 - [ ] match
 - [ ] mod scope

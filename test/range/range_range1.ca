@@ -1,0 +1,10 @@
+fn main() {
+    struct AA {f1: i32}
+    let a = AA {f1: 33} ..;
+    let a2 = a .. a;
+    print a2; print '\n';
+
+    let a3 = a2 .. a2;
+    print a3;
+}
+
