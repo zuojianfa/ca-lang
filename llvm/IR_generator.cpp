@@ -947,24 +947,16 @@ static void walk_for(ASTNode *p) {
     // list size llvm value
     listsizev = ir1.gen_int(listsize);
   } else {
-
-    lists
-      ;
-    // NEXT TODO: 
     Value *idxv0 = ir1.gen_int(0);
     std::vector<Value *> idxv(2, idxv0);
+    Value *begin_value = ir1.builder().CreateGEP(lists, idxv);
 
-    if (vnodes->size() != 0 && lefttype->getTypeID() == Type::PointerTyID)
-      lefttype = static_cast<PointerType *>(lefttype)->getElementType();
+    Value *idxvi = ir1.gen_int(1);
+    idxv[1] = idxvi;
+    Value *end_value = ir1.builder().CreateGEP(lists, idxv);
 
-    for (size_t i = 0; i < values.size(); ++i) {
-      // get elements address of arr
-      Value *idxvi = ir1.gen_int(i);
-      idxv[1] = idxvi;
-      Value *dest = ir1.builder().CreateGEP(arr, idxv);
-      aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "tmpsuba");
-    }
-
+    listsizev = ir1.gen_sub(end_value, begin_value);
+    // NEXT TODO: how to handle the index iterator
   }
 
   // scanner index llvm value
