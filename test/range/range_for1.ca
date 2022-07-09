@@ -3,5 +3,25 @@ fn main() {
     for (i in a) {
         print i; print ' ';
     }
+    print '\n';
+
+    let b = 30..=35;
+    for (i in b) {
+        print i; print ' ';
+    }
+    print '\n';
+
+    let c = 'a' .. 'z';
+    
+    for (i in c) {
+        print i; print ' ';
+    }
+    print '\n';
+
+    let c = 'A' ..= 'z';
+    
+    for (i in c) {
+        print i; print ' ';
+    }
 }
 

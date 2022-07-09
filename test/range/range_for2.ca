@@ -1,0 +1,9 @@
+fn main() {
+    let a = 0x123456789abcdef0u64..0x123456789abcdeffu64;
+    print a; print '\n';
+
+    for (i in a) {
+	print i; print '\n';
+    }
+}
+

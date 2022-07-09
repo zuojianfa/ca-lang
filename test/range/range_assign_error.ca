@@ -1,0 +1,7 @@
+fn main() {
+    let a = 1..5;
+    a = 1..=6;
+
+    print a; print '\n';
+}
+

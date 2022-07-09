@@ -1,0 +1,10 @@
+fn main() {
+    struct AA(i32, i32);
+    let a = AA(1,2)..AA(4,5);
+    print a; print '\n';
+
+    for (i in a) {
+	print i; print '\n';
+    }
+}
+

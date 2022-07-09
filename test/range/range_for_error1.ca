@@ -1,0 +1,7 @@
+fn main() {
+    let a = false..true;
+    for (i in a) {
+	print i;
+    }
+}
+

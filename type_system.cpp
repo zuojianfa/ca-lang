@@ -2878,34 +2878,34 @@ Value *generate_cmp_op(int typetok, Value *v1, Value *v2, int op) {
   return ir1.builder().CreateCmp(pred, v1, v2, pair.second);
 }
 
-Value *create_def_value(int typetok) {
+Value *create_default_integer_value(int typetok, int64_t defv) {
   switch(typetok) {
   case I16:
-    return ir1.gen_int<int16_t>(0);
+    return ir1.gen_int<int16_t>(defv);
     break;
   case I32:
-    return ir1.gen_int<int>(0);
+    return ir1.gen_int<int>(defv);
     break;
   case I64:
-    return ir1.gen_int<int64_t>(0);
+    return ir1.gen_int<int64_t>(defv);
     break;
   case U16:
-    return ir1.gen_int<uint16_t>(0);
+    return ir1.gen_int<uint16_t>(defv);
     break;
   case U32:
-    return ir1.gen_int<uint32_t>(0);
+    return ir1.gen_int<uint32_t>(defv);
     break;
   case U64:
-    return ir1.gen_int<uint64_t>(0);
+    return ir1.gen_int<uint64_t>(defv);
     break;
   case I8:
-    return ir1.gen_int<int8_t>(0);
+    return ir1.gen_int<int8_t>(defv);
     break;
   case U8:
-    return ir1.gen_int<uint8_t>(0);
+    return ir1.gen_int<uint8_t>(defv);
     break;
   case BOOL:
-    return ir1.gen_bool(true);
+    return ir1.gen_bool(!defv);
     break;
   case VOID: {
     //Type *voidty = Type::getVoidTy(ir1.ctx());

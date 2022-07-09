@@ -881,6 +881,46 @@ static bool is_forstmt_pointer_var(ForStmtId forvar) {
   return forvar.vartype == '*';
 }
 
+static Value *aux_create_compare_value_for(ASTNode *p, CADataType *list_catype, CADataType *item_catype,
+					   Value *curr_value, Value *end_cond_value) {
+  if (list_catype->type == ARRAY) {
+    return ir1.builder().CreateICmpULT(curr_value, end_cond_value);
+  }
+
+  // range catype
+  Value *ltv = nullptr;
+  switch (item_catype->type) {
+  case I8:
+  case I16:
+  case I32:
+  case I64:
+    if (list_catype->range_layout->inclusive)
+      ltv = ir1.builder().CreateICmpSLE(curr_value, end_cond_value);
+    else
+      ltv = ir1.builder().CreateICmpSLT(curr_value, end_cond_value);
+    break;
+  case U8:
+  case U16:
+  case U32:
+  case U64:
+    if (list_catype->range_layout->inclusive)
+      ltv = ir1.builder().CreateICmpULE(curr_value, end_cond_value);
+    else
+      ltv = ir1.builder().CreateICmpULT(curr_value, end_cond_value);
+    break;
+  case BOOL:
+  case F32:
+  case F64:
+  default:
+    ltv = nullptr;
+    caerror(&p->begloc, &p->endloc, "type `%s` not support step into next yet",
+	    catype_get_type_name(item_catype->signature));
+    break;
+  }
+
+  return ltv;
+}
+
 static void walk_for(ASTNode *p) {
   if (!curr_fn)
     return;
@@ -892,7 +932,7 @@ static void walk_for(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->forn.listnode->endloc.row, p->forn.listnode->endloc.col, curr_lexical_scope->discope);
 
-  // TODO: currently only support iterator array, later will support generator list e.g. (1..6)
+  // TODO: currently only support iterator array & range, later will support generator list e.g. (1..6)
   // the generator list also need allocate just like variable
 
   // prepare list nodes and the variable
@@ -901,10 +941,11 @@ static void walk_for(ASTNode *p) {
   auto pair = pop_right_value("list", false);
   Value *lists = pair.first;
 
-  CADataType *list_type = pair.second;
-  if (list_type->type != ARRAY && list_type->type != RANGE) {
-    caerror(&(p->begloc), &(p->endloc), "currently only support iterate array in for statement, but find `%s`",
-	    catype_get_type_name(list_type->signature));
+  CADataType *list_catype = pair.second;
+  if (list_catype->type != ARRAY && list_catype->type != RANGE) {
+    caerror(&(p->forn.listnode->begloc), &(p->forn.listnode->endloc),
+	    "currently only support iterate array and range type in for statement, but find `%s`",
+	    catype_get_type_name(list_catype->signature));
     return;
   }
 
@@ -921,15 +962,22 @@ static void walk_for(ASTNode *p) {
   CADataType *itemcatype = nullptr;
 
   // the reference use the same type as value
-  switch (list_type->type) {
+  switch (list_catype->type) {
   case ARRAY:
-    itemcatype = list_type->array_layout->type;
+    itemcatype = list_catype->array_layout->type;
     break;
   case RANGE:
-    if (list_type->range_layout->range->type == STRUCT)
-      itemcatype = list_type->range_layout->range->struct_layout->fields[0].type;
+    if (list_catype->range_layout->range->type == STRUCT)
+      itemcatype = list_catype->range_layout->range->struct_layout->fields[0].type;
     else
-      itemcatype = list_type->range_layout->range;
+      itemcatype = list_catype->range_layout->range;
+
+    // TODO: check itemcatype, it should not be complex, the complex type may need a user defined comparing function
+    if (!catype_is_integer(itemcatype->type)) {
+      caerror(&p->forn.listnode->begloc, &p->forn.listnode->endloc, "type `%s` not support step into next yet",
+	      catype_get_type_name(itemcatype->signature));
+      return;
+    }
 
     break;
   }
@@ -940,33 +988,54 @@ static void walk_for(ASTNode *p) {
   
   cavar->datatype = itemcatype->signature;
 
-  Value *listsizev = nullptr;
-  if (list_type->type == ARRAY) {
-    size_t listsize = list_type->array_layout->dimarray[0];
-
-    // list size llvm value
-    listsizev = ir1.gen_int(listsize);
-  } else {
-    Value *idxv0 = ir1.gen_int(0);
-    std::vector<Value *> idxv(2, idxv0);
-    Value *begin_value = ir1.builder().CreateGEP(lists, idxv);
-
-    Value *idxvi = ir1.gen_int(1);
-    idxv[1] = idxvi;
-    Value *end_value = ir1.builder().CreateGEP(lists, idxv);
-
-    listsizev = ir1.gen_sub(end_value, begin_value);
-    // NEXT TODO: how to handle the index iterator
-  }
-
   // scanner index llvm value
   Value *valuezero = ir1.gen_int((size_t)0);
-  Value *valueone = ir1.gen_int((size_t)1);
-  Value *indexvslot = ir1.gen_entry_block_var(curr_fn, ir1.int_type<size_t>(), "idx", valuezero);
+  Value *valueone = nullptr;
 
+  // 1. initial condition and terminate condition
+  Value *begin_cond_v = nullptr;
+  Value *end_cond_v = nullptr;
+  if (list_catype->type == ARRAY) {
+    size_t listsize = list_catype->array_layout->dimarray[0];
+    valueone = ir1.gen_int((size_t)1);
+
+    begin_cond_v = valuezero;
+
+    // list size llvm value
+    end_cond_v = ir1.gen_int(listsize);
+  } else { // range
+    valueone = create_default_integer_value(itemcatype->type, 1);
+
+#if 0
+    Value *valuezero1 = ir1.gen_int(0);
+    std::vector<Value *> idxv(2, valuezero1);
+    begin_cond_v = ir1.builder().CreateGEP(lists, idxv);
+
+    idxv[1] = valueone;
+    end_cond_v = ir1.builder().CreateGEP(lists, idxv);
+#else
+    Value *listsv = ir1.builder().CreateLoad(lists);
+    begin_cond_v = ir1.builder().CreateExtractValue(listsv, 0);
+    end_cond_v = ir1.builder().CreateExtractValue(listsv, 1);
+#endif
+
+  }
+
+  Type *item_type = llvmtype_from_catype(itemcatype);
+
+  Type *index_type = nullptr;
+  if (list_catype->type == ARRAY) {
+    index_type = ir1.int_type<size_t>();
+  } else {
+    index_type = item_type;
+  }
+
+  // 2. value index slot
+  Value *indexvslot = ir1.gen_entry_block_var(curr_fn, index_type, "idx", begin_cond_v);
+
+  // 3. generate item variable value used in for body
   const char *itemname = symname_get(cavar->name);
-  Type *itemtype = llvmtype_from_catype(itemcatype);
-  Value *itemvar = ir1.gen_entry_block_var(curr_fn, itemtype, itemname, nullptr);
+  Value *itemvar = ir1.gen_entry_block_var(curr_fn, item_type, itemname, nullptr);
   if (enable_debug_info())
     emit_local_var_dbginfo(curr_fn, itemname, itemcatype, itemvar, p->forn.listnode->endloc.row);
 
@@ -979,8 +1048,12 @@ static void walk_for(ASTNode *p) {
   ir1.builder().SetInsertPoint(condbb);
 
   // branch according to the list nodes, when no node left then out else loop again
-  Value *indexv = ir1.builder().CreateLoad(indexvslot, "idx");
-  Value *ltv = ir1.builder().CreateICmpULT(indexv, listsizev);
+  // 4. load value index value
+  Value *indexv = ir1.builder().CreateLoad(indexvslot, "idxv");
+
+  // 5. compare condition index value with terminate condition
+  Value *ltv = aux_create_compare_value_for(p, list_catype, itemcatype, indexv, end_cond_v);
+
   ir1.builder().CreateCondBr(ltv, loopbb, endloopbb);
 
   curr_fn->getBasicBlockList().push_back(loopbb);
@@ -988,19 +1061,27 @@ static void walk_for(ASTNode *p) {
 
   // copy array item value into the variable
   
+  // 6. get item value from list
   // NEXT TODO: handle the reference type variable
-  std::vector<Value *> idxv(2, valuezero);
-  idxv[1] = indexv;
-  Value *listitemvslot = ir1.builder().CreateInBoundsGEP(lists, idxv);
-  bool iscomplextype = catype_is_complex_type(itemcatype);
-  Value *listitemv = listitemvslot;
-  if (!iscomplextype && !is_forstmt_pointer_var(forvar))
-    listitemv = ir1.builder().CreateLoad(listitemvslot);
+  Value *listitemv = nullptr;
+  if (list_catype->type == ARRAY) {
+    std::vector<Value *> idxv(2, valuezero);
+    idxv[1] = indexv;
+    Value *listitemvslot = ir1.builder().CreateInBoundsGEP(lists, idxv);
+    bool iscomplextype = catype_is_complex_type(itemcatype);
+    listitemv = listitemvslot;
+    if (!iscomplextype && !is_forstmt_pointer_var(forvar))
+      listitemv = ir1.builder().CreateLoad(listitemvslot);
+  } else { // range
+    listitemv = indexv;
+  }
 
-  aux_copy_llvmvalue_to_store(itemtype, itemvar, listitemv, "auxi");
+  // 7. copy value from list item to item variable
+  aux_copy_llvmvalue_to_store(item_type, itemvar, listitemv, "auxi");
 
+  // 8. get next index and store into slot
   // increment the index
-  Value *indexloadv = ir1.builder().CreateLoad(indexvslot, "idx");
+  Value *indexloadv = ir1.builder().CreateLoad(indexvslot, "idxv");
   Value *incv = ir1.builder().CreateAdd(indexloadv, valueone);
   ir1.builder().CreateStore(incv, indexvslot);
 
@@ -3189,7 +3270,7 @@ static void generate_final_return(ASTNode *p) {
     return;
   }
 
-  Value *retv = create_def_value(retdt->type);
+  Value *retv = create_default_integer_value(retdt->type);
   if (retv)
     ir1.builder().CreateRet(retv);
   else
