@@ -549,7 +549,7 @@ static Value *extract_value_from_array(ASTNode *node) {
     ASTNode *expr = (ASTNode *)vec_at(indices, i);
     inference_expr_type(expr);
     walk_stack(expr);
-    std::pair<Value *, CADataType *> pair = pop_right_value("item", 1);
+    std::pair<Value *, CADataType *> pair = pop_right_value("item", true);
     if (!catype_is_integer(pair.second->type)) {
       caerror(&(node->begloc), &(node->endloc), "array index type must be integer, but find `%s` on `%d`",
 	      catype_get_type_name(pair.second->signature), i);

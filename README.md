@@ -307,11 +307,8 @@ NEXT TODO:
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
   How to represent range, the range is a type?
   - [x] range type
-  - [ ] range used in for
-  - [ ] range used in array defination
-
-- [ ] range used in for
-  - [ ] range used in array defination
+  - [x] range used in for
+  - [ ] range used in array pattern
 
 - [ ] 'label1: loop
 - [ ] match
