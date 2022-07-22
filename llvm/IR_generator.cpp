@@ -1774,8 +1774,18 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
     break;
   }
   case PT_GenTuple: {
+    if (exprn->type == TTE_Id) {
+      // handle the condition when exprn->type s TTE_Id, the type is just come from the left side
+      typeid_t type = inference_expr_type(exprn);
+      CADataType *catype = catype_get_by_name(exprn->symtable, type);
+      CHECK_GET_TYPE_VALUE(exprn, catype, type);
+      determine_letbind_type(cap, catype, exprn->symtable);
+
+      break;
+    }
+
     if (exprn->type != TTE_Expr || exprn->exprn.op != TUPLE || exprn->exprn.noperand != 1) {
-      caerror(&(cap->loc), NULL, "the right side expression is not a genral tuple type");
+      caerror(&(cap->loc), NULL, "the right side expression is not a general tuple type: %d", cap->type);
       return;
     }
 
@@ -1811,6 +1821,10 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
     varshielding_rotate_capattern(cap, exprn->symtable, false);
     break;
   }
+  case PT_Array: // NEXT TODO: when is array type the type should be easy to determine
+#if 0
+    // following 2 case should cannot come here, because it's caller `inference_letbind_type`
+    // already handlered and returned it when in catype != NULL case
   case PT_Tuple:
   case PT_Struct: {
     // named struct / tuple must can create a type according to it's name
@@ -1824,6 +1838,10 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
     determine_letbind_type(cap, catype, exprn->symtable);
     break;
     }
+#endif
+  default:
+    caerror(&(cap->loc), NULL, "Unknown pattern type `%d` when inferencing type", cap->type);
+    break;
   }
 }
 
@@ -1970,7 +1988,7 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
     yyerror("inner error: should not come here, upper logic already processed");
     break;
   default:
-    yyerror("inner error: unknown pattern type: `%d`", cap->type);
+    yyerror("inner error: unknown pattern type: `%d` when determining type", cap->type);
     break;
   }
 }
@@ -2128,7 +2146,7 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *valu
     yyerror("inner error: should not come here, upper logic already processed");
     break;
   default:
-    yyerror("inner error: unknown pattern type: `%d`", cap->type);
+    yyerror("inner error: unknown pattern type: `%d` when binding value", cap->type);
     break;
   }
 }
@@ -2178,6 +2196,7 @@ static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bo
   case PT_Var:
     varshielding_rotate_capattern_variable(cap, symtable, is_back);
     break;
+  case PT_Array:
   case PT_Tuple:
   case PT_GenTuple:
   case PT_Struct:
@@ -2187,7 +2206,7 @@ static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bo
   case PT_IgnoreRange:
     break;
   default:
-    yyerror("inner error: unknown pattern type: `%d`", cap->type);
+    yyerror("inner error: unknown pattern type: `%d` when rotate var shielding", cap->type);
     break;
   }
 }

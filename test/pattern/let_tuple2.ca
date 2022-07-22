@@ -1,0 +1,7 @@
+fn main() {
+    let t = (3, 4);
+    let (a, b) = t;
+    print a; print ' ';
+    print b;
+}
+
