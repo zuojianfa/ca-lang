@@ -235,6 +235,7 @@ CAPattern *capattern_new(int name, PatternType type, PatternGroup *pg) {
   case PT_Var:
     cap->name = name;
     break;
+  case PT_Array:
   case PT_GenTuple:
   case PT_Tuple:
   case PT_Struct:
@@ -244,6 +245,9 @@ CAPattern *capattern_new(int name, PatternType type, PatternGroup *pg) {
   case PT_IgnoreOne:
   case PT_IgnoreRange:
     break;
+  default:
+    caerror(&cap->loc, &cap->loc, "Unknown pattern type: `%d`", type);
+    return nullptr;
   }
 
   return cap;

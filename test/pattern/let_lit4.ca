@@ -1,0 +1,6 @@
+fn main() {
+    let a = (32, true);
+    let (32, b) = a;
+    print b;
+}
+

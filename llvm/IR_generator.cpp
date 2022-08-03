@@ -1062,7 +1062,7 @@ static void walk_for(ASTNode *p) {
   // copy array item value into the variable
   
   // 6. get item value from list
-  // NEXT TODO: handle the reference type variable
+  // TODO: handle the reference type variable
   Value *listitemv = nullptr;
   if (list_catype->type == ARRAY) {
     std::vector<Value *> idxv(2, valuezero);
@@ -1765,6 +1765,8 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
   case PT_IgnoreRange:
   case PT_Var: {
     // for variable shielding, resolving `let a = a;` statement
+    // NEXT TODO: handle the case of `let (f1, f2) = (1, 2); let (f2, f1) = (f1, f2);`
+    // NEXT TODO: handle array pattern match
     varshielding_rotate_capattern(cap, exprn->symtable, true);
     typeid_t type = inference_expr_type(exprn);
     varshielding_rotate_capattern(cap, exprn->symtable, false);
@@ -1822,6 +1824,8 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
     break;
   }
   case PT_Array: // NEXT TODO: when is array type the type should be easy to determine
+    
+    break;
 #if 0
     // following 2 case should cannot come here, because it's caller `inference_letbind_type`
     // already handlered and returned it when in catype != NULL case
@@ -2211,7 +2215,7 @@ static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bo
   }
 }
 
-// NEXT TODO: for local and global variable binding, refactor walk_assign function
+// TODO: for local and global variable binding, refactor walk_assign function
 static void walk_letbind(ASTNode *p) {
   CAPattern *cap = p->letbindn.cap;
   ASTNode *exprn = p->letbindn.expr;
@@ -3101,9 +3105,6 @@ static void walk_expr_box(ASTNode *expr) {
 static void walk_expr_range(ASTNode *expr) {
   ASTNode *range_expr = expr->exprn.operands[0];
   walk_stack(range_expr);
-
-  // NEXT TODO:
-  //auto pair = pop_right_value();
 }
 
 static void walk_expr(ASTNode *p) {

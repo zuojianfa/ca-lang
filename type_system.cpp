@@ -1741,6 +1741,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
 
 CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
   switch (cap->type) {
+  case PT_Array:
   case PT_GenTuple: {
     typeid_t *types = new typeid_t[cap->items->size];
     for (int i = 0; i < cap->items->size; ++i) {
@@ -1751,7 +1752,22 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
       types[i] = dt->signature;
     }
 
-    typeid_t type = sym_form_tuple_id(types, cap->items->size);
+    typeid_t type = typeid_novalue;
+    if (cap->type == PT_Array) {
+      for (int i = 1; i < cap->items->size; ++i) {
+	if (types[i-1] != types[i]) {
+	  caerror(&cap->loc, NULL, "Array pattern expected `%s` on `%d`, but found `%s`",
+		  catype_get_type_name(types[i-1]), i,
+		  catype_get_type_name(types[i]));
+	  return nullptr;
+	}
+      }
+      
+      type = sym_form_array_id(types[0], cap->items->size);
+    } else {
+      type = sym_form_tuple_id(types, cap->items->size);
+    }
+
     CADataType *catype = catype_get_by_name(symtable, type);
     if (!catype) {
       caerror(&cap->loc, nullptr, "get type `%s` failed", catype_get_type_name(type));
@@ -1766,7 +1782,7 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
     CADataType *catype = catype_get_by_name(symtable, type);
     if (!catype) {
       caerror(&cap->loc, nullptr, "get type `%s` by pattern failed", catype_get_type_name(type));
-      return NULL;
+      return nullptr;
     }
 
     return catype;
@@ -1790,6 +1806,8 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
   case PT_IgnoreOne:
   case PT_IgnoreRange:
     return nullptr;
+  default:
+    caerror(&(cap->loc), nullptr, "Unknown pattern type `%d` when create catype", cap->type);
   }
 }
 

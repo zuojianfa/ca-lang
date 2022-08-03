@@ -204,6 +204,7 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	RET expr ';'            { $$ = make_stmt_ret_expr($2); }
 	|	RET ';'		        { $$ = make_stmt_ret(); }
 	|	let_stmt                { $$ = $1; }
+	|	match_stmt              {  }
 	|	assignment_stmt         { $$ = $1; }
 	|	assign_op_stmt          { $$ = $1; }
 	|	BREAK ';'               { $$ = make_break(); }
@@ -286,7 +287,9 @@ let_stmt_left_pattern:
 	|	IDENT '(' pattern_tuple_args_all ')'  { $$ = capattern_new($1, PT_Tuple, $3); } // tuple style pattern match, for tuple/enum/union type
 	|	IDENT '{' pattern_struct_args_all '}' { $$ = capattern_new($1, PT_Struct, $3); } // struct style pattern match, for struct/tuple type
 	|	'(' pattern_tuple_args_all ')'        { $$ = capattern_new(0, PT_GenTuple, $2); } // general tuple (unnamed) pattern match
+	|	'[' pattern_tuple_args_all ']'        { $$ = capattern_new(0, PT_Array, $2); }
 	|	'_'                                   { $$ = capattern_new(0, PT_IgnoreOne, NULL); } // ignorance the pattern
+//	|	literal
 //	|	IDENT ':' ':' IDENT // TODO: domain type or enum type
 
 pattern_tuple_args_all:
@@ -345,6 +348,20 @@ pattern_struct_arg:
 		/* the ignore .. only can appear at the end of struct pattern, and only have one */
 		$$ = capattern_new(0, PT_IgnoreRange, NULL);
 		}
+	;
+
+match_stmt: 	MATCH '(' expr ')' '{' match_patterns '}' {}
+	;
+
+match_patterns:	match_patterns ',' match_pattern {}
+	|	match_pattern {}
+	;
+
+match_pattern:	let_stmt_left INFER stmt_list_block {}
+	;
+
+match_left:	let_stmt_left
+	|
 	;
 
 assignment_stmt:left_value_id '=' expr ';'  { $$ = make_assign(&$1, $3); }

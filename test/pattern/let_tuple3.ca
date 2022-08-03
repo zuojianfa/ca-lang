@@ -1,0 +1,8 @@
+fn main() {
+    let (f1, f2) = (1, 2);
+    let (f1, f2) = (f2, f1);
+
+    print f1; print ' ';
+    print f2;
+}
+

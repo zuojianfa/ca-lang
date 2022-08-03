@@ -1,0 +1,7 @@
+fn main() {
+    let a = [1,2,3,4,5];
+    let [f1, _, f2, ..] = a;
+    print f1; print ' ';
+    print f2;
+}
+

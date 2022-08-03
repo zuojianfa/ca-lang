@@ -309,7 +309,9 @@ NEXT TODO:
   - [x] range type
   - [x] range used in for
   - [ ] range used in array pattern
-
+  
+- [ ] support array let binding for array `let a = [1,2,3,4,5]; let [f1, _, f2, ..] = a`
+- [ ] support literal binding used in match pattern
 - [ ] 'label1: loop
 - [ ] match
 - [ ] mod scope
@@ -491,3 +493,12 @@ struct A {a: i32, b: *A} => {Aid; aid:i32id, bid:*Aid}, Aid == symname_check_ins
 - add in `llvmtype_from_catype_inner` when needed
 - add in `gen_literal_value`
 
+
+
+```
+b IR_generator.cpp:1763
+b IR_generator.cpp:1814
+b varshielding_rotate_capattern
+b IR_generator.cpp:2199 // varshielding_rotate_capattern
+b IR_generator.cpp:2220
+```

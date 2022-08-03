@@ -865,8 +865,20 @@ void register_structpattern_symtable(CAPattern *cap, int withname, int withsub, 
   // walk for structure items
   if (withsub) {
     PatternGroup *pg = cap->items;
-    for (int i = 0; i < pg->size; ++i)
+    if (cap->type == PT_Array) {
+      // array type need all element be the same data type
+      for (int i = 1; i < pg->size; ++i) {
+	if (pg->patterns[i-1]->datatype != pg->patterns[i]->datatype) {
+	  caerror(loc, loc, "Array pattern expected `%s` on `%d`, but found `%s`",
+		  catype_get_type_name(pg->patterns[i-1]->datatype), i,
+		  catype_get_type_name(pg->patterns[i]->datatype));
+	}
+      }
+    }
+
+    for (int i = 0; i < pg->size; ++i) {
       register_capattern_symtable(pg->patterns[i], loc, sethandler);
+    }
   }
 }
 
@@ -875,6 +887,7 @@ static void register_capattern_symtable(CAPattern *cap, SLoc *loc, void *sethand
   case PT_Var:
     register_structpattern_symtable(cap, 0, 0, loc, sethandler);
     break;
+  case PT_Array:
   case PT_GenTuple:
     register_structpattern_symtable(cap, 0, 1, loc, sethandler);
     break;
@@ -893,6 +906,7 @@ static const char *capattern_check_ignore(CAPattern *cap) {
   switch (cap->type) {
   case PT_Var:
     return NULL;
+  case PT_Array:
   case PT_GenTuple:
   case PT_Tuple:
   case PT_Struct:

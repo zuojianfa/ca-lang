@@ -1,0 +1,15 @@
+fn main() {
+    struct AA (i32, bool);
+
+    let a = AA(32, true);
+
+    // let AA(a1, a2) = a;
+    // print a1; print ' ';
+    // print a2;
+
+    let AA(32, a2) = a;
+
+    //print a1; print ' ';
+    print a2;
+}
+

@@ -1,0 +1,16 @@
+fn main() {
+	let a = 1;
+	print a; print ' ';
+
+	let b = 2;
+	print b; print '\n';
+	
+	let (a, b) = (a, b);
+	print a; print ' ';
+	print b; print '\n';
+
+	//let (b, a) = (a, b);
+	print a; print ' ';
+	print b;
+}
+

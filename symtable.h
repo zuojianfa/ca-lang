@@ -217,6 +217,7 @@ typedef struct IdGroup {
 
 typedef enum PatternType {
   PT_Var,
+  PT_Array,
   PT_Tuple,
   PT_GenTuple,
   PT_Struct,
