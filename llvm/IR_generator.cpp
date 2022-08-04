@@ -1749,27 +1749,28 @@ static int capattern_ignorerange_pos(CAPattern *cap) {
   return -1;
 }
 
-static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn);
+static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPattern *cap, ASTNode *exprn);
 
 // determine variable types in pattern and do format checking for let binding operation
-static void inference_letbind_pattern_range(CAPattern *cap, ASTNode *tuplenode, int from, int to, int typeoffset) {
+static void inference_letbind_pattern_range(CAPattern *rotate_top_cap, CAPattern *cap, ASTNode *tuplenode, int from, int to, int typeoffset) {
   for (int i = from; i < to; ++i) {
-    inference_letbind_type_both_side(cap->items->patterns[i], tuplenode->arglistn.exprs[i + typeoffset]);
+    inference_letbind_type_both_side(rotate_top_cap, cap->items->patterns[i], tuplenode->arglistn.exprs[i + typeoffset]);
   }
 }
 
 static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bool is_back = false);
-static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
+
+// parameter `rotate_top_cap` used for handle the case of `let (f1, f2) = (1, 2); let (f2, f1) = (f1, f2)`
+static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPattern *cap, ASTNode *exprn) {
   switch (cap->type) {
   case PT_IgnoreOne:
   case PT_IgnoreRange:
   case PT_Var: {
     // for variable shielding, resolving `let a = a;` statement
-    // NEXT TODO: handle the case of `let (f1, f2) = (1, 2); let (f2, f1) = (f1, f2);`
     // NEXT TODO: handle array pattern match
-    varshielding_rotate_capattern(cap, exprn->symtable, true);
+    varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
     typeid_t type = inference_expr_type(exprn);
-    varshielding_rotate_capattern(cap, exprn->symtable, false);
+    varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
     if (cap->type == PT_Var)
       capattern_register_variable_catype(cap, type, exprn->symtable);
 
@@ -1778,7 +1779,10 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
   case PT_GenTuple: {
     if (exprn->type == TTE_Id) {
       // handle the condition when exprn->type s TTE_Id, the type is just come from the left side
+      varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
       typeid_t type = inference_expr_type(exprn);
+      varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
+
       CADataType *catype = catype_get_by_name(exprn->symtable, type);
       CHECK_GET_TYPE_VALUE(exprn, catype, type);
       determine_letbind_type(cap, catype, exprn->symtable);
@@ -1803,12 +1807,12 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
 
     if (ignorerangepos == -1) {
       // with no ignore range ..
-      inference_letbind_pattern_range(cap, tuplenode, 0, cap->items->size, 0);
+      inference_letbind_pattern_range(rotate_top_cap, cap, tuplenode, 0, cap->items->size, 0);
     } else {
       // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
       // handle starting and ending matches
-      inference_letbind_pattern_range(cap, tuplenode, 0, ignorerangepos, 0);
-      inference_letbind_pattern_range(cap, tuplenode, ignorerangepos + 1, cap->items->size, tuplenode->arglistn.argc - cap->items->size);
+      inference_letbind_pattern_range(rotate_top_cap, cap, tuplenode, 0, ignorerangepos, 0);
+      inference_letbind_pattern_range(rotate_top_cap, cap, tuplenode, ignorerangepos + 1, cap->items->size, tuplenode->arglistn.argc - cap->items->size);
     }
 
     CADataType *catype = catype_from_capattern(cap, exprn->symtable);
@@ -1818,31 +1822,26 @@ static void inference_letbind_type_both_side(CAPattern *cap, ASTNode *exprn) {
     if (cap->morebind)
       bind_register_variable_catype(cap->morebind, catype->signature, exprn->symtable);
 
-    varshielding_rotate_capattern(cap, exprn->symtable, true);
+    varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
     determine_expr_type(exprn, catype->signature);
-    varshielding_rotate_capattern(cap, exprn->symtable, false);
+    varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
     break;
   }
   case PT_Array: // NEXT TODO: when is array type the type should be easy to determine
     
     break;
-#if 0
-    // following 2 case should cannot come here, because it's caller `inference_letbind_type`
-    // already handlered and returned it when in catype != NULL case
   case PT_Tuple:
-  case PT_Struct: {
-    // named struct / tuple must can create a type according to it's name
-    CADataType *catype = capattern_check_get_type(cap, exprn);
-    CHECK_GET_TYPE_VALUE(exprn, catype, cap->name);
-
-    varshielding_rotate_capattern(cap, exprn->symtable, true);
-    determine_expr_type(exprn, catype->signature);
-    varshielding_rotate_capattern(cap, exprn->symtable, false);
-
-    determine_letbind_type(cap, catype, exprn->symtable);
+  case PT_Struct:
+    // following 2 case should cannot come here, because it's caller `inference_letbind_type`
+    // already handlered and returned it when in catype != NULL case, because PT_Tuple and
+    // PT_Struct all have a name and in function `capattern_check_get_type` which is invoked
+    // by function `inference_letbind_type`, it can get the datatype according to the name,
+    // so need needed here
+    caerror(&exprn->begloc,  &exprn->endloc, NULL,
+	    "(internal) Pattern type `%s` should not come here for inferencing",
+	    cap->type == PT_Tuple ? "PT_Tuple" : "PT_Struct"
+	    );
     break;
-    }
-#endif
   default:
     caerror(&(cap->loc), NULL, "Unknown pattern type `%d` when inferencing type", cap->type);
     break;
@@ -1861,7 +1860,7 @@ static void inference_letbind_type(CAPattern *cap, ASTNode *exprn) {
   }
 
   // when cannot directly get datatype from pattern then inference type for / from both side (right expression)
-  inference_letbind_type_both_side(cap, exprn);
+  inference_letbind_type_both_side(cap, cap, exprn);
 }
 
 // determine variable types in pattern and do format checking for let binding operation
@@ -1985,6 +1984,8 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
     break;
   case PT_Struct:
     determine_letbind_type_for_struct(cap, catype, symtable, 0);
+    break;
+  case PT_Array: // NEXT TODO: when is array type the type should be easy to determine
     break;
   case PT_IgnoreOne:
     break;
@@ -2231,6 +2232,7 @@ static void walk_letbind(ASTNode *p) {
   if (exprn->type != TTE_VarDefZeroValue) {
     // 1. inference type for both side of binding, to determine the types of both side
     // when is not zeroinitial
+    // Should rotating as whole, the reason see segment `Rotation As a Whole` of document `variable-shielding.md`
     inference_letbind_type(cap, exprn);
 
     // 2. walk right side node and get Value

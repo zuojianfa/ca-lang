@@ -15,5 +15,5 @@ do_test(range "1 2 3 4 5 6 7 8 9 \n30 31 32 33 34 35 \na b c d e f g h i j k l m
 do_test(range "1311768467463790320..1311768467463790335\n1311768467463790320\n1311768467463790321\n1311768467463790322\n1311768467463790323\n1311768467463790324\n1311768467463790325\n1311768467463790326\n1311768467463790327\n1311768467463790328\n1311768467463790329\n1311768467463790330\n1311768467463790331\n1311768467463790332\n1311768467463790333\n1311768467463790334" ca range_for2.ca)
 do_test(range "line: 3, col: 15:\n    for \\(i in a\\) {\n              \\^\ntype `bool` not support step into next yet" ca range_for_error1.ca)
 do_test(range "line: 6, col: 15:\n    for \\(i in a\\) {\n              \\^\ntype `\\(AA\\;i32,i32\\)` not support step into next yet" ca range_for_error2.ca)
-do_test(range "good" ca range_arrat1.ca)
+do_test(range "good" ca range_array1.ca)
 

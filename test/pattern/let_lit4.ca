@@ -1,6 +1,12 @@
 fn main() {
     let a = (32, true);
-    let (32, b) = a;
-    print b;
+    let (b, a) = a;
+    print b; print ' ';
+    print a; print '\n';
+
+    let a = (32, true);
+    let (a, b) = a;
+    print b; print ' ';
+    print a;
 }
 

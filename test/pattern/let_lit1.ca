@@ -6,13 +6,8 @@ fn main() {
 
     let a = AA{32, true};
 
-    // let AA{f1: a1, f2: a2} = a;
-    // print a1; print ' ';
-    // print a2;
-
-    let AA{f1: 32, f2: a2} = a;
-
-    //print a1; print ' ';
+    let AA{f1: a2, f2: a} = a;
+    print a; print ' ';
     print a2;
 }
 

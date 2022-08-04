@@ -1,5 +1,8 @@
 fn main() {
     let a = 32;
-    let 32 = 32;
+    print a; print ' ';
+
+    let a = a + a;
+    print a; print ' ';
 }
 

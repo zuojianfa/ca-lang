@@ -3,13 +3,8 @@ fn main() {
 
     let a = AA(32, true);
 
-    // let AA(a1, a2) = a;
-    // print a1; print ' ';
-    // print a2;
-
-    let AA(32, a2) = a;
-
-    //print a1; print ' ';
-    print a2;
+    let AA(a1, a) = a;
+    print a1; print ' ';
+    print a;
 }
 

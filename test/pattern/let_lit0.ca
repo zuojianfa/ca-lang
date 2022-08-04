@@ -1,16 +1,11 @@
 fn main() {
-	let a = 1;
-	print a; print ' ';
+    let a = 1;
+    let b = 2;
+    print a; print ' ';
+    print b; print '\n';
 
-	let b = 2;
-	print b; print '\n';
-	
-	let (a, b) = (a, b);
-	print a; print ' ';
-	print b; print '\n';
-
-	//let (b, a) = (a, b);
-	print a; print ' ';
-	print b;
+    let (b, a) = (a, b);
+    print a; print ' ';
+    print b; print ' ';
 }
 
