@@ -1,11 +1,9 @@
 fn main() {
-    let a = [1,2];
-    let [f1, f2] = a;
-
-    // let (f1, f2) = (1, 2);
-    // let (f1, f2) = (f2, f1);
+    let a = [1.1, 2.2, 3.3];
+    let [f1, f2, f3] = a;
 
     print f1; print ' ';
-    print f2;
+    print f2; print ' ';
+    print f3;
 }
 

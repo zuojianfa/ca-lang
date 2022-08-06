@@ -23,6 +23,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <assert.h>
 #include <cassert>
 #include <cstdarg>
 #include <cstddef>
@@ -1758,6 +1759,12 @@ static void inference_letbind_pattern_range(CAPattern *rotate_top_cap, CAPattern
   }
 }
 
+static void determine_letbind_type_range(CAPattern *cap, CADataType *catype, int from, int to, SymTable *symtable) {
+  for (int i = from; i < to; ++i) {
+    determine_letbind_type(cap->items->patterns[i], catype, symtable);
+  }	
+}
+
 static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bool is_back = false);
 
 // parameter `rotate_top_cap` used for handle the case of `let (f1, f2) = (1, 2); let (f2, f1) = (f1, f2)`
@@ -1767,7 +1774,6 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
   case PT_IgnoreRange:
   case PT_Var: {
     // for variable shielding, resolving `let a = a;` statement
-    // NEXT TODO: handle array pattern match
     varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
     typeid_t type = inference_expr_type(exprn);
     varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
@@ -1786,6 +1792,9 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
       CADataType *catype = catype_get_by_name(exprn->symtable, type);
       CHECK_GET_TYPE_VALUE(exprn, catype, type);
       determine_letbind_type(cap, catype, exprn->symtable);
+
+      if (cap->morebind)
+	bind_register_variable_catype(cap->morebind, catype->signature, exprn->symtable);
 
       break;
     }
@@ -1827,9 +1836,76 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
     varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
     break;
   }
-  case PT_Array: // NEXT TODO: when is array type the type should be easy to determine
-    
+  case PT_Array: {
+    int ignorerangepos = capattern_ignorerange_pos(cap);
+
+    if (exprn->type == TTE_Id) {
+      // NEXT TODO: when type is TTE_Id
+      // handle the condition when exprn->type s TTE_Id, the type is just come from the left side
+      varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
+      typeid_t type = inference_expr_type(exprn);
+      varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
+
+      CADataType *catype = catype_get_by_name(exprn->symtable, type);
+      CHECK_GET_TYPE_VALUE(exprn, catype, type);
+      assert(catype->type == ARRAY);
+      if (ignorerangepos == -1 && cap->items->size != catype->array_layout->dimarray[0]) {
+	caerror(&(cap->loc), NULL, "pattern have different fields `%d` than `%d` of left expression",
+		cap->items->size, catype->array_layout->dimarray[0]);
+	return;
+      }
+
+      determine_letbind_type(cap, catype, exprn->symtable);
+
+      if (cap->morebind)
+	bind_register_variable_catype(cap->morebind, catype->signature, exprn->symtable);
+
+      break;
+    }
+
+    if (exprn->type != TTE_Expr || exprn->exprn.op != ARRAY || exprn->exprn.noperand != 1) {
+      caerror(&(cap->loc), NULL, "the right side expression is not an array type: %d", cap->type);
+      return;
+    }
+
+    ASTNode *arraynode = exprn->exprn.operands[0];
+    assert(arraynode->type == TTE_ArrayDef);
+
+    size_t right_expr_size = 0;
+    if (ignorerangepos == -1 && cap->items->size != (right_expr_size = vec_size(arraynode->anoden.aexpr.data))) {
+      caerror(&(cap->loc), NULL, "pattern have different fields `%d` than `%d` of left expression",
+	      cap->items->size, right_expr_size);
+      return;
+    }
+
+    // inference right side type directly and determine right side type
+    varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
+    typeid_t type = inference_expr_type(exprn);
+    varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
+
+    CADataType *catype = catype_get_by_name(exprn->symtable, type);
+    CHECK_GET_TYPE_VALUE(exprn, catype, type);
+    assert(catype->type == ARRAY);
+
+    CADataType *subcatype = catype->array_layout->type;
+
+    if (ignorerangepos == -1) {
+      // with no ignore range .. condition: `let [a, b, c] = [1, 2, 3]`, then inference type only from right side
+      // for this condition inference type from left side: `let [a, b, c]: [u8; 3] = [1, 2, 3]`, it should already
+      // be done in function `capattern_check_get_type -> catype_from_capattern`, so here need not coping with it
+      determine_letbind_type(cap, catype, exprn->symtable);
+    } else {
+      // with ignore range .., x1, x2, .., xm, xn condition: `(v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)`
+      // handle starting and ending matches
+      determine_letbind_type_range(cap, subcatype, 0, ignorerangepos, exprn->symtable);
+      determine_letbind_type_range(cap, subcatype, ignorerangepos + 1, cap->items->size, exprn->symtable);
+    }
+
+    if (cap->morebind)
+      bind_register_variable_catype(cap->morebind, catype->signature, exprn->symtable);
+
     break;
+  }
   case PT_Tuple:
   case PT_Struct:
     // following 2 case should cannot come here, because it's caller `inference_letbind_type`
@@ -1985,7 +2061,8 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
   case PT_Struct:
     determine_letbind_type_for_struct(cap, catype, symtable, 0);
     break;
-  case PT_Array: // NEXT TODO: when is array type the type should be easy to determine
+  case PT_Array:
+    determine_letbind_type_range(cap, catype->array_layout->type, 0, cap->items->size, symtable);
     break;
   case PT_IgnoreOne:
     break;
@@ -2060,7 +2137,7 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
                                  Value *value, CADataType *catype);
 
 // determine variable types in pattern and do format checking for let binding operation
-static void capattern_bind_pattern_range(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype,
+static void capattern_bind_tuple_pattern_range(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype,
 					 int from, int to, int typeoffset) {
   Value *idxv0 = ir1.gen_int((int)0);
   std::vector<Value *> idxv(2, idxv0);
@@ -2124,15 +2201,63 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
   // handle tuple value like upper
   if (ignorerangepos == -1) {
     // with no ignore range ..
-    capattern_bind_pattern_range(symtable, cap, value, catype, 0, cap->items->size, 0);
+    capattern_bind_tuple_pattern_range(symtable, cap, value, catype, 0, cap->items->size, 0);
   } else {
     // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
     // handle starting and ending matches
-    capattern_bind_pattern_range(symtable, cap, value, catype, 0, ignorerangepos, 0);
-    capattern_bind_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size);
-  }  
+    capattern_bind_tuple_pattern_range(symtable, cap, value, catype, 0, ignorerangepos, 0);
+    capattern_bind_tuple_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size);
+  }
 }
 
+static void capattern_bind_array_pattern_range(SymTable *symtable,
+                                               CAPattern *cap, Value *value,
+                                               CADataType *catype, int from,
+                                               int to, int typeoffset)
+{
+  Value *idxv0 = ir1.gen_int((int)0);
+  std::vector<Value *> idxv(2, idxv0);
+
+  CADataType *btype = catype->array_layout->type;
+
+  for (int i = from; i < to; ++i) {
+    int opos = i + typeoffset;
+    Value *subvalue = nullptr;
+    if (value) {
+      Value *idxvi = ir1.gen_int(opos);
+      idxv[1] = idxvi;
+      subvalue = ir1.builder().CreateGEP(value, idxv);
+
+      if (!catype_is_complex_type(btype))
+	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
+    }
+
+    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype);
+  }
+}
+
+static void capattern_bind_array_value(SymTable *symtable, CAPattern *cap,
+                                       Value *value, CADataType *catype)
+{
+  // when in this function the value should already come with the type of capattern
+  if (cap->morebind)
+    atmore_bind_variable_value(symtable, cap->morebind, value);
+
+  // get the ignore variant position in struct / tuple, the check should already checked previously
+  int ignorerangepos = capattern_ignorerange_pos(cap);
+
+  if (ignorerangepos == -1) {
+    // with no ignore range ..
+    capattern_bind_array_pattern_range(symtable, cap, value, catype, 0, cap->items->size, 0);
+  } else {
+    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
+    // handle starting and ending matches
+    capattern_bind_array_pattern_range(symtable, cap, value, catype, 0, ignorerangepos, 0);
+    capattern_bind_array_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size);
+  }
+}
+
+// bind value for the variable variant in the pattern
 static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype) {
   switch (cap->type) {
   case PT_Var:
@@ -2144,6 +2269,9 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *valu
     break;
   case PT_Struct:
     capattern_bind_struct_value(symtable, cap, value, catype, 0);
+    break;
+  case PT_Array:
+    capattern_bind_array_value(symtable, cap, value, catype);
     break;
   case PT_IgnoreOne:
     break;

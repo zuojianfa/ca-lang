@@ -1743,6 +1743,9 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
   switch (cap->type) {
   case PT_Array:
   case PT_GenTuple: {
+    // NEXT TODO: handle array and gentuple with definition type like
+    // `let (a, b): (i32, f64) = (1, 2.4)` or
+    // `let [a, b]: [u8; 2] = [1, 2]`
     typeid_t *types = new typeid_t[cap->items->size];
     for (int i = 0; i < cap->items->size; ++i) {
       CADataType *dt = catype_from_capattern(cap->items->patterns[i], symtable);

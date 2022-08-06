@@ -141,7 +141,7 @@ typedef struct CAStructLit {
 } CAStructLit;
 
 typedef struct CAArrayExpr {
-  void *data;
+  void *data; // vector
 } CAArrayExpr;
 
 typedef struct CAStructNamed {

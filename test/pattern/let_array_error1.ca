@@ -1,5 +1,5 @@
 fn main() {
-    let [f1, f2] = [2, 1];
+    let [f1, f2] = [1, 2, 3];
     print f1; print ' ';
     print f2;
 }

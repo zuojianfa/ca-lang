@@ -693,6 +693,7 @@ ASTNode *make_tuple_expr(CAStructExpr expr) {
   return NULL;
 }
 
+// right array element value node
 ASTNode *make_arrayitem_right(ArrayItem ai) {
   ASTNode *p = new_ASTNode(TTE_ArrayItemRight);
   p->aitemn = ai;
