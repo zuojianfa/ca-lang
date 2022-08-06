@@ -1,0 +1,25 @@
+fn main() {
+    let [_, f1, f2] = [1,2,3];
+    print f1; print ' ';
+    print f2; print ' ';
+
+    let [f1, _, f2] = [1,2,3];
+    print f1; print ' ';
+    print f2; print ' ';
+
+    let [f1, f2, _] = [1,2,3];
+    print f1; print ' ';
+    print f2; print '\n';
+
+    let [_, _, a] = [1,2,3];
+    print a; print ' ';
+
+    let [_, a, _] = [1,2,3];
+    print a; print ' ';
+
+    let [a, _, _] = [1,2,3];
+    print a; print ' ';
+
+    let [_, _, _] = [1,2,3];
+}
+

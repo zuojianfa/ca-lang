@@ -227,6 +227,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [x] let pattern matching: let S(x) = A; let S{x} = A;
   - [x] support let variable rebind to new type
   - [x] support array definition by repeated number let a = [(1,2); 3];
+  - [x] support array let binding for array `let a = [1,2,3,4,5]; let [f1, _, f2, ..] = a`
   - [x] range type supported
   - [ ] range used in for
   - [ ] range used in array defination
@@ -310,7 +311,6 @@ NEXT TODO:
   - [x] range used in for
   - [ ] range used in array pattern
   
-- [ ] support array let binding for array `let a = [1,2,3,4,5]; let [f1, _, f2, ..] = a`
 - [ ] support literal binding used in match pattern
 - [ ] 'label1: loop
 - [ ] match

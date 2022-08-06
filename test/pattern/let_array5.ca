@@ -1,10 +1,11 @@
 fn main() {
     let a = [1,2,3,4,5];
-    let [f1, _, f2, ..] = a;
+    let [.., f1, f2] = a;
     print f1; print ' ';
     print f2; print ' ';
 
-    let [f1, _, f2, ..] = [1,2,3,4,5];
+    let a = [1,2,3,4,5];
+    let [.., f1, f2] = [1,2,3,4,5];
     print f1; print ' ';
     print f2;
 }

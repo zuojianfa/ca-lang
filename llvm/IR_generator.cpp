@@ -1839,43 +1839,14 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
   case PT_Array: {
     int ignorerangepos = capattern_ignorerange_pos(cap);
 
-    if (exprn->type == TTE_Id) {
-      // NEXT TODO: when type is TTE_Id
-      // handle the condition when exprn->type s TTE_Id, the type is just come from the left side
-      varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
-      typeid_t type = inference_expr_type(exprn);
-      varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
-
-      CADataType *catype = catype_get_by_name(exprn->symtable, type);
-      CHECK_GET_TYPE_VALUE(exprn, catype, type);
-      assert(catype->type == ARRAY);
-      if (ignorerangepos == -1 && cap->items->size != catype->array_layout->dimarray[0]) {
-	caerror(&(cap->loc), NULL, "pattern have different fields `%d` than `%d` of left expression",
-		cap->items->size, catype->array_layout->dimarray[0]);
+    if (exprn->type != TTE_Id) {
+      if (exprn->type != TTE_Expr || exprn->exprn.op != ARRAY || exprn->exprn.noperand != 1) {
+	caerror(&(cap->loc), NULL, "the right side expression is not an array type: %d", cap->type);
 	return;
       }
 
-      determine_letbind_type(cap, catype, exprn->symtable);
-
-      if (cap->morebind)
-	bind_register_variable_catype(cap->morebind, catype->signature, exprn->symtable);
-
-      break;
-    }
-
-    if (exprn->type != TTE_Expr || exprn->exprn.op != ARRAY || exprn->exprn.noperand != 1) {
-      caerror(&(cap->loc), NULL, "the right side expression is not an array type: %d", cap->type);
-      return;
-    }
-
-    ASTNode *arraynode = exprn->exprn.operands[0];
-    assert(arraynode->type == TTE_ArrayDef);
-
-    size_t right_expr_size = 0;
-    if (ignorerangepos == -1 && cap->items->size != (right_expr_size = vec_size(arraynode->anoden.aexpr.data))) {
-      caerror(&(cap->loc), NULL, "pattern have different fields `%d` than `%d` of left expression",
-	      cap->items->size, right_expr_size);
-      return;
+      ASTNode *arraynode = exprn->exprn.operands[0];
+      assert(arraynode->type == TTE_ArrayDef);
     }
 
     // inference right side type directly and determine right side type
@@ -1885,7 +1856,16 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
 
     CADataType *catype = catype_get_by_name(exprn->symtable, type);
     CHECK_GET_TYPE_VALUE(exprn, catype, type);
-    assert(catype->type == ARRAY);
+    if (catype->type != ARRAY) {
+      caerror(&(cap->loc), NULL, "expected array type but find `%s` for right side variable",
+	      catype_get_type_name(type));
+    }
+
+    if (ignorerangepos == -1 && cap->items->size != catype->array_layout->dimarray[0]) {
+      caerror(&(cap->loc), NULL, "pattern have different fields `%d` than `%d` of left expression",
+	      cap->items->size, catype->array_layout->dimarray[0]);
+      return;
+    }
 
     CADataType *subcatype = catype->array_layout->type;
 
@@ -2253,7 +2233,7 @@ static void capattern_bind_array_value(SymTable *symtable, CAPattern *cap,
     // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
     // handle starting and ending matches
     capattern_bind_array_pattern_range(symtable, cap, value, catype, 0, ignorerangepos, 0);
-    capattern_bind_array_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size);
+    capattern_bind_array_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->array_layout->dimarray[0]-cap->items->size);
   }
 }
 

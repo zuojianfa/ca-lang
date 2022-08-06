@@ -1,0 +1,14 @@
+fn main() {
+    let a = [1,2,3];
+    let [_, _, a] = a;
+    print a; print ' ';
+
+    let [_, a, _] = a;
+    print a; print ' ';
+
+    // let [a, _, _] = a;
+    // print a; print ' ';
+
+    // let [_, _, _] = a;
+}
+
