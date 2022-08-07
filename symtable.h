@@ -39,7 +39,7 @@ typedef enum CADTStatus {
 } CADTStatus;
 
 typedef struct CADataType {
-  tokenid_t type;       // type type: I16 I32 I64 ... STRUCT ARRAY, RANGE
+  tokenid_t type;       // type type: I16 I32 I64 ... STRUCT ARRAY, RANGE, SLICE
   typeid_t formalname; // type name symname_xxx
   size_t size;       // type size
   typeid_t signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table
@@ -49,8 +49,27 @@ typedef struct CADataType {
     struct CAArray *array_layout;    // when type is ARRAY
     struct CAPointer *pointer_layout;// when type is POINTER
     struct CARange *range_layout;    // when type is RANGE, the llvm::Value can be of single type or a tuple type infact
+    struct CASlice *slice_layout;    // when type is SLICE, the llvm::Value can be struct type with form struct TSlice { T *ptr; int len; }
   };
 } CADataType;
+
+// the inner form of slice can be of the form struct TSlice { T *ptr; int len; }
+// or with 2 llvm::Value one ptr, one len
+// when using structure llvm value:
+// struct {
+// Value *ptr;
+// Value *len;
+// } Value;
+// 
+// when using 2 value
+// Value *ptr;
+// Value *len;
+// 
+typedef struct CASlice {
+  //struct TSlice { T *ptr; int len; }
+  CADataType *ptr_type;
+  CADataType *len_type; // can be make fixed u32 type
+} CASlice;
 
 typedef enum GeneralRangeType {
   FullRange,                 // ..

@@ -244,6 +244,10 @@ static Value *llvmcode_drop(Value *ptr) {
   return callret;
 }
 
+static Value *llvmcode_slice_value() {
+  // NEXT TODO:
+}
+
 static void llvmcode_printf(Function *fn, const char *format, ...) {
   Constant *llvmformat = ir1.builder().CreateGlobalStringPtr(format);
   std::vector<Value *> params(1, llvmformat);

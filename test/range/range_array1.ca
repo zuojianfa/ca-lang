@@ -1,5 +1,8 @@
 fn main() {
+    // let a: [u8; 0] = [];
+    // dbgprinttype(typeof(a));
     let a = [1,2,3,4,5,6,7,8,9];
-    //print a; print '\n';
-    print a[1..4]; print '\n';
+    let b = a[1..2];
+    // print a; print '\n';
+    // print a[1..4]; print '\n';
 }

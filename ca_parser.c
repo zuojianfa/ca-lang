@@ -1342,7 +1342,16 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
 	return typeid_novalue;
       }
 
-      catype = catype->array_layout->type;
+      ASTNode *indextypenode = (ASTNode *)vec_at(indices, 0);
+      typeid_t indextypeid = inference_expr_type(indextypenode);
+      CADataType *indexcatype = catype_get_by_name(right->symtable, indextypeid);
+      CHECK_GET_TYPE_VALUE(right, indexcatype, indextypeid);
+      if (indexcatype->type == RANGE) {
+	// NEXT TODO: here should implement the slice, implement a slice type
+	
+      } else {
+	catype = catype->array_layout->type;
+      }
     }
 
     type1 = catype->signature;
