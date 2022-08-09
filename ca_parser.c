@@ -760,6 +760,11 @@ int make_attrib_scope(int attrfn, int attrparam) {
   return attrparam;
 }
 
+// For shadowing, there are 2 options to chain the different shadowing variables with different type
+// option 1. make CAVariable objects for each shadowing variables
+// option 2. all shadowing in one CAVariable object
+// I just choose option 1: because, it only need rotation the variable list in symbol entry for both
+// stage parse stage and llvm gen stage
 void register_variable(CAVariable *cavar, SymTable *symtable) {
   STEntry *entry = sym_getsym(symtable, cavar->name, 0);
   if (entry) {
@@ -775,12 +780,6 @@ void register_variable(CAVariable *cavar, SymTable *symtable) {
     entry = sym_insert(symtable, cavar->name, Sym_Variable);
     entry->u.varshielding.varlist = vec_new();
   }
-
-  // NEXT TODO: for shadowing, determine how to chain the different shadowing variables with different type
-  // option 1. make CAVariable objects for each shadowing variables
-  // option 2. all shadowing in one CAVariable object
-  // NEXT TODO: I choose option 1: because, it only need rotation the variable list in symbol entry for both stage parse stage and llvm gen stage
-  // 
 
   entry->u.varshielding.current = cavar;
 }

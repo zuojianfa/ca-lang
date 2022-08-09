@@ -244,8 +244,29 @@ static Value *llvmcode_drop(Value *ptr) {
   return callret;
 }
 
-static Value *llvmcode_slice_value() {
-  // NEXT TODO:
+// There are 2 options to implement the inner slice type
+// 1. use a record (struct) Value
+// 2. use 2 (or more) separate Value
+// Here just select 1, because all needed information is packed into a record,
+// and the content of record:
+// The record content have 2 options
+// option 1:
+// struct {
+//    ptr: *T, // ptr is the start address of the memory allocated by alloca or heap
+//    offset: usize, // the offset of start address of slice: slice_offset = ptr + offset
+//    len: usize,    // the length of the slice
+// }
+//
+// option 2: the pointer is just the start address of slice not the allocated
+// address, don't know if it can work
+// struct {
+//    ptr: *T,       // the ptr is the start address of slice directly
+//    len: usize,    // the length of the slice
+// }
+//
+static Value *llvmcode_create_slice(Value *start, int offset, int len) {
+  // NEXT TODO: slice value
+  
 }
 
 static void llvmcode_printf(Function *fn, const char *format, ...) {
