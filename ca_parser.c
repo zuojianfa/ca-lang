@@ -1336,20 +1336,31 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     void *indices = right->aitemn.indices;
     size_t size = vec_size(indices);
     for (int i = 0; i < size; ++i) {
-      if (catype->type != ARRAY) {
+      if (catype->type != ARRAY && catype->type != SLICE) {
 	caerror(&(node->begloc), &(node->endloc), "type `%d` not an array on index `%d`", catype->type, i);
 	return typeid_novalue;
       }
 
-      ASTNode *indextypenode = (ASTNode *)vec_at(indices, 0);
+      ASTNode *indextypenode = (ASTNode *)vec_at(indices, i);
       typeid_t indextypeid = inference_expr_type(indextypenode);
       CADataType *indexcatype = catype_get_by_name(right->symtable, indextypeid);
       CHECK_GET_TYPE_VALUE(right, indexcatype, indextypeid);
-      if (indexcatype->type == RANGE) {
-	// NEXT TODO: here should implement the slice, implement a slice type
-	
-      } else {
+
+      switch (catype->type) {
+      case ARRAY:
 	catype = catype->array_layout->type;
+        if (indexcatype->type == RANGE) {
+          catype = slice_create_catype(catype);
+        }
+	break;
+      case SLICE:
+	catype = catype->struct_layout->fields[0].type->pointer_layout->type;
+        if (indexcatype->type == RANGE) {
+          catype = slice_create_catype(catype);
+        }
+	break;
+      default:
+	break;
       }
     }
 
@@ -2683,6 +2694,11 @@ ASTNode *make_stmt_list_zip() {
   return p;
 }
 
+// TODO: change the name of related to arrayitem into a proper name, because the
+// arrayitem can be used not only for array type, such as slice type, or pointer
+// type can should also be used for arrayitem type
+// The related name include: ARRAYITEM, TTE_ArrayItemLeft, TTE_ArrayItemRight,
+// extract_value_from_array etc.
 ArrayItem arrayitem_begin(ASTNode *expr) {
    void *handle = vec_new();
    vec_append(handle, expr);

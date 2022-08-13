@@ -306,6 +306,9 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] support slice functionality
+  debug ca slice1.ca
+  walk_letbind
+  array element
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
   In order to support range in array, it need support the slice functionality which is runtime feature, because the range value cannot be statically determined, so it cannot form a new array type from range statically, so it must use the runtime slice functionality.
   How to represent range, the range is a type?

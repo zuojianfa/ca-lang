@@ -70,4 +70,5 @@ add_subdirectory(tuple)
 add_subdirectory(pattern)
 add_subdirectory(shielding)
 add_subdirectory(range)
+add_subdirectory(slice)	
 

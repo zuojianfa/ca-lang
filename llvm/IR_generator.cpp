@@ -252,9 +252,9 @@ static Value *llvmcode_drop(Value *ptr) {
 // The record content have 2 options
 // option 1:
 // struct {
-//    ptr: *T, // ptr is the start address of the memory allocated by alloca or heap
-//    offset: usize, // the offset of start address of slice: slice_offset = ptr + offset
-//    len: usize,    // the length of the slice
+//    ptr: *T, // ptr is the start address of the memory allocated by alloca or
+//    heap offset: usize, // the offset of start address of slice: slice_offset
+//    = ptr + offset len: usize,    // the length of the slice
 // }
 //
 // option 2: the pointer is just the start address of slice not the allocated
@@ -264,9 +264,36 @@ static Value *llvmcode_drop(Value *ptr) {
 //    len: usize,    // the length of the slice
 // }
 //
-static Value *llvmcode_create_slice(Value *start, int offset, int len) {
-  // NEXT TODO: slice value
-  
+static void aux_copy_llvmvalue_to_store(Type *type, Value *dest, Value *src, const char *name);
+static Value *llvmcode_create_slice(Value *start, Value *offset, Value *len, CADataType *item_catype) {
+  std::vector<Value *> slice_idxv(1, offset);
+  Value *slice_start = ir1.builder().CreateGEP(start, slice_idxv);
+
+  Type *item_type = start->getType()->getContainedType(0);
+
+  CADataType *slice_catype = slice_create_catype(item_catype);
+
+  StructType *slice_type = static_cast<StructType *>(llvmtype_from_catype(slice_catype));
+
+  // allocate new array and copy related elements to the array
+  AllocaInst *slice_value = ir1.gen_entry_block_var(curr_fn, slice_type);
+
+  Value *idxv0 = ir1.gen_int((int)0);
+  std::vector<Value *> idxv(2, idxv0);
+
+  // get elements address of slice_value
+  Value *slice_start_dest = ir1.builder().CreateGEP(slice_value, idxv);
+  Type *lefttype = slice_type->getStructElementType(0);
+  aux_copy_llvmvalue_to_store(lefttype, slice_start_dest, slice_start, "slice_start");
+
+  Value *idxvi = ir1.gen_int(1);
+  idxv[1] = idxvi;
+
+  Value *slice_len_dest = ir1.builder().CreateGEP(slice_value, idxv);
+  Type *righttype = slice_type->getStructElementType(1);
+  aux_copy_llvmvalue_to_store(righttype, slice_len_dest, len, "slice_len");
+
+  return slice_value;
 }
 
 static void llvmcode_printf(Function *fn, const char *format, ...) {
@@ -549,48 +576,89 @@ static Value *extract_value_from_array(ASTNode *node) {
   assert(node->type == TTE_ArrayItemLeft || node->type == TTE_ArrayItemRight);
   //STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
   //CADataType *arraycatype = catype_get_by_name(node->symtable, entry->u.var->datatype);
+  // NEXT TODO: walk slice node when `arraynode` is slice type
   walk_stack(node->aitemn.arraynode);
-  auto pair = pop_right_value("aname", false);
-  CADataType *arraycatype = pair.second;
+  auto array_pair = pop_right_value("aname", false);
+  CADataType *arraycatype = array_pair.second;
+  Value *arrayvalue = array_pair.first;
   //CHECK_GET_TYPE_VALUE(node, arraycatype, entry->u.var->datatype);
 
   void *indices = node->aitemn.indices;
+  
+  // for normalized array item the size always be 1
   size_t size = vec_size(indices);
-  std::vector<Value *> vindices;
-  CADataType *catype = arraycatype;
-  vindices.push_back(ir1.gen_int(0));
+  assert(size == 1);
+  assert(arraycatype->array_layout->dimension == 1);
 
   // Question: how to check the index is in scope of an array?
   // Answer: when the index is not constant, only can through runtime checking, e.g.
   // insert index scope checking code into generated code, (convert array bound into
   // llvm::Value object, and insert code to compare the index value and the bound value
   // print error or exit when out of bound
-  for (int i = 0; i < size; ++i) {
-    if (catype->type != ARRAY) {
-      caerror(&(node->begloc), &(node->endloc), "type `%d` not an array on index `%d`",
-	      catype->type, i);
-      return nullptr;
-    }
 
-    ASTNode *expr = (ASTNode *)vec_at(indices, i);
-    inference_expr_type(expr);
-    walk_stack(expr);
-    std::pair<Value *, CADataType *> pair = pop_right_value("item", true);
-    if (!catype_is_integer(pair.second->type)) {
-      caerror(&(node->begloc), &(node->endloc), "array index type must be integer, but find `%s` on `%d`",
-	      catype_get_type_name(pair.second->signature), i);
-      return nullptr;
-    }
+  // NEXT TODO: handle when `arraycatype->type` is slice
+  if (arraycatype->type != ARRAY) {
+    caerror(&(node->begloc), &(node->endloc),
+            "type `%d` not an array on index `%d`", arraycatype->type, 0);
+    return nullptr;
+  }
 
+  ASTNode *expr = (ASTNode *)vec_at(indices, 0);
+  inference_expr_type(expr);
+  walk_stack(expr);
+  std::pair<Value *, CADataType *> pair = pop_right_value("item", true);
+
+  if (!catype_is_integer(pair.second->type) &&
+      !catype_is_integer_range(pair.second)) {
+    caerror(&(node->begloc), &(node->endloc),
+            "array index type must be integer or range of integer, but find `%s` on `%d`",
+            catype_get_type_name(pair.second->signature), 0);
+    return nullptr;
+  }
+
+  std::vector<Value *> vindices;
+  Value *arrayitemvalue = nullptr;
+  if (catype_is_integer(pair.second->type)) {
+    vindices.push_back(ir1.gen_int(0));
     vindices.push_back(pair.first);
-    catype = catype->array_layout->type;
+
+    // arrayitemvalue: is an alloc memory address, so following can store value into it
+    arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
+  } else {
+    // NEXT TODO: when pair.second->type is RANGE
+    // the range type provide the limitation of `start` and the length `end -
+    // start` when fetching value
+    //arrayitemvalue = ;
+    Value *start_value = nullptr;
+    Value *len_value = nullptr;
+
+    switch (pair.second->type) {
+    case FullRange:
+      // length is the array's length
+      len_value = ir1.gen_int((int64_t)arraycatype->array_layout->dimarray[0]);
+    case InclusiveRangeTo:
+      // length is the corresponding value of `range_layout->end + 1`
+      // NEXT TODO: generate range check code here array size > size(range_layout->end)
+    case RightExclusiveRangeTo:
+      // length is the corresponding value of `range_layout->end`
+      // NEXT TODO: generate range check code here array size >= size(range_layout->end)
+      start_value = arrayvalue;
+      break;
+    case RangeFrom:
+      // NEXT TODO: generate range check code here for following 3 enum variant array size >= size(range_layout->start)
+      // 
+    case InclusiveRange:
+      // NEXT TODO: generate range check code here array size > size(range_layout->end)
+    case RightExclusiveRange:
+      // NEXT TODO: generate range check code here array size >= size(range_layout->end)
+    default:
+      break;
+    }
   }
 
   //Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
   //Value *arrayvalue = pair.first;
 
-  // arrayitemvalue: is an alloc memory address, so following can store value into it
-  Value *arrayitemvalue = ir1.builder().CreateInBoundsGEP(pair.first, vindices);
   return arrayitemvalue;
 }
 
@@ -3070,7 +3138,7 @@ static void walk_expr_struct(ASTNode *p) {
     return;
   }
 
-  std::vector<void *> *vnodes = structexpr_deref(snode->snoden); 
+  std::vector<void *> *vnodes = structexpr_deref(snode->snoden);
   if (structcatype->struct_layout->fieldnum != vnodes->size()) {
     caerror(&(snode->begloc), &(snode->endloc), "struct type `%s` expression field size: `%d` not equal to the struct field size: `%d`",
 	    catype_get_type_name(structcatype->signature), structcatype->struct_layout->fieldnum, vnodes->size());

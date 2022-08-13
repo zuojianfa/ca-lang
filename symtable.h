@@ -45,11 +45,10 @@ typedef struct CADataType {
   typeid_t signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table
   CADTStatus status;   // only when status is not None, the signature can be used directly
   union {
-    struct CAStruct *struct_layout;  // when type is STRUCT, TUPLE
-    struct CAArray *array_layout;    // when type is ARRAY
+    struct CAStruct *struct_layout;  // when type is STRUCT, TUPLE, SLICE
+    struct CAArray *array_layout;    // when type is ARRAY,
     struct CAPointer *pointer_layout;// when type is POINTER
     struct CARange *range_layout;    // when type is RANGE, the llvm::Value can be of single type or a tuple type infact
-    struct CASlice *slice_layout;    // when type is SLICE, the llvm::Value can be struct type with form struct TSlice { T *ptr; int len; }
   };
 } CADataType;
 
@@ -60,16 +59,18 @@ typedef struct CADataType {
 // Value *ptr;
 // Value *len;
 // } Value;
-// 
+//
 // when using 2 value
 // Value *ptr;
 // Value *len;
-// 
-typedef struct CASlice {
-  //struct TSlice { T *ptr; int len; }
-  CADataType *ptr_type;
-  CADataType *len_type; // can be make fixed u32 type
-} CASlice;
+//
+// here use CAStruct for SLICE, but limited the `fieldnum` to `2` and
+// `fields[0].type` is pointer type to the sliced array or memory
+// `fields[1].type` is the length type which always be i64
+//typedef struct CASlice {
+//  CADataType *ptr_type;
+// CADataType *len_type; // can be make fixed u32 type
+//} CASlice;
 
 typedef enum GeneralRangeType {
   FullRange,                 // ..
@@ -127,6 +128,9 @@ typedef struct CAStruct {
 // type = int ***(**)[5]
 //
 #define MAX_DIM 16
+// for normalized array item the dimension always be 1, and the `type` can be
+// another array. Using this method it is convenient to walk values
+
 typedef struct CAArray {
   CADataType *type;   // array type
   int dimension;      // array size

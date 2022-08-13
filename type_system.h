@@ -14,6 +14,7 @@ const char *get_printf_format(int type);
 bool catype_is_signed(tokenid_t type);
 bool catype_is_unsigned(tokenid_t type);
 bool catype_is_integer(tokenid_t type);
+bool catype_is_integer_range(CADataType *catype);
 const char *get_printf_format(int type);
 typeid_t inference_literal_type(CALiteral *lit);
 void determine_primitive_literal_type(CALiteral *lit, CADataType *catype);
@@ -26,7 +27,8 @@ CADataType *catype_clone_thin(const CADataType *type);
 CADataType *catype_make_type_symname(int formalname, int type, int size);
 CADataType *catype_make_pointer_type(CADataType *datatype);
 CADataType *catype_make_array_type(CADataType *type, uint64_t len, bool compact);
-CADataType *catype_make_struct_type(int symname, ST_ArgList *arglist);
+CADataType *catype_make_struct_type(int nameid, int typesize, int tuple, int init_capacity);
+void castruct_add_member(CAStruct *castruct, int name, CADataType *dt, size_t offset);
 
 // type finding
 int catype_init();
@@ -39,6 +41,14 @@ bool catype_is_complex_type(CADataType *catype);
 CADataType *catype_get_by_name(SymTable *symtable, typeid_t name);
 CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable);
 CADataType *catype_from_range(ASTNode *node, GeneralRangeType type, int inclusive, CADataType *startdt, CADataType *enddt);
+
+// create a slice catype with only the item catype, but not the item pointer
+// catype for convenient, because there are many data types that can do the
+// slice operation: like array, pointer, slice, and the catype for them not
+// provide the pointer type of theirs elements directly, so here just use the
+// item catype and in the function it will create pointer type from the element
+// (item) type
+CADataType *slice_create_catype(CADataType *item_catype);
 
 void put_post_function(typeid_t fnname, void *carrier);
 int exists_post_function(typeid_t fnname);

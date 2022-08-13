@@ -199,6 +199,9 @@ typedef struct DerefLeft {
 typedef struct ArrayItem {
   //int varname;
   struct ASTNode *arraynode;
+
+  // the indices into the array `arraynode`, it may be multiple like:
+  // `let arr: [[[i32;7];8];9] = ???; arr[3][4]`
   void *indices;
 } ArrayItem, TArrayItem;
 
