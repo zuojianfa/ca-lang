@@ -266,17 +266,21 @@ static Value *llvmcode_drop(Value *ptr) {
 //
 static void aux_copy_llvmvalue_to_store(Type *type, Value *dest, Value *src, const char *name);
 static Value *llvmcode_create_slice(Value *start, Value *offset, Value *len, CADataType *item_catype) {
-  std::vector<Value *> slice_idxv(1, offset);
-  Value *slice_start = ir1.builder().CreateGEP(start, slice_idxv);
+  Value *slice_start = nullptr;
 
-  Type *item_type = start->getType()->getContainedType(0);
+  if (offset) {
+    std::vector<Value *> slice_idxv(1, offset);
+    slice_start = ir1.builder().CreateInBoundsGEP(start, slice_idxv);
+  } else {
+    slice_start = start;
+  }
 
   CADataType *slice_catype = slice_create_catype(item_catype);
 
   StructType *slice_type = static_cast<StructType *>(llvmtype_from_catype(slice_catype));
 
   // allocate new array and copy related elements to the array
-  AllocaInst *slice_value = ir1.gen_entry_block_var(curr_fn, slice_type);
+  AllocaInst *slice_value = ir1.gen_entry_block_var(curr_fn, slice_type, "slice_value");
 
   Value *idxv0 = ir1.gen_int((int)0);
   std::vector<Value *> idxv(2, idxv0);
@@ -412,6 +416,7 @@ static DIType *ditype_get_or_create_from_catype(CADataType *catype, DIScope *sco
 static DIType *ditype_create_from_catype(CADataType *catype, DIScope *scope) {
   const char *name = nullptr;
   switch(catype->type) {
+  case SLICE:
   case STRUCT: {
     const char *structname = symname_get(catype->struct_layout->name);
 
@@ -544,7 +549,7 @@ static Value *walk_literal(ASTNode *p) {
 
   Value *v = gen_literal_value(&p->litn.litv, catype, p->begloc);
 
-  if (catype->type == ARRAY || catype->type == STRUCT) {
+  if (catype->type == ARRAY || catype->type == STRUCT || catype->type == SLICE) {
     Type *arraytype = llvmtype_from_catype(catype);
     Type::TypeID id = arraytype->getTypeID();
     Constant *complexconst = static_cast<Constant *>(v);
@@ -607,53 +612,94 @@ static Value *extract_value_from_array(ASTNode *node) {
   inference_expr_type(expr);
   walk_stack(expr);
   std::pair<Value *, CADataType *> pair = pop_right_value("item", true);
+  CADataType *index_catype = pair.second;
 
-  if (!catype_is_integer(pair.second->type) &&
-      !catype_is_integer_range(pair.second)) {
+  if (!catype_is_integer(index_catype->type) &&
+      !catype_is_integer_range(index_catype)) {
     caerror(&(node->begloc), &(node->endloc),
             "array index type must be integer or range of integer, but find `%s` on `%d`",
-            catype_get_type_name(pair.second->signature), 0);
+            catype_get_type_name(index_catype->signature), 0);
     return nullptr;
   }
 
   std::vector<Value *> vindices;
   Value *arrayitemvalue = nullptr;
-  if (catype_is_integer(pair.second->type)) {
+  if (catype_is_integer(index_catype->type)) {
     vindices.push_back(ir1.gen_int(0));
     vindices.push_back(pair.first);
 
     // arrayitemvalue: is an alloc memory address, so following can store value into it
     arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
   } else {
-    // NEXT TODO: when pair.second->type is RANGE
-    // the range type provide the limitation of `start` and the length `end -
-    // start` when fetching value
-    //arrayitemvalue = ;
-    Value *start_value = nullptr;
+    // condition of when index_catype->type is RANGE, the range type provide the limitation of
+    // `start` and the length `end - start` when fetching value
+    Value *offset_value = nullptr;
     Value *len_value = nullptr;
+    Value *valueone = nullptr;
+    Value *valuetwo = nullptr;
 
-    switch (pair.second->type) {
+    int64_t array_len = (int64_t)arraycatype->array_layout->dimarray[0];
+
+    tokenid_t index_type = tokenid_novalue;
+    if (index_catype->range_layout->type == FullRange)
+      index_type = I64;
+    else if (index_catype->range_layout->type == RangeFrom)
+      index_type = index_catype->range_layout->start->type;
+    else
+      index_type = index_catype->range_layout->end->type;
+
+    switch (index_catype->range_layout->type) {
     case FullRange:
       // length is the array's length
-      len_value = ir1.gen_int((int64_t)arraycatype->array_layout->dimarray[0]);
+      len_value = ir1.gen_int(array_len);
+      break;
     case InclusiveRangeTo:
       // length is the corresponding value of `range_layout->end + 1`
+      valueone = create_default_integer_value(index_catype->range_layout->range->type, 1);
+      len_value = ir1.gen_add(pair.first, valueone, "slice_len");
+
       // NEXT TODO: generate range check code here array size > size(range_layout->end)
+      // something like following code, but in llvm code style
+      //if (len_value <= array_len) {
+      // runtime_error();
+      //}
+      break;
     case RightExclusiveRangeTo:
       // length is the corresponding value of `range_layout->end`
+      len_value = pair.first;
+
       // NEXT TODO: generate range check code here array size >= size(range_layout->end)
-      start_value = arrayvalue;
       break;
     case RangeFrom:
       // NEXT TODO: generate range check code here for following 3 enum variant array size >= size(range_layout->start)
-      // 
+      offset_value = pair.first;
+      len_value = ir1.gen_int(array_len);
+      len_value = ir1.gen_sub(len_value, pair.first, "slice_len");
+      break;
     case InclusiveRange:
-      // NEXT TODO: generate range check code here array size > size(range_layout->end)
+      // NEXT TODO: generate range check code here array size > size(range_layout->end) (for both start and end)
     case RightExclusiveRange:
-      // NEXT TODO: generate range check code here array size >= size(range_layout->end)
+      // NEXT TODO: generate range check code here array size >= size(range_layout->end) (for both start and end)
+      offset_value = ir1.builder().CreateExtractValue(pair.first, 0);
+      valuetwo = ir1.builder().CreateExtractValue(pair.first, 1);
+      len_value = ir1.gen_sub(valuetwo, offset_value, "slice_len");
+      if (index_catype->type == InclusiveRange) {
+	valueone = create_default_integer_value(index_type, 1);
+	len_value = ir1.gen_add(len_value, valueone, "slice_len");
+      }
+
+      break;
+
     default:
       break;
     }
+
+    Instruction::CastOps castopt = gen_cast_ops_token(index_type, I64);
+
+    len_value = ir1.gen_cast_value(castopt, len_value, ir1.int_type<int64_t>());
+
+    Value *slice_value = llvmcode_create_slice(arrayvalue, offset_value, len_value, arraycatype->array_layout->type);
+    arrayitemvalue = slice_value;
   }
 
   //Value *arrayvalue = static_cast<Value *>(entry->u.var->llvm_value);
@@ -1520,6 +1566,7 @@ static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
   case POINTER:
     llvmcode_printf_primitive(fn, catype, v);
     break;
+  case SLICE:
   case STRUCT: {
     const char *name = symname_get(catype->struct_layout->name);
     Constant *sname = ir1.builder().CreateGlobalStringPtr(name);

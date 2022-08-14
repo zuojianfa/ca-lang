@@ -458,6 +458,7 @@ void debug_catype_datatype_aux(const CADataType *datatype, std::set<const CAData
       //fprintf(out_source, "]");
     }
     break;
+  case SLICE:
   case STRUCT:
     debug_print_tab(identhead);
     fprintf(out_source, "%c%s@%p\n", datatype->struct_layout->tuple ? '(' : '{', symname_get(datatype->formalname), datatype);
@@ -1545,6 +1546,7 @@ static int catype_get_field_align(CADataType *type) {
     return sizeof(void *);
   case ARRAY:
     return catype_get_field_align(type->array_layout->type);
+  case SLICE:
   case STRUCT:
     return type->struct_layout->fieldmaxalign;
   default:
@@ -2229,6 +2231,7 @@ CADataType *catype_clone_thin(const CADataType *type) {
     dt->pointer_layout->dimension = type->pointer_layout->dimension;
     dt->pointer_layout->allocpos = CAPointerAllocPos::PP_Stack;
     break;
+  case SLICE:
   case STRUCT:
     // TODO:
     dt->struct_layout = type->struct_layout;
@@ -2596,6 +2599,7 @@ static Type *llvmtype_from_catype_inner(CADataType *catype, std::map<CADataType 
 
     return arrtype;
   }
+  case SLICE:
   case STRUCT: {
     // create llvm struct type
     size_t fieldnum = catype->struct_layout->fieldnum;
@@ -2795,6 +2799,9 @@ Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
     return llvmvalue;
   case ARRAY:
     return gen_array_literal_value(lit, catype, loc);
+  case SLICE:
+    yyerror("the slice literal not implemented yet");
+    return nullptr;
   case STRUCT:
     //ConstantStruct::get();
     // TODO:
@@ -2875,7 +2882,7 @@ Value *generate_cmp_op(int typetok, Value *v1, Value *v2, int op) {
   return ir1.builder().CreateCmp(pred, v1, v2, pair.second);
 }
 
-Value *create_default_integer_value(int typetok, int64_t defv) {
+Value *create_default_integer_value(tokenid_t typetok, int64_t defv) {
   switch(typetok) {
   case I16:
     return ir1.gen_int<int16_t>(defv);
@@ -3275,6 +3282,10 @@ Instruction::CastOps gen_cast_ops(CADataType *fromtype, CADataType *totype) {
   return llvmtype_cast_table[fromtok-VOID][totok-VOID];
 }
 
+Instruction::CastOps gen_cast_ops_token(tokenid_t fromtok, tokenid_t totok) {
+  return llvmtype_cast_table[fromtok-VOID][totok-VOID];
+}
+
 // used for literal value convertion
 // 1. for the type that before ATOMTYPE_END, it use following regulars:
 //   left side is lexical literal value (I64 stand for negative integer value,
@@ -3436,6 +3447,7 @@ bool catype_is_complex_type(CADataType *catype) {
 
   switch (catype->type) {
   case ARRAY:
+  case SLICE:
   case STRUCT:
     return true;
   case RANGE:
