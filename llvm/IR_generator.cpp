@@ -288,6 +288,8 @@ static Value *llvmcode_create_slice(Value *start, Value *offset, Value *len, CAD
   // get elements address of slice_value
   Value *slice_start_dest = ir1.builder().CreateGEP(slice_value, idxv);
   Type *lefttype = slice_type->getStructElementType(0);
+
+  slice_start = ir1.gen_cast_value(ICO::BitCast, slice_start, lefttype);
   aux_copy_llvmvalue_to_store(lefttype, slice_start_dest, slice_start, "slice_start");
 
   Value *idxvi = ir1.gen_int(1);
