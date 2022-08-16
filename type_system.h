@@ -3,6 +3,7 @@
 
 #include "ca.h"
 #include "ca_types.h"
+#include "symtable.h"
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -27,7 +28,7 @@ CADataType *catype_clone_thin(const CADataType *type);
 CADataType *catype_make_type_symname(int formalname, int type, int size);
 CADataType *catype_make_pointer_type(CADataType *datatype);
 CADataType *catype_make_array_type(CADataType *type, uint64_t len, bool compact);
-CADataType *catype_make_struct_type(int nameid, int typesize, int tuple, int init_capacity);
+CADataType *catype_make_struct_type(int nameid, int typesize, CAStructType struct_type, int init_capacity);
 void castruct_add_member(CAStruct *castruct, int name, CADataType *dt, size_t offset);
 
 // type finding

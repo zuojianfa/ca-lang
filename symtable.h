@@ -96,8 +96,15 @@ typedef struct CAStructField {
   //typeid_t type;
 } CAStructField;
 
+typedef enum CAStructType {
+  Struct_NamedStruct, // 0: common structure
+  Struct_NamedTuple,  // 1: tuple, 
+  Struct_GeneralTuple, // 2: general tuple (unnamed)
+  Struct_Slice,       // 3: slice
+} CAStructType;
+
 typedef struct CAStruct {
-  int tuple; // 2: general tuple (unnamed), 1: tuple, 0: common structure
+  CAStructType type; 
   int name;
   int fieldnum;
   int capacity;  // private
@@ -318,7 +325,7 @@ typedef struct STEntry {
     CAVariableShielding varshielding;  // when sym_type are Sym_Variable Sym_Member
     //CADataType *datatype; // when sym_type is Sym_DataType
     struct {
-      int tuple;    // 1: when it is a tuple else it is a struct
+      CAStructType tuple; // 1: when it is a tuple else it is a struct
       typeid_t id;  // when sym_type is Sym_DataType
       ST_ArgList *members; // when id is of struct type it have members, TODO: refactor it make it extensible to other complex type like enum etc.
       struct SymTable *idtable; // TODO: assign symtable value for the id, and use it when unwinding type, or it have bug when not use the symbol table in the type is defining, because when unwinding, it may find the symbol in other level scope

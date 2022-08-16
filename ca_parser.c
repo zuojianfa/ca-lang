@@ -1133,7 +1133,7 @@ static typeid_t get_structfield_expr_type_from_tree(ASTNode *node) {
     return typeid_novalue;
   }
 
-  if (catype->struct_layout->tuple) {
+  if (catype->struct_layout->type) {
     if (node->sfopn.fieldname < catype->struct_layout->fieldnum)
       return catype->struct_layout->fields[node->sfopn.fieldname].type->signature;
   } else {

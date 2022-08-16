@@ -370,7 +370,7 @@ T
 ...
 ```
 
-## struct type inner representation
+## struct type inner representation (type signature)
 ```
 struct AA {} => t:{AA}
 struct A2 {a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8} => t:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}
@@ -378,7 +378,7 @@ struct A3 {a: AA, b: A1, c: A2} => t:{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d
 ? => t:*{A5;a:{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},b:*{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},c:**{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},d:***{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},e:****{A4;aa:i32,b:*i32,c:**i32,d:***i32,e:*{AA},f:**{A1},g:*{A3;a:{AA},b:{A1},c:{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}},h:**{A2;a:i32,b:i64,c:u32,d:f32,e:f64,f:bool,g:i8,h:u8}}}
 ```
 
-## tuple type inner representation
+## tuple type inner representation (type signature)
 ```
 struct AA () => t:(AA)
 struct A1 (i32) => t:(A1;i32)
@@ -386,9 +386,28 @@ struct A2 (i32, bool) => t:(A2;i32,bool)
 struct A3 (i32, AA, A1, A2) => t:(A3; i32, (AA), (A1;i32), (A2; i32, bool))
 ```
 
-## array type inner representation
+## array type inner representation (type signature)
 ```
 t:[[[[[[i32;4];3];5];5];3];5]
+```
+
+## union signature
+```
+union UU {
+	f1: i32,
+	f2: i64,
+	f3: *u8,
+} => t:<union;UU;f1:i32,f2:i64,f3:*u8>
+```
+
+## enum signature
+```
+enum EE {A, B=3, C} => t:<enum;EE;A,B=3,C>
+```
+
+## slice signature
+```
+(*i32, i64) => t:<slice;;*i32,i64>
 ```
 
 ## entry representation
@@ -507,12 +526,3 @@ struct A {a: i32, b: *A} => {Aid; aid:i32id, bid:*Aid}, Aid == symname_check_ins
 - add in `llvmtype_from_catype_inner` when needed
 - add in `gen_literal_value`
 
-
-
-```
-b IR_generator.cpp:1763
-b IR_generator.cpp:1814
-b varshielding_rotate_capattern
-b IR_generator.cpp:2199 // varshielding_rotate_capattern
-b IR_generator.cpp:2220
-```

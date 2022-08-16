@@ -434,7 +434,7 @@ static DIType *ditype_create_from_catype(CADataType *catype, DIScope *scope) {
     for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
       CAStructField &field = catype->struct_layout->fields[i];
       DIType *ditype = ditype_get_or_create_from_catype(field.type, scope);
-      const char *fieldname = catype->struct_layout->tuple ? nullptr : symname_get(field.name);
+      const char *fieldname = catype->struct_layout->type ? nullptr : symname_get(field.name);
 
       uint64_t offsetbit = field.offset * 8;
       uint64_t fieldsizebit = field.type->size * 8;
@@ -734,7 +734,7 @@ static Value *extract_value_from_struct(ASTNode *node) {
   }
 
   int fieldindex = 0;
-  if (structcatype->struct_layout->tuple)
+  if (structcatype->struct_layout->type)
     fieldindex = node->sfopn.fieldname;
   else {
     for (; fieldindex < structcatype->struct_layout->fieldnum; ++fieldindex) {
@@ -1519,7 +1519,7 @@ static void dbgprint_value_range(Function *fn, CADataType *catype, Value *v) {
   case RightExclusiveRange: {
     Value *v1 = ir1.builder().CreateExtractValue(v, 0);
     assert(catype->range_layout->range->type == STRUCT);
-    assert(catype->range_layout->range->struct_layout->tuple == 2);
+    assert(catype->range_layout->range->struct_layout->type == Struct_GeneralTuple);
     dbgprint_value(fn, catype->range_layout->range->struct_layout->fields[0].type, v1);
     llvmcode_printf(fn, range_type == InclusiveRange ? "..=" : "..", nullptr);
     Value *v2 = ir1.builder().CreateExtractValue(v, 1);
@@ -1574,8 +1574,8 @@ static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
     Constant *sname = ir1.builder().CreateGlobalStringPtr(name);
     CAStructField *fields = catype->struct_layout->fields;
     len = catype->struct_layout->fieldnum;
-    int tuple = catype->struct_layout->tuple;
-    const char *fmt = tuple == 2 ? "%s( " : tuple == 1 ? "%s ( " : "%s { ";
+    CAStructType struct_type = catype->struct_layout->type;
+    const char *fmt = struct_type == Struct_GeneralTuple ? "%s( " : struct_type == Struct_NamedTuple ? "%s ( " : "%s { ";
     llvmcode_printf(fn, fmt, sname, nullptr);
     for (int i = 0; i < len; ++i) {
       //ConstantArray *arrayv = static_cast<ConstantArray *>(v);
@@ -1585,7 +1585,7 @@ static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
       //Value *subv = ir1.builder().CreateGEP(v, idx, "subv");
 
       //Type* array_t =  llvm::PointerType::getUnqual(v->getType());
-      if (!tuple) {
+      if (struct_type == Struct_NamedStruct) {
 	name = symname_get(fields[i].name); // field name
 	sname = ir1.builder().CreateGlobalStringPtr(name);
 	llvmcode_printf(fn, "%s: ", sname, nullptr);
@@ -1598,7 +1598,7 @@ static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
 	llvmcode_printf(fn, ", ", nullptr);
     }
 
-    llvmcode_printf(fn, tuple ? " )" : " }", nullptr);
+    llvmcode_printf(fn, struct_type != Struct_NamedStruct ? " )" : " }", nullptr);
     //yyerror("dbgprint for struct type not implmeneted yet");
     break;
   }
@@ -2085,7 +2085,7 @@ static CADataType *struct_subcatype_from_fieldname(CADataType *catype, int field
   return catype->struct_layout->fields[pos].type;
 }
 
-static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype, SymTable *symtable, int tuple) {
+static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype, SymTable *symtable) {
   // come here struct or named tuple must already defined datatype
   if (catype->type != STRUCT) {
     caerror(&(cap->loc), NULL, "required a struct type, but found `%s` type", catype_get_type_name(catype->signature));
@@ -2099,11 +2099,6 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
 	      catype_get_type_name(catype->signature), catype_get_type_name(dt->signature));
       return;
     }
-  }
-
-  if (tuple != catype->struct_layout->tuple) {
-    // it means the tuple using struct form of match
-    // now allow
   }
 
   if ((cap->items->size > catype->struct_layout->fieldnum)) {
@@ -2133,12 +2128,12 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
       endpos = ignorerangepos;
     }
 
-    assert(catype->struct_layout->tuple != 2);
+    assert(catype->struct_layout->type < Struct_GeneralTuple);
     for (int i = 0; i < endpos; ++i) {
       int fieldname = cap->items->patterns[i]->fieldname;
       assert(fieldname != -1);
       CADataType *dt = nullptr;
-      if (catype->struct_layout->tuple == 1) {
+      if (catype->struct_layout->type == Struct_NamedTuple) {
 	// when it is a named tuple, the fieldname is the tuple item position
 	if (fieldname >= catype->struct_layout->fieldnum) {
 	  caerror(&(cap->loc), NULL, "tuple numbered field `%d` out of range `(0 ~ %d]` of datatype `%s`",
@@ -2178,10 +2173,10 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
     break;
   case PT_Tuple:
   case PT_GenTuple:
-    determine_letbind_type_for_struct(cap, catype, symtable, cap->type == PT_Tuple ? 1 : 2);
-    break;
   case PT_Struct:
-    determine_letbind_type_for_struct(cap, catype, symtable, 0);
+    // when `catype->struct_layout->type` is not `Struct_NamedStruct` it means the left pattern used
+    // struct form matching for the right object (tuple)
+    determine_letbind_type_for_struct(cap, catype, symtable);
     break;
   case PT_Array:
     determine_letbind_type_range(cap, catype->array_layout->type, 0, cap->items->size, symtable);
@@ -2281,7 +2276,7 @@ static void capattern_bind_tuple_pattern_range(SymTable *symtable, CAPattern *ca
   }
 }
 
-static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype, int tuple) {
+static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype) {
   // when in this function the value should already come with the type of capattern
   if (cap->morebind)
     atmore_bind_variable_value(symtable, cap->morebind, value);
@@ -2301,7 +2296,7 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
 
     for (int i = 0; i < endpos; ++i) {
       int pos = cap->items->patterns[i]->fieldname;
-      if (catype->struct_layout->tuple == 0)
+      if (catype->struct_layout->type == Struct_NamedStruct)
 	pos = struct_field_position_from_fieldname(catype, pos);
 
       CADataType *btype = catype->struct_layout->fields[pos].type;
@@ -2387,10 +2382,10 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *valu
     break;
   case PT_Tuple:
   case PT_GenTuple:
-    capattern_bind_struct_value(symtable, cap, value, catype, cap->type == PT_Tuple ? 1 : 2);
-    break;
   case PT_Struct:
-    capattern_bind_struct_value(symtable, cap, value, catype, 0);
+    // when `catype->struct_layout->type` is not `Struct_NamedStruct` it means the left pattern used
+    // struct form matching for the right object (tuple)
+    capattern_bind_struct_value(symtable, cap, value, catype);
     break;
   case PT_Array:
     capattern_bind_array_value(symtable, cap, value, catype);

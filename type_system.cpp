@@ -461,12 +461,12 @@ void debug_catype_datatype_aux(const CADataType *datatype, std::set<const CAData
   case SLICE:
   case STRUCT:
     debug_print_tab(identhead);
-    fprintf(out_source, "%c%s@%p\n", datatype->struct_layout->tuple ? '(' : '{', symname_get(datatype->formalname), datatype);
+    fprintf(out_source, "%c%s@%p\n", datatype->struct_layout->type ? '(' : '{', symname_get(datatype->formalname), datatype);
 
     accessed.insert(datatype);
     for (int i = 0; i < datatype->struct_layout->fieldnum; ++i) {
       debug_print_tab(ident + 1);
-      if (!datatype->struct_layout->tuple)
+      if (datatype->struct_layout->type != Struct_NamedStruct)
 	fprintf(out_source, "%s: ", symname_get(datatype->struct_layout->fields[i].name));
 
       debug_catype_datatype_aux(datatype->struct_layout->fields[i].type, accessed, 0, ident + 1);
@@ -474,7 +474,7 @@ void debug_catype_datatype_aux(const CADataType *datatype, std::set<const CAData
     }
 
     debug_print_tab(ident);
-    fprintf(out_source, datatype->struct_layout->tuple ? ")" : "}");
+    fprintf(out_source, datatype->struct_layout->type ? ")" : "}");
     break;
   default:
     fprintf(out_source, "%s", get_type_string_for_signature(datatype->type));
@@ -525,7 +525,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pch,
 				     const std::map<std::string, CADataType *> &prenamemap,
 				     const std::set<std::string> &rcheckset,
                                      char *sigbuf, int &buflen, int *typesize,
-				     CADataType **retdt = nullptr, int tuple = 0);
+				     CADataType **retdt = nullptr, CAStructType struct_type = Struct_NamedStruct);
 
 static int str_assign_while(char *sigbuf, const char *&pch, int ch) {
   int i = 0;
@@ -636,7 +636,7 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
       case '(':
 	// handling - named tuple (Name;<type1>,<type2>,<type3>[,]) and
 	// general unnamed tuple: (;<type1>,<type2>,<type3>[,])
-	ret = catype_unwind_type_struct(symtable, pch, prenamemap, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt, 1);
+	ret = catype_unwind_type_struct(symtable, pch, prenamemap, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt, Struct_NamedTuple);
 	break;
       case '<':
 	// TODO: handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
@@ -679,15 +679,25 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
   return -1;
 }
 
+static int signature_extract_name(char *namebuf, char *sigbuf, int &sigi, const char *&pch) {
+  int i = 0;
+  while(isalnum(*pch) || *pch == '_') {
+    sigbuf[sigi++] = *pch;
+    namebuf[i++] = *pch++;
+  }
+  namebuf[i] = '\0';
+
+  return i;
+}
+
 static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 				     const std::map<std::string, CADataType *> &prenamemap,
 				     const std::set<std::string> &rcheckset,
 				     char *sigbuf, int &buflen, int *typesize,
-				     CADataType **retdt, int tuple) {
+				     CADataType **retdt, CAStructType struct_type) {
   const char *pch = pchbegin;
   int sigi = 0;
-  sigbuf[sigi++] = *pch++; // = '{'; or '(' when tuple
-  int i = 0;
+  sigbuf[sigi++] = *pch++; // = '{'; or '(' when tuple; or '<' when struct form types (union, enum, slice, ...)
   int tmptypesize = 0;
   int sizeerror = 0;
   int calcing = 0;
@@ -695,26 +705,22 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
   *typesize = -1;
 
   char namebuf[128];
-  while(isalnum(*pch) || *pch == '_') {
-    sigbuf[sigi++] = *pch;
-    namebuf[i++] = *pch++;
-  }
-  namebuf[i] = '\0';
+  int elen = signature_extract_name(namebuf, sigbuf, sigi, pch);
 
-  if (i == 0) {
-    if (tuple) {
+  if (elen == 0) {
+    if (struct_type) {
       gen_tuple = 1;
-      tuple = 2;
+      struct_type = Struct_GeneralTuple;
     } else {
       yyerror("(internal) this struct type have no name `%s`", pch);
       return -1;
     }
   }
 
-  if ((!tuple && *pch != '}') || (tuple && *pch != ')')) {
+  if ((!struct_type && *pch != '}') || (struct_type && *pch != ')')) {
     if (*pch != ';') {
-      if (tuple)
-	yyerror("(internal) bad format of tuple `%s` != ';' or ')'", pch);
+      if (struct_type)
+	yyerror("(internal) bad format of struct style `%s` != ';' or ')'", pch);
       else
 	yyerror("(internal) bad format of struct `%s` != ';' or '}'", pch);
 
@@ -732,22 +738,16 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
   CADataType *addrdt = nullptr;
   if (retdt) {
     int nameid = gen_tuple ? -1 : symname_check_insert(namebuf);
-    addrdt = catype_make_struct_type(nameid, *typesize, tuple, 10);
+    addrdt = catype_make_struct_type(nameid, *typesize, struct_type, 10);
     *retdt = addrdt;
   }
 
   namemap.insert(std::make_pair(namebuf, addrdt));
 
-  while ((!tuple && *pch != '}') || (tuple && *pch != ')')) {
-    if (!tuple) {
-      i = 0;
-      while(isalnum(*pch) || *pch == '_') {
-	sigbuf[sigi++] = *pch;
-	namebuf[i++] = *pch++;
-      }
-      namebuf[i] = 0;
-
-      if (i == 0) {
+  while ((!struct_type && *pch != '}') || (struct_type && *pch != ')')) {
+    if (!struct_type) {
+      int elen = signature_extract_name(namebuf, sigbuf, sigi, pch);
+      if (elen == 0) {
 	yyerror("(internal) this struct type member have no name `%s`", pch);
 	return -1;
       }
@@ -1374,7 +1374,7 @@ static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &
   char buf[1024];
   int i = 0;
   int len = 0;
-  int tuple = 0;
+  CAStructType struct_type = Struct_NamedStruct;
 
   switch (catype->type) {
   case CSTRING:
@@ -1409,12 +1409,12 @@ static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &
       return sym_form_type_id(catype->struct_layout->name);
     }
 
-    tuple = catype->struct_layout->tuple;
+    struct_type = catype->struct_layout->type;
 
     rcheck.insert(catype);
 
-    buf[0] = tuple ? '(' : '{';
-    structname = tuple == 2 ? "" : symname_get(catype->struct_layout->name);
+    buf[0] = struct_type ? '(' : '{';
+    structname = struct_type == Struct_GeneralTuple ? "" : symname_get(catype->struct_layout->name);
     len = strlen(structname) + 1;
     strcpy(buf+1, structname);
     buf[len++] = ';';
@@ -1426,7 +1426,7 @@ static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &
       //rcheck.erase(catype);
 
       subname = catype_get_type_name(subid);
-      if (tuple) {
+      if (struct_type) {
 	len += sprintf(buf+len, "%s,", subname);
       } else {
 	varname = symname_get(catype->struct_layout->fields[i].name);
@@ -1436,7 +1436,7 @@ static typeid_t typeid_get_top_down(CADataType *catype, std::set<CADataType *> &
 
     rcheck.erase(catype);
 
-    buf[len-1] = tuple ? ')' : '}';
+    buf[len-1] = struct_type ? ')' : '}';
     buf[len] = '\0';
     catype->signature = sym_form_type_id_by_str(buf);
     catype->status = CADT_Expand;
@@ -1798,7 +1798,7 @@ CADataType *catype_make_tuple_type(SymTable *symtable, CADataType **catypes, int
     return itr2->second;
   }
 
-  CADataType *dt = catype_make_struct_type(type, 0, 2, len);
+  CADataType *dt = catype_make_struct_type(type, 0, Struct_GeneralTuple, len);
   dt->struct_layout->name = 0;
 
   size_t size = 0;
@@ -2282,7 +2282,7 @@ static typeid_t form_datatype_signature(CADataType *type, int plus, uint64_t len
     break;
   case 'c':
     // t:(;*i32,i64)
-    sprintf(buf, "t:(;%s,i64)", catype_get_type_name(type->signature));
+    sprintf(buf, "t:<slice;;%s,i64>", catype_get_type_name(type->signature));
     break;
   case 's':
     // structure signature
@@ -2382,9 +2382,9 @@ CADataType *catype_make_array_type(CADataType *datatype, uint64_t len, bool comp
   return dt;
 }
 
-CADataType *catype_make_struct_type(int nameid, int typesize, int tuple, int init_capacity) {
+CADataType *catype_make_struct_type(int nameid, int typesize, CAStructType struct_type, int init_capacity) {
   CAStruct *castruct = new CAStruct;
-  castruct->tuple = tuple;
+  castruct->type = struct_type;
   castruct->name = nameid;
   castruct->fieldnum = 0;
   castruct->capacity = init_capacity;
@@ -3547,7 +3547,7 @@ void castruct_add_member(CAStruct *castruct, int name, CADataType *dt, size_t of
 }
 
 CADataType *slice_create_catype(CADataType *item_catype) {
-  CADataType *catype = catype_make_struct_type(0, 2 * sizeof(void *), 2, 2);
+  CADataType *catype = catype_make_struct_type(0, 2 * sizeof(void *), Struct_GeneralTuple, 2);
   catype->status = CADT_Expand;
 
   CADataType *itemptr_catype = catype_make_pointer_type(item_catype);
