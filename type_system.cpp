@@ -641,7 +641,6 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
       case '<':
 	// TODO: handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
 	ret = catype_unwind_type_struct(symtable, pch, prenamemap, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt, Struct_General);
-	ret = -1;
 	break;
       case '#':
 	// TODO: handling enum: #AA, BB, ... #
@@ -693,7 +692,7 @@ static int signature_extract_name(char *namebuf, char *sigbuf, int &sigi, const 
 
 static int extract_general_struct_name(CAStructType &struct_type, char *namebuf,
                                        int elen, char *sigbuf, int &sigi,
-                                       char *pch) {}
+                                       char *pch) { return -1; }
 
 static bool is_general_struct_type(CAStructType struct_type) {
   return struct_type == Struct_Slice || struct_type == Struct_Enum || struct_type == Struct_Union;
@@ -701,6 +700,18 @@ static bool is_general_struct_type(CAStructType struct_type) {
 
 static bool is_tuple_type(CAStructType struct_type) {
   return struct_type == Struct_NamedTuple || struct_type == Struct_GeneralTuple;
+}
+
+static bool is_named_field_struct_type(CAStructType struct_type) {
+  return struct_type == Struct_NamedStruct || struct_type == Struct_Union;
+}
+
+static bool is_named_struct_type(CAStructType struct_type) {
+  return
+    struct_type == Struct_NamedStruct ||
+    struct_type == Struct_NamedTuple ||
+    struct_type == Struct_Union ||
+    struct_type == Struct_Enum;
 }
 
 static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
@@ -755,6 +766,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     if (struct_type == Struct_NamedTuple) {
       struct_type = Struct_GeneralTuple;
     } else if (struct_type == Struct_Slice) {
+      // slice type is also anonymous
     } else {
       yyerror("(internal) this struct type `%s` have no name `%s`", struct_type, pch);
       return -1;
@@ -776,54 +788,42 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     sigbuf[sigi++] = *pch++; // = ';';
   } else if (is_general_struct_type(struct_type) && *pch != '>' ) { // struct_type == slice, union, enum
     if (*pch != ';') {
-      yyerror("(internal) bad format of struct `%d` style `%s` != ';' or ')'", struct_type, pch);
+      yyerror("(internal) bad format of struct `%d` style `%s` != ';' or '>'", struct_type, pch);
       return -1;
     }
 
     sigbuf[sigi++] = *pch++; // = ';';
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
   std::map<std::string, CADataType *> namemap = prenamemap;
   std::set<std::string> checkset = rcheckset;
-  checkset.insert(namebuf);
+  if (is_named_struct_type(struct_type))
+    checkset.insert(namebuf);
 
   CADataType *dt = nullptr;
   CADataType *addrdt = nullptr;
   if (retdt) {
-    int nameid = struct_type == Struct_GeneralTuple ? -1 : symname_check_insert(namebuf);
+    int nameid = !is_named_struct_type(struct_type) ? -1 : symname_check_insert(namebuf);
     addrdt = catype_make_struct_type(nameid, *typesize, struct_type, 10);
     *retdt = addrdt;
   }
 
-  namemap.insert(std::make_pair(namebuf, addrdt));
+  if (is_named_struct_type(struct_type))
+    namemap.insert(std::make_pair(namebuf, addrdt));
 
   while ((struct_type == Struct_NamedStruct && *pch != '}') ||
-	 (is_tuple_type(struct_type) && *pch != ')')) {
-    if (struct_type == Struct_NamedStruct) {
+	 (is_tuple_type(struct_type) && *pch != ')') ||
+	 (is_general_struct_type(struct_type) && *pch != '>')) {
+    if (is_named_field_struct_type(struct_type)) {
+      // extract field name
       int elen = signature_extract_name(namebuf, sigbuf, sigi, pch);
       if (elen == 0) {
-	yyerror("(internal) this struct type member have no name `%s`", pch);
+	yyerror("(internal) this struct type `%d` member have no name `%s`", struct_type, pch);
 	return -1;
       }
 
       if (*pch != ':') {
-	yyerror("(internal) bad format of struct `%s` != ':'", pch);
+	yyerror("(internal) bad format of struct `%s` != ':' with type `%d`", pch, struct_type);
 	return -1;
       }
 
@@ -853,11 +853,16 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     else
       tmptypesize += tsize;
 
-    if (retdt)
-      castruct_add_member(addrdt->struct_layout, struct_type == Struct_GeneralTuple ? -1 : symname_check_insert(namebuf), *outdt, 0);
+    if (retdt) {
+      castruct_add_member(addrdt->struct_layout,
+			  !is_named_field_struct_type(struct_type)
+                              ? -1
+                              : symname_check_insert(namebuf),
+                          *outdt, 0);
+    }
   }
 
-  sigbuf[sigi++] = *pch++; // = '}'; or ')' when tuple
+  sigbuf[sigi++] = *pch++; // = '}'; or ')' when tuple, '>' when general structure
   buflen = sigi;
 
   if (sizeerror)
@@ -1847,6 +1852,7 @@ CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable) {
     return nullptr;
   default:
     caerror(&(cap->loc), nullptr, "Unknown pattern type `%d` when create catype", cap->type);
+    return nullptr;
   }
 }
 

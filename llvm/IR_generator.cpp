@@ -391,7 +391,7 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     // get the argument from call parameter into this field
     if (entry->sym_type != Sym_Variable)
       yyerror("symbol type is not variable: (%d != %d)", entry->sym_type, Sym_Variable);
-
+#if 1 // TODO: check if can use function parameter directly without copying the parameter
     CADataType *dt = catype_get_by_name(st, entry->u.varshielding.current->datatype);
     CHECK_GET_TYPE_VALUE(curr_fn_node, dt, entry->u.varshielding.current->datatype);
 
@@ -406,7 +406,9 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
       diinfo->dibuilder->insertDeclare(slot, divar, diinfo->dibuilder->createExpression(),
 				       diloc, ir1.builder().GetInsertBlock());
     }
-
+#else
+    Value *slot = &arg;
+#endif
     // save the value into symbol table
     entry->u.varshielding.current->llvm_value = static_cast<void *>(slot);
 
@@ -811,6 +813,18 @@ static Value *walk_id_defv_declare(ASTNode *p, CADataType *idtype, bool zeroinit
 static Value *inplace_assignop_assistant(ASTNode *p, CADataType *idtype, Type *type, int assignop, Value *vl, Value *vr) {
   // handling inside replace operation, e.g. a += 1;
   vl = ir1.builder().CreateLoad(vl);
+  if (idtype->type == POINTER) {
+    if (assignop == ASSIGN_SUB) {
+      Value *z = ir1.gen_int((int64_t)0);
+      vr = ir1.builder().CreateSExt(vr, ir1.int_type<int64_t>());
+      vr = ir1.gen_sub(z, vr, "m");
+    }
+
+    Type *type = llvmtype_from_catype(idtype->pointer_layout->type);
+    vl = ir1.builder().CreateGEP(type, vl, vr, "pop");
+    return vl;
+  }
+
   switch(assignop) {
   case ASSIGN_ADD:
     vr = ir1.gen_add(vl, vr);
@@ -1575,7 +1589,25 @@ static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
     CAStructField *fields = catype->struct_layout->fields;
     len = catype->struct_layout->fieldnum;
     CAStructType struct_type = catype->struct_layout->type;
-    const char *fmt = struct_type == Struct_GeneralTuple ? "%s( " : struct_type == Struct_NamedTuple ? "%s ( " : "%s { ";
+    const char *fmt = NULL;
+    switch(struct_type) {
+    case Struct_GeneralTuple:
+      fmt = "%s( ";
+      break;
+    case Struct_NamedTuple:
+      fmt = "%s ( ";
+      break;
+    case Struct_Slice:
+      fmt = "%s < ";
+      break;
+    case Struct_Union:
+    case Struct_Enum:
+    case Struct_NamedStruct:
+    default:
+      fmt = "%s { ";
+      break;
+    }
+
     llvmcode_printf(fn, fmt, sname, nullptr);
     for (int i = 0; i < len; ++i) {
       //ConstantArray *arrayv = static_cast<ConstantArray *>(v);
@@ -1598,7 +1630,21 @@ static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
 	llvmcode_printf(fn, ", ", nullptr);
     }
 
-    llvmcode_printf(fn, struct_type != Struct_NamedStruct ? " )" : " }", nullptr);
+    switch(struct_type) {
+    case Struct_NamedStruct:
+    case Struct_Union:
+    case Struct_Enum:
+      fmt = " }";
+      break;
+    case Struct_Slice:
+      fmt = " >";
+      break;
+    default:
+      fmt = " )";
+      break;
+    }
+
+    llvmcode_printf(fn, fmt, nullptr);
     //yyerror("dbgprint for struct type not implmeneted yet");
     break;
   }

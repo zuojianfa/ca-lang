@@ -35,3 +35,6 @@ if(${LLVM_VERSION_MAJOR} GREATER 12)
 else()
   do_testf(pointer "op4.ca.ll" "op4.ca.ll.tmp" ca -ll op4.ca op4.ca.ll.tmp)
 endif()
+
+do_test(pointer "1 2 3 4 5 6 7 \n7 6 5 4 3 2 1 \n4" ca inplace_op.ca)
+

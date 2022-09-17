@@ -305,6 +305,9 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
+- [x] fix pointer += issue
+- [ ] check if can use function parameter directly without copying the parameter
+- [ ] research GC_malloc, GC_free serialize functions and used in this project
 - [ ] `form_datatype_signature`, `catype_unwind_type_signature_inner`:
   - [ ] handle new `SLICE` `signature`, the `signature` should use a new one
   - [ ] currently array: `t:[i32;6]`, struct: `t:{AA;a:i32,b:*i64}`, tuple: `t:(TT;i32,*i64)`, gen tuple: `t:(;i32,*i64)`: slice: ???

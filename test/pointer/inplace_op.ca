@@ -1,0 +1,24 @@
+fn main() {
+    let a = [1, 2, 3, 4, 5, 6, 7];
+    let pa = &a[0];
+    let i = 0;
+    while (i < 7) {
+	print *pa ; print ' ';
+	pa += 1;
+	i += 1;
+    }
+
+    print '\n';
+
+    let i = 7;
+    while (i > 0) {
+	pa -= 1;
+	print *pa ; print ' ';
+	i -= 1;
+    }
+
+    print '\n';
+    pa += 3;
+    print *pa ; print ' ';
+}
+

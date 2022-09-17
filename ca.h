@@ -317,7 +317,7 @@ typedef struct CallParamAux {
   ASTNode *param;
 } CallParamAux;
 
-int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum, int assignop);
+typeid_t reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum, int assignop);
 int parse_lexical_char(const char *text);
 int parse_tuple_fieldname(int fieldname);
 int enable_emit_main();

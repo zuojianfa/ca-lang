@@ -1916,7 +1916,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
 // when in walk stage the assignment statement will determine the variable's
 // type and the right expression's type when the expression's type not
 // determined: int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int noperands)
-int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum, int assignop) {
+typeid_t reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum, int assignop) {
   // check if exist type in the each node and type is conflicting for each node
   // but here cannot create literal value when the value not determined a type
   // because it may be a tree, or can make the type by tranverlling the tree?
@@ -1932,7 +1932,7 @@ int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenu
       if (type1 == typeid_novalue) {
 	type1 = expr_types[i];
 	typei = i;
-      } else if (assignop == -1 && !catype_check_identical_in_symtable(nodes[i]->symtable, type1, nodes[i]->symtable, expr_types[i])) {
+      } else if (assignop == -1 && !catype_check_identical_in_symtable(nodes[i]->symtable, type1, nodes[i]->symtable, expr_types[i ])) {
 	// when assignop not -1 it will not check the type
 	CADataType *dt1 = catype_get_by_name(nodes[i]->symtable, type1);
 	CADataType *dt2 = catype_get_by_name(nodes[i]->symtable, expr_types[i]);
@@ -1944,6 +1944,35 @@ int reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenu
       }
     } else {
       nonfixed_node[i] = 1;
+    }
+  }
+
+  if (assignop != -1) {
+    CADataType *dt = catype_get_by_name(nodes[0]->symtable, type1);
+    if (dt->type == POINTER) {
+      if (assignop != ASSIGN_ADD && assignop != ASSIGN_SUB) {
+        caerror(
+            &(nodes[0]->begloc), &(nodes[1]->endloc),
+            "pointer inplace assignment only support `+` `-`, but find `%d`",
+            assignop);
+        return 0;
+      }
+
+      typeid_t id = expr_types[1];
+      if (id == typeid_novalue) {
+        id = inference_expr_type(nodes[1]);
+      }
+
+      CADataType *right_dt = catype_get_by_name(nodes[1]->symtable, id);
+      if (!catype_is_integer(right_dt->type)) {
+        caerror(&(nodes[0]->begloc), &(nodes[1]->endloc),
+                "pointer inplace assignment right side number only support "
+                "integer, but find `%s`",
+                catype_get_type_name(right_dt->signature));
+        return 0;
+      }
+      
+      return dt->signature;
     }
   }
 
