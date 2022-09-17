@@ -1,0 +1,19 @@
+fn main() {
+    let a = [1,2,3,4,5,6];
+    dbgprinttype(typeof(a));
+    struct AA {
+    	a: i32,
+	b: *i64,
+    }
+
+    dbgprinttype(AA);
+
+    struct TT (i32, *i64);
+    dbgprinttype(TT);
+
+    type BB = (i32, *i64);
+    dbgprinttype(BB);
+
+    //print b;
+}
+

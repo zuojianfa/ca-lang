@@ -99,8 +99,11 @@ typedef struct CAStructField {
 typedef enum CAStructType {
   Struct_NamedStruct, // 0: common structure
   Struct_NamedTuple,  // 1: tuple, 
-  Struct_GeneralTuple, // 2: general tuple (unnamed)
+  Struct_GeneralTuple,// 2: general tuple (unnamed)
   Struct_Slice,       // 3: slice
+  Struct_Union,       // 4: union type
+  Struct_Enum,        // 5: enum type, NOTE: enum type seems not suitable here
+  Struct_General,     // n: can add new enum variant before this, this stand for the undetermined general struct form, like slice, enum, union etc
 } CAStructType;
 
 typedef struct CAStruct {

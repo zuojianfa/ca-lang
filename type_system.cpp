@@ -640,6 +640,7 @@ static int catype_unwind_type_signature_inner(SymTable *symtable, const char *ca
 	break;
       case '<':
 	// TODO: handling union: <Name; <name1>:<anytype>, <name2>:<anytype>, <name3>:<anytype>, >
+	ret = catype_unwind_type_struct(symtable, pch, prenamemap, *prcheckset, sigbuf + sigi, tbuflen, &tmptypesize, outdt, Struct_General);
 	ret = -1;
 	break;
       case '#':
@@ -690,6 +691,18 @@ static int signature_extract_name(char *namebuf, char *sigbuf, int &sigi, const 
   return i;
 }
 
+static int extract_general_struct_name(CAStructType &struct_type, char *namebuf,
+                                       int elen, char *sigbuf, int &sigi,
+                                       char *pch) {}
+
+static bool is_general_struct_type(CAStructType struct_type) {
+  return struct_type == Struct_Slice || struct_type == Struct_Enum || struct_type == Struct_Union;
+}
+
+static bool is_tuple_type(CAStructType struct_type) {
+  return struct_type == Struct_NamedTuple || struct_type == Struct_GeneralTuple;
+}
+
 static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
 				     const std::map<std::string, CADataType *> &prenamemap,
 				     const std::set<std::string> &rcheckset,
@@ -701,23 +714,56 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
   int tmptypesize = 0;
   int sizeerror = 0;
   int calcing = 0;
-  int gen_tuple = 0;
   *typesize = -1;
 
   char namebuf[128];
   int elen = signature_extract_name(namebuf, sigbuf, sigi, pch);
 
-  if (elen == 0) {
-    if (struct_type) {
-      gen_tuple = 1;
-      struct_type = Struct_GeneralTuple;
+  if (struct_type == Struct_General) {
+    // <slice;;*i32,i64>
+    if (!strcmp(namebuf, "slice")) {
+      struct_type = Struct_Slice;
+    } else if (!strcmp(namebuf, "union")) {
+      // <union;UU;f1:i32,f2:i64,f3:*u8> or <union;UU> # union can be empty
+      struct_type = Struct_Union;
+      yyerror("not implemented for the `union` unwinding");
+    } else if (!strcmp(namebuf, "enum")) {
+      // <enum;EE;A,B=3,C> or even <enum;EE;{A;i32}, {B;f1:i32,f2:i64}, D=5> or
+      // <enum;EE;A> #enum cannot be empty
+      struct_type = Struct_Enum;
+      yyerror("not implemented for the `enum` unwinding");
     } else {
-      yyerror("(internal) this struct type have no name `%s`", pch);
+      if (elen)
+	yyerror("not implemented for the unknown `%s` unwinding", namebuf);
+      else {
+	yyerror("(internal) general struct have no name `%s`", pch);
+	return -1;
+      }
+    }
+
+    if (*pch != ';') {
+      yyerror("(internal) bad format of `%s` style `%s` != ';'", namebuf, pch);
+      return -1;
+    }
+
+    sigbuf[sigi++] = *pch++; // = ';';
+    elen = signature_extract_name(namebuf, sigbuf, sigi, pch);
+  }
+
+  if (elen == 0) {
+    // general tuple and slice can have no name
+    if (struct_type == Struct_NamedTuple) {
+      struct_type = Struct_GeneralTuple;
+    } else if (struct_type == Struct_Slice) {
+    } else {
+      yyerror("(internal) this struct type `%s` have no name `%s`", struct_type, pch);
       return -1;
     }
   }
+  // slice should have no name?
 
-  if ((!struct_type && *pch != '}') || (struct_type && *pch != ')')) {
+  if ((struct_type == Struct_NamedStruct && *pch != '}') ||
+      (is_tuple_type(struct_type) && *pch != ')')) {
     if (*pch != ';') {
       if (struct_type)
 	yyerror("(internal) bad format of struct style `%s` != ';' or ')'", pch);
@@ -728,8 +774,31 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
     }
 
     sigbuf[sigi++] = *pch++; // = ';';
+  } else if (is_general_struct_type(struct_type) && *pch != '>' ) { // struct_type == slice, union, enum
+    if (*pch != ';') {
+      yyerror("(internal) bad format of struct `%d` style `%s` != ';' or ')'", struct_type, pch);
+      return -1;
+    }
+
+    sigbuf[sigi++] = *pch++; // = ';';
   }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
   std::map<std::string, CADataType *> namemap = prenamemap;
   std::set<std::string> checkset = rcheckset;
   checkset.insert(namebuf);
@@ -737,15 +806,16 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
   CADataType *dt = nullptr;
   CADataType *addrdt = nullptr;
   if (retdt) {
-    int nameid = gen_tuple ? -1 : symname_check_insert(namebuf);
+    int nameid = struct_type == Struct_GeneralTuple ? -1 : symname_check_insert(namebuf);
     addrdt = catype_make_struct_type(nameid, *typesize, struct_type, 10);
     *retdt = addrdt;
   }
 
   namemap.insert(std::make_pair(namebuf, addrdt));
 
-  while ((!struct_type && *pch != '}') || (struct_type && *pch != ')')) {
-    if (!struct_type) {
+  while ((struct_type == Struct_NamedStruct && *pch != '}') ||
+	 (is_tuple_type(struct_type) && *pch != ')')) {
+    if (struct_type == Struct_NamedStruct) {
       int elen = signature_extract_name(namebuf, sigbuf, sigi, pch);
       if (elen == 0) {
 	yyerror("(internal) this struct type member have no name `%s`", pch);
@@ -784,7 +854,7 @@ static int catype_unwind_type_struct(SymTable *symtable, const char *pchbegin,
       tmptypesize += tsize;
 
     if (retdt)
-      castruct_add_member(addrdt->struct_layout, gen_tuple ? -1 : symname_check_insert(namebuf), *outdt, 0);
+      castruct_add_member(addrdt->struct_layout, struct_type == Struct_GeneralTuple ? -1 : symname_check_insert(namebuf), *outdt, 0);
   }
 
   sigbuf[sigi++] = *pch++; // = '}'; or ')' when tuple
