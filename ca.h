@@ -3,9 +3,6 @@
 
 #include "ca_types.h"
 
-#define BEGIN_EXTERN_C extern "C" {
-#define END_EXTERN_C }
-
 #ifdef __cplusplus
 BEGIN_EXTERN_C
 #endif

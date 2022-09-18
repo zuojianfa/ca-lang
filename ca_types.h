@@ -7,5 +7,8 @@ typedef int typeid_t;
 typedef int tokenid_t;
 #define tokenid_novalue (tokenid_t)0
 
+#define BEGIN_EXTERN_C extern "C" {
+#define END_EXTERN_C }
+
 #endif
 

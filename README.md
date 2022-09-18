@@ -255,6 +255,8 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [ ] destructure operator: let S(x) = A; let S{x} = A;
   - [ ] default acceptor _
   - [ ] slice operator and infrastructure
+	- [ ] slice signature like `t:<slice;;*i64,i64>`, (array: `t:[i32;6]`, struct: `t:{AA;a:i32,b:*i64}`, tuple: `t:(TT;i32,*i64)`, gen tuple: `t:(;i32,*i64)`)
+	- [ ] How to represent range, the range is represented as an general tuple type innerly, `t:<slice;;*i64,i64>`, `t:<slice;;*i32,i64>`
   - [ ] function definition can be in any scope
   - [ ] support never return type `!` like rust
 
@@ -305,25 +307,15 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-- [x] fix pointer += issue
-- [ ] check if can use function parameter directly without copying the parameter
 - [ ] research GC_malloc, GC_free serialize functions and used in this project
-- [ ] `form_datatype_signature`, `catype_unwind_type_signature_inner`:
-  - [ ] handle new `SLICE` `signature`, the `signature` should use a new one
-  - [ ] currently array: `t:[i32;6]`, struct: `t:{AA;a:i32,b:*i64}`, tuple: `t:(TT;i32,*i64)`, gen tuple: `t:(;i32,*i64)`: slice: ???
-  - [ ] the CADataType just use the `STRUCT` part, change the name of `tuple` into proper one
-  - [ ] create an enum value for the `tuple` type, include struct, tuple, gen-tuple, slice, use the value of them
-  ```
-  typedef struct CAStruct {
-      int tuple; // 2: general tuple (unnamed), 1: tuple, 0: common structure
-	  ...
-  }
-  ```
+- [ ] implement ca runtime system to support the compiler functionality, like output slice object, it need runtime system support, because slice type's length is not determined in compile time, and cannot fixed print in compile, so need use runtime system to support printing it
+  - [ ] perfect runtime libraries to support others
+- [ ] check if can use function parameter directly without copying the parameter
+- [ ] support slice element accessing
 - [ ] support slice functionality
   - [ ] debug ca slice1.ca, walk_letbind, array element
 - [ ] range .. operator: a..b, a..=b, ... can be used in array declare, e.g. [..], [a..b], [a..=b], [a..], [..b], [..=b], or in struct declare: S { ..s }
   In order to support range in array, it need support the slice functionality which is runtime feature, because the range value cannot be statically determined, so it cannot form a new array type from range statically, so it must use the runtime slice functionality.
-  How to represent range, the range is a type?
   - [x] range type
   - [x] range used in for
   - [ ] range used in array pattern

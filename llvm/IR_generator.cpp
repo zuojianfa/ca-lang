@@ -50,6 +50,7 @@
 #include "ca_types.h"
 #include "type_system.h"
 #include "type_system_llvm.h"
+#include "ca_runtime.h"
 
 BEGIN_EXTERN_C
 
@@ -1659,6 +1660,40 @@ static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
   }
 }
 
+#ifdef TEST_RUNTIME
+static void test_rt_add() {
+  Function *rt_add_fn = ir1.module().getFunction("rt_add");
+  if (!rt_add_fn) {
+    std::vector<Type *> types(2, ir1.int_type<int>());
+    auto param_names = std::vector<const char *>(2, "a");
+    param_names[1] = "b";
+    rt_add_fn = ir1.gen_extern_fn(ir1.int_type<int>(), "rt_add", types, &param_names, false);
+    rt_add_fn->setCallingConv(CallingConv::C);
+
+    //AttrListPtr func_printf_PAL;
+    //printf_fn->setAttributes(func_printf_PAL);
+  }
+
+  rt_add_fn = ir1.module().getFunction("rt_add");
+
+  std::vector<Value *> params;
+  params.push_back(ir1.gen_int(100));
+  params.push_back(ir1.gen_int(234));
+  ir1.builder().CreateCall(rt_add_fn, params, "add_v");
+
+  std::vector<Type *> types2(2, ir1.int_type<int>());
+  auto param_names2 = std::vector<const char *>(2, "a");
+  param_names2[1] = "b";
+  Function *rt_sub_fn = ir1.gen_extern_fn(ir1.int_type<int>(), "rt_sub", types2, &param_names2, false);
+  rt_sub_fn->setCallingConv(CallingConv::C);
+
+  std::vector<Value *> params2;
+  params2.push_back(ir1.gen_int(100));
+  params2.push_back(ir1.gen_int(234));
+  ir1.builder().CreateCall(rt_sub_fn, params, "sub_v");
+}
+#endif
+
 static void walk_dbgprint(ASTNode *p) {
   // handle expression value transfer
   if (enable_debug_info())
@@ -1678,6 +1713,10 @@ static void walk_dbgprint(ASTNode *p) {
   }
 
   dbgprint_value(printf_fn, pair.second, v);
+
+#ifdef TEST_RUNTIME
+  test_rt_add();
+#endif
 }
 
 static void walk_dbgprinttype(ASTNode *p) {
@@ -3949,6 +3988,7 @@ static const char *make_native_linker_command(const char *input, const char *out
 
   // sprintf(command, "clang %s -o %s", input, output);
 
+  //sprintf(command, "ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o build/CMakeFiles/ca.dir/ca_runtime.c.o %s -o %s -lc", input, output);
   sprintf(command, "ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o %s -o %s -lc", input, output);
 
   return command;
@@ -4034,11 +4074,22 @@ static int llvm_codegen_end() {
   return ret;
 }
 
+static void init_runtime_symbols() {
+  std::vector<std::pair<const char *, void *>> name_addresses;
+#ifdef TEST_RUNTIME
+  name_addresses.push_back(std::make_pair("rt_add", (void *)&rt_add));
+  name_addresses.push_back(std::make_pair("rt_sub", (void *)&rt_sub));
+#endif
+  jit1->register_imported_symbols(name_addresses);
+}
+
 static void init_llvm_env() {
   ir1.init_module_and_passmanager(genv.src_path);
   jit1 = exit_on_error(jit_codegen::JIT1::create_instance());
   if (enable_debug_info())
     diinfo = std::make_unique<dwarf_debug::DWARFDebugInfo>(ir1.builder(), ir1.module(), genv.src_path);
+
+  init_runtime_symbols();
 }
 
 static void handle_post_functions() {
