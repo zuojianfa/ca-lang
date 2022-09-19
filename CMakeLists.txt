@@ -122,7 +122,7 @@ set_target_properties(ca PROPERTIES RELWITHDEBINFO_POSTFIX ${CMAKE_RELWITHDEBINF
 
 target_include_directories(ca PUBLIC . llvm ${CMAKE_CURRENT_BINARY_DIR})
 
-target_link_libraries(ca PUBLIC ir1)
+target_link_libraries(ca PUBLIC ir1 gc)
 
 
 install(TARGETS ca DESTINATION bin)

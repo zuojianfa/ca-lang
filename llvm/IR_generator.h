@@ -17,6 +17,7 @@ enum OperandType {
   OT_Alloc,
   OT_CallInst, // use as return value
   OT_PHINode,  // not used yet
+  OT_HeapAlloc,
 };
 
 struct CalcOperand {

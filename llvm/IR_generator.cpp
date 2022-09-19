@@ -146,8 +146,8 @@ static std::vector<std::unique_ptr<LoopControlInfo>> g_loop_controls;
 std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
 std::vector<void *> *structexpr_deref(CAStructExpr obj);
 
-const static char *box_fn_name = "malloc";
-const static char *drop_fn_name = "free";
+const static char *box_fn_name = "GC_malloc";
+const static char *drop_fn_name = "GC_free";
 
 static void init_printf_fn() {
   // TODO: add grammar for handling extern functions instead hardcoded here
@@ -1272,14 +1272,15 @@ static void walk_box(ASTNode *p) {
 
   // 2. invoke alloca to allocate pointer type and
   // 3. store the heap allocated address into the memory
-  Value *stackv = ir1.gen_entry_block_var(curr_fn, type, "bindptr", heapv);
+  //Value *stackv = ir1.gen_entry_block_var(curr_fn, type, "bindptr", heapv);
   
   // 4. copy Value willv into heap allocated space
   Type *pointeellvmty = llvmtype_from_catype(pointeety);
   aux_copy_llvmvalue_to_store(pointeellvmty, heapv, willv, "binddata");
   
   // 5. return the pointer memory address
-  auto operands = std::make_unique<CalcOperand>(OT_Alloc, stackv, pointerty);
+  //auto operands = std::make_unique<CalcOperand>(OT_Alloc, stackv, pointerty);
+  auto operands = std::make_unique<CalcOperand>(OT_HeapAlloc, heapv, pointerty);
   oprand_stack.push_back(std::move(operands));
 }
 
@@ -3989,7 +3990,7 @@ static const char *make_native_linker_command(const char *input, const char *out
   // sprintf(command, "clang %s -o %s", input, output);
 
   //sprintf(command, "ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o build/CMakeFiles/ca.dir/ca_runtime.c.o %s -o %s -lc", input, output);
-  sprintf(command, "ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o %s -o %s -lc", input, output);
+  sprintf(command, "ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o %s -o %s -lc -lgc", input, output);
 
   return command;
 }
