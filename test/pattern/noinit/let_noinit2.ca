@@ -1,0 +1,25 @@
+fn main() {
+    struct AA {
+	f1: i32,
+	f2: f64,
+    }
+    let a: AA;
+
+    struct BB {
+	f1: AA,
+	f2: *BB,
+    }
+    let b: BB;
+    b.f2 = &b;
+    let ff = b.f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2;
+
+    print ff; print '\n';
+    print b.f2; print '\n';
+    print b.f2->f2; print '\n';
+    print b.f2->f2->f2; print '\n';
+    print b.f2->f2->f2->f2; print '\n';
+    print b.f2->f2->f2->f2->f2; print '\n';
+    print b.f2->f2->f2->f2->f2->f2->f2->f2->f2; print '\n';
+    print b.f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2->f2; print '\n';
+}
+

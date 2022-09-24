@@ -199,6 +199,7 @@ std::unordered_map<std::string, int> s_token_map = {
   {"use",    USE},
   {"mod",    MOD},
   {"box",    BOX},
+  //  {"box_noinit", BOX_NOINIT},
   {"ref",    REF},
   {"drop",   DROP},
 };

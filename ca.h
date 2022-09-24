@@ -254,6 +254,15 @@ typedef struct TDrop {
   int var; /* subscript to sym array */
 } TDrop;
 
+typedef enum VarInitType {
+  VarInit_Zero,   // zero filled
+  VarInit_NoInit, // no initialize, just use the memory value by what it is
+} VarInitType;
+
+typedef struct TVarInit {
+  VarInitType type;
+} TVarInit;
+
 typedef struct ASTNode {
   ASTNodeType type;      /* type of node */
   ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
@@ -290,6 +299,7 @@ typedef struct ASTNode {
     TDrop dropn;         /* drop node */
     TLetBind letbindn;   /* the binding operation for let */
     TRange rangen;       /* range node */
+    TVarInit varinitn;
   };
 } ASTNode;
 
@@ -379,7 +389,7 @@ ASTNode *make_expr_arglists_actual(ST_ArgListActual *al);
 ASTNode *make_id(int id, IdType idtype);
 ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global);
 ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn);
-ASTNode *make_vardef_zero_value();
+ASTNode *make_vardef_zero_value(VarInitType init_type);
 ASTNode *make_assign(LeftValueId *lvid, ASTNode *exprn);
 ASTNode *make_assign_op(LeftValueId *lvid, int op, ASTNode *exprn);
 ASTNode *make_goto(int labelid);

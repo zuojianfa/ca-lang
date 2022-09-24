@@ -254,6 +254,10 @@ attrib_scope:	'#' '[' IDENT '(' IDENT ')' ']' { $$ = make_attrib_scope($3, $5); 
 let_stmt:	attrib_scope LET iddef '=' vardef_value ';'  { $$ = make_global_vardef($3, $5, 1); }
 //	|	LET iddef '=' vardef_value ';'               { $$ = make_global_vardef($2, $4, 0); }
 	|	LET let_stmt_left '=' vardef_value ';' { $$ = make_let_stmt($2, $4); }
+	|	LET let_stmt_left ';'                  {
+			ASTNode *node = make_vardef_zero_value(VarInit_NoInit);
+			$$ = make_let_stmt($2, node);
+		}
 	;
 
 let_stmt_left:	let_stmt_more_left_typed
@@ -389,7 +393,7 @@ assign_op:	ASSIGN_ADD          { $$ = ASSIGN_ADD;    }
 	;
 
 vardef_value:	expr                { $$ = $1; }
-	|	ZERO_INITIAL        { $$ = make_vardef_zero_value(); }
+	|	ZERO_INITIAL        { $$ = make_vardef_zero_value(VarInit_Zero); }
 	;
 
 for_stmt:	FOR                   { SymTable *st = push_new_symtable(); /* the inner variable and / or listnode need a symbol table in for stmt */ }
@@ -484,6 +488,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	'&' expr %prec UADDR  { $$ = make_address($2); }
 	|	structfield_op        { $$ = make_structfield_right($1); }
 	|	BOX expr              { $$ = make_boxed_expr($2); }
+//	|	BOX type
 	;
 
 arith_expr:	'-' expr %prec UMINUS { $$ = make_uminus_expr($2); }

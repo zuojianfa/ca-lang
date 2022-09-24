@@ -1,0 +1,16 @@
+extern fn printf(s: *char, ...) -> i32;
+fn main() {
+    let a = "Hello CA!";
+    let b = box(a);
+    printf("%s\n", *b);
+
+    let a = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A', '!', '\0'];
+    let b = box(a);
+    printf("%s\n", b);
+
+    struct AA {f1: i32, f2: f64}
+    let a = AA{33, 323.333};
+    let b = box(a);
+    print (*b);
+}
+

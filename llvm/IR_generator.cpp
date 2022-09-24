@@ -1258,6 +1258,12 @@ static void walk_for(ASTNode *p) {
   ir1.builder().SetInsertPoint(endloopbb);
 }
 
+// complex type, allocate, pointer, memcpy:
+// box([1, 2]): allocated, not equal type, not need load, need memcpy
+// a = [1, 2]; box(a), allocated, not equal type, not need load, need memcpy
+// simple type:
+// box(33): not need load, not need memcpy
+// a = 33; box(a); need load, not need memcpy
 static void walk_box(ASTNode *p) {
   walk_stack(p->boxn.expr);
   auto pair = pop_right_value("willbox", false);
@@ -1276,6 +1282,11 @@ static void walk_box(ASTNode *p) {
   
   // 4. copy Value willv into heap allocated space
   Type *pointeellvmty = llvmtype_from_catype(pointeety);
+  if (!catype_is_complex_type(pointeety) &&
+      pointeellvmty != willv->getType()) {
+    willv = ir1.builder().CreateLoad(willv, "willbox");
+  }
+
   aux_copy_llvmvalue_to_store(pointeellvmty, heapv, willv, "binddata");
   
   // 5. return the pointer memory address
@@ -1864,6 +1875,7 @@ static void walk_assign(ASTNode *p) {
   ASTNode *exprn = p->assignn.expr;
   int assignop = p->assignn.op;
 
+  // TODO: TTE_VarDefZeroValue seems not support assign, only support binding (let)
   if (exprn->type != TTE_VarDefZeroValue)
     inference_assign_type(idn, exprn, assignop);
 
@@ -1905,6 +1917,7 @@ static void walk_assign(ASTNode *p) {
       return;
     }
   } else { // zero initial value
+    // TODO: TTE_VarDefZeroValue seems not support assign, only support binding (let)
     // handle left value type of TTE_Id for zero initialized value
     assert(idn->type == TTE_Id);
     typeid_t id = get_expr_type_from_tree(idn);
@@ -2278,7 +2291,7 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
   }
 }
 
-static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
+static Value *bind_variable_value(SymTable *symtable, int name, Value *value, VarInitType init_type) {
   STEntry *entry = sym_getsym(symtable, name, 0);
   assert(entry);
 
@@ -2310,9 +2323,10 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
     ir1.builder().SetInsertPoint(currbb);
 #endif
 
-    if (!value)
-      aux_set_zero_to_store(type, var);
-    else
+    if (!value) {
+      if (init_type == VarInit_Zero)
+	aux_set_zero_to_store(type, var);
+    } else
       aux_copy_llvmvalue_to_store(type, var, value, varname);
 
     if (enable_debug_info())
@@ -2323,25 +2337,30 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value) {
   return var;
 }
 
-static void atmore_bind_variable_value(SymTable *symtable, void *morebind, Value *value) {
+static void atmore_bind_variable_value(SymTable *symtable, void *morebind, Value *value, VarInitType init_type) {
   size_t size = vec_size(morebind);
   for (size_t i = 0; i < size; ++i) {
     int name = (int)(long)vec_at(morebind, i);
-    bind_variable_value(symtable, name, value);
+    bind_variable_value(symtable, name, value, init_type);
   }
 }
 
-static void capattern_bind_variable_value(SymTable *symtable, CAPattern *cap, Value *value) {
-  bind_variable_value(symtable, cap->name, value);
-  atmore_bind_variable_value(symtable, cap->morebind, value);
+static void capattern_bind_variable_value(SymTable *symtable, CAPattern *cap, Value *value, VarInitType init_type) {
+  bind_variable_value(symtable, cap->name, value, init_type);
+  atmore_bind_variable_value(symtable, cap->morebind, value, init_type);
 }
 
 static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
-                                 Value *value, CADataType *catype);
+                                 Value *value, CADataType *catype,
+				 VarInitType init_type);
 
 // determine variable types in pattern and do format checking for let binding operation
-static void capattern_bind_tuple_pattern_range(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype,
-					 int from, int to, int typeoffset) {
+static void capattern_bind_tuple_pattern_range(SymTable *symtable,
+                                               CAPattern *cap, Value *value,
+                                               CADataType *catype, int from,
+                                               int to, int typeoffset,
+                                               VarInitType init_type)
+{
   Value *idxv0 = ir1.gen_int((int)0);
   std::vector<Value *> idxv(2, idxv0);
 
@@ -2358,14 +2377,17 @@ static void capattern_bind_tuple_pattern_range(SymTable *symtable, CAPattern *ca
 	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
     }
 
-    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype);
+    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype, init_type);
   }
 }
 
-static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype) {
+static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap,
+                                        Value *value, CADataType *catype,
+                                        VarInitType init_type)
+{
   // when in this function the value should already come with the type of capattern
   if (cap->morebind)
-    atmore_bind_variable_value(symtable, cap->morebind, value);
+    atmore_bind_variable_value(symtable, cap->morebind, value, init_type);
 
   // get the ignore variant position in struct / tuple, the check should already checked previously
   int ignorerangepos = capattern_ignorerange_pos(cap);
@@ -2396,7 +2418,7 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
 	  subvalue = ir1.builder().CreateLoad(subvalue, "pat");
       }
 
-      capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype);
+      capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype, init_type);
     }
     return;
   }
@@ -2404,19 +2426,24 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap, Valu
   // handle tuple value like upper
   if (ignorerangepos == -1) {
     // with no ignore range ..
-    capattern_bind_tuple_pattern_range(symtable, cap, value, catype, 0, cap->items->size, 0);
+    capattern_bind_tuple_pattern_range(symtable, cap, value, catype, 0,
+                                       cap->items->size, 0, init_type);
   } else {
-    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
-    // handle starting and ending matches
-    capattern_bind_tuple_pattern_range(symtable, cap, value, catype, 0, ignorerangepos, 0);
-    capattern_bind_tuple_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size);
+    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm,
+    // vn) = (t1, t2, t3, ..., tx, tm, tn) handle starting and ending matches
+    capattern_bind_tuple_pattern_range(symtable, cap, value, catype, 0,
+                                       ignorerangepos, 0, init_type);
+    capattern_bind_tuple_pattern_range(
+        symtable, cap, value, catype, ignorerangepos + 1, cap->items->size,
+        catype->struct_layout->fieldnum - cap->items->size, init_type);
   }
 }
 
 static void capattern_bind_array_pattern_range(SymTable *symtable,
                                                CAPattern *cap, Value *value,
                                                CADataType *catype, int from,
-                                               int to, int typeoffset)
+                                               int to, int typeoffset,
+					       VarInitType init_type)
 {
   Value *idxv0 = ir1.gen_int((int)0);
   std::vector<Value *> idxv(2, idxv0);
@@ -2435,46 +2462,54 @@ static void capattern_bind_array_pattern_range(SymTable *symtable,
 	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
     }
 
-    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype);
+    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype, init_type);
   }
 }
 
 static void capattern_bind_array_value(SymTable *symtable, CAPattern *cap,
-                                       Value *value, CADataType *catype)
+                                       Value *value, CADataType *catype,
+                                       VarInitType init_type)
 {
   // when in this function the value should already come with the type of capattern
   if (cap->morebind)
-    atmore_bind_variable_value(symtable, cap->morebind, value);
+    atmore_bind_variable_value(symtable, cap->morebind, value, init_type);
 
   // get the ignore variant position in struct / tuple, the check should already checked previously
   int ignorerangepos = capattern_ignorerange_pos(cap);
 
   if (ignorerangepos == -1) {
     // with no ignore range ..
-    capattern_bind_array_pattern_range(symtable, cap, value, catype, 0, cap->items->size, 0);
+    capattern_bind_array_pattern_range(symtable, cap, value, catype, 0,
+                                       cap->items->size, 0, init_type);
   } else {
-    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
-    // handle starting and ending matches
-    capattern_bind_array_pattern_range(symtable, cap, value, catype, 0, ignorerangepos, 0);
-    capattern_bind_array_pattern_range(symtable, cap, value, catype, ignorerangepos + 1, cap->items->size, catype->array_layout->dimarray[0]-cap->items->size);
+    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm,
+    // vn) = (t1, t2, t3, ..., tx, tm, tn) handle starting and ending matches
+    capattern_bind_array_pattern_range(symtable, cap, value, catype, 0,
+                                       ignorerangepos, 0, init_type);
+    capattern_bind_array_pattern_range(
+        symtable, cap, value, catype, ignorerangepos + 1, cap->items->size,
+        catype->array_layout->dimarray[0] - cap->items->size, init_type);
   }
 }
 
 // bind value for the variable variant in the pattern
-static void capattern_bind_value(SymTable *symtable, CAPattern *cap, Value *value, CADataType *catype) {
+static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
+                                 Value *value, CADataType *catype,
+                                 VarInitType init_type)
+{
   switch (cap->type) {
   case PT_Var:
-    capattern_bind_variable_value(symtable, cap, value);
+    capattern_bind_variable_value(symtable, cap, value, init_type);
     break;
   case PT_Tuple:
   case PT_GenTuple:
   case PT_Struct:
     // when `catype->struct_layout->type` is not `Struct_NamedStruct` it means the left pattern used
     // struct form matching for the right object (tuple)
-    capattern_bind_struct_value(symtable, cap, value, catype);
+    capattern_bind_struct_value(symtable, cap, value, catype, init_type);
     break;
   case PT_Array:
-    capattern_bind_array_value(symtable, cap, value, catype);
+    capattern_bind_array_value(symtable, cap, value, catype, init_type);
     break;
   case PT_IgnoreOne:
     break;
@@ -2554,6 +2589,7 @@ static void walk_letbind(ASTNode *p) {
   Value *v = nullptr;
   CADataType *catype = nullptr;
   OperandType ot = OT_Alloc;
+  VarInitType init_type = VarInit_Zero;
     
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
@@ -2595,13 +2631,15 @@ static void walk_letbind(ASTNode *p) {
 
     // catype can be null and the datatype must can obtain from pattern
     determine_letbind_type(cap, catype, exprn->symtable);
+
+    init_type = exprn->varinitn.type;
   }
 
   if (v && ot == OT_Alloc && !catype_is_complex_type(catype))
     v = ir1.builder().CreateLoad(v, "tmpexpr");
 
   // 3. walk left side again and copy data from right side
-  capattern_bind_value(exprn->symtable, cap, v, catype);
+  capattern_bind_value(exprn->symtable, cap, v, catype, init_type);
 }
 
 static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<Value *> &values);

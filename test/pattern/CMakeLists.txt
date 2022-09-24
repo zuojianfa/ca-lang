@@ -57,3 +57,5 @@ do_test(pattern "2 3 1 3 1 2\n3 2 1" ca let_array7.ca)
 do_test(pattern "line: 6, col: 17:\n    let \\[_, a, _\\] = a\\;\n                ^\nexpected array type but find `i32` for right side variable" ca let_array8.ca)
 do_test(pattern "2 3 1 2\n4 5 3 4\n2 5 1 4" ca let_array9.ca)
 
+add_subdirectory(noinit)
+

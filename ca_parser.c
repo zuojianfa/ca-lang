@@ -939,6 +939,7 @@ static const char *capattern_check_ignore(CAPattern *cap) {
   }
 }
 
+// when exprn is NULL, then it's no initialized let binding: `let a: i32;`
 ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
   const char *error = NULL;
   if ((error = capattern_check_ignore(cap)) != NULL) {
@@ -966,8 +967,9 @@ ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
   return p;
 }
 
-ASTNode *make_vardef_zero_value() {
+ASTNode *make_vardef_zero_value(VarInitType init_type) {
   ASTNode *p = new_ASTNode(TTE_VarDefZeroValue);
+  p->varinitn.type = init_type;
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
   return p;
 }
