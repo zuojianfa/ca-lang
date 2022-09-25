@@ -2855,7 +2855,7 @@ Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
       // create string literal
       const char *data = symname_get(lit->u.strvalue.text);
       llvm::StringRef strref(data, lit->u.strvalue.len);
-      Constant *llvmconststr = ir1.builder().CreateGlobalStringPtr(strref);
+      Constant *llvmconststr = ir1.get_global_string(strref.str());
       return llvmconststr;
     }
 

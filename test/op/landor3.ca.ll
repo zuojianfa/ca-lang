@@ -5,11 +5,8 @@ source_filename = "landor3.ca"
 @1 = private unnamed_addr constant [3 x i8] c"%s\00", align 1
 @2 = private unnamed_addr constant [3 x i8] c"%d\00", align 1
 @3 = private unnamed_addr constant [2 x i8] c"\0A\00", align 1
-@4 = private unnamed_addr constant [3 x i8] c"%s\00", align 1
-@5 = private unnamed_addr constant [7 x i8] c"first\0A\00", align 1
-@6 = private unnamed_addr constant [3 x i8] c"%s\00", align 1
-@7 = private unnamed_addr constant [8 x i8] c"second\0A\00", align 1
-@8 = private unnamed_addr constant [3 x i8] c"%s\00", align 1
+@4 = private unnamed_addr constant [7 x i8] c"first\0A\00", align 1
+@5 = private unnamed_addr constant [8 x i8] c"second\0A\00", align 1
 
 declare i32 @printf(i8*, ...)
 
@@ -21,7 +18,7 @@ entry:
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @1, i32 0, i32 0), i8* getelementptr inbounds ([15 x i8], [15 x i8]* @0, i32 0, i32 0))
   %load = load i32, i32* %seq1, align 4
   %n2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0), i32 %load)
-  %n3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @4, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @3, i32 0, i32 0))
+  %n3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @1, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @3, i32 0, i32 0))
   store i1 true, i1* %retslot, align 1
   br label %ret
 
@@ -73,11 +70,11 @@ cond1:                                            ; preds = %outbb8
   br label %then1
 
 then0:                                            ; preds = %outbb8
-  %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @6, i32 0, i32 0), i8* getelementptr inbounds ([7 x i8], [7 x i8]* @5, i32 0, i32 0))
+  %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @1, i32 0, i32 0), i8* getelementptr inbounds ([7 x i8], [7 x i8]* @4, i32 0, i32 0))
   br label %outbb11
 
 then1:                                            ; preds = %cond1
-  %n10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @8, i32 0, i32 0), i8* getelementptr inbounds ([8 x i8], [8 x i8]* @7, i32 0, i32 0))
+  %n10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @1, i32 0, i32 0), i8* getelementptr inbounds ([8 x i8], [8 x i8]* @5, i32 0, i32 0))
   br label %outbb11
 
 outbb11:                                          ; preds = %then1, %then0

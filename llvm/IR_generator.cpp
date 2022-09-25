@@ -304,7 +304,7 @@ static Value *llvmcode_create_slice(Value *start, Value *offset, Value *len, CAD
 }
 
 static void llvmcode_printf(Function *fn, const char *format, ...) {
-  Constant *llvmformat = ir1.builder().CreateGlobalStringPtr(format);
+  Constant *llvmformat = ir1.get_global_string(format);
   std::vector<Value *> params(1, llvmformat);
 
   Value *vv = nullptr;
@@ -1598,7 +1598,7 @@ static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
   case SLICE:
   case STRUCT: {
     const char *name = symname_get(catype->struct_layout->name);
-    Constant *sname = ir1.builder().CreateGlobalStringPtr(name);
+    Constant *sname = ir1.get_global_string(name);
     CAStructField *fields = catype->struct_layout->fields;
     len = catype->struct_layout->fieldnum;
     CAStructType struct_type = catype->struct_layout->type;
@@ -1632,7 +1632,7 @@ static void dbgprint_value(Function *fn, CADataType *catype, Value *v) {
       //Type* array_t =  llvm::PointerType::getUnqual(v->getType());
       if (struct_type == Struct_NamedStruct) {
 	name = symname_get(fields[i].name); // field name
-	sname = ir1.builder().CreateGlobalStringPtr(name);
+	sname = ir1.get_global_string(name);
 	llvmcode_printf(fn, "%s: ", sname, nullptr);
       }
 
@@ -1745,10 +1745,10 @@ static void walk_dbgprinttype(ASTNode *p) {
 
   // handle expression value transfer
   const char *format = "size = %lu, type: %s\n";
-  Constant *format_str = ir1.builder().CreateGlobalStringPtr(format);
+  Constant *format_str = ir1.get_global_string(format);
 
   // TODO: type string
-  Constant *type_str = ir1.builder().CreateGlobalStringPtr(symname_get(dt->signature));
+  Constant *type_str = ir1.get_global_string(symname_get(dt->signature));
 
   Value *value = ir1.gen_int((uint64_t)typesize);
   std::vector<Value *> printf_args(1, format_str);

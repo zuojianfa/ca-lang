@@ -2,10 +2,6 @@
 source_filename = "array3.ca"
 
 @0 = private unnamed_addr constant [3 x i8] c"%c\00", align 1
-@1 = private unnamed_addr constant [3 x i8] c"%c\00", align 1
-@2 = private unnamed_addr constant [3 x i8] c"%c\00", align 1
-@3 = private unnamed_addr constant [3 x i8] c"%c\00", align 1
-@4 = private unnamed_addr constant [3 x i8] c"%c\00", align 1
 
 declare i32 @printf(i8*, ...)
 
@@ -92,10 +88,10 @@ entry:
   %25 = bitcast [5 x [5 x [3 x [5 x [5 x [3 x [4 x i32]]]]]]]* %a1316 to i8*
   call void @llvm.memset.p0i8.i64(i8* align 4 %25, i8 0, i64 90000, i1 false)
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i8 103)
-  %n17 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @1, i32 0, i32 0), i8 111)
-  %n18 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0), i8 111)
-  %n19 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @3, i32 0, i32 0), i8 100)
-  %n20 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @4, i32 0, i32 0), i8 10)
+  %n17 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i8 111)
+  %n18 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i8 111)
+  %n19 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i8 100)
+  %n20 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i8 10)
   br label %ret
 
 ret:                                              ; preds = %entry

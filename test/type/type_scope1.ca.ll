@@ -14,26 +14,10 @@ source_filename = "type_scope1.ca"
 @5 = private unnamed_addr constant [3 x i8] c" }\00", align 1
 @6 = private unnamed_addr constant [2 x i8] c"\0A\00", align 1
 @7 = private unnamed_addr constant [3 x i8] c"%s\00", align 1
-@8 = private unnamed_addr constant [3 x i8] c"AA\00", align 1
-@9 = private unnamed_addr constant [6 x i8] c"%s { \00", align 1
-@10 = private unnamed_addr constant [3 x i8] c"f1\00", align 1
-@11 = private unnamed_addr constant [5 x i8] c"%s: \00", align 1
-@12 = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
-@13 = private unnamed_addr constant [3 x i8] c" }\00", align 1
-@14 = private unnamed_addr constant [2 x i8] c"\0A\00", align 1
-@15 = private unnamed_addr constant [3 x i8] c"%s\00", align 1
-@16 = private unnamed_addr constant [3 x i8] c"AA\00", align 1
-@17 = private unnamed_addr constant [6 x i8] c"%s { \00", align 1
-@18 = private unnamed_addr constant [3 x i8] c"f1\00", align 1
-@19 = private unnamed_addr constant [5 x i8] c"%s: \00", align 1
-@20 = private unnamed_addr constant [3 x i8] c"%d\00", align 1
-@21 = private unnamed_addr constant [3 x i8] c", \00", align 1
-@22 = private unnamed_addr constant [3 x i8] c"f2\00", align 1
-@23 = private unnamed_addr constant [5 x i8] c"%s: \00", align 1
-@24 = private unnamed_addr constant [4 x i8] c"%1d\00", align 1
-@25 = private unnamed_addr constant [3 x i8] c" }\00", align 1
-@26 = private unnamed_addr constant [2 x i8] c"\0A\00", align 1
-@27 = private unnamed_addr constant [3 x i8] c"%s\00", align 1
+@8 = private unnamed_addr constant [3 x i8] c"f1\00", align 1
+@9 = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
+@10 = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+@11 = private unnamed_addr constant [3 x i8] c", \00", align 1
 
 declare i32 @printf(i8*, ...)
 
@@ -74,12 +58,12 @@ entry:
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %13, i8* align 8 %14, i64 8, i1 false), !dbg !36
   call void @llvm.dbg.declare(metadata %AA.1* %a6, metadata !25, metadata !DIExpression()), !dbg !37
   %load7 = load %AA.1, %AA.1* %a6, align 8, !dbg !38
-  %n8 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @9, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @8, i32 0, i32 0)), !dbg !38
-  %n9 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @11, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @10, i32 0, i32 0)), !dbg !38
+  %n8 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @1, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0)), !dbg !38
+  %n9 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @3, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @8, i32 0, i32 0)), !dbg !38
   %15 = extractvalue %AA.1 %load7, 0, !dbg !38
-  %n10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @12, i32 0, i32 0), double %15), !dbg !38
-  %n11 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @13, i32 0, i32 0)), !dbg !38
-  %n12 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @15, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @14, i32 0, i32 0)), !dbg !39
+  %n10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @9, i32 0, i32 0), double %15), !dbg !38
+  %n11 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @5, i32 0, i32 0)), !dbg !38
+  %n12 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @7, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @6, i32 0, i32 0)), !dbg !39
   br label %ret, !dbg !40
 
 ret:                                              ; preds = %entry
@@ -106,17 +90,17 @@ entry:
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %3, i8* align 8 %4, i64 8, i1 false), !dbg !45
   call void @llvm.dbg.declare(metadata %AA* %a, metadata !43, metadata !DIExpression()), !dbg !46
   %load = load %AA, %AA* %a, align 4, !dbg !47
-  %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @17, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @16, i32 0, i32 0)), !dbg !47
-  %n1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @19, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @18, i32 0, i32 0)), !dbg !47
+  %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @1, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0)), !dbg !47
+  %n1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @3, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @8, i32 0, i32 0)), !dbg !47
   %5 = extractvalue %AA %load, 0, !dbg !47
-  %n2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @20, i32 0, i32 0), i32 %5), !dbg !47
-  %n3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @21, i32 0, i32 0)), !dbg !47
-  %n4 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @23, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @22, i32 0, i32 0)), !dbg !47
+  %n2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @10, i32 0, i32 0), i32 %5), !dbg !47
+  %n3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @11, i32 0, i32 0)), !dbg !47
+  %n4 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @3, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0)), !dbg !47
   %6 = extractvalue %AA %load, 1, !dbg !47
   %7 = zext i1 %6 to i32, !dbg !47
-  %n5 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @24, i32 0, i32 0), i32 %7), !dbg !47
-  %n6 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @25, i32 0, i32 0)), !dbg !47
-  %n7 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @27, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @26, i32 0, i32 0)), !dbg !48
+  %n5 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @4, i32 0, i32 0), i32 %7), !dbg !47
+  %n6 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @5, i32 0, i32 0)), !dbg !47
+  %n7 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @7, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @6, i32 0, i32 0)), !dbg !48
   br label %ret, !dbg !49
 
 ret:                                              ; preds = %entry
