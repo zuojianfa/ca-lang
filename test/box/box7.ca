@@ -1,0 +1,10 @@
+fn main() {
+    // let a = [0u8; 100];
+    // let b: [u8; 100];
+    //let a: [u8; 10];
+    let a = [100u8; 10];
+    let b = a[1] as i32;
+    print b;
+    //let c = box();
+}
+

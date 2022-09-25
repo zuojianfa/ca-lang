@@ -174,7 +174,10 @@ typedef struct CAStructLit {
 } CAStructLit;
 
 typedef struct CAArrayExpr {
-  void *data; // vector
+  // when == 0, just use the `data` as array elements
+  // when  > 0, repeat the first element of `data` `repeat_count` times
+  size_t repeat_count;
+  void *data; // vector, each array element occupies one vector item
 } CAArrayExpr;
 
 typedef struct CAStructNamed {

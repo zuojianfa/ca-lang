@@ -177,7 +177,7 @@ void set_litbuf_symname(LitBuffer *litb, int name, int len, int typetok) {
 
 CAArrayExpr arrayexpr_new() {
   std::vector<ASTNode *> *v = new std::vector<ASTNode *>;
-  CAArrayExpr expr = { static_cast<void *>(v) };
+  CAArrayExpr expr = {0, static_cast<void *>(v) };
   return expr;
 }
 
@@ -199,7 +199,9 @@ ASTNode *arrayexpr_get(CAArrayExpr obj, int idx) {
 
 CAArrayExpr arrayexpr_fill(CAArrayExpr obj, ASTNode *expr, size_t n) {
   std::vector<ASTNode *> *vs = static_cast<std::vector<ASTNode *> *>(obj.data);
-  vs->resize(n, expr);
+  //vs->resize(n, expr);
+  vs->push_back(expr);
+  obj.repeat_count = n;
   return obj;  
 }
 

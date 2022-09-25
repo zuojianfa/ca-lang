@@ -1306,6 +1306,8 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     ASTNode *anode = node->exprn.operands[0];
     size_t size = arrayexpr_size(anode->anoden.aexpr);
     typeid_t prevtypeid = typeid_novalue;
+
+    // check if all array element have the same type
     for (int i = 0; i < size; ++i) {
       ASTNode *node = arrayexpr_get(anode->anoden.aexpr, i);
       typeid_t typeid = inference_expr_type(node);
@@ -1322,6 +1324,9 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
 
     //CADataType *subcatype = catype_get_primitive_by_name(prevtypeid);
     CADataType *subcatype = catype_get_by_name(node->symtable, prevtypeid);
+    if (anode->anoden.aexpr.repeat_count)
+      size = anode->anoden.aexpr.repeat_count;
+
     CADataType *catype = catype_make_array_type(subcatype, size, 0);
     type1 = catype->signature;
     break;

@@ -2291,7 +2291,7 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
   }
 }
 
-static Value *bind_variable_value(SymTable *symtable, int name, Value *value, VarInitType init_type) {
+static Value *bind_variable_value(SymTable *symtable, int name, Value *value, bool inplace_value, VarInitType init_type) {
   STEntry *entry = sym_getsym(symtable, name, 0);
   assert(entry);
 
@@ -2312,22 +2312,18 @@ static Value *bind_variable_value(SymTable *symtable, int name, Value *value, Va
     if (enable_debug_info())
       emit_global_var_dbginfo(varname, catype, entry->u.varshielding.current->loc.row);
   } else {
-#if 1
-    var = ir1.gen_entry_block_var(curr_fn, type, varname, nullptr);
-#else
-    BasicBlock *currbb = ir1.builder().GetInsertBlock();
-    BasicBlock *entrybb = &curr_fn->getEntryBlock();
-    BasicBlock::iterator itr = entrybb->getFirstInsertionPt();
-    ir1.builder().SetInsertPoint(entrybb, itr);
-    var = ir1.gen_var(type, varname, nullptr);
-    ir1.builder().SetInsertPoint(currbb);
-#endif
-
-    if (!value) {
-      if (init_type == VarInit_Zero)
-	aux_set_zero_to_store(type, var);
-    } else
-      aux_copy_llvmvalue_to_store(type, var, value, varname);
+    Type::TypeID id = type->getTypeID();
+    if (value && inplace_value && (id == Type::ArrayTyID || id == Type::StructTyID)) {
+      var = value;
+    } else {
+      var = ir1.gen_entry_block_var(curr_fn, type, varname, nullptr);
+      if (!value) {
+        if (init_type == VarInit_Zero)
+          aux_set_zero_to_store(type, var);
+      } else {
+	aux_copy_llvmvalue_to_store(type, var, value, varname);
+      }
+    }  
 
     if (enable_debug_info())
       emit_local_var_dbginfo(curr_fn, varname, catype, var, entry->u.varshielding.current->loc.row /* p->endloc.row */);
@@ -2341,18 +2337,21 @@ static void atmore_bind_variable_value(SymTable *symtable, void *morebind, Value
   size_t size = vec_size(morebind);
   for (size_t i = 0; i < size; ++i) {
     int name = (int)(long)vec_at(morebind, i);
-    bind_variable_value(symtable, name, value, init_type);
+    bind_variable_value(symtable, name, value, false, init_type);
   }
 }
 
-static void capattern_bind_variable_value(SymTable *symtable, CAPattern *cap, Value *value, VarInitType init_type) {
-  bind_variable_value(symtable, cap->name, value, init_type);
+static void capattern_bind_variable_value(SymTable *symtable, CAPattern *cap,
+                                          Value *value, bool inplace_value,
+                                          VarInitType init_type)
+{
+  bind_variable_value(symtable, cap->name, value, inplace_value, init_type);
   atmore_bind_variable_value(symtable, cap->morebind, value, init_type);
 }
 
 static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
-                                 Value *value, CADataType *catype,
-				 VarInitType init_type);
+                                 Value *value, bool inplace_value,
+                                 CADataType *catype, VarInitType init_type);
 
 // determine variable types in pattern and do format checking for let binding operation
 static void capattern_bind_tuple_pattern_range(SymTable *symtable,
@@ -2377,7 +2376,7 @@ static void capattern_bind_tuple_pattern_range(SymTable *symtable,
 	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
     }
 
-    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype, init_type);
+    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, false, btype, init_type);
   }
 }
 
@@ -2418,7 +2417,7 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap,
 	  subvalue = ir1.builder().CreateLoad(subvalue, "pat");
       }
 
-      capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype, init_type);
+      capattern_bind_value(symtable, cap->items->patterns[i], subvalue, false, btype, init_type);
     }
     return;
   }
@@ -2462,7 +2461,7 @@ static void capattern_bind_array_pattern_range(SymTable *symtable,
 	subvalue = ir1.builder().CreateLoad(subvalue, "pat");
     }
 
-    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, btype, init_type);
+    capattern_bind_value(symtable, cap->items->patterns[i], subvalue, false, btype, init_type);
   }
 }
 
@@ -2494,12 +2493,11 @@ static void capattern_bind_array_value(SymTable *symtable, CAPattern *cap,
 
 // bind value for the variable variant in the pattern
 static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
-                                 Value *value, CADataType *catype,
-                                 VarInitType init_type)
-{
+                                 Value *value, bool inplace_value,
+                                 CADataType *catype, VarInitType init_type) {
   switch (cap->type) {
   case PT_Var:
-    capattern_bind_variable_value(symtable, cap, value, init_type);
+    capattern_bind_variable_value(symtable, cap, value, inplace_value, init_type);
     break;
   case PT_Tuple:
   case PT_GenTuple:
@@ -2639,7 +2637,11 @@ static void walk_letbind(ASTNode *p) {
     v = ir1.builder().CreateLoad(v, "tmpexpr");
 
   // 3. walk left side again and copy data from right side
-  capattern_bind_value(exprn->symtable, cap, v, catype, init_type);
+  // here only when the value v is come from literal directly the inplace_value
+  // can be set to true, or when it is a variable, if using insplace method, it
+  // will use the same value for 2 variables. TODO: determine the direct literal
+  // example and set inplace_value = true
+  capattern_bind_value(exprn->symtable, cap, v, false, catype, init_type);
 }
 
 static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<Value *> &values);
@@ -3274,14 +3276,49 @@ static void walk_expr_array(ASTNode *p) {
   if (vnodes->size() != 0 && lefttype->getTypeID() == Type::PointerTyID)
     lefttype = static_cast<PointerType *>(lefttype)->getElementType();
 
-  for (size_t i = 0; i < values.size(); ++i) {
-    // get elements address of arr
-    Value *idxvi = ir1.gen_int(i);
-    idxv[1] = idxvi;
-    Value *dest = ir1.builder().CreateGEP(arr, idxv);
-    aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "tmpsuba");
-  }
-  
+  if (anode->anoden.aexpr.repeat_count &&
+      arraycatype->array_layout->type->size == 1) {
+    // condition of: let a = [x; 10000];
+    if (!values.empty()) {
+      // using memset when type is 1 byte length to do the job
+      // Type *i8type = ir1.intptr_type<int8_t>();
+      // Value *i8var = ir1.builder().CreatePointerCast(values[0], i8type);
+      // TypeSize size = ir1.module().getDataLayout().getTypeAllocSize(type);
+      Align align = (static_cast<AllocaInst *>(values[0]))->getAlign();
+
+      CallInst *ci = ir1.builder().CreateMemSet(
+          arr, values[0], anode->anoden.aexpr.repeat_count, align);
+    }
+  } else {
+#if 0 // TODO: here should handle the multi-byte constant value
+    if (anode->anoden.aexpr.repeat_count && !values.empty()) {
+      // using memcpy the constant when type is multi-byte type
+      ArrayType *constant_array = static_cast<ArrayType *>(arraytype);
+      std::vector<Constant *> array_elements(anode->anoden.aexpr.repeat_count,
+                                             constant_array);
+      Constant *constant = ConstantArray::get(constant_array, array_elements);
+    } else
+#else
+      if (anode->anoden.aexpr.repeat_count > 0) {
+	for (size_t i = 0; i < anode->anoden.aexpr.repeat_count; ++i) {
+          // get elements address of arr
+          Value *idxvi = ir1.gen_int(i);
+          idxv[1] = idxvi;
+          Value *dest = ir1.builder().CreateGEP(arr, idxv);
+          aux_copy_llvmvalue_to_store(lefttype, dest, values[0], "tmpsuba");
+	}
+      } else {
+        for (size_t i = 0; i < values.size(); ++i) {
+          // get elements address of arr
+          Value *idxvi = ir1.gen_int(i);
+          idxv[1] = idxvi;
+          Value *dest = ir1.builder().CreateGEP(arr, idxv);
+          aux_copy_llvmvalue_to_store(lefttype, dest, values[i], "tmpsuba");
+        }
+      }
+    }
+#endif
+
   auto u = std::make_unique<CalcOperand>(OT_Alloc, arr, arraycatype);
   oprand_stack.push_back(std::move(u));
 }
