@@ -75,7 +75,7 @@ extern int yychar, yylineno;
 %token	<litb>		LITERAL STR_LITERAL
 %token	<symnameid>	VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
 %token	<symnameid>	IDENT
-%token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR
+%token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR IMPL TRAIT
 %token			LOOP FOR IN BREAK CONTINUE MATCH USE MOD
 %token			BAND BOR BXOR BNOT
 %token			ASSIGN_ADD ASSIGN_SUB ASSIGN_MUL ASSIGN_DIV ASSIGN_MOD ASSIGN_SHIFTL ASSIGN_SHIFTR ASSIGN_BAND ASSIGN_BOR ASSIGN_BXOR
@@ -107,7 +107,7 @@ extern int yychar, yylineno;
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
 %type	<astnode>	paragraph fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
 %type	<astnode>	fn_args_p fn_args_call_or_tuple_p
-%type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def
+%type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def trait_def
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
 %type	<forstmtid>	for_stmt_ident
 %type	<var>		iddef iddef_typed
@@ -140,7 +140,18 @@ paragraphs:	paragraphs paragraph { make_paragraphs($2); }
 paragraph:     	stmt     { dot_emit("paragraph", "stmt"); }
 	|	fn_def   { dot_emit("paragraph", "fn_def"); }
 	|	fn_decl  { dot_emit("paragraph", "fn_decl"); }
+	|	type_impl{ dot_emit("paragraph", "type_impl"); }
 		;
+
+type_impl:	type_impl_head '{' fn_defs '}' {  /* NEXT TODO: */ }
+	;
+
+type_impl_head:	IMPL IDENT { /* NEXT TODO: begin_impl_type(); */}
+	|	IMPL IDENT FOR IDENT { /* NEXT TODO: begin_impl_trait_for_type(); */ }
+	;
+
+fn_defs:	fn_defs fn_def { /* NEXT TODO: */ }
+	;
 
 fn_def:		fn_proto fn_body { $$ = make_fn_def($1, $2); }
 		;
@@ -218,6 +229,7 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	GOTO label_id ';'       { $$ = make_goto($2); }
 	|	struct_type_def         { $$ = $1; }
 	|	tuple_type_def          { $$ = $1; }
+	|	trait_def               { $$ = $1; }
 	|	type_def                { $$ = $1; }
 	|	DROP IDENT ';'          { $$ = make_drop($2); }
 	;
@@ -575,6 +587,9 @@ tuple_members_dot: tuple_members | tuple_members ','
 tuple_members:	tuple_members ',' data_type      { add_tuple_member(tuplelist_current(), $3); }
 	|	data_type                        { add_tuple_member(tuplelist_current(), $1); }
 	|
+	;
+
+trait_def:	TRAIT IDENT '{'  '}' { /* NEXT TODO: */ }
 	;
 
 type_def:	TYPE IDENT '=' data_type ';' { $$ = make_type_def($2, $4); }

@@ -311,6 +311,9 @@ NEXT TODO:
   - [ ] support box(type) grammar a long with box(expr) grammar
 - [ ] implement ca runtime system to support the compiler functionality, like output slice object, it need runtime system support, because slice type's length is not determined in compile time, and cannot fixed print in compile, so need use runtime system to support printing it
   - [ ] perfect runtime libraries to support others
+- [ ] support class impl
+  - [ ] support inner function definition in a function
+- [ ] support trait
 - [ ] check if can use function parameter directly without copying the parameter
 - [ ] support slice element accessing
 - [ ] support slice functionality

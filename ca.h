@@ -324,6 +324,11 @@ typedef struct CallParamAux {
   ASTNode *param;
 } CallParamAux;
 
+typedef struct TypeImplInfo {
+  int class_id;
+  int trait_id;
+} TypeImplInfo;
+
 typeid_t reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum, int assignop);
 int parse_lexical_char(const char *text);
 int parse_tuple_fieldname(int fieldname);

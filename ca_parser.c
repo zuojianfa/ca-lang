@@ -76,6 +76,9 @@ ST_ArgList curr_arglist;
 typeid_t curr_fn_rettype = 0;
 int g_node_seqno = 0;
 
+TypeImplInfo *current_type_impl = NULL;
+TypeImplInfo current_type_impl_buffer;
+
 extern int glineno_prev;
 extern int gcolno_prev;
 extern int glineno;

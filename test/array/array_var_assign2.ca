@@ -1,0 +1,22 @@
+fn main() {
+    let a = 1;
+    let b = 2;
+    let c = 3;
+    let arr = [a, b, c];
+    let d = 4;
+    let e = 5;
+    let f = 6;
+    f = 7;
+    let arr2 = [d, e, f];
+    let arr21 = arr2;
+    if (f == 6) {
+        arr21 = arr2;
+    } else {
+        arr21 = arr;
+    }
+
+
+    //arr21 = [a, c, e];
+    print arr2;
+}
+
