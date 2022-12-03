@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "ca.h"
+#include "ca_parser.h"
 #include "dotgraph.h"
 #include "symtable.h"
 

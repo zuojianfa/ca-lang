@@ -46,7 +46,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "ca.h"
 #include "ca_types.h"
 #include "type_system.h"
 #include "type_system_llvm.h"
@@ -2921,12 +2920,21 @@ static void walk_expr_call(ASTNode *p) {
   ASTNode *args = p->exprn.operands[1];
 
   const char *fnname = nullptr;
-  Function *fn = nullptr;
   STEntry *entry = nullptr;
-  int istuple = extract_function_or_tuple(p->symtable, name->idn.i, &entry, &fnname, (void **)&fn);
+  int istuple = extract_function_or_tuple(p->symtable, name->idn.i, &entry, &fnname);
   if (istuple == -1) {
       caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'", fnname);
       return;
+  }
+
+  Function *fn = nullptr;
+  if (!istuple) { // is function
+    fn = ir1.module().getFunction(fnname);
+    if (!fn) {
+      caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'",
+              fnname);
+      return;
+    }
   }
 
   check_and_determine_param_type(name, args, istuple, entry);

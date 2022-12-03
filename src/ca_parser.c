@@ -8,7 +8,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
-#include "ca.h"
+#include "ca_parser.h"
 #include "ca.tab.h"
 #include "ca_types.h"
 #include "dotgraph.h"
@@ -673,7 +673,7 @@ CAArrayExpr make_array_def_fill(ASTNode *expr, CALiteral *lit) {
   if (lit->littypetok != U64) {
     caerror(&lit->begloc, &lit->endloc, "litreal is not a valid type",
 	    get_type_string(lit->littypetok));
-    return (CAArrayExpr){NULL};
+    return (CAArrayExpr){.repeat_count = 0, .data = NULL};
   }
 
   CAArrayExpr caexpr = arrayexpr_new();
@@ -2393,7 +2393,7 @@ ASTNode *make_fn_call_or_tuple(int id, ASTNode *param) {
   // tuple type cannot have the same name with function in the same symbol table
 
   STEntry *entry = NULL;
-  int tuple = extract_function_or_tuple(param->symtable, fnname, &entry, NULL, NULL);
+  int tuple = extract_function_or_tuple(param->symtable, fnname, &entry, NULL);
   if (tuple != -1) {
     check_fn_define(fnname, param, tuple, entry);
   } else {

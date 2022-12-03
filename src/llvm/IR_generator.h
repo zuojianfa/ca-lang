@@ -2,7 +2,7 @@
 #define __IR_generator_h__
 
 #include "ca_types.h"
-#include "ca.h"
+#include "ca_parser.h"
 #include "symtable.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DebugInfoMetadata.h"

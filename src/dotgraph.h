@@ -1,7 +1,7 @@
 #ifndef __dotgraph_h__
 #define __dotgraph_h__
 
-#include "ca.h"
+#include "ca_parser.h"
 
 #ifdef __cplusplus
 BEGIN_EXTERN_C

@@ -6,6 +6,10 @@
 #define MAX_PATH 255
 #define MAX_GOTO 1024
 
+#ifdef __cplusplus
+BEGIN_EXTERN_C
+#endif
+
 // pos = code_buffer[goto_pcs[i]];
 // addrs[x] = addrof(label x); code_buffer[goto_pcs[i]] = addrs[pos];
 typedef struct FPIC_AddrEnv {
@@ -50,6 +54,10 @@ typedef struct CompileEnv {
 } CompileEnv;
 
 extern CompileEnv genv;
+
+#ifdef __cplusplus
+END_EXTERN_C
+#endif
 
 #endif
 

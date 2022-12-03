@@ -1,7 +1,7 @@
 #ifndef __type_system_h__
 #define __type_system_h__
 
-#include "ca.h"
+#include "ca_parser.h"
 #include "ca_types.h"
 #include "symtable.h"
 #include <stdint.h>
@@ -67,7 +67,10 @@ typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name,
                                       int *typesize, CADataType **retdt);
 
 void debug_catype_datatype(const CADataType *datatype);
-int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, const char **fnname, void **fn);
+int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, const char **fnname);
+int can_type_binding(CALiteral *lit, tokenid_t typetok);
+int64_t parse_to_int64(CALiteral *value);
+double parse_to_double(CALiteral *value);
 
 #ifdef __cplusplus
 END_EXTERN_C

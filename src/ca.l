@@ -3,7 +3,7 @@ letter	[a-zA-Z]
 
 %{
 #include <stdlib.h>
-#include "ca.h"
+#include "ca_parser.h"
 #include "ca.tab.h"
 #include "symtable.h"
 extern SymTable *curr_symtable;
