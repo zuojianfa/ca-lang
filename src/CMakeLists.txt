@@ -12,14 +12,14 @@ ADD_FLEX_BISON_DEPENDENCY(ca_lexier ca_parser)
 add_subdirectory(llvm)
 
 # handle special target for IR_generator.cpp
-add_library(irgen OBJECT llvm/IR_generator.cpp type_system.cpp type_system_llvm.cpp type_system_llvm.h ca.tab.h)
+add_library(irgen OBJECT llvm/IR_generator.cpp type_system_llvm.cpp ca.tab.h)
 target_compile_options(irgen PRIVATE ${llvm_cxxflags})
 target_include_directories(irgen PRIVATE . ${CMAKE_CURRENT_BINARY_DIR})
 
 #add_dependencies(irgen ca.tab.h)
 
 #  ca.h config.h dotgraph.h symtable.h utils.h llvm/IR_generator.h ca.l ca.y
-add_executable(ca ca.y ca.l ca.tab.c lex.yy.c ca_parser.c dotgraph.cpp symtable_cpp.cpp utils.c strutil.c ca_runtime.c $<TARGET_OBJECTS:irgen>)
+add_executable(ca ca.cpp ca.tab.c lex.yy.c ca_parser.c dotgraph.cpp symtable_cpp.cpp type_system.cpp utils.c strutil.c ca_runtime.c $<TARGET_OBJECTS:irgen>)
 target_link_options(ca PRIVATE ${llvm_ldflags}
   # the option -Xlinker --export-dynamic make the symbol exported as dynamic, for example: for rt_add function
   # when not use following option rt_add will not exported in the dynamic symbol table and
