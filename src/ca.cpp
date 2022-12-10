@@ -3,9 +3,9 @@
 #include <errno.h>
 #include <string.h>
 
-#include "ca_parser.h"
 #include "dotgraph.h"
 #include "config.h"
+#include "IR_generator.h"
 
 #define MAX_OPS 10000
 
@@ -13,17 +13,10 @@ extern CompileEnv genv;
 extern FILE *yyin;
 extern RootTree *gtree;
 
-//extern int glineno;
-//extern int gcolno;
-
 extern "C" {
 int yyparse(void);
 int yyparser_init();
 }
-
-void init_llvm_env();
-void handle_post_functions();
-int walk(RootTree *tree);
 
 static void usage() {
   // [-ll] | [-S] | [-native] | [-c] | [-jit] [-O] | [-g] | [-nomain] | [-dot <dotfile>]

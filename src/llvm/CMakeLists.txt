@@ -1,4 +1,4 @@
-add_library(ir1 STATIC dwarf_debug.cpp ir1.cpp)
+add_library(ir1 STATIC dwarf_debug.cpp ir1.cpp jit1.cpp)
 
 target_compile_options(ir1 PRIVATE ${llvm_cxxflags})
 
@@ -10,5 +10,4 @@ install(FILES IR_generator.h dwarf_debug.h ir1.h jit1.h DESTINATION include)
 if(LINUX)
   message("running in linux")
 endif()
-
 

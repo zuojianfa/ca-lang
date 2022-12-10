@@ -50,16 +50,8 @@
 #include "type_system.h"
 #include "type_system_llvm.h"
 #include "ca_runtime.h"
-
-BEGIN_EXTERN_C
-
-#include "ca.tab.h"
 #include "config.h"
 #include "symtable.h"
-
-CompileEnv genv;
-
-END_EXTERN_C
 
 // llvm section
 #include "ir1.h"
@@ -67,14 +59,73 @@ END_EXTERN_C
 #include "dwarf_debug.h"
 #include "IR_generator.h"
 
-using namespace llvm;
-ir_codegen::IR1 ir1;
-std::unique_ptr<dwarf_debug::DWARFDebugInfo> diinfo;
-std::unique_ptr<jit_codegen::JIT1> jit1;
+BEGIN_EXTERN_C
+#include "ca.tab.h"
+CompileEnv genv;
+END_EXTERN_C
 
+using namespace llvm;
+
+enum OperandType {
+  OT_Const,
+  OT_Calc,
+  OT_Load,
+  OT_Store,    // not used yet
+  OT_Alloc,
+  OT_CallInst, // use as return value
+  OT_PHINode,  // not used yet
+  OT_HeapAlloc,
+};
+
+struct CalcOperand {
+  CalcOperand() : type(OT_Alloc), operand(nullptr), catype(nullptr) {}
+
+  CalcOperand(OperandType t, llvm::Value *v, CADataType *dt)
+      : type(t), operand(v), catype(dt) {}
+
+  OperandType type;
+  CADataType *catype;
+  llvm::Value *operand;
+};
+
+struct LexicalScope {
+  LexicalScope() : discope(nullptr), difn(nullptr) {}
+
+  llvm::DIScope *discope;
+  llvm::DISubprogram *difn;
+};
+
+struct LoopControlInfo {
+  enum LoopType {
+    LT_Loop,
+    LT_While,
+    LT_For,
+  };
+
+  LoopControlInfo(LoopType looptype, int name, llvm::BasicBlock *condbb,
+                  llvm::BasicBlock *outbb)
+      : looptype(looptype), name(name), condbb(condbb), outbb(outbb) {}
+
+  LoopType looptype;
+  int name;
+  llvm::BasicBlock *condbb;
+  llvm::BasicBlock *outbb;
+};
+
+struct FnDebugInfo {
+  DISubprogram *disp;
+};
+
+ir_codegen::IR1 ir1;
+
+extern SymTable g_root_symtable;
+extern ASTNode *main_fn_node;
+extern std::unordered_map<typeid_t, void *> g_function_post_map;
+
+static std::unique_ptr<dwarf_debug::DWARFDebugInfo> diinfo;
+static std::unique_ptr<jit_codegen::JIT1> jit1;
 static ExitOnError exit_on_error;
 static bool g_with_ret_value = false;
-extern SymTable g_root_symtable;
 
 // llvm section
 
@@ -90,13 +141,7 @@ extern SymTable g_root_symtable;
 //   
 // 
 // So I need to seperate this two condition
-// 
-
-#include <stack>
-
-struct FnDebugInfo {
-  DISubprogram *disp;
-};
+//
 
 static llvm::Function *g_box_fn = nullptr;
 static llvm::Function *g_drop_fn = nullptr;
@@ -106,7 +151,6 @@ static llvm::Function *main_fn = nullptr;
 static llvm::Function *curr_fn = nullptr;
 static ASTNode *curr_fn_node = nullptr;
 static llvm::BasicBlock *main_bb = nullptr;
-extern ASTNode *main_fn_node;
 static llvm::DIFile *diunit = nullptr;
 static std::vector<std::unique_ptr<CalcOperand>> oprand_stack;
 
@@ -123,19 +167,18 @@ static std::vector<std::unique_ptr<LexicalScope>> lexical_scope_stack;
 static LexicalScope *curr_lexical_scope = nullptr;
 static LexicalScope *root_lexical_scope = nullptr;
 
-static int walk_stack(ASTNode *p);
-extern std::unordered_map<typeid_t, void *> g_function_post_map;
-
 // for handling function parameter checking
 static std::unordered_map<typeid_t, void *> g_function_post_check_map;
 
 static std::vector<std::unique_ptr<LoopControlInfo>> g_loop_controls;
 
-std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
-std::vector<void *> *structexpr_deref(CAStructExpr obj);
-
 const static char *box_fn_name = "GC_malloc";
 const static char *drop_fn_name = "GC_free";
+
+static int walk_stack(ASTNode *p);
+
+std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
+std::vector<void *> *structexpr_deref(CAStructExpr obj);
 
 static void init_printf_fn() {
   // TODO: add grammar for handling extern functions instead hardcoded here
@@ -4156,6 +4199,7 @@ static void init_runtime_symbols() {
   jit1->register_imported_symbols(name_addresses);
 }
 
+BEGIN_EXTERN_C
 void init_llvm_env() {
   ir1.init_module_and_passmanager(genv.src_path);
   jit1 = exit_on_error(jit_codegen::JIT1::create_instance());
@@ -4195,3 +4239,5 @@ int walk(RootTree *tree) {
   llvm_codegen_end();
   return 0;
 }
+END_EXTERN_C
+
