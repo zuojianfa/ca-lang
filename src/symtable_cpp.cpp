@@ -35,6 +35,7 @@ extern SymTable *curr_symtable;
 END_EXTERN_C
 
 extern std::unordered_map<std::string, int> s_token_map;
+extern TypeImplInfo *current_type_impl;
 
 // static char *s_symname_buffer = NULL;
 static std::vector<char> s_symname_buffer;
@@ -202,7 +203,7 @@ CAArrayExpr arrayexpr_fill(CAArrayExpr obj, ASTNode *expr, size_t n) {
   //vs->resize(n, expr);
   vs->push_back(expr);
   obj.repeat_count = n;
-  return obj;  
+  return obj;
 }
 
 CAVariable *cavar_create(int name, typeid_t datatype) {
@@ -219,6 +220,29 @@ CAVariable *cavar_create_with_loc(int name, typeid_t datatype, SLoc *loc) {
   CAVariable *cavar = cavar_create(name, datatype);
   cavar->loc = *loc;
   return cavar;
+}
+
+CAVariable *cavar_create_self(int name) {
+  SLoc stloc = {glineno, gcolno};
+  if (!current_type_impl) {
+    caerror(&stloc, NULL, "self used in non type implemention is not allowed");
+    return nullptr;
+  }
+
+  const char *strname = symname_get(name);
+  if (strcmp(strname, OSELF)) {
+    caerror(&stloc, NULL, "for `%s`, please give it a type or using `self`", strname);
+    return nullptr;
+  }
+
+  typeid_t datatype = current_type_impl->class_id;
+  CAVariable *var = new CAVariable;
+  var->datatype = datatype;
+  var->loc = stloc;
+  var->name = name;
+  var->llvm_value = nullptr;
+  var->global = 0;
+  return var;
 }
 
 void cavar_destroy(CAVariable **var) {

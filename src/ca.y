@@ -37,6 +37,8 @@ extern SymTable *curr_symtable;
 /* mainly for label processing, because label is function scope symbol */
 extern SymTable *curr_fn_symtable;
 extern SymTable *g_main_symtable;
+extern TypeImplInfo current_type_impl_buffer;
+extern TypeImplInfo *current_type_impl;
 
 extern int extern_flag;
 extern ST_ArgList curr_arglist;
@@ -70,11 +72,12 @@ extern int yychar, yylineno;
   CAPattern *capattern;
   PatternGroup *patterngroup;
   GeneralRange range;
+  TypeImplInfo impl_info;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
 %token	<symnameid>	VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
-%token	<symnameid>	IDENT
+%token	<symnameid>	IDENT // OSELF CSELF
 %token			WHILE IF IFE DBGPRINT DBGPRINTTYPE GOTO EXTERN FN RET LET EXTERN_VAR IMPL TRAIT
 %token			LOOP FOR IN BREAK CONTINUE MATCH USE MOD
 %token			BAND BOR BXOR BNOT
@@ -103,14 +106,14 @@ extern int yychar, yylineno;
 %type	<litv>		literal
 %type	<arrayexpr>	array_def array_def_items
 %type	<structexpr>	struct_expr struct_expr_fields named_struct_expr_fields
-%type	<astnode>	stmt stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value
+%type	<astnode>	stmt stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value type_impl fn_defs
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
 %type	<astnode>	paragraph fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
 %type	<astnode>	fn_args_p fn_args_call_or_tuple_p
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def trait_def
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
 %type	<forstmtid>	for_stmt_ident
-%type	<var>		iddef iddef_typed
+%type	<var>		iddef iddef_typed iddef_typed_for_impl
 %type	<symnameid>	label_id attrib_scope ret_type
 //			%type	<symnameid>	atomic_type
 %type	<tid>		data_type pointer_type array_type ident_type gen_tuple_type
@@ -123,6 +126,7 @@ extern int yychar, yylineno;
 %type	<capattern>	let_stmt_left let_stmt_one_left let_stmt_left_pattern let_stmt_one_left_typed pattern_tuple_arg let_stmt_more_left_typed let_stmt_more_left pattern_struct_arg
 %type	<patterngroup>	pattern_struct_args_all pattern_tuple_args_all pattern_tuple_args pattern_struct_args
 %type	<range>		general_range
+%type	<impl_info>	type_impl_head
 
 %start program
 
@@ -143,14 +147,17 @@ paragraph:     	stmt     { dot_emit("paragraph", "stmt"); }
 	|	type_impl{ dot_emit("paragraph", "type_impl"); }
 		;
 
-type_impl:	type_impl_head '{' fn_defs '}' {  /* NEXT TODO: */ }
+type_impl:	type_impl_head  { current_type_impl_buffer = $1; current_type_impl = &current_type_impl_buffer; }
+		'{' fn_defs '}' { current_type_impl = NULL; $$ = $4; }
 	;
 
-type_impl_head:	IMPL IDENT { /* NEXT TODO: begin_impl_type(); */}
-	|	IMPL IDENT FOR IDENT { /* NEXT TODO: begin_impl_trait_for_type(); */ }
+type_impl_head:	IMPL ident_type { $$ = begin_impl_type($2); }
+	|	IMPL ident_type FOR ident_type { $$ = begin_impl_trait_for_type($2, $4); }
 	;
 
-fn_defs:	fn_defs fn_def { /* NEXT TODO: */ }
+/* collect function into a group assoicated with one type */
+fn_defs:	fn_defs fn_def { $$ = make_fn_def_impl_next($$, $2); }
+	|	fn_def { $$ = make_fn_def_impl_begin($1); }
 	;
 
 fn_def:		fn_proto fn_body { $$ = make_fn_def($1, $2); }
@@ -193,7 +200,13 @@ fn_args:	fn_args_p              { add_fn_args_p(&curr_arglist, 0); }
 		;
 
 fn_args_p:	fn_args_p ',' iddef_typed    { add_fn_args(&curr_arglist, curr_symtable, $3); }
-	|	iddef_typed                  { add_fn_args(&curr_arglist, curr_symtable, $1); }
+	|       // only first parameter can be using self
+		iddef_typed_for_impl         { add_fn_args(&curr_arglist, curr_symtable, $1); }
+	;
+
+iddef_typed_for_impl:
+		iddef_typed
+	|	IDENT { $$ = cavar_create_self($1); }
 	;
 
 fn_args_call_or_tuple:
@@ -370,15 +383,16 @@ match_stmt: 	MATCH '(' expr ')' '{' match_patterns '}' {}
 	;
 
 match_patterns:	match_patterns ',' match_pattern {}
+	|	match_patterns match_pattern {}
 	|	match_pattern {}
 	;
 
 match_pattern:	let_stmt_left INFER stmt_list_block {}
 	;
 
-match_left:	let_stmt_left
-	|
-	;
+/* match_left:	let_stmt_left */
+/* 	| */
+/* 	; */
 
 assignment_stmt:left_value_id '=' expr ';'  { $$ = make_assign(&$1, $3); }
 	;

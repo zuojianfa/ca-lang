@@ -292,6 +292,27 @@ ASTNode *make_fn_body(ASTNode *blockbody) {
   return blockbody;
 }
 
+ASTNode *make_fn_def_impl_begin(ASTNode *fndef) {
+  ASTNode *p = new_ASTNode(TTE_FnDefImpl);
+  p->fndefn_impl.impl_info = *current_type_impl;
+  p->fndefn_impl.count = 0;
+  p->fndefn_impl.data = vec_new();
+  set_address(p, &fndef->begloc, &fndef->endloc);
+  return p;
+}
+
+ASTNode *make_fn_def_impl_next(ASTNode *impl, ASTNode *fndef) {
+  if (impl->type != TTE_FnDefImpl) {
+    caerror(&fndef->begloc, &fndef->endloc, "wrong impl type: %d required, but %d found", TTE_FnDefImpl, impl->type);
+    return NULL;
+  }
+
+  impl->fndefn_impl.count += 1;
+  vec_append(impl->fndefn_impl.data, (void *)fndef);
+
+  return impl;
+}
+
 ASTNode *make_fn_decl(ASTNode *proto) {
   dot_emit("fn_decl", "EXTERN fn_proto");
   pop_symtable();
@@ -2778,6 +2799,14 @@ CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named) {
   sexpr.name = structtype;
   sexpr.named = named;
   return sexpr;
+}
+
+TypeImplInfo begin_impl_type(int class_id) {
+  return (TypeImplInfo){.class_id = class_id, .trait_id = -1 };
+}
+
+TypeImplInfo begin_impl_trait_for_type(int class_id, int trait_id) {
+  return (TypeImplInfo){.class_id = class_id, .trait_id = trait_id };
 }
 
 //void push_lexical_body() {}

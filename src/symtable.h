@@ -397,6 +397,7 @@ CAArrayExpr arrayexpr_fill(CAArrayExpr obj, struct ASTNode *expr, size_t n);
 
 CAVariable *cavar_create(int name, typeid_t datatype);
 CAVariable *cavar_create_with_loc(int name, typeid_t datatype, SLoc *loc);
+CAVariable *cavar_create_self(int name);
 void cavar_destroy(CAVariable **var);
 
 CAPattern *capattern_new(int name, PatternType type, PatternGroup *pg);

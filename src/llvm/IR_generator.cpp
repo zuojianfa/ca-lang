@@ -3816,6 +3816,17 @@ static Function *walk_fn_define(ASTNode *p) {
   return fn;
 }
 
+static void walk_fn_define_impl(ASTNode *node) {
+  // NEXT TODO: use type implementation information
+  node->fndefn_impl.impl_info;
+  void *handle = node->fndefn_impl.data;
+
+  for (int i = 0; i < node->fndefn_impl.count; ++i) {
+    ASTNode *node_impl = static_cast<ASTNode *>(vec_at(handle, i));
+    walk_fn_define(node_impl);
+  }
+}
+
 static void walk_struct(ASTNode *node) {
   // only check struct definition, but not generate Type object
 
@@ -3909,6 +3920,7 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_drop,
   (walk_fn_t)walk_letbind,
   (walk_fn_t)walk_range,
+  (walk_fn_t)walk_fn_define_impl,
 };
 
 static int walk_stack(ASTNode *p) {

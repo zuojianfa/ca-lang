@@ -51,6 +51,7 @@ typedef enum {
   TTE_Drop,
   TTE_LetBind,
   TTE_Range,
+  TTE_FnDefImpl,
   TTE_Num,
 } ASTNodeType;
 
@@ -188,6 +189,17 @@ typedef struct TStmtList {
   struct ASTNode **stmts;
 } TStmtList;
 
+typedef struct TypeImplInfo {
+  int class_id;
+  int trait_id;
+} TypeImplInfo;
+
+typedef struct TFnDefNodeImpl {
+  TypeImplInfo impl_info;
+  int count;
+  void *data; // vector, each array element occupies one vector item
+} TFnDefNodeImpl;
+
 typedef struct DerefLeft {
   int derefcount;
   struct ASTNode *expr;
@@ -300,6 +312,7 @@ typedef struct ASTNode {
     TLetBind letbindn;   /* the binding operation for let */
     TRange rangen;       /* range node */
     TVarInit varinitn;
+    TFnDefNodeImpl fndefn_impl; /* for function definition in type impl */
   };
 } ASTNode;
 
@@ -323,11 +336,6 @@ typedef struct CallParamAux {
   int checked;
   ASTNode *param;
 } CallParamAux;
-
-typedef struct TypeImplInfo {
-  int class_id;
-  int trait_id;
-} TypeImplInfo;
 
 typeid_t reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types, int nodenum, int assignop);
 int parse_lexical_char(const char *text);
@@ -370,6 +378,8 @@ int make_program();
 void make_paragraphs(ASTNode *paragraph);
 ASTNode *make_fn_def(ASTNode *proto, ASTNode *body);
 ASTNode *make_fn_body(ASTNode *blockbody);
+ASTNode *make_fn_def_impl_begin(ASTNode *fndef);
+ASTNode *make_fn_def_impl_next(ASTNode *impl, ASTNode *fndef);
 ASTNode *make_fn_decl(ASTNode *proto);
 void add_fn_args_p(ST_ArgList *arglist, int varg);
 ASTNode *make_stmt_print(ASTNode *expr);
@@ -439,6 +449,8 @@ CAStructExpr structexpr_new();
 CAStructExpr structexpr_append(CAStructExpr sexpr, ASTNode *expr);
 CAStructExpr structexpr_append_named(CAStructExpr sexpr, ASTNode *expr, int name);
 CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named);
+TypeImplInfo begin_impl_type(int class_id);
+TypeImplInfo begin_impl_trait_for_type(int class_id, int trait_id);
 
 int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry);
 // for tree node compress deep into wide, begin for stmt list beginning
@@ -480,6 +492,9 @@ END_EXTERN_C
       caerror(&(loc), NULL, "cannot find data type '%s'", name_);	\
     }									\
   } while(0)
+
+const static char *OSELF = "self";
+const static char *CSELF = "Self";
 
 #endif
 
