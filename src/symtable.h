@@ -326,6 +326,7 @@ typedef struct STEntry {
     struct {
       ST_ArgList *arglists; // when type is Sym_ArgList
       typeid_t rettype;
+      typeid_t mangled_id;
     } f;                // when type is Sym_ArgList and contains return type
     //CAVariable *var;    // when sym_type are Sym_Variable Sym_Member
     CAVariableShielding varshielding;  // when sym_type are Sym_Variable Sym_Member
@@ -437,6 +438,7 @@ int sym_is_sub_symtable(SymTable *sub, SymTable *root);
 
 SymTable *load_symtable(char *buf, int len);
 void sym_destroy(SymTable *t);
+SymTable *sym_parent_or_global(SymTable *symtable);
 
 int lexical_init();
 int find_lexical_keyword(const char *name);

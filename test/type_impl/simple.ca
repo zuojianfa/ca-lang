@@ -18,7 +18,7 @@ impl AA {
 fn main() {
     let a = AA{a: 100, b: 'c'};
     output(a);
-    a.output();
+    //a.output();
 }
 
 

@@ -493,6 +493,10 @@ void sym_destroy(SymTable *st) {
   delete table;
 }
 
+SymTable *sym_parent_or_global(SymTable *symtable) {
+  return symtable->parent ? symtable->parent : symtable;
+}
+
 static std::vector<char> &buffer_prepare(void *handle, int len, int &oldsize) {
   std::vector<char> &v = *static_cast<std::vector<char> *>(handle);
   oldsize = v.size();

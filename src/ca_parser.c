@@ -268,6 +268,7 @@ ASTNode *make_fn_def(ASTNode *proto, ASTNode *body) {
 
   // fix the lexical body with function body for later use (in stage 2 parse)
   assert(body->type == TTE_LexicalBody);
+
   body->lnoden.fnbuddy = proto;
 
   proto->fndefn.stmts = body;
@@ -1290,7 +1291,7 @@ int is_logic_op(int op) {
 }
 
 typeid_t get_fncall_form_datatype(ASTNode *node, int id) {
-  STEntry *entry = sym_getsym(&g_root_symtable, id, 0);
+  STEntry *entry = sym_getsym(node->symtable, id, 1);
   if (entry)
     return entry->u.f.rettype;
 
@@ -2280,7 +2281,8 @@ static int pre_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *currar
 static STEntry *check_tuple_name(int id) {
   // check tuple type
   typeid_t type = sym_form_type_id(id);
-  STEntry *entry = sym_getsym(&g_root_symtable, type, 0);
+  SymTable *symtable = sym_parent_or_global(curr_symtable);
+  STEntry *entry = sym_getsym(symtable, type, 0);
 
   if (entry && entry->u.datatype.tuple)
     return entry;
@@ -2307,24 +2309,31 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
 
   //void *carrier = get_post_function(fnname);
   // for handle post function declaration or define
+#ifdef ONLY_GLOBAL_FUNCTION
   CallParamAux *paramaux = get_post_function(fnname);
-  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
+#endif
+
+  SymTable *symtable = sym_parent_or_global(curr_symtable);
+  STEntry *entry = sym_getsym(symtable, fnname, 0);
   if (extern_flag) {
     if (entry) {
       pre_check_fn_proto(entry, fnname, arglist, rettype);
     } else {
-      entry = sym_check_insert(&g_root_symtable, fnname, Sym_FnDecl);
+      entry = sym_check_insert(symtable, fnname, Sym_FnDecl);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
       *entry->u.f.arglists = *arglist;
     }
     entry->u.f.rettype = rettype;
 
     ASTNode *decln = build_fn_decl(fnname, arglist, rettype, beg, end);
+
+#ifdef ONLY_GLOBAL_FUNCTION
     if (paramaux && !paramaux->checked) {
       paramaux->param = decln;
       paramaux->checked = 1;
       put_post_function(fnname, paramaux);
     }
+#endif
 
     return decln;
   } else {
@@ -2349,19 +2358,20 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
 
       pre_check_fn_proto(entry, fnname, arglist, rettype);
     } else {
-      entry = sym_check_insert(&g_root_symtable, fnname, Sym_FnDef); 
+      entry = sym_check_insert(symtable, fnname, Sym_FnDef);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
       *entry->u.f.arglists = *arglist;
     }
     entry->u.f.rettype = rettype;
 
     ASTNode *defn = build_fn_define(fnname, arglist, rettype, beg, end);
+#ifdef ONLY_GLOBAL_FUNCTION
     if (paramaux && !paramaux->checked) {
       paramaux->param = defn;
       paramaux->checked = 1;
       put_post_function(fnname, paramaux);
     }
-
+#endif
     return defn;
   }
 }
@@ -2417,12 +2427,16 @@ ASTNode *make_fn_call_or_tuple(int id, ASTNode *param) {
   int tuple = extract_function_or_tuple(param->symtable, fnname, &entry, NULL);
   if (tuple != -1) {
     check_fn_define(fnname, param, tuple, entry);
-  } else {
+  }
+
+#ifdef ONLY_GLOBAL_FUNCTION
+  else {
     // when no any name find in the symbol table then make a function call
     // request with specified name, the request may also be tuple call
     CallParamAux *paramaux = new_CallParamAux(param, 0);
     put_post_function(fnname, paramaux);
   }
+#endif
 
   return make_expr(FN_CALL, 2, make_id(fnname, TTEId_FnName), param);
 }
@@ -2513,7 +2527,7 @@ void reset_arglist_with_new_symtable() {
 static STEntry *check_function_name(int id) {
   // check tuple type
   typeid_t fnname = sym_form_function_id(id);
-  STEntry *entry = sym_getsym(&g_root_symtable, fnname, 0);
+  STEntry *entry = sym_getsym(curr_symtable, fnname, 0);
 
   if (entry)
     return entry;

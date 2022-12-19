@@ -108,7 +108,7 @@ extern int yychar, yylineno;
 %type	<structexpr>	struct_expr struct_expr_fields named_struct_expr_fields
 %type	<astnode>	stmt stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value type_impl fn_defs
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
-%type	<astnode>	paragraph fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
+%type	<astnode>	fn_unit fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
 %type	<astnode>	fn_args_p fn_args_call_or_tuple_p
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def trait_def
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
@@ -137,14 +137,13 @@ program:	paragraphs { make_program(); }
 	|	error { yyerror("%d: error occur, on `%d`", yylineno, yychar); }
 		;
 
-paragraphs:	paragraphs paragraph { make_paragraphs($2); }
+paragraphs:	paragraphs stmt { make_paragraphs($2); }
 	|       {dot_emit("paragraphs", ""); /*empty */ } /* when not allow empty source file */
 		;
 
-paragraph:     	stmt     { dot_emit("paragraph", "stmt"); }
-	|	fn_def   { dot_emit("paragraph", "fn_def"); }
-	|	fn_decl  { dot_emit("paragraph", "fn_decl"); }
-	|	type_impl{ dot_emit("paragraph", "type_impl"); }
+fn_unit:	fn_def   { dot_emit("fn_unit", "fn_def"); }
+	|	fn_decl  { dot_emit("fn_unit", "fn_decl"); }
+	|	type_impl{ dot_emit("fn_unit", "type_impl"); }
 		;
 
 type_impl:	type_impl_head  { current_type_impl_buffer = $1; current_type_impl = &current_type_impl_buffer; }
@@ -245,6 +244,7 @@ stmt:		';'			{ $$ = make_empty(); }
 	|	trait_def               { $$ = $1; }
 	|	type_def                { $$ = $1; }
 	|	DROP IDENT ';'          { $$ = make_drop($2); }
+	|	fn_unit           { $$ = $1; }
 	;
 
 deref_pointer: '*' expr { $$ = (DerefLeft) {1, $2}; }

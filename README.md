@@ -307,12 +307,21 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
+
+- [ ] support class impl
+  - [x] changing function defined in global scope into local scopes
+  - [ ] support inner function definition in a function
+  - [ ] support impl statement in function
+  - [ ] support function definition in any scope
+  - [ ] code motivation, for using `catype_get_function_name`
+	- [x] check fnname of `pre_check_fn_proto` and it's callers: `pre_check_fn_proto`, `make_fn_proto`, `ca.y`
+  	- [ ] check fnname of `post_check_fn_proto` and it's callers: `walk_fn_declare_full`
+	- [ ] walk_fn_declare_full
+   - [ ] allow function closure
 - [x] research GC_malloc, GC_free serialize functions and used in this project
   - [ ] support box(type) grammar a long with box(expr) grammar
 - [ ] implement ca runtime system to support the compiler functionality, like output slice object, it need runtime system support, because slice type's length is not determined in compile time, and cannot fixed print in compile, so need use runtime system to support printing it
   - [ ] perfect runtime libraries to support others
-- [ ] support class impl
-  - [ ] support inner function definition in a function
 - [ ] support trait
 - [ ] check if can use function parameter directly without copying the parameter
 - [ ] support slice element accessing

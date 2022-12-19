@@ -2537,7 +2537,7 @@ int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, con
   if (fnname)
     *fnname = fnname_;
 
-  *entry = sym_getsym(&g_root_symtable /* symtable */, name, 1);
+  *entry = sym_getsym(symtable, name, 1);
   if (*entry) {  // if it really a function
     if ((*entry)->sym_type == Sym_FnDecl || (*entry)->sym_type == Sym_FnDef) {
       return 0;

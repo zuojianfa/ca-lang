@@ -40,9 +40,6 @@ ret:                                              ; preds = %afterret, %entry
   ret i32 %retret, !dbg !21
 }
 
-; Function Attrs: nofree nosync nounwind readnone speculatable willreturn
-declare void @llvm.dbg.declare(metadata, metadata, metadata) #0
-
 define void @main() !dbg !22 {
 entry:
   %a6 = alloca %AA.2, align 8
@@ -131,6 +128,9 @@ outbb:                                            ; preds = %then0, %cond1
 ret:                                              ; preds = %outbb
   ret void, !dbg !69
 }
+
+; Function Attrs: nofree nosync nounwind readnone speculatable willreturn
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #0
 
 ; Function Attrs: argmemonly nofree nosync nounwind willreturn
 declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #1

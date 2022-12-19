@@ -1,0 +1,7 @@
+fn main() {
+struct AAA(i32);
+{
+struct AAA(i32);
+}
+}
+

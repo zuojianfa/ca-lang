@@ -1,0 +1,21 @@
+fn main() {
+    fn hello() {
+	print("Hello inner function\n");
+    }
+    // hello();
+    print 1;
+
+    if (0 == 1) {
+	// struct AAA {
+	// }
+	print 2;
+	{print 3; {print 4;}}
+    } else {
+	print 5;
+	{print 6;}
+	// struct AAA {
+	//     a: i32,
+	// }
+    }
+}
+

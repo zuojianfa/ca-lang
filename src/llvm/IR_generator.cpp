@@ -32,6 +32,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +47,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "ca_parser.h"
 #include "ca_types.h"
 #include "type_system.h"
 #include "type_system_llvm.h"
@@ -58,6 +60,8 @@
 #include "jit1.h"
 #include "dwarf_debug.h"
 #include "IR_generator.h"
+
+#define MANGLED_NAME_PREFIX "_CA$"
 
 BEGIN_EXTERN_C
 #include "ca.tab.h"
@@ -88,11 +92,31 @@ struct CalcOperand {
   llvm::Value *operand;
 };
 
+enum LexicalType {
+  LT_Global,
+  LT_Block,
+  LT_Module,
+  LT_Function,
+  LT_Struct,
+  LT_Num,
+};
+
 struct LexicalScope {
-  LexicalScope() : discope(nullptr), difn(nullptr) {}
+  LexicalScope() : discope(nullptr), difn(nullptr),
+		   lexical_id(0), lexical_type(LT_Global)
+  {
+    u.function_name = 0;
+  }
 
   llvm::DIScope *discope;
   llvm::DISubprogram *difn;
+  int lexical_id; // the globally unique id for this compile unit, used to create unique global function (or may be variable) name
+  LexicalType lexical_type;
+  union {
+    typeid_t function_name;
+    typeid_t module_name;
+    typeid_t struct_name;
+  } u;
 };
 
 struct LoopControlInfo {
@@ -122,10 +146,14 @@ extern SymTable g_root_symtable;
 extern ASTNode *main_fn_node;
 extern std::unordered_map<typeid_t, void *> g_function_post_map;
 
+// first walk for iterating function prototype into llvm object
+// second walk for iterating all tree nodes
+static int walk_pass = 0;
 static std::unique_ptr<dwarf_debug::DWARFDebugInfo> diinfo;
 static std::unique_ptr<jit_codegen::JIT1> jit1;
 static ExitOnError exit_on_error;
 static bool g_with_ret_value = false;
+static int curr_lexical_count = 0;
 
 // llvm section
 
@@ -163,7 +191,7 @@ static std::map<std::string, ASTNode *> function_map;
 // curr_fn
 static std::map<Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
 
-static std::vector<std::unique_ptr<LexicalScope>> lexical_scope_stack;
+std::vector<std::unique_ptr<LexicalScope>> lexical_scope_stack;
 static LexicalScope *curr_lexical_scope = nullptr;
 static LexicalScope *root_lexical_scope = nullptr;
 
@@ -574,6 +602,9 @@ static void aux_copy_llvmvalue_to_store(Type *type, Value *dest, Value *src, con
 }
 
 static Value *walk_literal(ASTNode *p) {
+  if (walk_pass == 1)
+    return nullptr;
+
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
@@ -944,6 +975,9 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bo
 }
 
 static Value *walk_id(ASTNode *p) {
+  if (walk_pass == 1)
+    return nullptr;
+
   CADataType *catype = catype_get_by_name(p->symtable, p->entry->u.varshielding.current->datatype);
   CHECK_GET_TYPE_VALUE(p, catype, p->entry->u.varshielding.current->datatype);
   
@@ -962,6 +996,9 @@ static Value *walk_id(ASTNode *p) {
 }
 
 static BasicBlock *walk_label(ASTNode *p) {
+  if (walk_pass == 1)
+    return nullptr;
+
   if (!curr_fn)
     return nullptr;
 
@@ -996,6 +1033,9 @@ static BasicBlock *walk_label(ASTNode *p) {
 }
 
 static void walk_label_goto(ASTNode *label) {
+  if (walk_pass == 1)
+    return;
+
   int i = label->idn.i;
   BasicBlock *bb;
   const char *label_name = symname_get(i) + 2;
@@ -1022,6 +1062,9 @@ static void walk_stmtlist(ASTNode *p) {
 }
 
 static void walk_break(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
@@ -1032,6 +1075,9 @@ static void walk_break(ASTNode *p) {
 }
 
 static void walk_continue(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
@@ -1042,6 +1088,11 @@ static void walk_continue(ASTNode *p) {
 }
 
 static void walk_loop(ASTNode *p) {
+  if (walk_pass == 1) {
+    walk_stack(p->loopn.body);    
+    return;
+  }
+
   if (!curr_fn)
     return;
 
@@ -1110,6 +1161,11 @@ static Value *aux_create_compare_value_for(ASTNode *p, CADataType *list_catype, 
 }
 
 static void walk_for(ASTNode *p) {
+  if (walk_pass == 1) {
+    walk_stack(p->forn.body);
+    return;
+  }
+
   if (!curr_fn)
     return;
 
@@ -1296,6 +1352,9 @@ static void walk_for(ASTNode *p) {
 // box(33): not need load, not need memcpy
 // a = 33; box(a); need load, not need memcpy
 static void walk_box(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   walk_stack(p->boxn.expr);
   auto pair = pop_right_value("willbox", false);
   Value *willv = pair.first;
@@ -1327,6 +1386,9 @@ static void walk_box(ASTNode *p) {
 }
 
 static void walk_drop(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
@@ -1348,6 +1410,11 @@ static void walk_drop(ASTNode *p) {
 }
 
 static void walk_while(ASTNode *p) {
+  if (walk_pass == 1) {
+    walk_stack(p->whilen.body);
+    return;
+  }
+
   if (!curr_fn)
     return;
 
@@ -1393,6 +1460,16 @@ static void walk_while(ASTNode *p) {
 }
 
 static void walk_if_common(ASTNode *p) {
+  if (walk_pass == 1) {
+    ASTNode *firstbody = static_cast<ASTNode *>(vec_at(p->ifn.bodies, 0));
+    walk_stack(firstbody);
+    if (p->ifn.remain) { /* if else */
+      walk_stack(p->ifn.remain);
+    }
+
+    return;
+  }
+
   if (!curr_fn)
     return;
 
@@ -1485,6 +1562,22 @@ static void walk_if_common(ASTNode *p) {
 }
 
 static void walk_if_common2(ASTNode *p) {
+  if (walk_pass == 1) {
+    int condsize = vec_size(p->ifn.conds);
+
+    // body part
+    for (int i = 0; i < condsize; ++i) {
+      ASTNode *bodyn = static_cast<ASTNode *>(vec_at(p->ifn.bodies, i));
+      walk_stack(bodyn);
+    }
+
+    if (p->ifn.remain) {
+      walk_stack(p->ifn.remain);
+    }
+
+    return;
+  }
+
   if (!curr_fn)
     return;
 
@@ -1738,6 +1831,11 @@ static void test_rt_add() {
 #endif
 
 static void walk_dbgprint(ASTNode *p) {
+  if (walk_pass == 1) {
+    walk_stack(p->printn.expr);
+    return;
+  }
+
   // handle expression value transfer
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
@@ -1763,6 +1861,9 @@ static void walk_dbgprint(ASTNode *p) {
 }
 
 static void walk_dbgprinttype(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   CADataType *dt = catype_get_by_name(p->symtable, p->printtypen.type);
   int typesize = dt->size;
 
@@ -1901,6 +2002,9 @@ static void inference_assign_type(ASTNode *idn, ASTNode *exprn, int assignop = -
 }
 
 static void walk_assign(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   // idn can be type of TTE_Id or TTE_DerefLeft or TTE_ArrayItemLeft
   ASTNode *idn = p->assignn.id;
   ASTNode *exprn = p->assignn.expr;
@@ -2613,6 +2717,9 @@ static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bo
 
 // TODO: for local and global variable binding, refactor walk_assign function
 static void walk_letbind(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   CAPattern *cap = p->letbindn.cap;
   ASTNode *exprn = p->letbindn.expr;
   Value *v = nullptr;
@@ -2677,6 +2784,9 @@ static void walk_letbind(ASTNode *p) {
 
 static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<Value *> &values);
 static void walk_range(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   GeneralRange *range = &p->rangen.range;
   Value *start_value = nullptr;
   Value *end_value = nullptr;
@@ -2961,7 +3071,9 @@ static void walk_expr_call(ASTNode *p) {
 
   Function *fn = nullptr;
   if (!istuple) { // is function
-    fn = ir1.module().getFunction(fnname);
+    typeid_t fnname_full_id = entry->u.f.mangled_id;
+    const char *fnname_full = symname_get(fnname_full_id);
+    fn = ir1.module().getFunction(fnname_full);
     if (!fn) {
       caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'",
               fnname);
@@ -3008,6 +3120,9 @@ static void walk_expr_call(ASTNode *p) {
 }
 
 static void walk_ret(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   Type *rettype = curr_fn->getReturnType();
   BasicBlock *retbb = (BasicBlock *)curr_fn_node->fndefn.retbb;
 
@@ -3215,6 +3330,9 @@ static void walk_expr_op2(ASTNode *p) {
 }
 
 static void walk_expr_as(ASTNode *node) {
+  if (walk_pass == 1)
+    return;
+
   //CADataType *type = node->exprasn.type;
   CADataType *astype = catype_get_by_name(node->symtable, node->exprasn.type);
   CHECK_GET_TYPE_VALUE(node, astype, node->exprasn.type);
@@ -3556,6 +3674,9 @@ static void walk_expr_range(ASTNode *expr) {
 }
 
 static void walk_expr(ASTNode *p) {
+  if (walk_pass == 1)
+    return;
+
   // not allow global assign value, global variable definition is not assign
   if (!curr_fn)
     return;
@@ -3662,20 +3783,85 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
   return 0;
 }
 
-static Function *walk_fn_declare(ASTNode *p) {
-  auto fitr = g_function_post_check_map.find(p->fndecln.name);
-  if (fitr != g_function_post_check_map.end()) {
-    // check redeclared function parameter
-    STEntry *preventry = sym_getsym(&g_root_symtable, p->fndecln.name, 0);
-    post_check_fn_proto(preventry, p->fndecln.name, &p->fndecln.args, p->fndecln.ret);
-  } else {
-    g_function_post_check_map[p->fndecln.name] = static_cast<void *>(p);
+static const char *mangling_function_name(typeid_t fnname, TypeImplInfo *impl_info) {
+  if (!impl_info) {
+    if (lexical_scope_stack.size() == 1)
+      return symname_get(fnname) + 2;
+
+    // NEXT TODO: handle inner function name
+    std::stringstream name(MANGLED_NAME_PREFIX);
+    // first pass fill prefix, second pass fill name
+    bool first_pass = true;
+    while (first_pass) {
+      for (auto itr = ++lexical_scope_stack.begin();
+           itr != lexical_scope_stack.end(); ++itr) {
+        auto scope = itr->get();
+        switch (scope->lexical_type) {
+        case LT_Block:
+	  if (first_pass) {
+	    name << 'L' << scope->lexical_id;
+	  }
+	  break;
+        case LT_Function:
+	  if (first_pass) {
+	    name << 'F';
+	  } else {
+	    const char *local_name = catype_get_function_name(scope->u.function_name);
+	    size_t len = strlen(local_name);
+	    name << len << local_name;
+	  }
+	  break;
+        case LT_Module:
+        case LT_Struct:
+	  yyerror("not implemented yet: %d", scope->lexical_type);
+	  break;
+        case LT_Global:
+        default:
+          yyerror("bad lexical type: %d", scope->lexical_type);
+	  break;
+        }
+      }
+
+      first_pass = false;
+    }
+
+    int symname = symname_check_insert(name.str().c_str());
+    return symname_get(symname);
   }
 
-  const char *fnname = catype_get_function_name(p->fndecln.name);
+  if (impl_info) {
+    // NEXT TODO: use type implementation information,
+    // now the function is never be in global scope, but belong to struct or trait
+    if (impl_info->class_id == -1) {
+      yyerror("argument number not identical with definition (%d != %d)" );
+      return nullptr;
+    }
+    yyerror("method not implemented yet" );
+  }
 
-  Function *fn = ir1.module().getFunction(fnname);
-  auto itr = function_map.find(fnname);
+  // NEXT TODO: get function full mangling name
+  return nullptr;
+}
+
+static Function *walk_fn_declare_full(ASTNode *p, TypeImplInfo *impl_info) {
+  const char *fnname_full = mangling_function_name(p->fndecln.name, impl_info);
+  int fnname_full_id = symname_check_insert(fnname_full);
+
+  SymTable *symtable = sym_parent_or_global(p->symtable);
+  STEntry *preventry = sym_getsym(symtable, p->fndecln.name, 0);
+
+  auto fitr = g_function_post_check_map.find(fnname_full_id);
+  if (fitr != g_function_post_check_map.end()) {
+    // check global redeclared function parameter, some function declared
+    // multiple times in source code, check if they have same argument here
+    post_check_fn_proto(preventry, p->fndecln.name, &p->fndecln.args,
+                        p->fndecln.ret);
+  } else {
+    g_function_post_check_map[fnname_full_id] = static_cast<void *>(p);
+  }
+
+  Function *fn = ir1.module().getFunction(fnname_full);
+  auto itr = function_map.find(fnname_full);
   if (itr != function_map.end()) {
     if (!fn) {
       // when consider name, the function map set belongs to ir1 module set
@@ -3713,14 +3899,23 @@ static Function *walk_fn_declare(ASTNode *p) {
   CADataType *retdt = catype_get_by_name(p->symtable, p->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, p->fndecln.ret);
   Type *rettype = llvmtype_from_catype(retdt);
-  fn = ir1.gen_extern_fn(rettype, fnname, params, &param_names, !!p->fndecln.args.contain_varg);
-  function_map.insert(std::make_pair(fnname, p));
+  fn = ir1.gen_extern_fn(rettype, fnname_full, params, &param_names, !!p->fndecln.args.contain_varg);
+  function_map.insert(std::make_pair(fnname_full, p));
   fn->setCallingConv(CallingConv::C);
+
+  if (walk_pass == 1) {
+    preventry->u.f.mangled_id = fnname_full_id;
+  }
 
   //AttrListPtr func_printf_PAL;
   //fn->setAttributes(func_printf_PAL);
 
   return fn;
+}
+
+static void walk_fn_declare(ASTNode *p) {
+  if (walk_pass == 1)
+    walk_fn_declare_full(p, nullptr);
 }
 
 static void generate_final_return(ASTNode *p) {
@@ -3745,9 +3940,14 @@ static void generate_final_return(ASTNode *p) {
     ir1.builder().CreateRetVoid();
 }
 
-static Function *walk_fn_define(ASTNode *p) {
+static Function *walk_fn_define_full(ASTNode *p, TypeImplInfo *impl_info) {
   g_with_ret_value = false;
-  Function *fn = walk_fn_declare(p->fndefn.fn_decl);
+  Function *fn = walk_fn_declare_full(p->fndefn.fn_decl, impl_info);
+  if (walk_pass == 1) {
+    walk_stack(p->fndefn.stmts);
+    return fn;
+  }
+
   if (p->fndefn.fn_decl->fndecln.args.argc != fn->arg_size())
     yyerror("argument number not identical with definition (%d != %d)",
 	    p->fndefn.fn_decl->fndecln.args.argc, fn->arg_size());
@@ -3816,18 +4016,23 @@ static Function *walk_fn_define(ASTNode *p) {
   return fn;
 }
 
+static void walk_fn_define(ASTNode * p) {
+  walk_fn_define_full(p, nullptr);
+}
+
 static void walk_fn_define_impl(ASTNode *node) {
-  // NEXT TODO: use type implementation information
-  node->fndefn_impl.impl_info;
   void *handle = node->fndefn_impl.data;
 
   for (int i = 0; i < node->fndefn_impl.count; ++i) {
     ASTNode *node_impl = static_cast<ASTNode *>(vec_at(handle, i));
-    walk_fn_define(node_impl);
+    walk_fn_define_full(node_impl, &node->fndefn_impl.impl_info);
   }
 }
 
 static void walk_struct(ASTNode *node) {
+  if (walk_pass == 1)
+    return;
+
   // only check struct definition, but not generate Type object
 
   STEntry *entry = node->entry;
@@ -3838,6 +4043,9 @@ static void walk_struct(ASTNode *node) {
 }
 
 static void walk_typedef(ASTNode *node) {
+  if (walk_pass == 1)
+    return;
+
   CADataType *dt = catype_get_by_name(node->symtable, node->typedefn.newtype);
   if (!dt) {
     caerror(&(node->begloc), &(node->endloc), "get type (or unwind type) `%s` failed",
@@ -3857,7 +4065,7 @@ static void walk_structexpr(ASTNode *node) {}
 static void walk_lexical_body(ASTNode *node) {
   auto lscope = std::make_unique<LexicalScope>();
   LexicalScope *parentscope = curr_lexical_scope; // also = lexical_scope_stack.back().get();
-  if (enable_debug_info()) {
+  if (walk_pass > 1 && enable_debug_info()) {
     if (node->lnoden.fnbuddy) {
       // when the scope have a buddy function scope then use the function scope as the scope but not lexical scope
       auto itr = fn_debug_map.find(curr_fn);
@@ -3871,6 +4079,14 @@ static void walk_lexical_body(ASTNode *node) {
   }
 
   curr_lexical_scope = lscope.get();
+  curr_lexical_scope->lexical_id = ++curr_lexical_count;
+  if (node->lnoden.fnbuddy != nullptr) {
+    curr_lexical_scope->lexical_type = LT_Function;
+    curr_lexical_scope->u.function_name = node->lnoden.fnbuddy->fndefn.fn_decl->fndecln.name;
+  } else {
+    curr_lexical_scope->lexical_type = LT_Block;
+  }
+
   lexical_scope_stack.push_back(std::move(lscope));
 
   walk_stack(node->lnoden.stmts);
@@ -4222,6 +4438,7 @@ void init_llvm_env() {
 }
 
 void handle_post_functions() {
+  // NEXT TODO: check struct method impl
   for (auto itr = g_function_post_map.begin(); itr != g_function_post_map.end(); ++itr) {
     CallParamAux *paramaux = (CallParamAux *)itr->second;
     if (!paramaux->checked) {
@@ -4241,12 +4458,27 @@ void handle_post_functions() {
 }
 
 int walk(RootTree *tree) {
-  NodeChain *p = tree->head;
+  // first walk for iterating function prototype into llvm object
+  // second walk for iterating all tree nodes
+  int first_lexical_count = 0;
+
   llvm_codegen_begin(tree);
-  for (int i = 0; i < tree->count; ++i) {
-    walk_stack(p->node);
-    p = p->next;
+  while (walk_pass++ < 2) {
+    NodeChain *p = tree->head;
+    for (int i = 0; i < tree->count; ++i) {
+      walk_stack(p->node);
+      p = p->next;
+    }
+
+    if (walk_pass == 1) {
+      first_lexical_count = curr_lexical_count;
+      curr_lexical_count = 0;
+    }
   }
+
+  if (first_lexical_count != curr_lexical_count)
+    yyerror("lexical count not identical in 2 pass: %d != %d\n",
+	    first_lexical_count, curr_lexical_count);
 
   llvm_codegen_end();
   return 0;
