@@ -178,6 +178,16 @@ static llvm::Function *main_fn = nullptr;
 // handle when processing current function, the top level function is main function
 static llvm::Function *curr_fn = nullptr;
 static ASTNode *curr_fn_node = nullptr;
+struct CurrFnInfo {
+  CurrFnInfo(llvm::Function *fn, ASTNode *node) :
+    llvm_fn(fn), fn_node(node) {
+  }
+
+  llvm::Function *llvm_fn;
+  ASTNode *fn_node;
+};
+
+static std::vector<CurrFnInfo> curr_fn_stack;
 static llvm::BasicBlock *main_bb = nullptr;
 static llvm::DIFile *diunit = nullptr;
 static std::vector<std::unique_ptr<CalcOperand>> oprand_stack;
@@ -3071,8 +3081,7 @@ static void walk_expr_call(ASTNode *p) {
 
   Function *fn = nullptr;
   if (!istuple) { // is function
-    typeid_t fnname_full_id = entry->u.f.mangled_id;
-    const char *fnname_full = symname_get(fnname_full_id);
+    const char *fnname_full = symname_get(entry->u.f.mangled_id);
     fn = ir1.module().getFunction(fnname_full);
     if (!fn) {
       caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'",
@@ -3098,7 +3107,8 @@ static void walk_expr_call(ASTNode *p) {
   Type *rettype = fn->getReturnType();
   bool isvoidty = rettype->isVoidTy();
 
-  auto itr = function_map.find(fnname);
+  const char *fnname_full = symname_get(entry->u.f.mangled_id);
+  auto itr = function_map.find(fnname_full);
   if (itr == function_map.end()) {
     caerror(&(p->begloc), &(p->endloc), "cannot find function '%s' node", fnname);
     return;
@@ -3786,13 +3796,15 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
 static const char *mangling_function_name(typeid_t fnname, TypeImplInfo *impl_info) {
   if (!impl_info) {
     if (lexical_scope_stack.size() == 1)
-      return symname_get(fnname) + 2;
+      return catype_get_function_name(fnname);
 
     // NEXT TODO: handle inner function name
-    std::stringstream name(MANGLED_NAME_PREFIX);
+    std::stringstream name;
+    name << MANGLED_NAME_PREFIX;
     // first pass fill prefix, second pass fill name
     bool first_pass = true;
-    while (first_pass) {
+    int i = 0;
+    while (i++ < 2) {
       for (auto itr = ++lexical_scope_stack.begin();
            itr != lexical_scope_stack.end(); ++itr) {
         auto scope = itr->get();
@@ -3820,6 +3832,15 @@ static const char *mangling_function_name(typeid_t fnname, TypeImplInfo *impl_in
           yyerror("bad lexical type: %d", scope->lexical_type);
 	  break;
         }
+      }
+
+      // append this function
+      if (first_pass) {
+        name << 'F';
+      } else {
+        const char *local_name = catype_get_function_name(fnname);
+        size_t len = strlen(local_name);
+        name << len << local_name;
       }
 
       first_pass = false;
@@ -3952,8 +3973,13 @@ static Function *walk_fn_define_full(ASTNode *p, TypeImplInfo *impl_info) {
     yyerror("argument number not identical with definition (%d != %d)",
 	    p->fndefn.fn_decl->fndecln.args.argc, fn->arg_size());
 
+  curr_fn_stack.push_back(CurrFnInfo(curr_fn, curr_fn_node));
   curr_fn_node = p;
   curr_fn = fn;
+
+  // because support inner function, so here save the old BB may be in previous function definition
+  // and restore it after this function is processed over
+  BasicBlock *saved_insert_bb = ir1.builder().GetInsertBlock();
 
   BasicBlock *retbb = ir1.gen_bb("ret");
   p->fndefn.retbb = (void *)retbb;
@@ -3975,8 +4001,6 @@ static Function *walk_fn_define_full(ASTNode *p, TypeImplInfo *impl_info) {
   if (enable_debug_info())
     diinfo->emit_location(p->begloc.row, p->begloc.col, curr_lexical_scope->discope);
 
-  DIScope *save_discope = curr_lexical_scope->discope;
-
   walk_stack(p->fndefn.stmts);
 
   // the return statement is not in source code, but be added by the compiler
@@ -3989,12 +4013,11 @@ static Function *walk_fn_define_full(ASTNode *p, TypeImplInfo *impl_info) {
   generate_final_return(p);
 
   if (enable_debug_info()) {
+    // finalize the debug info for only the function
+    diinfo->dibuilder->finalizeSubprogram((DISubprogram *)diinfo->lexical_blocks.back());
     diinfo->lexical_blocks.pop_back();
 
-    // finalize the debug info for verify function successfully, it may slow down
-    // the performance invoke here, may move all function verification into later
-    // TODO: move into all module is processed
-    diinfo->dibuilder->finalize();
+    //diinfo->dibuilder->finalize();
   }
 
   std::string verify_message;
@@ -4009,8 +4032,10 @@ static Function *walk_fn_define_full(ASTNode *p, TypeImplInfo *impl_info) {
     curr_fn_node = main_fn_node;
     curr_fn = main_fn;
   } else {
-    curr_fn_node = nullptr;
-    curr_fn = nullptr;
+    ir1.builder().SetInsertPoint(saved_insert_bb);
+    curr_fn_node = curr_fn_stack.back().fn_node;
+    curr_fn = curr_fn_stack.back().llvm_fn;
+    curr_fn_stack.pop_back();
   }
 
   return fn;
@@ -4090,6 +4115,10 @@ static void walk_lexical_body(ASTNode *node) {
   lexical_scope_stack.push_back(std::move(lscope));
 
   walk_stack(node->lnoden.stmts);
+
+  // emit the location here, to avoid upper inner function definition mess the debug info
+  if (enable_debug_info())
+    diinfo->emit_location(node->begloc.row, node->begloc.col, curr_lexical_scope->discope);
 
   lscope = std::move(lexical_scope_stack.back());
   lexical_scope_stack.pop_back();

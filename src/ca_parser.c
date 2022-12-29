@@ -2422,15 +2422,12 @@ ASTNode *make_fn_call_or_tuple(int id, ASTNode *param) {
   typeid_t fnname = sym_form_function_id(id);
 
   // tuple type cannot have the same name with function in the same symbol table
-
+#ifdef ONLY_GLOBAL_FUNCTION
   STEntry *entry = NULL;
   int tuple = extract_function_or_tuple(param->symtable, fnname, &entry, NULL);
   if (tuple != -1) {
     check_fn_define(fnname, param, tuple, entry);
-  }
-
-#ifdef ONLY_GLOBAL_FUNCTION
-  else {
+  } else {
     // when no any name find in the symbol table then make a function call
     // request with specified name, the request may also be tuple call
     CallParamAux *paramaux = new_CallParamAux(param, 0);

@@ -1,0 +1,42 @@
+extern fn printf(format: *char, ...) -> i32;
+fn main() {
+    say_hello();
+}
+
+fn say_hello() {
+    let cond = true;
+    let n = 0;
+    while (n < 2) {
+	if (cond) {
+	    fn hello() {
+		print "Hello CA!\n";
+	    }
+	    if (false) {
+		hello();
+	    } else {
+		hello('A');
+		fn hello(ch: char) {
+		    print "Hello C "; print ch; print '\n';
+		}
+	    }
+	} else {
+	    let i = 0;
+	    while(i < 5) {
+		say_while("in while ");
+		i += 1;
+	    }
+
+	    fn say_while(s: *char) {
+		fn aux_say_while(s: *char) {
+		    printf(s);
+		}
+
+		aux_say_while(s);
+	    }
+	}
+
+	n += 1;
+	cond = !cond;
+    }
+}
+

@@ -1,0 +1,24 @@
+fn main() {
+    {
+	hello();
+	fn hello() {
+	    fn print_hello() {
+		print("Hello inner function 1\n");
+	    }
+
+	    print_hello();
+	    print_hello2();
+
+	    fn print_hello2() {
+		print("Hello inner function 2\n");
+	    }
+	}
+    }
+
+    hello();
+}
+
+fn hello() {
+    print("Hello outter function\n");
+}
+

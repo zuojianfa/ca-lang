@@ -1,0 +1,21 @@
+fn main() {
+    say_hello();
+}
+
+fn say_hello() {
+    fn hello() {
+	print "Hello CA!\n";
+    }
+
+    if (false) {
+	hello();
+    } else {
+	hello('A');
+	fn hello(ch: char) {
+	    print "Hello C ";
+	    print ch;
+	    print '\n';
+	}
+    }
+}
+

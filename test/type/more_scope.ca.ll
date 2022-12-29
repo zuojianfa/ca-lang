@@ -120,13 +120,13 @@ then0:                                            ; preds = %entry
   %load = load i32, i32* %29, align 4, !dbg !67
   %n = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @0, i32 0, i32 0), i32 %load), !dbg !67
   %n7 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @2, i32 0, i32 0), i8* getelementptr inbounds ([2 x i8], [2 x i8]* @1, i32 0, i32 0)), !dbg !68
-  br label %outbb, !dbg !68
+  br label %outbb, !dbg !69
 
 outbb:                                            ; preds = %then0, %cond1
-  br label %ret, !dbg !69
+  br label %ret, !dbg !70
 
 ret:                                              ; preds = %outbb
-  ret void, !dbg !69
+  ret void, !dbg !70
 }
 
 ; Function Attrs: nofree nosync nounwind readnone speculatable willreturn
@@ -210,4 +210,5 @@ attributes #1 = { argmemonly nofree nosync nounwind willreturn }
 !66 = !DILocation(line: 31, scope: !45)
 !67 = !DILocation(line: 32, column: 17, scope: !45)
 !68 = !DILocation(line: 32, column: 29, scope: !45)
-!69 = !DILocation(line: 36, column: 1, scope: !22)
+!69 = !DILocation(line: 30, column: 27, scope: !45)
+!70 = !DILocation(line: 36, column: 1, scope: !22)

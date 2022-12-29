@@ -1,0 +1,31 @@
+fn hello() {
+    let i = 0;
+    while (i < 2) {
+	let cond = i == 0;
+	i += 1;
+ 	if (cond) {
+	    hello();
+	    fn hello() {
+		fn print_hello() {
+		    print("Hello inner function 1\n");
+		}
+
+		print_hello();
+	    }
+	} else {
+	    hello();
+	    fn hello() {
+		print_hello();
+
+		fn print_hello() {
+		    print("Hello inner function 2\n");
+		}
+	    }
+	}
+    }
+}
+
+fn main() {
+    hello();
+}
+

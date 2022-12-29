@@ -534,3 +534,9 @@ struct A {a: i32, b: *A} => {Aid; aid:i32id, bid:*Aid}, Aid == symname_check_ins
 - add in `llvmtype_from_catype_inner` when needed
 - add in `gen_literal_value`
 
+
+# test current not past
+box10-box_scope1.ca - for scoped escape, when using GC malloc may need not do life time management
+range17-range_array1.ca - for runtime print
+slice1-slice1.ca - for runtime print
+type_impl1-simple.ca for struct method
