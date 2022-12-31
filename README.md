@@ -540,3 +540,4 @@ box10-box_scope1.ca - for scoped escape, when using GC malloc may need not do li
 range17-range_array1.ca - for runtime print
 slice1-slice1.ca - for runtime print
 type_impl1-simple.ca for struct method
+type_impl2-simple_0.ca

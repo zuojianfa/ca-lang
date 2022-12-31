@@ -109,7 +109,7 @@ extern int yychar, yylineno;
 %type	<astnode>	stmt stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value type_impl fn_defs
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
 %type	<astnode>	fn_unit fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
-%type	<astnode>	fn_args_p fn_args_call_or_tuple_p
+%type	<astnode>	fn_args_p fn_args_call_or_tuple_p fn_call fn_method_call fn_domain_call
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def trait_def
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
 %type	<forstmtid>	for_stmt_ident
@@ -168,8 +168,19 @@ fn_body:	block_body { $$ = make_fn_body($1); }
 fn_decl: 	EXTERN { extern_flag = 1; } fn_proto ';' { $$ = make_fn_decl($3); }
 		;
 
+fn_call:	fn_call_or_tuple { $$ = $1; }
+	|	fn_method_call   { $$ = $1; }
+	|	fn_domain_call   { $$ = $1; }
+	;
+
 fn_call_or_tuple:
 		IDENT '(' fn_args_call_or_tuple ')' { $$ = make_fn_call_or_tuple($1, $3); }
+		;
+
+fn_method_call:	structfield_op '(' fn_args_call_or_tuple ')' {$$ = make_method_call($1, $3);}
+		;
+
+fn_domain_call: structfield_op '(' '#' fn_args_call_or_tuple '#' ')' {$$ = NULL; /* NEXT TODO */}
 		;
 
 fn_proto:	FN IDENT
@@ -506,7 +517,7 @@ expr:     	literal               { $$ = make_literal(&$1); }
 	|	logic_expr	      { $$ = $1; }
 	|	bit_expr              { $$ = $1; }
 	|	'('expr ')'           { dot_emit("expr", "'(' expr ')'"); $$ = $2; }
-	|	fn_call_or_tuple      { dot_emit("expr", "fn_call_or_tuple"); $$ = $1; }
+	|	fn_call               { dot_emit("expr", "fn_call"); $$ = $1; }
 	|	ifexpr                { dot_emit("expr", "ifexpr"); $$ = $1; }
 	|	expr AS data_type     { $$ = make_as($1, $3); }
 	|	SIZEOF '(' data_type ')'{ $$ = make_sizeof($3); }

@@ -190,6 +190,24 @@ typeid_t sym_form_label_id(int id) {
 
 typeid_t sym_form_function_id(int fnid) {
   const char *name = symname_get(fnid);
+  char namebuf[1024];
+
+  if (current_type_impl) {
+    // for struct implemention, by prepend the struct and trait name before the function name
+    // it can avoid to find the struct method definition by the normal function call to the same
+    // function name as defined in struct
+    assert(current_type_impl->class_id != -1);
+    const char *clsname = catype_get_type_name(current_type_impl->class_id);
+    if (current_type_impl->trait_id != -1) {
+      const char *trait_name = catype_get_type_name(current_type_impl->trait_id);
+      sprintf(namebuf, "%s::<%s>::%s", clsname, trait_name, name);
+    } else {
+      sprintf(namebuf, "%s::%s", clsname, name);
+    }
+
+    name = namebuf;
+  }
+
   const char *typename = sym_form_function_name(name);
   typeid_t typeid = symname_check_insert(typename);
   return typeid;
@@ -296,8 +314,9 @@ ASTNode *make_fn_body(ASTNode *blockbody) {
 ASTNode *make_fn_def_impl_begin(ASTNode *fndef) {
   ASTNode *p = new_ASTNode(TTE_FnDefImpl);
   p->fndefn_impl.impl_info = *current_type_impl;
-  p->fndefn_impl.count = 0;
+  p->fndefn_impl.count = 1;
   p->fndefn_impl.data = vec_new();
+  vec_append(p->fndefn_impl.data, (void *)fndef);
   set_address(p, &fndef->begloc, &fndef->endloc);
   return p;
 }
@@ -310,6 +329,7 @@ ASTNode *make_fn_def_impl_next(ASTNode *impl, ASTNode *fndef) {
 
   impl->fndefn_impl.count += 1;
   vec_append(impl->fndefn_impl.data, (void *)fndef);
+  impl->endloc = fndef->endloc;
 
   return impl;
 }
@@ -494,6 +514,7 @@ ASTNode *make_type_def(int id, typeid_t type) {
   entry = sym_insert(curr_symtable, newtype, Sym_DataType);
   entry->u.datatype.id = type;
   entry->u.datatype.idtable = curr_symtable;
+  entry->u.datatype.runables.opaque = NULL;
   entry->u.datatype.members = NULL;
   SLoc loc = {glineno, gcolno};
   entry->sloc = loc;
@@ -727,6 +748,9 @@ ASTNode *make_arrayitem_right(ArrayItem ai) {
   return node;
 }
 
+// return node:
+// it is a `expression` with operator `STRUCTITEM` who have only `1` operands
+// whose type is `TTE_StructFieldOpRight`
 ASTNode *make_structfield_right(StructFieldOp sfop) {
   ASTNode *p = new_ASTNode(TTE_StructFieldOpRight);
   p->sfopn = sfop;
@@ -2307,12 +2331,6 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
     return NULL;
   }
 
-  //void *carrier = get_post_function(fnname);
-  // for handle post function declaration or define
-#ifdef ONLY_GLOBAL_FUNCTION
-  CallParamAux *paramaux = get_post_function(fnname);
-#endif
-
   SymTable *symtable = sym_parent_or_global(curr_symtable);
   STEntry *entry = sym_getsym(symtable, fnname, 0);
   if (extern_flag) {
@@ -2326,14 +2344,6 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
     entry->u.f.rettype = rettype;
 
     ASTNode *decln = build_fn_decl(fnname, arglist, rettype, beg, end);
-
-#ifdef ONLY_GLOBAL_FUNCTION
-    if (paramaux && !paramaux->checked) {
-      paramaux->param = decln;
-      paramaux->checked = 1;
-      put_post_function(fnname, paramaux);
-    }
-#endif
 
     return decln;
   } else {
@@ -2365,18 +2375,11 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
     entry->u.f.rettype = rettype;
 
     ASTNode *defn = build_fn_define(fnname, arglist, rettype, beg, end);
-#ifdef ONLY_GLOBAL_FUNCTION
-    if (paramaux && !paramaux->checked) {
-      paramaux->param = defn;
-      paramaux->checked = 1;
-      put_post_function(fnname, paramaux);
-    }
-#endif
     return defn;
   }
 }
 
-int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry) {
+int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry, int is_method) {
   // check formal parameter and actual parameter
   ST_ArgList *formalparam = NULL;
   if (tuple)
@@ -2391,12 +2394,16 @@ int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry) 
     return -1;
   }
 
+  int argc = param->arglistn.argc;
+  if (is_method)
+    argc += 1;
+
   // check parameter number
-  if(formalparam->contain_varg && formalparam->argc > param->arglistn.argc
+  if(formalparam->contain_varg && formalparam->argc > argc
      ||
-     !formalparam->contain_varg && formalparam->argc != param->arglistn.argc) {
+     !formalparam->contain_varg && formalparam->argc != argc) {
     SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "actual parameter number `%d` not match formal parameter number `%d`",
+    caerror(&param->begloc, &param->endloc, "actual parameter number `%d` not match formal parameter number `%d`",
 	    param->arglistn.argc, formalparam->argc);
     return -1;
   }
@@ -2418,24 +2425,17 @@ void delete_CallParamAux(CallParamAux *paramaux) {
 // id: can be function name or tuple name, tuple is special
 ASTNode *make_fn_call_or_tuple(int id, ASTNode *param) {
   dot_emit("fn_call", symname_get(id));
-
   typeid_t fnname = sym_form_function_id(id);
 
   // tuple type cannot have the same name with function in the same symbol table
-#ifdef ONLY_GLOBAL_FUNCTION
-  STEntry *entry = NULL;
-  int tuple = extract_function_or_tuple(param->symtable, fnname, &entry, NULL);
-  if (tuple != -1) {
-    check_fn_define(fnname, param, tuple, entry);
-  } else {
-    // when no any name find in the symbol table then make a function call
-    // request with specified name, the request may also be tuple call
-    CallParamAux *paramaux = new_CallParamAux(param, 0);
-    put_post_function(fnname, paramaux);
-  }
-#endif
-
   return make_expr(FN_CALL, 2, make_id(fnname, TTEId_FnName), param);
+}
+
+ASTNode *make_method_call(StructFieldOp sfop, ASTNode *param) {
+  ASTNode *fieldnode = make_structfield_right(sfop);
+
+  // tuple type cannot have the same name with function in the same symbol table
+  return make_expr(FN_CALL, 2, fieldnode, param);
 }
 
 ASTNode *make_gen_tuple_expr(ASTNode *param) {
@@ -2571,6 +2571,7 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
   entry->u.datatype.tuple = tuple;
   entry->u.datatype.id = structtype;
   entry->u.datatype.idtable = curr_symtable;
+  entry->u.datatype.runables.opaque = NULL;
   entry->u.datatype.members = (ST_ArgList *)malloc(sizeof(ST_ArgList));
 
   // just remember the argument list and for later use

@@ -63,6 +63,8 @@ int catype_check_identical_in_symtable_witherror(SymTable *st1, typeid_t type1,
 						 int exitwhenerror, SLoc *loc);
 const char *catype_get_function_name(typeid_t fnname);
 const char *catype_get_type_name(typeid_t type);
+const char *catype_remove_impl_prefix(const char *name);
+typeid_t catype_struct_impl_id_to_function_name(typeid_t fnname);
 typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name,
                                       int *typesize, CADataType **retdt);
 

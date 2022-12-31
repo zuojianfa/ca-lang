@@ -1,0 +1,22 @@
+struct AA {
+    a: i32,
+    b: char,
+}
+
+impl AA {
+    fn output(self) {
+	print *self; print '\n';
+	print self->a; print '\n';
+	print self->b; print '\n';
+    }
+}
+
+fn main() {
+    let a = AA{a: 100, b: 'A'};
+    a.output();
+
+    let pa = &a;
+    pa->output();
+}
+
+

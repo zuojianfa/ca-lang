@@ -1,0 +1,7 @@
+fn output(a: *i32) {
+}
+
+fn main() {
+}
+
+

@@ -2531,6 +2531,20 @@ const char *catype_get_type_name(typeid_t type) {
   return symname_get(type) + 2;
 }
 
+const char *catype_remove_impl_prefix(const char *name) {
+  const char *pos = strrchr(name, ':');
+  if (pos)
+    return pos + 1;
+  else
+    return name;
+}
+
+typeid_t catype_struct_impl_id_to_function_name(typeid_t fnname) {
+  const char *local_name_impl = catype_get_function_name(fnname);
+  const char *local_name = catype_remove_impl_prefix(local_name_impl);
+  return symname_check_insert(local_name);
+}
+
 // 0: function, 1: tuple, -1: error
 int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, const char **fnname) {
   const char *fnname_ = catype_get_type_name(name);

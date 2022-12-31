@@ -215,7 +215,7 @@ typedef struct ArrayItem {
 } ArrayItem, TArrayItem;
 
 typedef struct StructFieldOp {
-  struct ASTNode *expr;
+  struct ASTNode *expr; // the expr may also be a expression with this struct
   int fieldname;
   int direct; // direct: . op, indirect: -> op
   int tuple;  // 1: when is tuple, fieldname is the parsed numeric field name, 0: when is not tuple
@@ -432,6 +432,7 @@ ASTNode *make_elsepart(ASTNode *p, ASTNode *body);
 ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
 ASTNode *make_fn_call_or_tuple(int fnid, ASTNode *param);
+ASTNode *make_method_call(StructFieldOp fieldop, ASTNode *param);
 ASTNode *make_gen_tuple_expr(ASTNode *param);
 ASTNode *make_ident_expr(int id);
 ASTNode *make_uminus_expr(ASTNode *expr);
@@ -452,7 +453,7 @@ CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named);
 TypeImplInfo begin_impl_type(int class_id);
 TypeImplInfo begin_impl_trait_for_type(int class_id, int trait_id);
 
-int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry);
+int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry, int is_method);
 // for tree node compress deep into wide, begin for stmt list beginning
 void put_astnode_into_list(ASTNode *stmt, int begin);
 

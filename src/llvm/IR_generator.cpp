@@ -31,6 +31,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <stdint.h>
@@ -110,6 +111,7 @@ struct LexicalScope {
 
   llvm::DIScope *discope;
   llvm::DISubprogram *difn;
+  SymTable *symtable; // for storing corresponding SymTable object
   int lexical_id; // the globally unique id for this compile unit, used to create unique global function (or may be variable) name
   LexicalType lexical_type;
   union {
@@ -2937,15 +2939,17 @@ static void walk_unary_expr(ASTNode *p) {
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v, dt));
 }
 
-static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tuple, STEntry *entry) {
-  typeid_t fnname = name->idn.i;
-  if (name->idn.idtype != IdType::TTEId_FnName) {
+static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tuple, STEntry *entry,
+					   typeid_t method_struct_signature, int is_direct_call) {
+  int is_method = name->type != TTE_Id;
+  typeid_t fnname = is_method ? name->exprn.operands[0]->sfopn.fieldname : name->idn.i;
+  if (name->type == TTE_Id && name->idn.idtype != IdType::TTEId_FnName) {
       caerror(&(param->begloc), &(param->endloc), "the id: `%s` is not `%s` name",
 	      symname_get(fnname), tuple ? "tuple" : "function");
       return;
   }
 
-  check_fn_define(fnname, param, tuple, entry);
+  check_fn_define(fnname, param, tuple, entry, is_method);
 
   ST_ArgList *formalparam = nullptr;
   if (tuple)
@@ -2953,18 +2957,40 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
   else
     formalparam = entry->u.f.arglists;
 
+  if (is_method) {
+    // check first formal parameter with object type
+    STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[0], 0);
+    typeid_t datatype = paramentry->u.varshielding.current->datatype;
+    CADataType *dt = catype_get_by_name(name->symtable, datatype);
+    CHECK_GET_TYPE_VALUE(param, dt, datatype);
+    typeid_t formaltype = dt->signature;
+
+    typeid_t realtype = method_struct_signature;
+    if (is_direct_call) {
+      realtype = sym_form_pointer_id(realtype);
+    }
+
+    // check the formal parameter and actual parameter type
+    if (!catype_check_identical_in_symtable(name->symtable, realtype, param->symtable, formaltype)) {
+      caerror(&(param->begloc), &(param->endloc), "the self parameter type '%s' not match the parameter declared type '%s'",
+	      catype_get_type_name(realtype), catype_get_type_name(formaltype));
+      return;
+    }
+  }
+
   // check and determine parameter type
   for (int i = 0; i < param->arglistn.argc; ++i) {
     typeid_t formaltype = typeid_novalue;
-    if (i >= formalparam->argc) {
+    int j = is_method ? i + 1 : i;
+    if (j >= formalparam->argc) {
       // it is a variable parameter ...
       formaltype = typeid_novalue;
     } else {
       typeid_t datatype = typeid_novalue;
       if (tuple) {
-	datatype = formalparam->types[i];
+	datatype = formalparam->types[j];
       } else {
-	STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[i], 0);
+	STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[j], 0);
 	datatype = paramentry->u.varshielding.current->datatype;
       }
 
@@ -3065,18 +3091,113 @@ static void walk_expr_gentuple(ASTNode *p) {
   walk_expr_tuple_common(p, catype, values);
 }
 
+static void walk_expr(ASTNode *p);
+
+struct StructImplInfo {
+  int fnname;
+  STEntry *nameentry;
+  int fnname_manged;
+};
+
+typedef std::map<int, std::unique_ptr<StructImplInfo>> impl_info_map_t;
+
+static void runable_add_entry(STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry) {
+  impl_info_map_t *m= nullptr;
+  if (cls_entry->u.datatype.runables.opaque)
+    m = (impl_info_map_t *)cls_entry->u.datatype.runables.opaque;
+  else
+    m = new impl_info_map_t;
+
+  auto info = std::make_unique<StructImplInfo>();
+  info->fnname = fnname;
+  info->fnname_manged = fnname_mangled;
+  info->nameentry = nameentry;
+
+  m->insert(std::make_pair(fnname, std::move(info)));
+
+  cls_entry->u.datatype.runables.opaque = m;
+}
+
+static std::unique_ptr<StructImplInfo> runable_find_entry(STEntry *cls_entry, int fnname) {
+  if (!cls_entry->u.datatype.runables.opaque)
+    return nullptr;
+
+  impl_info_map_t *m = (impl_info_map_t *)cls_entry->u.datatype.runables.opaque;
+  auto itr = m->find(fnname);
+  if (itr == m->end())
+    return nullptr;
+
+  auto info = std::make_unique<StructImplInfo>();
+  *info = *itr->second;
+  return info;
+}
+
 // the expression call may be a function call or tuple literal definition,
 // because the tuple literal form is the same as function, so handle it here
 static void walk_expr_call(ASTNode *p) {
+  // NEXT TODO: how to handle the domain call AAA::method1(); use full path form?
+  // and the object call aa.method1(); aa->method2(); use struct entry sub form?
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
 
   const char *fnname = nullptr;
   STEntry *entry = nullptr;
-  int istuple = extract_function_or_tuple(p->symtable, name->idn.i, &entry, &fnname);
-  if (istuple == -1) {
+  int istuple = 0;
+  int is_method = name->type != TTE_Id;
+  Value *self_value = nullptr;
+  if (!is_method) {
+    istuple = extract_function_or_tuple(p->symtable, name->idn.i, &entry, &fnname);
+    if (istuple == -1) {
       caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'", fnname);
       return;
+    }
+
+    check_and_determine_param_type(name, args, istuple, entry, typeid_novalue, 0);
+  } else {
+    assert(name->type == TTE_Expr && name->exprn.op == STRUCTITEM &&
+	   name->exprn.noperand == 1 && name->exprn.operands[0]->type == TTE_StructFieldOpRight);
+
+    // here try to extract the value except the last field, because the last
+    // field is treated as a method name
+    TStructFieldOp *sfopn = &name->exprn.operands[0]->sfopn;
+    walk_stack(sfopn->expr);
+    auto pair = pop_right_value("struct", !sfopn->direct);
+
+    self_value = pair.first;
+    if (sfopn->direct && pair.second->type != STRUCT ||
+	!sfopn->direct && (pair.second->type != POINTER || pair.second->pointer_layout->type->type != STRUCT)) {
+      caerror(&p->begloc, &p->endloc, "incorrect struct `%s` when calling method '%s'",
+	      catype_get_type_name(pair.second->struct_layout->name),
+	      symname_get(sfopn->fieldname));
+      return;
+    }
+
+    // find function entry for from structitemop
+    // using the way find method in struct definition entry
+    // here not using direct way, but it have drawback that cannot know whether the function is a trait function
+    // and don't know how to find the trait name, except when calling function with trait name (full name)
+    SymTable *entry_st = nullptr;
+    int struct_name = sfopn->direct ? pair.second->struct_layout->name : pair.second->pointer_layout->type->struct_layout->name;
+    typeid_t name_type = sym_form_type_id(struct_name);
+    STEntry *cls_entry = sym_getsym_with_symtable(p->symtable, name_type, 1, &entry_st);
+    if (!cls_entry || cls_entry->sym_type != Sym_DataType) {
+      caerror(&p->begloc, &p->endloc, "cannot find symbol entry for type '%s'",
+              catype_get_type_name(pair.second->struct_layout->name));
+      return;
+    }
+
+    // fieldname is method name
+    auto info = runable_find_entry(cls_entry, sfopn->fieldname);
+    if (info == nullptr) {
+      caerror(&p->begloc, &p->endloc, "cannot find method `%s` for struct '%s'",
+              symname_get(sfopn->fieldname), catype_get_type_name(pair.second->struct_layout->name));
+      return;
+    }
+
+    entry = info->nameentry;
+
+    check_and_determine_param_type(name, args, istuple, entry, pair.second->signature, sfopn->direct);
+    istuple = 0;
   }
 
   Function *fn = nullptr;
@@ -3084,13 +3205,10 @@ static void walk_expr_call(ASTNode *p) {
     const char *fnname_full = symname_get(entry->u.f.mangled_id);
     fn = ir1.module().getFunction(fnname_full);
     if (!fn) {
-      caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'",
-              fnname);
+      caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'", fnname);
       return;
     }
   }
-
-  check_and_determine_param_type(name, args, istuple, entry);
 
   if (args->type != TTE_ArgList)
     caerror(&(p->begloc), &(p->endloc), "not a argument list: '%s'", fnname);
@@ -3099,6 +3217,9 @@ static void walk_expr_call(ASTNode *p) {
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   std::vector<Value *> argv;
+  if (is_method)
+    argv.push_back(self_value);
+
   llvmvalue_from_exprs(args->arglistn.exprs, args->arglistn.argc, argv, !istuple);
 
   if (istuple)
@@ -3793,48 +3914,72 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
   return 0;
 }
 
-static const char *mangling_function_name(typeid_t fnname, TypeImplInfo *impl_info) {
+template <typename Fn>
+static const char *mangling_function_name_nottype(int lexical_stack_size, Fn func) {
+  // handle inner function name
+  std::stringstream name;
+  name << MANGLED_NAME_PREFIX;
+
+  // first pass fill prefix, second pass fill name
+  bool first_pass = true;
+  int i = 0;
+  while (i++ < 2) {
+    for (int itr = 1; itr < lexical_stack_size; ++itr) {
+      auto scope = lexical_scope_stack[itr].get();
+      switch (scope->lexical_type) {
+      case LT_Block:
+        if (first_pass) {
+          name << 'L' << scope->lexical_id;
+        }
+        break;
+      case LT_Function:
+        if (first_pass) {
+          name << 'F';
+        } else {
+          const char *local_name =
+              catype_get_function_name(scope->u.function_name);
+          size_t len = strlen(local_name);
+          name << len << local_name;
+        }
+        break;
+      case LT_Module:
+      case LT_Struct:
+        yyerror("not implemented yet: %d", scope->lexical_type);
+        break;
+      case LT_Global:
+      default:
+        yyerror("bad lexical type: %d", scope->lexical_type);
+        break;
+      }
+    }
+
+    // append this function
+    func(name, first_pass);
+
+    first_pass = false;
+  }
+
+  int symname = symname_check_insert(name.str().c_str());
+  return symname_get(symname);
+}
+
+static int lexical_find_symtable_pos(SymTable *symtable) {
+  int i = lexical_scope_stack.size();
+  while (--i >= 0) {
+    if (lexical_scope_stack[i]->symtable == symtable)
+      return i;
+  }
+
+  return -1;
+}
+
+static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, TypeImplInfo *impl_info,
+					  STEntry **cls_entry = nullptr) {
   if (!impl_info) {
     if (lexical_scope_stack.size() == 1)
       return catype_get_function_name(fnname);
 
-    // NEXT TODO: handle inner function name
-    std::stringstream name;
-    name << MANGLED_NAME_PREFIX;
-    // first pass fill prefix, second pass fill name
-    bool first_pass = true;
-    int i = 0;
-    while (i++ < 2) {
-      for (auto itr = ++lexical_scope_stack.begin();
-           itr != lexical_scope_stack.end(); ++itr) {
-        auto scope = itr->get();
-        switch (scope->lexical_type) {
-        case LT_Block:
-	  if (first_pass) {
-	    name << 'L' << scope->lexical_id;
-	  }
-	  break;
-        case LT_Function:
-	  if (first_pass) {
-	    name << 'F';
-	  } else {
-	    const char *local_name = catype_get_function_name(scope->u.function_name);
-	    size_t len = strlen(local_name);
-	    name << len << local_name;
-	  }
-	  break;
-        case LT_Module:
-        case LT_Struct:
-	  yyerror("not implemented yet: %d", scope->lexical_type);
-	  break;
-        case LT_Global:
-        default:
-          yyerror("bad lexical type: %d", scope->lexical_type);
-	  break;
-        }
-      }
-
-      // append this function
+    auto trail_name_fn = [fnname](std::stringstream &name, bool first_pass) {
       if (first_pass) {
         name << 'F';
       } else {
@@ -3842,30 +3987,74 @@ static const char *mangling_function_name(typeid_t fnname, TypeImplInfo *impl_in
         size_t len = strlen(local_name);
         name << len << local_name;
       }
-
-      first_pass = false;
-    }
-
-    int symname = symname_check_insert(name.str().c_str());
-    return symname_get(symname);
+    };
+    return mangling_function_name_nottype(lexical_scope_stack.size(), trail_name_fn);
   }
 
-  if (impl_info) {
-    // NEXT TODO: use type implementation information,
-    // now the function is never be in global scope, but belong to struct or trait
-    if (impl_info->class_id == -1) {
-      yyerror("argument number not identical with definition (%d != %d)" );
-      return nullptr;
-    }
-    yyerror("method not implemented yet" );
+  if (impl_info->class_id == -1) {
+    yyerror("implemented struct not specified, for method `%s`", catype_get_function_name(fnname));
+    return nullptr;
   }
 
-  // NEXT TODO: get function full mangling name
-  return nullptr;
+  symtable = sym_parent_or_global(symtable);
+
+  // the symbol table which storing the struct entry
+  SymTable *entry_st = nullptr;
+  STEntry *entry = sym_getsym_with_symtable(symtable, impl_info->class_id, 1, &entry_st);
+  if (!entry || entry->sym_type != Sym_DataType) {
+    caerror(entry ? &entry->sloc : NULL, NULL, "cannot find symbol entry for type '%s'",
+	    catype_get_type_name(impl_info->class_id));
+    return nullptr;
+  }
+
+  if (cls_entry)
+    *cls_entry = entry;
+
+  // get the structure path in the form of `lexical_scope_stack`, means using the struct definition
+  // position as the implementation path, but not the implementation path itself
+  int pos = lexical_find_symtable_pos(entry_st);
+  if (pos == -1) {
+    caerror(entry ? &entry->sloc : NULL, NULL, "cannot find struct '%s' lexical position",
+	    catype_get_type_name(impl_info->class_id));
+    return nullptr;
+  }
+
+  auto trail_name_fn = [fnname, impl_info](std::stringstream &name, bool first_pass) {
+    if (first_pass) {
+      // for implementing struct mangling name with `struct + function`
+      // for implementing trait for struct mangling name with `trait + struct + function`
+      if (impl_info->trait_id != -1) {
+	name << 'T';
+      }
+      name << "SF";
+    } else {
+      // NEXT TODO: implement trait mangling considering traits path
+      if (impl_info->trait_id != -1) {
+        const char *trait_name = catype_get_type_name(impl_info->trait_id);
+        size_t len = strlen(trait_name);
+        name << len << trait_name;
+      }
+
+      const char *struct_name = catype_get_type_name(impl_info->class_id);
+      size_t len = strlen(struct_name);
+      name << len << struct_name;
+
+      // the local_name here is in the struct impl form: AAA::func or Struct1::<Trait1>::func1
+      const char *local_name_impl = catype_get_function_name(fnname);
+      const char *local_name = catype_remove_impl_prefix(local_name_impl);
+      len = strlen(local_name);
+      name << len << local_name;
+    }
+  };
+
+  return mangling_function_name_nottype(pos + 1, trail_name_fn);
 }
 
 static Function *walk_fn_declare_full(ASTNode *p, TypeImplInfo *impl_info) {
-  const char *fnname_full = mangling_function_name(p->fndecln.name, impl_info);
+  STEntry *cls_entry = nullptr;
+  STEntry **cls_entry_out = impl_info ? &cls_entry : nullptr;
+  const char *fnname_full = mangling_function_name(p->symtable, p->fndecln.name, impl_info, cls_entry_out);
+  assert(impl_info == nullptr || cls_entry != nullptr);
   int fnname_full_id = symname_check_insert(fnname_full);
 
   SymTable *symtable = sym_parent_or_global(p->symtable);
@@ -3926,6 +4115,10 @@ static Function *walk_fn_declare_full(ASTNode *p, TypeImplInfo *impl_info) {
 
   if (walk_pass == 1) {
     preventry->u.f.mangled_id = fnname_full_id;
+    if (cls_entry) {
+      typeid_t name = catype_struct_impl_id_to_function_name(p->fndecln.name);
+      runable_add_entry(cls_entry, name, fnname_full_id, preventry);
+    }
   }
 
   //AttrListPtr func_printf_PAL;
@@ -4104,6 +4297,7 @@ static void walk_lexical_body(ASTNode *node) {
   }
 
   curr_lexical_scope = lscope.get();
+  curr_lexical_scope->symtable = node->symtable;
   curr_lexical_scope->lexical_id = ++curr_lexical_count;
   if (node->lnoden.fnbuddy != nullptr) {
     curr_lexical_scope->lexical_type = LT_Function;
@@ -4205,6 +4399,7 @@ static int llvm_codegen_begin(RootTree *tree) {
   auto lscope = std::make_unique<LexicalScope>();
   root_lexical_scope = lscope.get();
   curr_lexical_scope = root_lexical_scope;
+  curr_lexical_scope->symtable = &g_root_symtable;
   lexical_scope_stack.push_back(std::move(lscope));
 
   if (enable_debug_info()) {
@@ -4464,26 +4659,6 @@ void init_llvm_env() {
     diinfo = std::make_unique<dwarf_debug::DWARFDebugInfo>(ir1.builder(), ir1.module(), genv.src_path);
 
   init_runtime_symbols();
-}
-
-void handle_post_functions() {
-  // NEXT TODO: check struct method impl
-  for (auto itr = g_function_post_map.begin(); itr != g_function_post_map.end(); ++itr) {
-    CallParamAux *paramaux = (CallParamAux *)itr->second;
-    if (!paramaux->checked) {
-      yyerror("function or tuple expression `%s` is used but not defined", catype_get_type_name(itr->first));
-      return;
-    }
-
-    ASTNode *node = paramaux->param;
-
-    if (node->type == TTE_FnDecl)
-      walk_fn_declare(node);
-    else if (node->type == TTE_FnDef)
-      walk_fn_declare(node->fndefn.fn_decl);
-    else
-      yyerror("(internal) not a function declare or definition");
-  }
 }
 
 int walk(RootTree *tree) {

@@ -10,15 +10,16 @@ impl AA {
 
     fn output(self) {
 	print self; print '\n';
-	print self.a; print '\n';
-	print self.b;
+	print self->a; print '\n';
+	print self->b;
     }
 }
 
 fn main() {
     let a = AA{a: 100, b: 'c'};
-    output(a);
-    //a.output();
+    //AA::new();
+    a.output();
+    a.new();
 }
 
 

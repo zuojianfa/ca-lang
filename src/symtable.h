@@ -299,6 +299,10 @@ typedef struct ST_MemberList { // TODO: will use later
   int visibility[MAX_ARGS];   // member visibilities
 } ST_MemberList;
 
+typedef struct ST_RunableList {
+  void *opaque; // storing method / function list
+} ST_RunableList;
+
 typedef enum ArgType {
   AT_Literal,
   AT_Variable,
@@ -336,6 +340,7 @@ typedef struct STEntry {
       typeid_t id;  // when sym_type is Sym_DataType
       ST_ArgList *members; // when id is of struct type it have members, TODO: refactor it make it extensible to other complex type like enum etc.
       struct SymTable *idtable; // TODO: assign symtable value for the id, and use it when unwinding type, or it have bug when not use the symbol table in the type is defining, because when unwinding, it may find the symbol in other level scope
+      struct ST_RunableList runables;
     } datatype;
   } u;
 } STEntry;
@@ -428,6 +433,7 @@ STEntry *sym_insert(SymTable *st, int encode, SymType type);
 int sym_dump(SymTable *st, FILE *file);
 
 // parent: if search parent symtable
+STEntry *sym_getsym_with_symtable(SymTable *st, int idx, int parent, SymTable **entry_st);
 STEntry *sym_getsym(SymTable *st, int idx, int parent);
 STEntry *sym_gettypesym_by_name(SymTable *st, const char *name, int parent);
 int sym_tablelen(SymTable *t);

@@ -8,7 +8,6 @@ BEGIN_EXTERN_C
 #endif
 
 void init_llvm_env();
-void handle_post_functions();
 int walk(RootTree *tree);
 
 #ifdef __cplusplus

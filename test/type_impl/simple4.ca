@@ -1,0 +1,31 @@
+struct AA {
+    a: i32,
+    b: char,
+}
+
+impl AA {
+    fn output(self) {
+	print *self; print '\n';
+	print self->a; print '\n';
+	print self->b; print '\n';
+    }
+}
+
+struct BB {
+    f1: *AA,
+    f2: AA,
+}
+
+fn main() {
+    let a = AA{a: 100, b: 'A'};
+    let b = BB{f1: &a, f2: AA{a: 200, b: 'C'}};
+    b.f1->output();
+    let pa = b.f1;
+    pa->output();
+
+    b.f2.output();
+
+    let pb = &b.f2;
+    pb->output();
+}
+

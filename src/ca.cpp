@@ -157,10 +157,6 @@ int main(int argc, char *argv[]) {
 
   yyparse();
 
-#ifdef ONLY_GLOBAL_FUNCTION
-  handle_post_functions();
-#endif
-
   walk(gtree);
 
   dot_finalize();

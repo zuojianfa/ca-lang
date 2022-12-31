@@ -237,7 +237,7 @@ CAVariable *cavar_create_self(int name) {
 
   typeid_t datatype = current_type_impl->class_id;
   CAVariable *var = new CAVariable;
-  var->datatype = datatype;
+  var->datatype = make_pointer_type(datatype);
   var->loc = stloc;
   var->name = name;
   var->llvm_value = nullptr;
@@ -432,7 +432,7 @@ int sym_dump(SymTable *st, FILE *file) {
   return totallen;
 }
 
-STEntry *sym_getsym(SymTable *st, int idx, int parent) {
+STEntry *sym_getsym_with_symtable(SymTable *st, int idx, int parent, SymTable **entry_st) {
   while (st) {
     SymTableInner *t = ((SymTableInner *)st->opaque);
     auto itr = t->find(idx);
@@ -445,10 +445,17 @@ STEntry *sym_getsym(SymTable *st, int idx, int parent) {
       }
     }
 
+    if (entry_st)
+      *entry_st = st;
+
     return itr->second.get();
   }
 
   return NULL;
+}
+
+STEntry *sym_getsym(SymTable *st, int idx, int parent) {
+  return sym_getsym_with_symtable(st, idx, parent, nullptr);
 }
 
 STEntry *sym_gettypesym_by_name(SymTable *st, const char *name, int parent) {
