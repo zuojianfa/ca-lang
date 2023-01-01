@@ -73,6 +73,7 @@ extern int yychar, yylineno;
   PatternGroup *patterngroup;
   GeneralRange range;
   TypeImplInfo impl_info;
+  DomainNames domain_names;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
@@ -83,7 +84,7 @@ extern int yychar, yylineno;
 %token			BAND BOR BXOR BNOT
 %token			ASSIGN_ADD ASSIGN_SUB ASSIGN_MUL ASSIGN_DIV ASSIGN_MOD ASSIGN_SHIFTL ASSIGN_SHIFTR ASSIGN_BAND ASSIGN_BOR ASSIGN_BXOR
 %token			FN_DEF FN_CALL VARG COMMENT EMPTY_BLOCK STMT_EXPR IF_EXPR ARRAYITEM STRUCTITEM TUPLE RANGE SLICE
-%token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL REF
+%token			INFER ADDRESS DEREF TYPE SIZEOF TYPEOF TYPEID ZERO_INITIAL REF DOMAIN
 %nonassoc		IFX
 %nonassoc		ELSE
 %left			IGNORE IRANGE
@@ -127,6 +128,7 @@ extern int yychar, yylineno;
 %type	<patterngroup>	pattern_struct_args_all pattern_tuple_args_all pattern_tuple_args pattern_struct_args
 %type	<range>		general_range
 %type	<impl_info>	type_impl_head
+%type	<domain_names>	domain
 
 %start program
 
@@ -180,8 +182,13 @@ fn_call_or_tuple:
 fn_method_call:	structfield_op '(' fn_args_call_or_tuple ')' {$$ = make_method_call($1, $3);}
 		;
 
-fn_domain_call: structfield_op '(' '#' fn_args_call_or_tuple '#' ')' {$$ = NULL; /* NEXT TODO */}
+fn_domain_call: domain '(' fn_args_call_or_tuple ')' { $$ = make_domain_call(&$1, $3); }
 		;
+
+domain: 	domain DOMAIN IDENT  { domain_append(&$1, $3); $$ = $1; }
+	|	IDENT DOMAIN IDENT   { $$ = domain_init(1, $1); domain_append(&$$, $3); }
+	|	DOMAIN IDENT         { $$ = domain_init(0, $2); }
+	;
 
 fn_proto:	FN IDENT
 		{

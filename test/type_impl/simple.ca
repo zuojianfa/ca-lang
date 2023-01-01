@@ -16,10 +16,9 @@ impl AA {
 }
 
 fn main() {
-    let a = AA{a: 100, b: 'c'};
-    //AA::new();
+    //let a = AA{a: 100, b: 'c'};
+    let a = AA::new();
     a.output();
-    a.new();
 }
 
 

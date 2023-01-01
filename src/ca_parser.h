@@ -52,6 +52,7 @@ typedef enum {
   TTE_LetBind,
   TTE_Range,
   TTE_FnDefImpl,
+  TTE_Domain,
   TTE_Num,
 } ASTNodeType;
 
@@ -200,6 +201,12 @@ typedef struct TFnDefNodeImpl {
   void *data; // vector, each array element occupies one vector item
 } TFnDefNodeImpl;
 
+typedef struct DomainNames {
+  int relative; // whether it is relative search path
+  int count;
+  void *parts; // vector, each domain part occupies one vector item
+} DomainNames, TDomainNames;
+
 typedef struct DerefLeft {
   int derefcount;
   struct ASTNode *expr;
@@ -313,6 +320,7 @@ typedef struct ASTNode {
     TRange rangen;       /* range node */
     TVarInit varinitn;
     TFnDefNodeImpl fndefn_impl; /* for function definition in type impl */
+    TDomainNames domainn; /* for domain method call */
   };
 } ASTNode;
 
@@ -433,6 +441,9 @@ ASTNode *make_if(int isexpr, int argc, ...);
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
 ASTNode *make_fn_call_or_tuple(int fnid, ASTNode *param);
 ASTNode *make_method_call(StructFieldOp fieldop, ASTNode *param);
+DomainNames domain_init(int relative, int name);
+void domain_append(DomainNames *names, int name);
+ASTNode *make_domain_call(DomainNames *names, ASTNode *param);
 ASTNode *make_gen_tuple_expr(ASTNode *param);
 ASTNode *make_ident_expr(int id);
 ASTNode *make_uminus_expr(ASTNode *expr);

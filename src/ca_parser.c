@@ -1478,6 +1478,7 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     break;
   }
   case FN_CALL: {
+    // NEXT TODO: handle method call and domain call when idn is not normal id
     // get function return type
     ASTNode *idn = node->exprn.operands[0];
     type1 = get_fncall_form_datatype(node, idn->idn.i);
@@ -1719,6 +1720,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
   }
   case FN_CALL: {
     // get function return type
+    // NEXT TODO: handle method call and domain call when idn is not normal id
     ASTNode *idn = node->exprn.operands[0];
     typeid_t type1 = get_fncall_form_datatype(node, idn->idn.i);
     catype_check_identical_in_symtable_witherror(node->symtable, type, node->symtable, type1, 1, &node->begloc);
@@ -2436,6 +2438,34 @@ ASTNode *make_method_call(StructFieldOp sfop, ASTNode *param) {
 
   // tuple type cannot have the same name with function in the same symbol table
   return make_expr(FN_CALL, 2, fieldnode, param);
+}
+
+DomainNames domain_init(int relative, int name) {
+  void *parts = vec_new();
+  vec_append(parts, (void *)(long)name);
+
+  return (DomainNames){
+    .relative = relative,
+    .count = 1,
+    .parts = parts,
+  };
+}
+
+void domain_append(DomainNames *names, int name) {
+  vec_append(names->parts, (void *)(long)name);
+}
+
+ASTNode *make_domain(DomainNames *names) {
+    ASTNode *p = new_ASTNode(TTE_Domain);
+    p->domainn = *names;
+
+    set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+    return p;
+}
+
+ASTNode *make_domain_call(DomainNames *names, ASTNode *param) {
+  ASTNode *domainnode = make_domain(names);
+  return make_expr(FN_CALL, 2, domainnode, param);
 }
 
 ASTNode *make_gen_tuple_expr(ASTNode *param) {

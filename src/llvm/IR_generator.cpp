@@ -2941,14 +2941,28 @@ static void walk_unary_expr(ASTNode *p) {
 
 static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tuple, STEntry *entry,
 					   typeid_t method_struct_signature, int is_direct_call) {
-  int is_method = name->type != TTE_Id;
-  typeid_t fnname = is_method ? name->exprn.operands[0]->sfopn.fieldname : name->idn.i;
+  typeid_t fnname = typeid_novalue;
+  switch (name->type) {
+  case TTE_Id:
+    fnname = name->idn.i;
+    break;
+  case TTE_Expr:
+    fnname = name->exprn.operands[0]->sfopn.fieldname;
+    break;
+  case TTE_Domain:
+    fnname = (int)(long)vec_at(name->domainn.parts, name->domainn.count - 1);
+    break;
+  default:
+    yyerror("bad function call type: %d", name->type);
+  }
+
   if (name->type == TTE_Id && name->idn.idtype != IdType::TTEId_FnName) {
       caerror(&(param->begloc), &(param->endloc), "the id: `%s` is not `%s` name",
 	      symname_get(fnname), tuple ? "tuple" : "function");
       return;
   }
 
+  int is_method = name->type == TTE_Expr;
   check_fn_define(fnname, param, tuple, entry, is_method);
 
   ST_ArgList *formalparam = nullptr;
@@ -3143,9 +3157,9 @@ static void walk_expr_call(ASTNode *p) {
   const char *fnname = nullptr;
   STEntry *entry = nullptr;
   int istuple = 0;
-  int is_method = name->type != TTE_Id;
   Value *self_value = nullptr;
-  if (!is_method) {
+  switch (name->type) {
+  case TTE_Id: {
     istuple = extract_function_or_tuple(p->symtable, name->idn.i, &entry, &fnname);
     if (istuple == -1) {
       caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'", fnname);
@@ -3153,7 +3167,9 @@ static void walk_expr_call(ASTNode *p) {
     }
 
     check_and_determine_param_type(name, args, istuple, entry, typeid_novalue, 0);
-  } else {
+    break;
+  }
+  case TTE_Expr: {
     assert(name->type == TTE_Expr && name->exprn.op == STRUCTITEM &&
 	   name->exprn.noperand == 1 && name->exprn.operands[0]->type == TTE_StructFieldOpRight);
 
@@ -3198,6 +3214,35 @@ static void walk_expr_call(ASTNode *p) {
 
     check_and_determine_param_type(name, args, istuple, entry, pair.second->signature, sfopn->direct);
     istuple = 0;
+    break;
+  }
+  case TTE_Domain: {
+    // NEXT TODO: get struct entry from domain subparts
+    if (name->domainn.relative) {
+      std::stringstream ss;
+      ss << symname_get((long)vec_at(name->domainn.parts, 0));
+      for (int i = 1; i < name->domainn.count; ++i) {
+	ss << "::";
+	ss << symname_get((long)vec_at(name->domainn.parts, i));
+      }
+
+      int domain_id = symname_check_insert(ss.str().c_str());
+      typeid_t domain_fn_id = sym_form_function_id(domain_id);
+      SymTable *entry_st = nullptr;
+      entry = sym_getsym_with_symtable(name->symtable, domain_fn_id, 1, &entry_st);
+      if (!entry) {
+	caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'", symname_get(domain_id));
+	return;
+      }
+    } else {
+      // NEXT TODO: how to handle the absolution path
+    }
+    istuple = 0;
+    break;
+  }
+  default:
+    yyerror("bad function call type: %d", name->type);
+    return;
   }
 
   Function *fn = nullptr;
@@ -3217,6 +3262,8 @@ static void walk_expr_call(ASTNode *p) {
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
   std::vector<Value *> argv;
+  
+  int is_method = name->type == TTE_Expr;
   if (is_method)
     argv.push_back(self_value);
 
