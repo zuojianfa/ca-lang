@@ -1,0 +1,48 @@
+// function -> impl -> function
+fn test() {
+    struct AA {
+	a: i32,
+	b: char,
+    }
+
+    impl AA {
+	fn output(self) {
+	    fn print_self(s: *AA) {
+		print *s; print '\n';
+	    }
+
+	    print_self(self);
+	    struct CC {
+		f1: *AA,
+	    }
+
+	    impl CC {
+		fn new(f: *AA) -> CC {
+		    return CC {f1: f};
+		}
+
+		fn print_AA(self) {
+		    print *self->f1; print '\n';
+		}
+	    }
+
+	    let cc = CC::new(self);
+	    cc.print_AA();
+	}
+    }
+
+    if (true) {
+	struct BB {
+	    f1: AA
+	}
+
+	let b = BB{f1: AA{a: 0x11111111, b: 'A'}};
+	b.f1.output();
+    }
+}
+
+fn main() {
+    test();
+}
+
+

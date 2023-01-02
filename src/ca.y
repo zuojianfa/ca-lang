@@ -107,7 +107,7 @@ extern int yychar, yylineno;
 %type	<litv>		literal
 %type	<arrayexpr>	array_def array_def_items
 %type	<structexpr>	struct_expr struct_expr_fields named_struct_expr_fields
-%type	<astnode>	stmt stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value type_impl fn_defs
+%type	<astnode>	stmt stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value type_impl fn_impl_defs fn_impl_defs_all
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
 %type	<astnode>	fn_unit fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
 %type	<astnode>	fn_args_p fn_args_call_or_tuple_p fn_call fn_method_call fn_domain_call
@@ -148,16 +148,21 @@ fn_unit:	fn_def   { dot_emit("fn_unit", "fn_def"); }
 	|	type_impl{ dot_emit("fn_unit", "type_impl"); }
 		;
 
-type_impl:	type_impl_head  { current_type_impl_buffer = $1; current_type_impl = &current_type_impl_buffer; }
-		'{' fn_defs '}' { current_type_impl = NULL; $$ = $4; }
+type_impl:	type_impl_head  { push_type_impl(&$1); }
+		'{' fn_impl_defs_all '}' { pop_type_impl(); $$ = $4; }
 	;
 
 type_impl_head:	IMPL ident_type { $$ = begin_impl_type($2); }
 	|	IMPL ident_type FOR ident_type { $$ = begin_impl_trait_for_type($2, $4); }
 	;
 
+fn_impl_defs_all:
+		{ $$ = make_fn_def_impl_begin(NULL); }
+	| 	fn_impl_defs { $$ = $1; }
+		;
+
 /* collect function into a group assoicated with one type */
-fn_defs:	fn_defs fn_def { $$ = make_fn_def_impl_next($$, $2); }
+fn_impl_defs:	fn_impl_defs fn_def { $$ = make_fn_def_impl_next($$, $2); }
 	|	fn_def { $$ = make_fn_def_impl_begin($1); }
 	;
 
@@ -621,7 +626,7 @@ tuple_members:	tuple_members ',' data_type      { add_tuple_member(tuplelist_cur
 	|
 	;
 
-trait_def:	TRAIT IDENT '{'  '}' { /* NEXT TODO: */ }
+trait_def:	TRAIT IDENT '{' fn_proto '}' { /* NEXT TODO: */ }
 	;
 
 type_def:	TYPE IDENT '=' data_type ';' { $$ = make_type_def($2, $4); }

@@ -78,6 +78,7 @@ int g_node_seqno = 0;
 
 TypeImplInfo *current_type_impl = NULL;
 TypeImplInfo current_type_impl_buffer;
+void *type_impl_stack = NULL;
 
 extern int glineno_prev;
 extern int gcolno_prev;
@@ -314,10 +315,15 @@ ASTNode *make_fn_body(ASTNode *blockbody) {
 ASTNode *make_fn_def_impl_begin(ASTNode *fndef) {
   ASTNode *p = new_ASTNode(TTE_FnDefImpl);
   p->fndefn_impl.impl_info = *current_type_impl;
-  p->fndefn_impl.count = 1;
+  p->fndefn_impl.count = fndef ? 1 : 0;
   p->fndefn_impl.data = vec_new();
-  vec_append(p->fndefn_impl.data, (void *)fndef);
-  set_address(p, &fndef->begloc, &fndef->endloc);
+  if (fndef) {
+    vec_append(p->fndefn_impl.data, (void *)fndef);
+    set_address(p, &fndef->begloc, &fndef->endloc);
+  } else {
+    SLoc stloc = {glineno, gcolno};
+    set_address(p, &stloc, &stloc);
+  }
   return p;
 }
 
@@ -1981,6 +1987,16 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
       determine_expr_expr_type(node->ifn.remain, type);
     }
     break;
+  case TTE_StructExpr: {
+    CADataType *struct_catype = catype_get_by_name(node->symtable, node->snoden.name);
+    CHECK_GET_TYPE_VALUE(node, struct_catype, node->snoden.name);
+    if (struct_catype->signature != catype->signature) {
+      caerror(&node->begloc, &node->endloc, "type `%s` required, but find `%s`",
+	      catype_get_type_name(catype->signature), catype_get_type_name(struct_catype->signature));
+      return -1;
+    }
+    break;
+  }
   default:
     // the node need not determine a type, not a literal and an expression node
     break;
@@ -2340,6 +2356,15 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
 
   typeid_t fnname = sym_form_function_id(fnid);
+
+  if (current_type_impl) {
+    const char *ret_type = catype_get_type_name(rettype);
+
+    // when returning type is Self in class impl, then change it into the class id
+    if (!strcmp(ret_type, CSELF)) {
+      rettype = current_type_impl->class_id;
+    }
+  }
 
   curr_fn_rettype = rettype;
 
@@ -2870,6 +2895,22 @@ TypeImplInfo begin_impl_type(int class_id) {
 
 TypeImplInfo begin_impl_trait_for_type(int class_id, int trait_id) {
   return (TypeImplInfo){.class_id = class_id, .trait_id = trait_id };
+}
+
+// push current type impl info and copy new impl info into current impl info
+void push_type_impl(TypeImplInfo *new_info) {
+  if (!type_impl_stack)
+    type_impl_stack = vec_new();
+
+  vec_append(type_impl_stack, current_type_impl);
+  current_type_impl = (TypeImplInfo *)malloc(sizeof(TypeImplInfo));
+  *current_type_impl = *new_info;
+}
+
+// pop saved type impl info and save it into current impl info
+void pop_type_impl() {
+  free(current_type_impl);
+  current_type_impl = vec_popback(type_impl_stack);
 }
 
 //void push_lexical_body() {}

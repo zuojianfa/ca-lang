@@ -1,0 +1,20 @@
+struct AA {
+    a: i32,
+    b: char,
+}
+
+impl AA {
+    fn new(a: i32, b: char) -> Self {
+	return AA{a, b};
+    }
+
+    fn output(self) {
+	print *self; print '\n';
+    }
+}
+
+fn main() {
+    let a = AA::new(201, 'B');
+    a.output();
+}
+

@@ -463,6 +463,8 @@ CAStructExpr structexpr_append_named(CAStructExpr sexpr, ASTNode *expr, int name
 CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named);
 TypeImplInfo begin_impl_type(int class_id);
 TypeImplInfo begin_impl_trait_for_type(int class_id, int trait_id);
+void push_type_impl(TypeImplInfo *new_info);
+void pop_type_impl();
 
 int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry, int is_method);
 // for tree node compress deep into wide, begin for stmt list beginning

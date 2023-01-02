@@ -1,0 +1,15 @@
+fn main() {
+    let a = [1,2,3,4,5,6,7,8,9];
+    let r1 = a[..];
+    let r2 = a[2..6];
+    let r3 = a[2..=3];
+    let r4 = a[3..];
+    let r5 = a[..5];
+    let r6 = a[..=5];
+    dbgprinttype(typeof(r1));
+    dbgprinttype(typeof(r2));
+    dbgprinttype(typeof(r3));
+    dbgprinttype(typeof(r4));
+    dbgprinttype(typeof(r5));
+    dbgprinttype(typeof(r6));
+}

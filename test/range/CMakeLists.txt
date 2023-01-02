@@ -16,4 +16,5 @@ do_test(range "1311768467463790320..1311768467463790335\n1311768467463790320\n13
 do_test(range "line: 3, col: 15:\n    for \\(i in a\\) {\n              \\^\ntype `bool` not support step into next yet" ca range_for_error1.ca)
 do_test(range "line: 6, col: 15:\n    for \\(i in a\\) {\n              \\^\ntype `\\(AA\\;i32,i32\\)` not support step into next yet" ca range_for_error2.ca)
 do_test(range "good" ca range_array1.ca)
+do_test(range "support fetch range element operator" ca range_array2.ca)
 

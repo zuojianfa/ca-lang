@@ -6,7 +6,7 @@ do_testf(type_impl "inner_function3_0.ca.ll" "inner_function3_0.ca.ll.tmp" ca -g
 do_test(type_impl "Hello C A" ca inner_function4.ca)
 do_test(type_impl "Hello C A\nin while in while in while in while in while" ca inner_function_more_level.ca)
 do_test(type_impl "good" ca -g simple_0.ca)
-do_test(type_impl "AA { a: 100, b: C }\n100\nC\n167\n" ca simple.ca)
+do_test(type_impl "AA { a: 100, b: C }\n100\nC\n167\n100\nC\nAA { a: 303, b: A }\n303\nA\n" ca simple.ca)
 do_test(type_impl "AA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\n" ca simple1.ca)
 do_test(type_impl "AA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\n" ca simple2.ca)
 do_test(type_impl "AA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\n" ca simple3.ca)
@@ -15,5 +15,8 @@ do_test(type_impl "AA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\n" c
 do_test(type_impl "AA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\n" ca simple_inner2.ca)
 do_test(type_impl "AA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\n" ca simple_inner3.ca)
 do_test(type_impl "AA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\nAA { a: 200, b: C }\n200\nC\nAA { a: 200, b: C }\n200\nC\n" ca simple_inner4.ca)
-
+do_test(type_impl "AA { a: 201, b: B }\nAA { a: 201, b: B }" ca domain.ca)
+do_test(type_impl "AA { a: 201, b: B }" ca return_self.ca)
+do_test(type_impl "AA { a: 572662306, b: A }\nAA { a: 572662306, b: A }\nAA { a: 572662306, b: A }\nAA { a: 572662306, b: A }\n" ca deep_inner1.ca)
+do_test(type_impl "AA { a: 286331153, b: A }\nAA { a: 286331153, b: A }" ca deep_inner2.ca)
 

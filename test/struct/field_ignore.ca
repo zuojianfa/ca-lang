@@ -1,0 +1,20 @@
+struct AA {
+    a: i32,
+    b: i32,
+}
+
+fn main() {
+    let a = 100;
+    let b = 200;
+    let c = AA{b, a};
+    let d = AA{b, a};
+
+    // only support named field and unnamed field,
+    // when is named field, all should be named field, and the order is unconcerned
+    // when is unnamed field, all should be unnamed field, and the unorder is concerned
+    //let d = AA{a: 100, b: b};
+    //let e = AA{a: b, b: a};
+
+    print "good";
+}
+

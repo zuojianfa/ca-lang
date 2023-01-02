@@ -35,4 +35,5 @@ do_testf(struct "struct_array3.ca.ll" "struct_array3.ca.ll.tmp" ca -g -ll struct
 do_testf(struct "struct_array_s1.ca.ll" "struct_array_s1.ca.ll.tmp" ca -g -ll struct_array_s1.ca struct_array_s1.ca.ll.tmp)
 do_test(struct "1103103370\nAA { f1: 1104199399 }" ca struct_expr.ca)
 do_test(struct "AA { a1: 32, a2: 1 }" ca multilevel_field.ca)
+do_test(struct "good" ca field_ignore.ca)
 

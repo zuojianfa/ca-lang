@@ -218,6 +218,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 - [x] well error messages of line number
 - [ ] support multiple compile unit and link them together
 - [ ] support rust grammar
+  - [x] research GC_malloc, GC_free serialize functions and used in this project
   - [x] heap allocate memory: `box`
   - [x] named tuple
   - [x] unnamed tuple (general tuple)
@@ -260,6 +261,18 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
   - [ ] function definition can be in any scope
   - [ ] support never return type `!` like rust
 
+-[x] object oriented
+  - [x] support class implementation
+	- [x] changing function defined in global scope into local scopes
+	- [x] support inner function definition in a function
+	- [x] support impl statement in function
+	- [x] support function definition in any scope
+	- [x] support call method with form a.b.c.method1()
+	- [x] support domain call with form AA::new()
+	- [x] use self as first method parameter which stand for the pointer to the object
+	- [ ] use Self as returned parameter
+	- [ ] allow function closure
+  - [ ] support trait
 
 
 ## Makefile
@@ -307,22 +320,12 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-
-- [ ] support class impl
-  - [x] changing function defined in global scope into local scopes
-  - [ ] support inner function definition in a function
-  - [ ] support impl statement in function
-  - [ ] support function definition in any scope
-  - [ ] code motivation, for using `catype_get_function_name`
-	- [x] check fnname of `pre_check_fn_proto` and it's callers: `pre_check_fn_proto`, `make_fn_proto`, `ca.y`
-  	- [ ] check fnname of `post_check_fn_proto` and it's callers: `walk_fn_declare_full`
-	- [ ] walk_fn_declare_full
-   - [ ] allow function closure
-- [x] research GC_malloc, GC_free serialize functions and used in this project
-  - [ ] support box(type) grammar a long with box(expr) grammar
+- [ ] support trait
+  - [ ] trait definition
+  - [ ] trait implementation
+- [ ] support box(type) grammar a long with box(expr) grammar
 - [ ] implement ca runtime system to support the compiler functionality, like output slice object, it need runtime system support, because slice type's length is not determined in compile time, and cannot fixed print in compile, so need use runtime system to support printing it
   - [ ] perfect runtime libraries to support others
-- [ ] support trait
 - [ ] check if can use function parameter directly without copying the parameter
 - [ ] support slice element accessing
 - [ ] support slice functionality

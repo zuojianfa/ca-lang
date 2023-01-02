@@ -4,6 +4,10 @@ struct AA {
 }
 
 impl AA {
+    fn from(a: i32) -> AA {
+	return AA{a: a, b: 'A'};
+    }
+
     fn new(a: i32, b: char) -> AA {
 	return AA{a, b};
     }
@@ -11,6 +15,14 @@ impl AA {
     fn output(self) {
 	print *self; print '\n';
 	print self->a; print '\n';
+	print self->b; print '\n';
+    }
+
+    fn output_a(self) {
+	print self->a; print '\n';
+    }
+
+    fn output_b(self) {
 	print self->b; print '\n';
     }
 
@@ -23,7 +35,12 @@ fn main() {
     let a = AA::new(100, 'C');
     a.output();
     let s = a.sum();
-    print s;
+    print s; print '\n';
+    a.output_a();
+    a.output_b();
+
+    let b = AA::from(303);
+    b.output();
 }
 
 
