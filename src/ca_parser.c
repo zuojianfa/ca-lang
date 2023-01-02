@@ -1481,7 +1481,27 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     // NEXT TODO: handle method call and domain call when idn is not normal id
     // get function return type
     ASTNode *idn = node->exprn.operands[0];
-    type1 = get_fncall_form_datatype(node, idn->idn.i);
+    switch (idn->type) {
+    case TTE_Id:
+      type1 = get_fncall_form_datatype(node, idn->idn.i);
+      break;
+    case TTE_Expr: {
+      CADataType *struct_catype = NULL;
+      assert(node->exprn.noperand == 2);
+      ASTNode *name = node->exprn.operands[0];
+      STEntry *entry = sym_get_function_entry_for_method_novalue(name, &struct_catype);
+      type1 = entry->u.f.rettype;
+      break;
+    }
+    case TTE_Domain: {
+      STEntry *entry = sym_get_function_entry_for_domain(idn);
+      type1 = entry->u.f.rettype;
+      break;
+    }
+    default:
+      caerror(&(node->begloc), &(node->endloc), "bad function call type: %d", idn->type);
+      break;
+    }
     break;
   }
   case STMT_EXPR:
@@ -2453,6 +2473,7 @@ DomainNames domain_init(int relative, int name) {
 
 void domain_append(DomainNames *names, int name) {
   vec_append(names->parts, (void *)(long)name);
+  names->count += 1;
 }
 
 ASTNode *make_domain(DomainNames *names) {

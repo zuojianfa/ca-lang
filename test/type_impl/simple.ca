@@ -4,21 +4,26 @@ struct AA {
 }
 
 impl AA {
-    fn new() -> AA {
-	return AA{a: 100, b: 'c'};
+    fn new(a: i32, b: char) -> AA {
+	return AA{a, b};
     }
 
     fn output(self) {
-	print self; print '\n';
+	print *self; print '\n';
 	print self->a; print '\n';
-	print self->b;
+	print self->b; print '\n';
+    }
+
+    fn sum(self) -> i32 {
+	return self->a + self->b as i32;
     }
 }
 
 fn main() {
-    //let a = AA{a: 100, b: 'c'};
-    let a = AA::new();
+    let a = AA::new(100, 'C');
     a.output();
+    let s = a.sum();
+    print s;
 }
 
 

@@ -485,6 +485,8 @@ void delete_CallParamAux(CallParamAux *paramaux);
 void yyerror(const char *s, ...);
 void caerror(const SLoc *beg, const SLoc *end, const char *s, ...);
 
+typedef CADataType *(*query_type_fn_t)(TStructFieldOp *sfopn, void **self_value);
+
 #ifdef __cplusplus
 END_EXTERN_C
 #endif

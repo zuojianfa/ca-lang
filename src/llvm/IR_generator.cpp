@@ -3107,43 +3107,19 @@ static void walk_expr_gentuple(ASTNode *p) {
 
 static void walk_expr(ASTNode *p);
 
-struct StructImplInfo {
-  int fnname;
-  STEntry *nameentry;
-  int fnname_manged;
-};
+extern STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_fn, void **self_value, CADataType **struct_catype);
+static CADataType *query_type_with_value(TStructFieldOp *sfopn, void **self_value) {
+  walk_stack(sfopn->expr);
+  auto pair = pop_right_value("struct", !sfopn->direct);
 
-typedef std::map<int, std::unique_ptr<StructImplInfo>> impl_info_map_t;
+  if (self_value)
+    *self_value = pair.first;
 
-static void runable_add_entry(STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry) {
-  impl_info_map_t *m= nullptr;
-  if (cls_entry->u.datatype.runables.opaque)
-    m = (impl_info_map_t *)cls_entry->u.datatype.runables.opaque;
-  else
-    m = new impl_info_map_t;
-
-  auto info = std::make_unique<StructImplInfo>();
-  info->fnname = fnname;
-  info->fnname_manged = fnname_mangled;
-  info->nameentry = nameentry;
-
-  m->insert(std::make_pair(fnname, std::move(info)));
-
-  cls_entry->u.datatype.runables.opaque = m;
+  return pair.second;
 }
 
-static std::unique_ptr<StructImplInfo> runable_find_entry(STEntry *cls_entry, int fnname) {
-  if (!cls_entry->u.datatype.runables.opaque)
-    return nullptr;
-
-  impl_info_map_t *m = (impl_info_map_t *)cls_entry->u.datatype.runables.opaque;
-  auto itr = m->find(fnname);
-  if (itr == m->end())
-    return nullptr;
-
-  auto info = std::make_unique<StructImplInfo>();
-  *info = *itr->second;
-  return info;
+static STEntry *sym_get_function_entry_for_method_value(ASTNode *name, Value **self_value, CADataType **struct_catype) {
+  return sym_get_function_entry_for_method(name, query_type_with_value, (void **)self_value, struct_catype);
 }
 
 // the expression call may be a function call or tuple literal definition,
@@ -3170,73 +3146,19 @@ static void walk_expr_call(ASTNode *p) {
     break;
   }
   case TTE_Expr: {
-    assert(name->type == TTE_Expr && name->exprn.op == STRUCTITEM &&
-	   name->exprn.noperand == 1 && name->exprn.operands[0]->type == TTE_StructFieldOpRight);
+    CADataType *catype = nullptr;
+    entry = sym_get_function_entry_for_method_value(name, &self_value, &catype);
 
-    // here try to extract the value except the last field, because the last
-    // field is treated as a method name
-    TStructFieldOp *sfopn = &name->exprn.operands[0]->sfopn;
-    walk_stack(sfopn->expr);
-    auto pair = pop_right_value("struct", !sfopn->direct);
-
-    self_value = pair.first;
-    if (sfopn->direct && pair.second->type != STRUCT ||
-	!sfopn->direct && (pair.second->type != POINTER || pair.second->pointer_layout->type->type != STRUCT)) {
-      caerror(&p->begloc, &p->endloc, "incorrect struct `%s` when calling method '%s'",
-	      catype_get_type_name(pair.second->struct_layout->name),
-	      symname_get(sfopn->fieldname));
-      return;
-    }
-
-    // find function entry for from structitemop
-    // using the way find method in struct definition entry
-    // here not using direct way, but it have drawback that cannot know whether the function is a trait function
-    // and don't know how to find the trait name, except when calling function with trait name (full name)
-    SymTable *entry_st = nullptr;
-    int struct_name = sfopn->direct ? pair.second->struct_layout->name : pair.second->pointer_layout->type->struct_layout->name;
-    typeid_t name_type = sym_form_type_id(struct_name);
-    STEntry *cls_entry = sym_getsym_with_symtable(p->symtable, name_type, 1, &entry_st);
-    if (!cls_entry || cls_entry->sym_type != Sym_DataType) {
-      caerror(&p->begloc, &p->endloc, "cannot find symbol entry for type '%s'",
-              catype_get_type_name(pair.second->struct_layout->name));
-      return;
-    }
-
-    // fieldname is method name
-    auto info = runable_find_entry(cls_entry, sfopn->fieldname);
-    if (info == nullptr) {
-      caerror(&p->begloc, &p->endloc, "cannot find method `%s` for struct '%s'",
-              symname_get(sfopn->fieldname), catype_get_type_name(pair.second->struct_layout->name));
-      return;
-    }
-
-    entry = info->nameentry;
-
-    check_and_determine_param_type(name, args, istuple, entry, pair.second->signature, sfopn->direct);
+    check_and_determine_param_type(name, args, istuple, entry,
+                                   catype->signature, name->exprn.operands[0]->sfopn.direct);
+    fnname = symname_get(name->exprn.operands[0]->sfopn.fieldname);
     istuple = 0;
     break;
   }
   case TTE_Domain: {
-    // NEXT TODO: get struct entry from domain subparts
-    if (name->domainn.relative) {
-      std::stringstream ss;
-      ss << symname_get((long)vec_at(name->domainn.parts, 0));
-      for (int i = 1; i < name->domainn.count; ++i) {
-	ss << "::";
-	ss << symname_get((long)vec_at(name->domainn.parts, i));
-      }
-
-      int domain_id = symname_check_insert(ss.str().c_str());
-      typeid_t domain_fn_id = sym_form_function_id(domain_id);
-      SymTable *entry_st = nullptr;
-      entry = sym_getsym_with_symtable(name->symtable, domain_fn_id, 1, &entry_st);
-      if (!entry) {
-	caerror(&(p->begloc), &(p->endloc), "cannot find declared function: '%s'", symname_get(domain_id));
-	return;
-      }
-    } else {
-      // NEXT TODO: how to handle the absolution path
-    }
+    // get struct entry from domain subparts
+    entry = sym_get_function_entry_for_domain(name);
+    fnname = symname_get((long)vec_at(name->domainn.parts, name->domainn.count - 1));
     istuple = 0;
     break;
   }
