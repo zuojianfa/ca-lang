@@ -191,23 +191,28 @@ typeid_t sym_form_label_id(int id) {
 
 typeid_t sym_form_function_id(int fnid) {
   const char *name = symname_get(fnid);
+  const char *typename = sym_form_function_name(name);
+  typeid_t typeid = symname_check_insert(typename);
+  return typeid;
+}
+
+typeid_t sym_form_method_id(int fnid, TypeImplInfo *type_impl) {
+  const char *name = symname_get(fnid);
   char namebuf[1024];
 
-  if (current_type_impl) {
-    // for struct implemention, by prepend the struct and trait name before the function name
-    // it can avoid to find the struct method definition by the normal function call to the same
-    // function name as defined in struct
-    assert(current_type_impl->class_id != -1);
-    const char *clsname = catype_get_type_name(current_type_impl->class_id);
-    if (current_type_impl->trait_id != -1) {
-      const char *trait_name = catype_get_type_name(current_type_impl->trait_id);
-      sprintf(namebuf, "%s::<%s>::%s", clsname, trait_name, name);
-    } else {
-      sprintf(namebuf, "%s::%s", clsname, name);
-    }
-
-    name = namebuf;
+  // for struct implemention, by prepend the struct and trait name before the
+  // function name it can avoid to find the struct method definition by the
+  // normal function call to the same function name as defined in struct
+  assert(type_impl->class_id != -1);
+  const char *clsname = catype_get_type_name(type_impl->class_id);
+  if (type_impl->trait_id != -1) {
+    const char *trait_name = catype_get_type_name(type_impl->trait_id);
+    sprintf(namebuf, "%s::<%s>::%s", clsname, trait_name, name);
+  } else {
+    sprintf(namebuf, "%s::%s", clsname, name);
   }
+
+  name = namebuf;
 
   const char *typename = sym_form_function_name(name);
   typeid_t typeid = symname_check_insert(typename);
@@ -338,6 +343,53 @@ ASTNode *make_fn_def_impl_next(ASTNode *impl, ASTNode *fndef) {
   impl->endloc = fndef->endloc;
 
   return impl;
+}
+
+ASTNode *trait_fn_begin(ASTNode *fndef_proto) {
+  ASTNode *p = new_ASTNode(TTE_TraitFn);
+  p->traitfnlistn.count = fndef_proto ? 1 : 0;
+  p->traitfnlistn.data = vec_new();
+  if (fndef_proto) {
+    vec_append(p->traitfnlistn.data, (void *)fndef_proto);
+    set_address(p, &fndef_proto->begloc, &fndef_proto->endloc);
+  } else {
+    SLoc stloc = {glineno, gcolno};
+    set_address(p, &stloc, &stloc);
+  }
+  return p;
+}
+
+ASTNode *trait_fn_next(ASTNode *fnlist, ASTNode *fndef_proto) {
+  if (fnlist->type != TTE_TraitFn) {
+    caerror(&fndef_proto->begloc, &fndef_proto->endloc,
+	    "wrong impl type: %d required, but %d found", TTE_TraitFn, fnlist->type);
+    return NULL;
+  }
+
+  fnlist->traitfnlistn.count += 1;
+  vec_append(fnlist->traitfnlistn.data, (void *)fndef_proto);
+  fnlist->endloc = fndef_proto->endloc;
+
+  return fnlist;
+}
+
+ASTNode *make_trait_defs(int id, ASTNode *defs) {
+   // register it into symbol table, which can query when do implementing
+   int trait_id = sym_form_type_id(id);
+
+   defs->traitfnlistn.trait_id = trait_id;
+
+   STEntry *entry = sym_getsym(defs->symtable, trait_id, 0);
+   if (entry) {
+     caerror(&defs->begloc, &defs->endloc, "trait '%s' already defined on (%d, %d)",
+	     symname_get(id), entry->sloc.row, entry->sloc.col);
+     return NULL;
+   }
+
+   entry = sym_check_insert(defs->symtable, trait_id, Sym_Trait);
+   entry->u.trait.node = defs;
+
+   return defs;
 }
 
 ASTNode *make_fn_decl(ASTNode *proto) {
@@ -2355,8 +2407,13 @@ static STEntry *check_tuple_name(int id) {
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
 
-  typeid_t fnname = sym_form_function_id(fnid);
+  typeid_t fnname = typeid_novalue;
+  if (current_type_impl && current_type_impl->fn_def_recursive_count == 0)
+    fnname = sym_form_method_id(fnid, current_type_impl);
+  else
+    fnname = sym_form_function_id(fnid);
 
+  // replace Self with the real struct name
   if (current_type_impl) {
     const char *ret_type = catype_get_type_name(rettype);
 
@@ -2456,17 +2513,6 @@ int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry, 
   }
 
   return 0;
-}
-
-CallParamAux *new_CallParamAux(ASTNode *param, int checked) {
-  CallParamAux *paramaux = (CallParamAux *)malloc(sizeof(CallParamAux));
-  paramaux->param = param;
-  paramaux->checked = checked;
-  return paramaux;
-}
-
-void delete_CallParamAux(CallParamAux *paramaux) {
-  free(paramaux);
 }
 
 // id: can be function name or tuple name, tuple is special
@@ -2654,14 +2700,6 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
   *entry->u.datatype.members = *arglist;
   entry->sloc = (SLoc){glineno, gcolno};
   p->entry = entry;
-
-  typeid_t fnid = sym_form_function_id(id);
-  CallParamAux *paramaux = get_post_function(fnid);
-  if (paramaux && !paramaux->checked && sym_is_sub_symtable(paramaux->param->symtable, curr_symtable)) {
-    // check if current symtable is the parent of the request symtable
-    delete_CallParamAux(paramaux);
-    remove_post_function(fnid);
-  }
 
   set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &entry->sloc);
   return p;
@@ -2890,11 +2928,11 @@ CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named) {
 }
 
 TypeImplInfo begin_impl_type(int class_id) {
-  return (TypeImplInfo){.class_id = class_id, .trait_id = -1 };
+  return (TypeImplInfo){.class_id = class_id, .trait_id = -1, .fn_def_recursive_count = 0 };
 }
 
 TypeImplInfo begin_impl_trait_for_type(int class_id, int trait_id) {
-  return (TypeImplInfo){.class_id = class_id, .trait_id = trait_id };
+  return (TypeImplInfo){.class_id = class_id, .trait_id = trait_id, .fn_def_recursive_count = 0 };
 }
 
 // push current type impl info and copy new impl info into current impl info

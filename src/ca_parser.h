@@ -53,6 +53,7 @@ typedef enum {
   TTE_Range,
   TTE_FnDefImpl,
   TTE_Domain,
+  TTE_TraitFn,
   TTE_Num,
 } ASTNodeType;
 
@@ -193,6 +194,9 @@ typedef struct TStmtList {
 typedef struct TypeImplInfo {
   int class_id;
   int trait_id;
+  // for control the common function recursive define count, when count > 0 then it is implement
+  // common function, else implement the struct method, and they will use different name convention
+  int fn_def_recursive_count;
 } TypeImplInfo;
 
 typedef struct TFnDefNodeImpl {
@@ -321,6 +325,7 @@ typedef struct ASTNode {
     TVarInit varinitn;
     TFnDefNodeImpl fndefn_impl; /* for function definition in type impl */
     TDomainNames domainn; /* for domain method call */
+    TTraitFnList traitfnlistn; /* trait function list */
   };
 } ASTNode;
 
@@ -365,6 +370,7 @@ typeid_t sym_form_type_id(int id);
 typeid_t sym_form_type_id_by_str(const char *idname);
 typeid_t sym_form_label_id(int id);
 typeid_t sym_form_function_id(int fnid);
+typeid_t sym_form_method_id(int fnid, TypeImplInfo *type_impl);
 typeid_t sym_form_pointer_id(typeid_t type);
 typeid_t sym_form_array_id(typeid_t type, int dimension);
 typeid_t sym_form_tuple_id(typeid_t *types, int argc);
@@ -388,6 +394,9 @@ ASTNode *make_fn_def(ASTNode *proto, ASTNode *body);
 ASTNode *make_fn_body(ASTNode *blockbody);
 ASTNode *make_fn_def_impl_begin(ASTNode *fndef);
 ASTNode *make_fn_def_impl_next(ASTNode *impl, ASTNode *fndef);
+ASTNode *trait_fn_begin(ASTNode *fndef_proto);
+ASTNode *trait_fn_next(ASTNode *fnlist, ASTNode *fndef_proto);
+ASTNode *make_trait_defs(int trait_id, ASTNode *defs);
 ASTNode *make_fn_decl(ASTNode *proto);
 void add_fn_args_p(ST_ArgList *arglist, int varg);
 ASTNode *make_stmt_print(ASTNode *expr);
@@ -481,8 +490,6 @@ ASTNode *make_lexical_body(ASTNode *stmts);
 
 void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);
-CallParamAux *new_CallParamAux(ASTNode *param, int checked);
-void delete_CallParamAux(CallParamAux *paramaux);
 
 void yyerror(const char *s, ...);
 void caerror(const SLoc *beg, const SLoc *end, const char *s, ...);

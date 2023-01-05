@@ -111,7 +111,8 @@ extern int yychar, yylineno;
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
 %type	<astnode>	fn_unit fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
 %type	<astnode>	fn_args_p fn_args_call_or_tuple_p fn_call fn_method_call fn_domain_call
-%type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def trait_def
+%type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def
+%type	<astnode>	trait_def trait_fn_defs trait_fn_def trait_fn_defs_all
 %type	<astnode>	ifexpr stmtexpr_list_block stmtexpr_list for_stmt
 %type	<forstmtid>	for_stmt_ident
 %type	<var>		iddef iddef_typed iddef_typed_for_impl
@@ -143,7 +144,15 @@ paragraphs:	paragraphs stmt { make_paragraphs($2); }
 	|       {dot_emit("paragraphs", ""); /*empty */ } /* when not allow empty source file */
 		;
 
-fn_unit:	fn_def   { dot_emit("fn_unit", "fn_def"); }
+fn_unit:	{
+			if (current_type_impl)
+				current_type_impl->fn_def_recursive_count += 1;
+		}
+		fn_def
+		{	dot_emit("fn_unit", "fn_def"); $$ = $2;
+			if (current_type_impl)
+				current_type_impl->fn_def_recursive_count -= 1;
+		}
 	|	fn_decl  { dot_emit("fn_unit", "fn_decl"); }
 	|	type_impl{ dot_emit("fn_unit", "type_impl"); }
 		;
@@ -626,7 +635,19 @@ tuple_members:	tuple_members ',' data_type      { add_tuple_member(tuplelist_cur
 	|
 	;
 
-trait_def:	TRAIT IDENT '{' fn_proto '}' { /* NEXT TODO: */ }
+trait_def:	TRAIT IDENT '{' trait_fn_defs_all '}' { $$ = make_trait_defs($2, $4); }
+	;
+
+trait_fn_defs_all:            { $$ = trait_fn_begin(NULL); }
+	|	trait_fn_defs { $$ = $1; }
+	;
+
+trait_fn_defs:	trait_fn_defs trait_fn_def { $$ = trait_fn_next($1, $2); }
+	|	trait_fn_def { $$ = trait_fn_begin($1); }
+	;
+
+trait_fn_def:	fn_proto { $$ = $1; }
+	|	fn_def   { $$ = $1; /* for default function implementation in trait */ }
 	;
 
 type_def:	TYPE IDENT '=' data_type ';' { $$ = make_type_def($2, $4); }

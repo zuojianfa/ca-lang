@@ -1,0 +1,31 @@
+extern fn printf(format: *char, ...) -> i32;
+
+fn fibonacci(index: u32) -> i64 {
+    // 1 1 2 3 5 8 13 21 34 ...
+    if (index == 0u32 || index == 1u32) {
+	return 1;
+    }
+
+    let m: i64 = 1;
+    let n: i64 = 1;
+    let t: i64 = 0;
+    let i: u32 = 2;
+    while (i <= index) {
+	i += 1;
+	t = m + n;
+	m = n;
+	n = t;
+    }
+
+    return t;
+}
+
+fn main() {
+    let i: u32 = 0;
+    while (i <= 100000u32) {
+	let r = fibonacci(i);
+	printf("fibonacci(%2u) = %lld\n", i, r);
+	i += 1;
+    }
+}
+

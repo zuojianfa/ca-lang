@@ -1,0 +1,36 @@
+struct AA {
+}
+
+fn def() {
+    print "hello\n";
+}
+
+fn abc() {
+    struct BB {
+    }
+
+    impl BB {
+	fn print_hello(self) {
+	    def();
+	}
+    }
+
+    let bb = BB{};
+    bb.print_hello();
+}
+
+impl AA {
+    fn new() -> AA {
+	return AA{};
+    }
+
+    fn func1(self) {
+	abc();
+    }
+}
+
+fn main() {
+    let a = AA::new();
+    a.func1();
+}
+

@@ -19,4 +19,6 @@ do_test(type_impl "AA { a: 201, b: B }\nAA { a: 201, b: B }" ca domain.ca)
 do_test(type_impl "AA { a: 201, b: B }" ca return_self.ca)
 do_test(type_impl "AA { a: 572662306, b: A }\nAA { a: 572662306, b: A }\nAA { a: 572662306, b: A }\nAA { a: 572662306, b: A }\n" ca deep_inner1.ca)
 do_test(type_impl "AA { a: 286331153, b: A }\nAA { a: 286331153, b: A }" ca deep_inner2.ca)
+do_test(type_impl "hello" ca inner_call.ca)
+do_test(type_impl "hello" ca inner_call2.ca)
 

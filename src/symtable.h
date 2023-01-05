@@ -27,6 +27,7 @@ typedef enum SymType {
   Sym_FnDef,
   Sym_DataType,
   Sym_Member,
+  Sym_Trait,
 } SymType;
 
 #define MAX_ARGS 16
@@ -319,6 +320,12 @@ typedef struct CAVariableShielding {
   void *varlist;
 } CAVariableShielding;
 
+typedef struct TraitFnList {
+  int trait_id;
+  int count;
+  void *data; // vector, eacho element is a function proto or function default implementation with ASTNode *
+} TraitFnList, TTraitFnList;
+
 // for the labels the symbol name will append a prefix of 'l:' which is
 // impossible to be as a variable name. example: l:l1
 // for function it will append a prefix of 'f:'. example: f:fibs
@@ -342,6 +349,10 @@ typedef struct STEntry {
       struct SymTable *idtable; // TODO: assign symtable value for the id, and use it when unwinding type, or it have bug when not use the symbol table in the type is defining, because when unwinding, it may find the symbol in other level scope
       struct ST_RunableList runables;
     } datatype;
+
+    struct {
+      struct ASTNode *node; // the node->type must be TTE_TraitFn
+    } trait;                // when type is Sym_Trait
   } u;
 } STEntry;
 

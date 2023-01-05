@@ -66,9 +66,6 @@ std::unordered_map<typeid_t, CADataType *> s_symtable_type_map;
 std::unordered_map<typeid_t, CADataType *> s_signature_type_map;
 std::unordered_map<typeid_t, CADataType *> s_type_map;
 
-// for handling post defined functions after the calling
-std::unordered_map<typeid_t, void *> g_function_post_map;
-
 std::unordered_map<std::string, int> s_token_primitive_map {
   {"void",   VOID},
   {"short",  I16},
@@ -2459,30 +2456,6 @@ CADataType *catype_make_struct_type(int nameid, int typesize, CAStructType struc
   struct_catype->struct_layout = castruct;
 
   return struct_catype;
-}
-
-void put_post_function(typeid_t fnname, void *carrier) {
-  g_function_post_map[fnname] = carrier;
-}
-
-int exists_post_function(typeid_t fnname) {
-  auto itr = g_function_post_map.find(fnname);
-  if (itr != g_function_post_map.end())
-    return 1;
-
-  return 0;
-}
-
-void *get_post_function(typeid_t fnname) {
-  auto itr = g_function_post_map.find(fnname);
-  if (itr != g_function_post_map.end())
-    return itr->second;
-
-  return nullptr;
-}
-
-void remove_post_function(typeid_t fnname) {
-  g_function_post_map.erase(fnname);
 }
 
 int catype_check_identical(CADataType *type1, CADataType *type2) {

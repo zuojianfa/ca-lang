@@ -321,6 +321,7 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] support trait
+  - [ ] check how to implement convert trait ASTNode into trait inner object for comparing the function argument use in `make_trait_defs` or in `walk_trait_fnlist`, or record all the trait ASTNode node and parse them between pass 1 and pass 2
   - [ ] trait definition
   - [ ] trait implementation
 - [ ] support box(type) grammar a long with box(expr) grammar

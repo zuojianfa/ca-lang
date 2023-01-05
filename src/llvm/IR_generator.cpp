@@ -146,7 +146,6 @@ ir_codegen::IR1 ir1;
 
 extern SymTable g_root_symtable;
 extern ASTNode *main_fn_node;
-extern std::unordered_map<typeid_t, void *> g_function_post_map;
 
 // first walk for iterating function prototype into llvm object
 // second walk for iterating all tree nodes
@@ -4216,6 +4215,15 @@ static void walk_fn_define_impl(ASTNode *node) {
   }
 }
 
+static void walk_trait_fnlist(ASTNode *node) {
+  for (int i = 0; i < node->traitfnlistn.count; ++i) {
+    ASTNode *traitfn = (ASTNode *)vec_at(node->traitfnlistn.data, i);
+    // NEXT TODO: how to use trait
+    node->traitfnlistn.trait_id;
+    walk_stack(traitfn);
+  }
+}
+
 static void walk_struct(ASTNode *node) {
   if (walk_pass == 1)
     return;
@@ -4329,6 +4337,8 @@ static walk_fn_t walk_fn_array[TTE_Num] = {
   (walk_fn_t)walk_letbind,
   (walk_fn_t)walk_range,
   (walk_fn_t)walk_fn_define_impl,
+  (walk_fn_t)walk_empty,
+  (walk_fn_t)walk_trait_fnlist,
 };
 
 static int walk_stack(ASTNode *p) {
