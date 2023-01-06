@@ -27,7 +27,8 @@ typedef enum SymType {
   Sym_FnDef,
   Sym_DataType,
   Sym_Member,
-  Sym_Trait,
+  Sym_TraitDef,
+  Sym_TraitImpl,
 } SymType;
 
 #define MAX_ARGS 16
@@ -326,6 +327,17 @@ typedef struct TraitFnList {
   void *data; // vector, eacho element is a function proto or function default implementation with ASTNode *
 } TraitFnList, TTraitFnList;
 
+typedef struct TypeImplInfo {
+  int class_id;
+  int trait_id;
+  // the id of trait implementation for struct, created from class_id and trait_id, when is not
+  // trait implementation, it's value is typeid_novalue. The id in this struct just for performance
+  typeid_t trait_impl_id;
+  // for control the common function recursive define count, when count > 0 then it is implement
+  // common function, else implement the struct method, and they will use different name convention
+  int fn_def_recursive_count;
+} TypeImplInfo;
+
 // for the labels the symbol name will append a prefix of 'l:' which is
 // impossible to be as a variable name. example: l:l1
 // for function it will append a prefix of 'f:'. example: f:fibs
@@ -352,7 +364,11 @@ typedef struct STEntry {
 
     struct {
       struct ASTNode *node; // the node->type must be TTE_TraitFn
-    } trait;                // when type is Sym_Trait
+    } trait_def;                // when type is Sym_TraitDef
+
+    struct {
+      TypeImplInfo impl_info;
+    } trait_impl;
   } u;
 } STEntry;
 

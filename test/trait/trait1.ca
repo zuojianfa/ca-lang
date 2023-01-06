@@ -1,6 +1,15 @@
 trait TT {
 }
 
+struct AA {
+}
+
+impl TT for AA {
+}
+
+impl TT for AA {
+}
+
 fn main() {
 }
 

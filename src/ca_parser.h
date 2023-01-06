@@ -191,14 +191,6 @@ typedef struct TStmtList {
   struct ASTNode **stmts;
 } TStmtList;
 
-typedef struct TypeImplInfo {
-  int class_id;
-  int trait_id;
-  // for control the common function recursive define count, when count > 0 then it is implement
-  // common function, else implement the struct method, and they will use different name convention
-  int fn_def_recursive_count;
-} TypeImplInfo;
-
 typedef struct TFnDefNodeImpl {
   TypeImplInfo impl_info;
   int count;
@@ -492,6 +484,8 @@ void freeNode(ASTNode *p);
 NodeChain *node_chain(RootTree *tree, ASTNode *p);
 
 void yyerror(const char *s, ...);
+void caerror_source_code(const SLoc *beg, const SLoc *end);
+void caerror_noexit(const SLoc *beg, const SLoc *end, const char *s, ...);
 void caerror(const SLoc *beg, const SLoc *end, const char *s, ...);
 
 typedef CADataType *(*query_type_fn_t)(TStructFieldOp *sfopn, void **self_value);

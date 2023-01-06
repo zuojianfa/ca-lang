@@ -196,25 +196,32 @@ typeid_t sym_form_function_id(int fnid) {
   return typeid;
 }
 
+static const char *get_method_impl_prefix(int class_id, int trait_id) {
+  static char namebuf[1024];
+  assert(class_id != -1);
+  const char *clsname = catype_get_type_name(class_id);
+  if (trait_id != -1) {
+    const char *trait_name = catype_get_type_name(trait_id);
+    sprintf(namebuf, "%s::<%s>", clsname, trait_name);
+  } else {
+    sprintf(namebuf, "%s", clsname);
+  }
+
+  return namebuf;
+}
+
 typeid_t sym_form_method_id(int fnid, TypeImplInfo *type_impl) {
   const char *name = symname_get(fnid);
-  char namebuf[1024];
 
   // for struct implemention, by prepend the struct and trait name before the
   // function name it can avoid to find the struct method definition by the
   // normal function call to the same function name as defined in struct
-  assert(type_impl->class_id != -1);
-  const char *clsname = catype_get_type_name(type_impl->class_id);
-  if (type_impl->trait_id != -1) {
-    const char *trait_name = catype_get_type_name(type_impl->trait_id);
-    sprintf(namebuf, "%s::<%s>::%s", clsname, trait_name, name);
-  } else {
-    sprintf(namebuf, "%s::%s", clsname, name);
-  }
+  const char *prefix = get_method_impl_prefix(type_impl->class_id, type_impl->trait_id);
 
-  name = namebuf;
+  char namebuf[1024];
+  sprintf(namebuf, "%s::%s", prefix, name);
 
-  const char *typename = sym_form_function_name(name);
+  const char *typename = sym_form_function_name(namebuf);
   typeid_t typeid = symname_check_insert(typename);
   return typeid;
 }
@@ -267,6 +274,12 @@ typeid_t sym_form_symtable_type_id(SymTable *st, typeid_t name) {
   static char name_buf[1024];
   const char *chname = catype_get_type_name(name);
   sprintf(name_buf, "%s@%p", chname, st);
+  return symname_check_insert(name_buf);
+}
+
+typeid_t sym_form_trait_impl_by_str(const char *impl_str) {
+  static char name_buf[1024];
+  sprintf(name_buf, "i:%s", impl_str);
   return symname_check_insert(name_buf);
 }
 
@@ -386,8 +399,8 @@ ASTNode *make_trait_defs(int id, ASTNode *defs) {
      return NULL;
    }
 
-   entry = sym_check_insert(defs->symtable, trait_id, Sym_Trait);
-   entry->u.trait.node = defs;
+   entry = sym_check_insert(defs->symtable, trait_id, Sym_TraitDef);
+   entry->u.trait_def.node = defs;
 
    return defs;
 }
@@ -2928,11 +2941,39 @@ CAStructExpr structexpr_end(CAStructExpr sexpr, int name, int named) {
 }
 
 TypeImplInfo begin_impl_type(int class_id) {
-  return (TypeImplInfo){.class_id = class_id, .trait_id = -1, .fn_def_recursive_count = 0 };
+  return (TypeImplInfo) {
+    .class_id = class_id,
+    .trait_id = -1,
+    .trait_impl_id = typeid_novalue,
+    .fn_def_recursive_count = 0
+  };
 }
 
 TypeImplInfo begin_impl_trait_for_type(int class_id, int trait_id) {
-  return (TypeImplInfo){.class_id = class_id, .trait_id = trait_id, .fn_def_recursive_count = 0 };
+  const char *prefix = get_method_impl_prefix(class_id, trait_id);
+  typeid_t trait_impl_id = sym_form_trait_impl_by_str(prefix);
+
+  STEntry *entry = sym_getsym(curr_symtable, trait_impl_id, 0);
+  if (entry) {
+    SLoc stloc = {glineno, gcolno};
+    caerror_noexit(&stloc, NULL, "conflicting implementations of trait `%s` for type `%s`, already implemented"
+		   "\n\npreviously defined here:",
+		   catype_get_type_name(class_id), catype_get_type_name(trait_id));
+    caerror(&entry->sloc, NULL, "already implemented here");
+  }
+
+  TypeImplInfo type_impl = {
+    .class_id = class_id,
+    .trait_id = trait_id,
+    .trait_impl_id = trait_impl_id,
+    .fn_def_recursive_count = 0
+  };
+
+  entry = sym_insert(curr_symtable, type_impl.trait_impl_id, Sym_TraitImpl);
+  entry->sloc = (SLoc){glineno, gcolno};
+  entry->u.trait_impl.impl_info = type_impl;
+
+  return type_impl;
 }
 
 // push current type impl info and copy new impl info into current impl info
@@ -3009,7 +3050,7 @@ void yyerror(const char *s, ...) {
   exit(-1);
 }
 
-void caerror(const SLoc *beg, const SLoc *end, const char *s, ...) {
+void caerror_source_code(const SLoc *beg, const SLoc *end) {
   fprintf(stderr, "[grammar line: %d, token: %d] ", yylineno, yychar);
   int linefrom = -1;
   int lineto = -1;
@@ -3043,6 +3084,21 @@ void caerror(const SLoc *beg, const SLoc *end, const char *s, ...) {
   buffer[firstcol - 1] = '^';
   buffer[firstcol] = 0;
   fprintf(stderr, "%s\n", buffer);
+}
+
+void caerror_noexit(const SLoc *beg, const SLoc *end, const char *s, ...) {
+  caerror_source_code(beg, end);
+
+  va_list ap;
+  va_start(ap, s);
+  int n = vfprintf(stderr, s, ap);
+  va_end(ap);
+
+  fprintf(stderr, "\n");
+}
+
+void caerror(const SLoc *beg, const SLoc *end, const char *s, ...) {
+  caerror_source_code(beg, end);
 
   va_list ap;
   va_start(ap, s);

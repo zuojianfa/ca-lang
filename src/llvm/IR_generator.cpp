@@ -4206,7 +4206,49 @@ static void walk_fn_define(ASTNode * p) {
   walk_fn_define_full(p, nullptr);
 }
 
+void check_trait_impl_integrity(ASTNode *node) { 
+  int trait_id = sym_form_type_id(node->fndefn_impl.impl_info.trait_id);
+  STEntry *entry = sym_getsym(node->symtable, trait_id, 1);
+  if (!entry) {
+    caerror(&node->begloc, &node->endloc, "cannot find trait `%s` definition",
+	    catype_get_type_name(trait_id));
+    return;
+  }
+
+  ASTNode *trait_defn = entry->u.trait_def.node;
+  assert(trait_defn->traitfnlistn.trait_id == trait_id);
+  assert(trait_defn->type == TTE_TraitFn);
+
+  if (node->fndefn_impl.count != trait_defn->traitfnlistn.count) {
+    // NEXT TODO: check if they are same
+    caerror(&node->begloc, &node->endloc, "cannot find trait `%s` definition",
+	    catype_get_type_name(trait_id));
+    return;
+  }
+
+  // here may firstly state the trait implementation and trait function definition
+  // separately, and then check them if they are paired, or here first calcaulte their
+  // trait function definition firstly in the ca_parse.c, for all other implementation
+  // NEXT TODO:
+  for (int i = 0; i < node->fndefn_impl.count; ++i) {
+    // each impl node is a function definition
+    ASTNode *impl_fn_node = (ASTNode *)vec_at(node->fndefn_impl.data, i);
+  }
+
+  for (int i = 0; i < trait_defn->traitfnlistn.count; ++i) {
+    // each node in trait defs is a function declaration or default definition
+    ASTNode *trait_fn_node = (ASTNode *)vec_at(trait_defn->traitfnlistn.data, i);
+  }
+}
+
 static void walk_fn_define_impl(ASTNode *node) {
+  if (node->fndefn_impl.impl_info.trait_id != -1) {
+    check_trait_impl_integrity(node);
+  }
+
+  // NEXT TODO: make the trait implemented function / method into the trait map in struct
+  // implementation entry: currently all put into the struct implementation map, we need split
+  // the implementation into different area for different trait
   void *handle = node->fndefn_impl.data;
 
   for (int i = 0; i < node->fndefn_impl.count; ++i) {
@@ -4219,8 +4261,8 @@ static void walk_trait_fnlist(ASTNode *node) {
   for (int i = 0; i < node->traitfnlistn.count; ++i) {
     ASTNode *traitfn = (ASTNode *)vec_at(node->traitfnlistn.data, i);
     // NEXT TODO: how to use trait
-    node->traitfnlistn.trait_id;
-    walk_stack(traitfn);
+    //node->traitfnlistn.trait_id;
+    //walk_stack(traitfn);
   }
 }
 
