@@ -210,13 +210,13 @@ static const char *get_method_impl_prefix(int class_id, int trait_id) {
   return namebuf;
 }
 
-typeid_t sym_form_method_id(int fnid, TypeImplInfo *type_impl) {
+typeid_t sym_form_method_id(int fnid, int class_id, int trait_id) {
   const char *name = symname_get(fnid);
 
   // for struct implemention, by prepend the struct and trait name before the
   // function name it can avoid to find the struct method definition by the
   // normal function call to the same function name as defined in struct
-  const char *prefix = get_method_impl_prefix(type_impl->class_id, type_impl->trait_id);
+  const char *prefix = get_method_impl_prefix(class_id, trait_id);
 
   char namebuf[1024];
   sprintf(namebuf, "%s::%s", prefix, name);
@@ -1550,7 +1550,7 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     break;
   }
   case FN_CALL: {
-    // NEXT TODO: handle method call and domain call when idn is not normal id
+    // handle calls call when idn is all kinds of call type
     // get function return type
     ASTNode *idn = node->exprn.operands[0];
     switch (idn->type) {
@@ -2422,8 +2422,10 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
 
   typeid_t fnname = typeid_novalue;
-  if (current_type_impl && current_type_impl->fn_def_recursive_count == 0)
-    fnname = sym_form_method_id(fnid, current_type_impl);
+  if (current_trait_id)
+    fnname = sym_form_method_id(fnid, current_trait_id, -1);
+  else if (current_type_impl && current_type_impl->fn_def_recursive_count == 0)
+    fnname = sym_form_method_id(fnid, current_type_impl->class_id, current_type_impl->trait_id);
   else
     fnname = sym_form_function_id(fnid);
 
@@ -2443,8 +2445,7 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   SLoc end = {glineno, gcolno};
 
   if (check_tuple_name(fnid)) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "function '%s' already defined as tuple in previous",
+    caerror(&beg, NULL, "function '%s' already defined as tuple in previous",
 	    symname_get(fnid));
     return NULL;
   }
@@ -2466,34 +2467,44 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
     return decln;
   } else {
     if (entry) {
+      if (current_trait_id) {
+	caerror(&beg, NULL, "trait method '%s' already defined on line %d, col %d.",
+		symname_get(fnname), entry->sloc.row, entry->sloc.col);
+	return NULL;
+      }
+
       if (entry->sym_type == Sym_FnDef) {
-	SLoc stloc = {glineno, gcolno};
-	caerror(&stloc, NULL, "function '%s' already defined on line %d, col %d.",
+	caerror(&beg, NULL, "function '%s' already defined on line %d, col %d.",
 		symname_get(fnname), entry->sloc.row, entry->sloc.col);
 	return NULL;
       }
 
       if (entry->sym_type == Sym_FnDecl) {
 	entry->sym_type = Sym_FnDef;
-	SLoc loc = {glineno, gcolno};
-	entry->sloc = loc;
+	entry->sloc = beg;
       } else {
-	SLoc stloc = {glineno, gcolno};
-	caerror(&stloc, NULL, "name '%s' is not a function defined on line %d, col %d.",
+	caerror(&beg, NULL, "name '%s' is not a function defined on line %d, col %d.",
 		symname_get(fnname), entry->sloc.row, entry->sloc.col);
 	return NULL;
       }
 
       pre_check_fn_proto(entry, fnname, arglist, rettype);
     } else {
-      entry = sym_check_insert(symtable, fnname, Sym_FnDef);
+      entry = sym_check_insert(symtable, fnname, current_trait_id ? Sym_FnDecl : Sym_FnDef);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
       *entry->u.f.arglists = *arglist;
     }
     entry->u.f.rettype = rettype;
 
-    ASTNode *defn = build_fn_define(fnname, arglist, rettype, beg, end);
-    return defn;
+    ASTNode *node = current_trait_id
+                        ? build_fn_decl(fnname, arglist, rettype, beg, end)
+                        : build_fn_define(fnname, arglist, rettype, beg, end);
+
+    // fix the symbol table, when function can defined in inner scope, the symbol table should used
+    // the parent symbol table
+    //node->symtable = symtable;
+
+    return node;
   }
 }
 

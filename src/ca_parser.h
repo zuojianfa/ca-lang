@@ -362,7 +362,7 @@ typeid_t sym_form_type_id(int id);
 typeid_t sym_form_type_id_by_str(const char *idname);
 typeid_t sym_form_label_id(int id);
 typeid_t sym_form_function_id(int fnid);
-typeid_t sym_form_method_id(int fnid, TypeImplInfo *type_impl);
+typeid_t sym_form_method_id(int fnid, int class_id, int trait_id);
 typeid_t sym_form_pointer_id(typeid_t type);
 typeid_t sym_form_array_id(typeid_t type, int dimension);
 typeid_t sym_form_tuple_id(typeid_t *types, int argc);

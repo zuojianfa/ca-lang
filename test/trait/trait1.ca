@@ -1,6 +1,9 @@
 trait TT {
     fn output(self);
     fn add(self, a: i32, b: i32) -> i32;
+    fn sub(self, a: i32, b: i32) -> i32 {
+	return a - b;
+    }
 }
 
 // struct AA {

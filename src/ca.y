@@ -635,7 +635,7 @@ tuple_members:	tuple_members ',' data_type      { add_tuple_member(tuplelist_cur
 	|
 	;
 
-trait_def:	TRAIT IDENT { current_trait_id = $2; }
+trait_def:	TRAIT IDENT { current_trait_id = sym_form_type_id($2); }
 		'{' trait_fn_defs_all '}' { $$ = make_trait_defs($2, $5); current_trait_id = 0; }
 	;
 

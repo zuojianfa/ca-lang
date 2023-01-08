@@ -895,14 +895,39 @@ GeneralRange *general_range_init(GeneralRange *gr, short inclusive,
   return gr;
 }
 
+struct TraitNodeInfo {
+  std::map<typeid_t, ASTNode *> fnnodes;
+  std::set<typeid_t> ids_with_def; // the function id with default function definition
+  std::set<typeid_t> ids_no_def;
+};
+
 void *sym_create_trait_defs_entry(ASTNode *node) {
-  // reorgnize the trait function defines, distinguish the functions with implements
+  TraitNodeInfo *info = new TraitNodeInfo;
+
+  // reorganize the trait function defines, distinguish the functions with implements
   for (int i = 0; i < node->traitfnlistn.count; ++i) {
     ASTNode *fnnode = (ASTNode *)vec_at(node->traitfnlistn.data, i);
     assert(fnnode->type == TTE_FnDecl || fnnode->type == TTE_FnDef);
-  }
+    typeid_t name = typeid_novalue;
+    switch (fnnode->type) {
+    case TTE_FnDecl:
+      name = fnnode->fndecln.name;
+      info->fnnodes.insert(std::make_pair(name, fnnode));
+      info->ids_no_def.insert(name);
+      break;
+    case TTE_FnDef:
+      name = fnnode->fndefn.fn_decl->fndecln.name;
+      info->fnnodes.insert(std::make_pair(name, fnnode));
+      info->ids_with_def.insert(name);
+      break;
+    default:
+      caerror(&node->begloc, &node->endloc, "bad ast node type `%d` for trait `%s`",
+	      fnnode->type, catype_get_type_name(node->traitfnlistn.trait_id));
+      break;
+    }
+  } 
 
-  return nullptr;
+  return info;
 }
 
 END_EXTERN_C
