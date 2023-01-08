@@ -364,6 +364,7 @@ typedef struct STEntry {
 
     struct {
       struct ASTNode *node; // the node->type must be TTE_TraitFn
+      void *trait_entry;
     } trait_def;                // when type is Sym_TraitDef
 
     struct {
@@ -516,7 +517,10 @@ int set_exists(void *handle, void *item);
 void set_drop(void *handle);
 
 GeneralRange *general_range_init(GeneralRange *gr, short inclusive,
-				 struct ASTNode *start, struct ASTNode *end);
+                                 struct ASTNode *start, struct ASTNode *end);
+
+// create trait defines entry data for convenient use 
+void *sym_create_trait_defs_entry(struct ASTNode *node);
 
 #ifdef __cplusplus
 END_EXTERN_C

@@ -37,8 +37,8 @@ extern SymTable *curr_symtable;
 /* mainly for label processing, because label is function scope symbol */
 extern SymTable *curr_fn_symtable;
 extern SymTable *g_main_symtable;
-extern TypeImplInfo current_type_impl_buffer;
 extern TypeImplInfo *current_type_impl;
+extern int current_trait_id;
 
 extern int extern_flag;
 extern ST_ArgList curr_arglist;
@@ -635,7 +635,8 @@ tuple_members:	tuple_members ',' data_type      { add_tuple_member(tuplelist_cur
 	|
 	;
 
-trait_def:	TRAIT IDENT '{' trait_fn_defs_all '}' { $$ = make_trait_defs($2, $4); }
+trait_def:	TRAIT IDENT { current_trait_id = $2; }
+		'{' trait_fn_defs_all '}' { $$ = make_trait_defs($2, $5); current_trait_id = 0; }
 	;
 
 trait_fn_defs_all:            { $$ = trait_fn_begin(NULL); }
@@ -646,7 +647,7 @@ trait_fn_defs:	trait_fn_defs trait_fn_def { $$ = trait_fn_next($1, $2); }
 	|	trait_fn_def { $$ = trait_fn_begin($1); }
 	;
 
-trait_fn_def:	fn_proto { $$ = $1; }
+trait_fn_def:	fn_proto ';' { $$ = $1; }
 	|	fn_def   { $$ = $1; /* for default function implementation in trait */ }
 	;
 

@@ -66,6 +66,8 @@ std::unordered_map<typeid_t, CADataType *> s_symtable_type_map;
 std::unordered_map<typeid_t, CADataType *> s_signature_type_map;
 std::unordered_map<typeid_t, CADataType *> s_type_map;
 
+CADataType *g_catype_void_ptr = nullptr;
+
 std::unordered_map<std::string, int> s_token_primitive_map {
   {"void",   VOID},
   {"short",  I16},
@@ -344,6 +346,8 @@ int catype_init() {
   datatype = catype_make_type("t:u8", U8, 1);// u8
   name = symname_check_insert("t:uchar");
   catype_put_primitive_by_name(name, datatype); // uchar
+
+  g_catype_void_ptr = catype_make_pointer_type(datatype);
 
   return 0;
 }

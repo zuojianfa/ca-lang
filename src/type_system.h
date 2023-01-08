@@ -11,6 +11,8 @@
 BEGIN_EXTERN_C
 #endif
 
+extern CADataType *g_catype_void_ptr;
+
 const char *get_printf_format(int type);
 bool catype_is_signed(tokenid_t type);
 bool catype_is_unsigned(tokenid_t type);

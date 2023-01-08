@@ -77,8 +77,8 @@ typeid_t curr_fn_rettype = 0;
 int g_node_seqno = 0;
 
 TypeImplInfo *current_type_impl = NULL;
-TypeImplInfo current_type_impl_buffer;
 void *type_impl_stack = NULL;
+int current_trait_id = 0;
 
 extern int glineno_prev;
 extern int gcolno_prev;
@@ -401,6 +401,7 @@ ASTNode *make_trait_defs(int id, ASTNode *defs) {
 
    entry = sym_check_insert(defs->symtable, trait_id, Sym_TraitDef);
    entry->u.trait_def.node = defs;
+   entry->u.trait_def.trait_entry = sym_create_trait_defs_entry(defs);
 
    return defs;
 }

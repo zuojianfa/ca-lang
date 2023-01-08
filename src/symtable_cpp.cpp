@@ -34,6 +34,7 @@ BEGIN_EXTERN_C
 extern int glineno;
 extern int gcolno;
 extern SymTable *curr_symtable;
+extern int current_trait_id;
 END_EXTERN_C
 
 extern std::unordered_map<std::string, int> s_token_map;
@@ -317,8 +318,8 @@ CAVariable *cavar_create_with_loc(int name, typeid_t datatype, SLoc *loc) {
 
 CAVariable *cavar_create_self(int name) {
   SLoc stloc = {glineno, gcolno};
-  if (!current_type_impl) {
-    caerror(&stloc, NULL, "self used in non type implemention is not allowed");
+  if (!current_type_impl && !current_trait_id) {
+    caerror(&stloc, NULL, "self used in non type implemention or trait is not allowed");
     return nullptr;
   }
 
@@ -328,9 +329,10 @@ CAVariable *cavar_create_self(int name) {
     return nullptr;
   }
 
-  typeid_t datatype = current_type_impl->class_id;
   CAVariable *var = new CAVariable;
-  var->datatype = make_pointer_type(datatype);
+  var->datatype = current_type_impl
+                      ? make_pointer_type(current_type_impl->class_id)
+                      : g_catype_void_ptr->signature;
   var->loc = stloc;
   var->name = name;
   var->llvm_value = nullptr;
@@ -891,6 +893,16 @@ GeneralRange *general_range_init(GeneralRange *gr, short inclusive,
     gr->type = inclusive ? InclusiveRangeTo : RightExclusiveRangeTo;
 
   return gr;
+}
+
+void *sym_create_trait_defs_entry(ASTNode *node) {
+  // reorgnize the trait function defines, distinguish the functions with implements
+  for (int i = 0; i < node->traitfnlistn.count; ++i) {
+    ASTNode *fnnode = (ASTNode *)vec_at(node->traitfnlistn.data, i);
+    assert(fnnode->type == TTE_FnDecl || fnnode->type == TTE_FnDef);
+  }
+
+  return nullptr;
 }
 
 END_EXTERN_C
