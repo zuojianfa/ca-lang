@@ -24,6 +24,7 @@
 */
 
 #include "type_system.h"
+#include "ca_parser.h"
 #include "strutil.h"
 
 #include "ca_types.h"
@@ -309,6 +310,7 @@ int catype_init() {
   CADataType *datatype;
   int name;
   datatype = catype_make_type("t:void", VOID, 0); // void
+  CADataType *datatype_void_ptr = datatype;
 
   datatype = catype_make_type("t:i16", I16, 2); // i16
   name = symname_check_insert("t:short");
@@ -2516,9 +2518,14 @@ const char *catype_remove_impl_prefix(const char *name) {
     return name;
 }
 
-typeid_t catype_struct_impl_id_to_function_name(typeid_t fnname) {
+const char *catype_struct_impl_id_to_function_name_str(typeid_t fnname) {
   const char *local_name_impl = catype_get_function_name(fnname);
   const char *local_name = catype_remove_impl_prefix(local_name_impl);
+  return local_name;
+}
+
+typeid_t catype_struct_impl_id_to_function_name(typeid_t fnname) {
+  const char *local_name = catype_struct_impl_id_to_function_name_str(fnname);
   return symname_check_insert(local_name);
 }
 
@@ -2547,6 +2554,16 @@ int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, con
     return 1;
 
   return -1;
+}
+
+typeid_t catype_trait_self_id() {
+  typeid_t self = sym_form_type_id_by_str(CSELF);
+  return self;
+}
+
+typeid_t catype_trait_self_ptr_id() {
+  typeid_t self = catype_trait_self_id();
+  return sym_form_pointer_id(self);
 }
 
 // unwind the type into type object, when have object like members

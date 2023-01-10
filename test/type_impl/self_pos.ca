@@ -1,0 +1,11 @@
+struct AA {
+}
+
+impl AA {
+    fn func1(a: i32, self: i32) {
+    }
+}
+
+fn main() {
+}
+

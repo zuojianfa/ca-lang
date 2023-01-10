@@ -162,7 +162,7 @@ type_impl:	type_impl_head  { push_type_impl(&$1); }
 	;
 
 type_impl_head:	IMPL ident_type { $$ = begin_impl_type($2); }
-	|	IMPL ident_type FOR ident_type { $$ = begin_impl_trait_for_type($2, $4); }
+	|	IMPL ident_type FOR ident_type { $$ = begin_impl_trait_for_type($4, $2); }
 	;
 
 fn_impl_defs_all:

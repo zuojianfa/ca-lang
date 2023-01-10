@@ -55,6 +55,7 @@
 #include "ca_runtime.h"
 #include "config.h"
 #include "symtable.h"
+#include "symtable_cpp.h"
 
 // llvm section
 #include "ir1.h"
@@ -3124,8 +3125,6 @@ static STEntry *sym_get_function_entry_for_method_value(ASTNode *name, Value **s
 // the expression call may be a function call or tuple literal definition,
 // because the tuple literal form is the same as function, so handle it here
 static void walk_expr_call(ASTNode *p) {
-  // NEXT TODO: how to handle the domain call AAA::method1(); use full path form?
-  // and the object call aa.method1(); aa->method2(); use struct entry sub form?
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
 
@@ -3947,7 +3946,7 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
     if (lexical_scope_stack.size() == 1)
       return catype_get_function_name(fnname);
 
-    auto trail_name_fn = [fnname](std::stringstream &name, bool first_pass) {
+    auto trait_name_fn = [fnname](std::stringstream &name, bool first_pass) {
       if (first_pass) {
         name << 'F';
       } else {
@@ -3956,7 +3955,7 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
         name << len << local_name;
       }
     };
-    return mangling_function_name_nottype(lexical_scope_stack.size(), trail_name_fn);
+    return mangling_function_name_nottype(lexical_scope_stack.size(), trait_name_fn);
   }
 
   if (impl_info->class_id == -1) {
@@ -3987,7 +3986,7 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
     return nullptr;
   }
 
-  auto trail_name_fn = [fnname, impl_info](std::stringstream &name, bool first_pass) {
+  auto trait_name_fn = [fnname, impl_info](std::stringstream &name, bool first_pass) {
     if (first_pass) {
       // for implementing struct mangling name with `struct + function`
       // for implementing trait for struct mangling name with `trait + struct + function`
@@ -3996,7 +3995,7 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
       }
       name << "SF";
     } else {
-      // NEXT TODO: implement trait mangling considering traits path
+      // NEXT TODO: implement trait mangling considering traits path, trait has it's own path
       if (impl_info->trait_id != -1) {
         const char *trait_name = catype_get_type_name(impl_info->trait_id);
         size_t len = strlen(trait_name);
@@ -4008,14 +4007,13 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
       name << len << struct_name;
 
       // the local_name here is in the struct impl form: AAA::func or Struct1::<Trait1>::func1
-      const char *local_name_impl = catype_get_function_name(fnname);
-      const char *local_name = catype_remove_impl_prefix(local_name_impl);
+      const char *local_name = catype_struct_impl_id_to_function_name_str(fnname);
       len = strlen(local_name);
       name << len << local_name;
     }
   };
 
-  return mangling_function_name_nottype(pos + 1, trail_name_fn);
+  return mangling_function_name_nottype(pos + 1, trait_name_fn);
 }
 
 static Function *walk_fn_declare_full(ASTNode *p, TypeImplInfo *impl_info) {
@@ -4206,8 +4204,162 @@ static void walk_fn_define(ASTNode * p) {
   walk_fn_define_full(p, nullptr);
 }
 
-void check_trait_impl_integrity(ASTNode *node) { 
-  int trait_id = sym_form_type_id(node->fndefn_impl.impl_info.trait_id);
+static void set_difference(const std::map<typeid_t, struct ASTNode *> &s1,
+                           const std::set<typeid_t> &s2,
+                           std::set<typeid_t> &diff) {
+  diff.clear();
+  auto iter1 = s1.begin();
+  auto iter2 = s2.begin();
+  while (iter1 != s1.end() && iter2 != s2.end()) {
+    if (iter1->first < *iter2) {
+      diff.insert(iter1->first);
+      ++iter1;
+    } else if (iter1->first == *iter2) {
+      ++iter1;
+      ++iter2;
+    } else {
+      ++iter2;
+    }
+  }
+
+  while (iter1 != s1.end()) {
+    diff.insert(iter1->first);
+    ++iter1;
+  }
+}
+
+static bool compare_self_type(CADataType *cls_catype, ASTNode *traitfnn, ASTNode *implfnn, bool &self_param_checked) {
+  ST_ArgList &trait_args = traitfnn->fndecln.args;
+  ST_ArgList &impl_args = implfnn->fndecln.args;
+
+  self_param_checked = false;
+  if (trait_args.argc > 0) {
+    if (!strcmp(symname_get(trait_args.argnames[0]), OSELF) ||
+	!strcmp(symname_get(impl_args.argnames[0]), OSELF)) {
+      // check self name
+      if (trait_args.argnames[0] != impl_args.argnames[0]) {
+        caerror_noexit(&implfnn->begloc, &implfnn->endloc,
+                       "method `%s` has an incompatible type for trait\n"
+                       "first parameter name is `%s`\n\n"
+                       "note: type in trait",
+                       catype_get_type_name(traitfnn->fndecln.name),
+                       symname_get(impl_args.argnames[0]));
+        caerror_noexit(&traitfnn->begloc, &traitfnn->endloc,
+                       "first parameter name is `%s`",
+                       symname_get(trait_args.argnames[0]));
+        return false;
+      }
+
+      // check trait self type
+      typeid_t trait_self_ptr_id = catype_trait_self_ptr_id();
+      STEntry *trait_entry = sym_getsym(trait_args.symtable, trait_args.argnames[0], 0);
+      typeid_t trait_type = trait_entry->u.varshielding.current->datatype;
+      if (trait_type != trait_self_ptr_id) {
+        caerror_noexit(&traitfnn->begloc, &traitfnn->endloc,
+		       "invalid `self` parameter type: %s\n"
+                       "note: type of `self` must be `Self`\n"
+		       "help: consider changing to `self`",
+		       catype_get_type_name(trait_type));
+	return false;
+      }
+
+      // check impl self type, the self type must be the struct pointer type
+      STEntry *impl_entry = sym_getsym(impl_args.symtable, impl_args.argnames[0], 0);
+      typeid_t impl_type = impl_entry->u.varshielding.current->datatype;
+      CADataType *impl_catype = catype_get_by_name(impl_args.symtable, impl_type);
+
+      if (impl_catype->type != POINTER ||
+          impl_catype->pointer_layout->type->signature != cls_catype->signature) {
+        caerror_noexit(&implfnn->begloc, &implfnn->endloc,
+                       "invalid `self` parameter type: %s\n"
+                       "note: type of `self` must be `Self`\n"
+                       "help: consider changing to `self`",
+                       catype_get_type_name(impl_catype->signature));
+        return false;
+      }
+
+      self_param_checked = true;
+    }
+  }
+
+  return true;
+}
+
+static bool compare_trait_and_impl_args(CADataType *cls_catype, ASTNode *traitfnn, ASTNode *implfnn) {
+  ST_ArgList &trait_args = traitfnn->fndecln.args;
+  ST_ArgList &impl_args = implfnn->fndecln.args;
+
+  // check parameter numbers
+  if (trait_args.argc != impl_args.argc) {
+    caerror_noexit(&implfnn->begloc, &implfnn->endloc,
+		   "method `%s` has an incompatible argument number `%d` with trait `%d`",
+		   catype_get_type_name(implfnn->fndecln.name), impl_args.argc, trait_args.argc);
+    caerror_noexit(&traitfnn->begloc, &traitfnn->endloc, "");
+    return false;
+  }
+
+  // check self parameter
+  bool self_param_checked = false;
+  if (!compare_self_type(cls_catype, traitfnn, implfnn, self_param_checked)) {
+    return false;
+  }
+
+  // check parameters
+  for (int i = self_param_checked ? 1 : 0; i < trait_args.argc; ++i) {
+    STEntry *trait_entry = sym_getsym(trait_args.symtable, trait_args.argnames[i], 0);
+    typeid_t trait_type = trait_entry->u.varshielding.current->datatype;
+    CADataType *trait_catype = catype_get_by_name(trait_args.symtable, trait_type);
+
+    STEntry *impl_entry = sym_getsym(impl_args.symtable, impl_args.argnames[i], 0);
+    typeid_t impl_type = impl_entry->u.varshielding.current->datatype;
+    CADataType *impl_catype = catype_get_by_name(impl_args.symtable, impl_type);
+    if (trait_catype->signature != impl_catype->signature) {
+      caerror_noexit(&implfnn->begloc, &implfnn->endloc,
+                     "method `%s` has an incompatible type for trait\n"
+		     "`%s` is of type `%s`\n\n"
+                     "note: type in trait",
+                     catype_get_type_name(traitfnn->fndecln.name),
+		     symname_get(impl_args.argnames[i]),
+                     catype_get_type_name(impl_catype->signature)
+		     );
+      caerror_noexit(&traitfnn->begloc, &traitfnn->endloc, "`%s` is of type `%s`",
+		     symname_get(trait_args.argnames[i]),
+                     catype_get_type_name(trait_catype->signature)
+		     );
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool compare_trait_and_impl_signature(CADataType *cls_catype, ASTNode *traitfnn, ASTNode *implfnn) {
+  assert(traitfnn->type == TTE_FnDecl && implfnn->type == TTE_FnDecl);
+
+  // check return code
+  CADataType *trait_ret_catype = catype_get_by_name(traitfnn->symtable, traitfnn->fndecln.ret);
+  CADataType *impl_ret_catype = catype_get_by_name(implfnn->symtable, implfnn->fndecln.ret);
+  if (trait_ret_catype->signature != impl_ret_catype->signature) {
+    caerror_noexit(&implfnn->begloc, &implfnn->endloc, "method `%s` has an incompatible type for trait",
+		   "\n\nnote: type in trait",
+		   catype_get_type_name(traitfnn->fndecln.name));
+    caerror_noexit(&traitfnn->begloc, &traitfnn->endloc, "");
+    return false;
+  }
+
+  typeid_t purename_trait = catype_struct_impl_id_to_function_name(traitfnn->fndecln.name);
+  typeid_t purename_impl = catype_struct_impl_id_to_function_name(implfnn->fndecln.name);
+  if (purename_trait != purename_impl) {
+    caerror_noexit(&implfnn->begloc, &implfnn->endloc, "strange: impl name `%s` not equal to trait name `%s`",
+		   symname_get(traitfnn->fndecln.name), symname_get(implfnn->fndecln.name));
+    return false;
+  }
+
+  return compare_trait_and_impl_args(cls_catype, traitfnn, implfnn);
+}
+
+static void check_trait_impl_match(ASTNode *node, std::vector<std::pair<typeid_t, ASTNode *>> &use_default_impls) {
+  int trait_id = node->fndefn_impl.impl_info.trait_id;
   STEntry *entry = sym_getsym(node->symtable, trait_id, 1);
   if (!entry) {
     caerror(&node->begloc, &node->endloc, "cannot find trait `%s` definition",
@@ -4215,36 +4367,77 @@ void check_trait_impl_integrity(ASTNode *node) {
     return;
   }
 
+  // TODO: remove 3 lines, seems useless
   ASTNode *trait_defn = entry->u.trait_def.node;
   assert(trait_defn->traitfnlistn.trait_id == trait_id);
   assert(trait_defn->type == TTE_TraitFn);
 
-  if (node->fndefn_impl.count != trait_defn->traitfnlistn.count) {
-    // NEXT TODO: check if they are same
-    caerror(&node->begloc, &node->endloc, "cannot find trait `%s` definition",
-	    catype_get_type_name(trait_id));
-    return;
-  }
+  // each node in trait defs is a function declaration or default definition
+  TraitNodeInfo *trait_info = (TraitNodeInfo *)entry->u.trait_def.trait_entry;
 
-  // here may firstly state the trait implementation and trait function definition
-  // separately, and then check them if they are paired, or here first calcaulte their
-  // trait function definition firstly in the ca_parse.c, for all other implementation
-  // NEXT TODO:
+  CADataType *cls_catype = catype_get_by_name(node->symtable, node->fndefn_impl.impl_info.class_id);
+
+  // the trait function definition calcaulted firstly in sym_create_trait_defs_entry
+  std::set<typeid_t> fnids_impls;
   for (int i = 0; i < node->fndefn_impl.count; ++i) {
     // each impl node is a function definition
     ASTNode *impl_fn_node = (ASTNode *)vec_at(node->fndefn_impl.data, i);
+    ASTNode *decln = impl_fn_node->fndefn.fn_decl;
+    typeid_t purename = catype_struct_impl_id_to_function_name(decln->fndecln.name);
+    auto iter = trait_info->fnnodes.find(purename);
+    if (iter == trait_info->fnnodes.end()) {
+      caerror(&impl_fn_node->begloc, &impl_fn_node->endloc, "method `%s` is not a member of trait `%s`",
+	      catype_get_type_name(decln->fndecln.name), catype_get_type_name(impl_fn_node->fndefn.fn_decl->fndecln.name));
+      return;
+    }
+
+    if (!compare_trait_and_impl_signature(cls_catype, iter->second->fndefn.fn_decl, decln)) {
+      caerror(&impl_fn_node->begloc, &impl_fn_node->endloc, "method `%s` signature not match trait `%s`",
+	      catype_get_type_name(decln->fndecln.name), catype_get_type_name(impl_fn_node->fndefn.fn_decl->fndecln.name));
+      return;
+    }
+
+    fnids_impls.insert(purename);
   }
 
-  for (int i = 0; i < trait_defn->traitfnlistn.count; ++i) {
-    // each node in trait defs is a function declaration or default definition
-    ASTNode *trait_fn_node = (ASTNode *)vec_at(trait_defn->traitfnlistn.data, i);
+  // check not implemented method for trait
+  std::set<typeid_t> fnids_not_impls;
+  set_difference(trait_info->fnnodes, fnids_impls, fnids_not_impls);
+
+  std::vector<typeid_t> missing_impls;
+  if (!fnids_not_impls.empty()) {
+    std::stringstream ss;
+    for (auto iter = fnids_not_impls.begin(); iter != fnids_not_impls.end(); ++iter) {
+      auto iter_find = trait_info->ids_no_def.find(*iter);
+      if (iter_find != trait_info->ids_no_def.end()) {
+	missing_impls.push_back(*iter_find);
+	const char *local_name = symname_get(*iter_find);
+	ss << '`' << local_name << '`' << ", ";
+      }
+    }
+
+    if (!missing_impls.empty()) {
+      std::string s = ss.str();
+      s.pop_back();
+      s.pop_back();
+      caerror(&node->begloc, &node->endloc, "not all trait items implemented, missing: %s", s.c_str());
+      return;
+    }
+  }
+
+  for (auto iter = fnids_not_impls.begin(); iter != fnids_not_impls.end(); ++iter) {
+    use_default_impls.push_back(std::make_pair(*iter, trait_info->fnnodes[*iter]));
   }
 }
 
 static void walk_fn_define_impl(ASTNode *node) {
+  std::vector<std::pair<typeid_t, ASTNode *>> use_default_impls;
   if (node->fndefn_impl.impl_info.trait_id != -1) {
-    check_trait_impl_integrity(node);
+    check_trait_impl_match(node, use_default_impls);
   }
+
+  // NEXT TODO: implement the function impl which resident in node in normal case, but with trait signature
+  // NEXT TODO: copy ASTNode and implement the function impl in use_default_impls
 
   // NEXT TODO: make the trait implemented function / method into the trait map in struct
   // implementation entry: currently all put into the struct implementation map, we need split

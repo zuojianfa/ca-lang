@@ -61,10 +61,13 @@ int catype_check_identical_in_symtable_witherror(SymTable *st1, typeid_t type1,
 const char *catype_get_function_name(typeid_t fnname);
 const char *catype_get_type_name(typeid_t type);
 const char *catype_remove_impl_prefix(const char *name);
+const char *catype_struct_impl_id_to_function_name_str(typeid_t fnname);
 typeid_t catype_struct_impl_id_to_function_name(typeid_t fnname);
 typeid_t catype_unwind_type_signature(SymTable *symtable, typeid_t name,
                                       int *typesize, CADataType **retdt);
 
+typeid_t catype_trait_self_ptr_id();
+typeid_t catype_trait_self_id();
 void debug_catype_datatype(const CADataType *datatype);
 int extract_function_or_tuple(SymTable *symtable, int name, STEntry **entry, const char **fnname);
 int can_type_binding(CALiteral *lit, tokenid_t typetok);

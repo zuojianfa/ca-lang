@@ -1,16 +1,30 @@
 trait TT {
+    fn no_self_fn1();
+    fn no_self_fn2(p1: i32);
     fn output(self);
-    fn add(self, a: i32, b: i32) -> i32;
-    fn sub(self, a: i32, b: i32) -> i32 {
-	return a - b;
-    }
+    // fn add(self, a: i32, b: i32) -> i32;
+    // fn sub(self, a: i32, b: i32) -> i32 {
+    // 	return a - b;
+    // }
+    // fn div(self, a: i32, b: i32) -> i32 {
+    // 	return a / b;
+    // }
 }
 
-// struct AA {
-// }
+struct AA {
+}
 
-// impl TT for AA {
-// }
+impl TT for AA {
+    fn no_self_fn1() {
+    }
+
+    fn no_self_fn2(p2: i32) {
+    }
+
+    fn output(self) {
+    }
+    
+}
 
 fn main() {
 }

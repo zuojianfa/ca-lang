@@ -702,10 +702,11 @@ int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
   dot_emit("fn_args_p", "fn_args_p ',' iddef_typed");
   // or
   dot_emit("fn_args_p", "iddef_typed");
-  
+
+  SLoc stloc = {glineno, gcolno};
+
     int name = var->name;
     if (arglist->argc >= MAX_ARGS) {
-	SLoc stloc = {glineno, gcolno};
 	caerror(&stloc, NULL, "too many args '%s', max args support is %d",
 		symname_get(name), MAX_ARGS);
 	return -1;
@@ -713,7 +714,6 @@ int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
 
     STEntry *entry = sym_getsym(st, name, 0);
     if (entry) {
-	SLoc stloc = {glineno, gcolno};
 	caerror(&stloc, NULL, "parameter '%s' already defined on line %d, col %d.",
 		symname_get(name), entry->sloc.row, entry->sloc.col);
 	return -1;
@@ -722,6 +722,7 @@ int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
     entry = sym_insert(st, name, Sym_Variable);
     entry->u.varshielding.current = cavar_create(name, var->datatype);
     arglist->argnames[arglist->argc++] = name;
+    entry->sloc = var->loc;
     return 0;
 }
 
@@ -2418,6 +2419,18 @@ static STEntry *check_tuple_name(int id) {
   return NULL;
 }
 
+static void check_arglist_names(ST_ArgList *arglist) {
+  if (current_trait_id || (current_type_impl && current_type_impl->fn_def_recursive_count == 0)) {
+    for (int i = 1; i < arglist->argc; ++i) {
+      const char *argname = symname_get(arglist->argnames[i]);
+      if (!strcmp(argname, OSELF)) {
+	STEntry *entry = sym_getsym(arglist->symtable, arglist->argnames[i], 0);
+	caerror(&entry->sloc, NULL, "`self` must be the first parameter of an associated function");
+      }
+    }
+  }
+}
+
 ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
 
@@ -2428,6 +2441,8 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
     fnname = sym_form_method_id(fnid, current_type_impl->class_id, current_type_impl->trait_id);
   else
     fnname = sym_form_function_id(fnid);
+
+  check_arglist_names(arglist);
 
   // replace Self with the real struct name
   if (current_type_impl) {
@@ -2490,21 +2505,19 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
 
       pre_check_fn_proto(entry, fnname, arglist, rettype);
     } else {
-      entry = sym_check_insert(symtable, fnname, current_trait_id ? Sym_FnDecl : Sym_FnDef);
+      entry = sym_check_insert(symtable, fnname, Sym_FnDef);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
       *entry->u.f.arglists = *arglist;
     }
     entry->u.f.rettype = rettype;
 
-    ASTNode *node = current_trait_id
-                        ? build_fn_decl(fnname, arglist, rettype, beg, end)
-                        : build_fn_define(fnname, arglist, rettype, beg, end);
+    ASTNode *defn = build_fn_define(fnname, arglist, rettype, beg, end);
 
     // fix the symbol table, when function can defined in inner scope, the symbol table should used
     // the parent symbol table
     //node->symtable = symtable;
 
-    return node;
+    return defn;
   }
 }
 
