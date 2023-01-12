@@ -4083,7 +4083,7 @@ static Function *walk_fn_declare_full(ASTNode *p, TypeImplInfo *impl_info) {
     preventry->u.f.mangled_id = fnname_full_id;
     if (cls_entry) {
       typeid_t name = catype_struct_impl_id_to_function_name(p->fndecln.name);
-      runable_add_entry(cls_entry, name, fnname_full_id, preventry);
+      runable_add_entry(impl_info, cls_entry, name, fnname_full_id, preventry);
     }
   }
 
@@ -4436,12 +4436,6 @@ static void walk_fn_define_impl(ASTNode *node) {
     check_trait_impl_match(node, use_default_impls);
   }
 
-  // NEXT TODO: implement the function impl which resident in node in normal case, but with trait signature
-  // NEXT TODO: copy ASTNode and implement the function impl in use_default_impls
-
-  // NEXT TODO: make the trait implemented function / method into the trait map in struct
-  // implementation entry: currently all put into the struct implementation map, we need split
-  // the implementation into different area for different trait
   void *handle = node->fndefn_impl.data;
 
   for (int i = 0; i < node->fndefn_impl.count; ++i) {

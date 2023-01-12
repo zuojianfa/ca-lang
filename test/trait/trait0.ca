@@ -1,0 +1,22 @@
+trait TT {
+}
+
+struct AA {
+}
+
+impl AA {
+}
+
+impl TT for AA {
+}
+
+trait TT2 {
+}
+
+impl TT2 for AA {
+}
+
+fn main() {
+    print "good";
+}
+

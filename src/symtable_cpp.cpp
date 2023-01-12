@@ -153,43 +153,100 @@ std::vector<void *> *structexpr_deref(CAStructExpr obj) {
   return v;
 }
 
-struct StructImplInfo {
+struct MethodImplInfo {
   int fnname;
   STEntry *nameentry;
   int fnname_manged;
 };
 
-typedef std::map<int, std::unique_ptr<StructImplInfo>> impl_info_map_t;
+typedef std::map<int, std::unique_ptr<MethodImplInfo>> impl_info_map_t;
 
-std::unique_ptr<StructImplInfo> runable_find_entry(STEntry *cls_entry, int fnname) {
+// The trait implemented function / method is in different map (the trait map)
+struct StructImplInfo {
+  impl_info_map_t method_in_struct;
+  std::map<int, impl_info_map_t> method_in_traits;
+};
+
+static std::unique_ptr<MethodImplInfo> runable_find_entry_from_map(impl_info_map_t &method_map, int fnname) {
+  auto itr = method_map.find(fnname);
+  if (itr != method_map.end()) {
+    auto info = std::make_unique<MethodImplInfo>();
+    *info = *itr->second;
+    return info;
+  }
+
+  return nullptr;
+}
+
+std::unique_ptr<MethodImplInfo> runable_find_entry(STEntry *cls_entry, int fnname) {
   if (!cls_entry->u.datatype.runables.opaque)
     return nullptr;
 
-  impl_info_map_t *m = (impl_info_map_t *)cls_entry->u.datatype.runables.opaque;
-  auto itr = m->find(fnname);
-  if (itr == m->end())
-    return nullptr;
+  StructImplInfo *m = (StructImplInfo *)cls_entry->u.datatype.runables.opaque;
 
-  auto info = std::make_unique<StructImplInfo>();
-  *info = *itr->second;
-  return info;
+  // first find from the struct impl part
+  std::unique_ptr<MethodImplInfo> result;
+  if ((result = runable_find_entry_from_map(m->method_in_struct, fnname)).get())
+    return result;
+  // then find from all trait impl part
+  for (auto iter = m->method_in_traits.begin(); iter != m->method_in_traits.end(); ++iter) {
+    if ((result = runable_find_entry_from_map(iter->second, fnname)).get())
+      return result;
+  }
+
+  return nullptr;
 }
 
-void runable_add_entry(STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry) {
-  impl_info_map_t *m= nullptr;
+void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry) {
+  StructImplInfo *m= nullptr;
   if (cls_entry->u.datatype.runables.opaque)
-    m = (impl_info_map_t *)cls_entry->u.datatype.runables.opaque;
+    m = (StructImplInfo *)cls_entry->u.datatype.runables.opaque;
   else
-    m = new impl_info_map_t;
+    m = new StructImplInfo;
 
-  auto info = std::make_unique<StructImplInfo>();
+  auto info = std::make_unique<MethodImplInfo>();
   info->fnname = fnname;
   info->fnname_manged = fnname_mangled;
   info->nameentry = nameentry;
 
-  m->insert(std::make_pair(fnname, std::move(info)));
-
   cls_entry->u.datatype.runables.opaque = m;
+
+  impl_info_map_t *info_map = nullptr;
+  if (impl_info->trait_id == -1) {
+    info_map = &m->method_in_struct;
+  } else {
+    auto iter = m->method_in_traits.find(impl_info->trait_id);
+    if (iter == m->method_in_traits.end()) {
+      m->method_in_traits[impl_info->trait_id] = impl_info_map_t();
+      iter = m->method_in_traits.find(impl_info->trait_id);
+    }
+
+    info_map = &iter->second;
+  }
+
+  info_map->insert(std::make_pair(fnname, std::move(info)));
+}
+
+static std::unique_ptr<MethodImplInfo> get_method_impl_info(ASTNode *name, int struct_name, int method_name) {
+  SymTable *entry_st = nullptr;
+  typeid_t name_type = sym_form_type_id(struct_name);
+  STEntry *cls_entry =
+      sym_getsym_with_symtable(name->symtable, name_type, 1, &entry_st);
+  if (!cls_entry || cls_entry->sym_type != Sym_DataType) {
+    caerror(&name->begloc, &name->endloc, "cannot find symbol entry for type '%s'",
+            catype_get_type_name(name_type));
+    return nullptr;
+  }
+
+  // fieldname is method name
+  auto info = runable_find_entry(cls_entry, method_name);
+  if (info == nullptr) {
+    caerror(&name->begloc, &name->endloc, "cannot find method `%s` for struct '%s'",
+            symname_get(method_name), catype_get_type_name(name_type));
+    return nullptr;
+  }
+
+  return info;
 }
 
 STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_fn, void **self_value, CADataType **struct_catype) {
@@ -219,29 +276,15 @@ STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_
   // here not using direct way, but it have drawback that cannot know whether
   // the function is a trait function and don't know how to find the trait name,
   // except when calling function with trait name (full name)
-  SymTable *entry_st = nullptr;
   int struct_name = sfopn->direct
                         ? catype->struct_layout->name
                         : catype->pointer_layout->type->struct_layout->name;
-  typeid_t name_type = sym_form_type_id(struct_name);
-  STEntry *cls_entry =
-      sym_getsym_with_symtable(name->symtable, name_type, 1, &entry_st);
-  if (!cls_entry || cls_entry->sym_type != Sym_DataType) {
-    caerror(&name->begloc, &name->endloc, "cannot find symbol entry for type '%s'",
-            catype_get_type_name(catype->struct_layout->name));
-    return nullptr;
-  }
 
-  // fieldname is method name
-  auto info = runable_find_entry(cls_entry, sfopn->fieldname);
-  if (info == nullptr) {
-    caerror(&name->begloc, &name->endloc, "cannot find method `%s` for struct '%s'",
-            symname_get(sfopn->fieldname),
-            catype_get_type_name(catype->struct_layout->name));
+  std::unique_ptr<MethodImplInfo> info = get_method_impl_info(name, struct_name, sfopn->fieldname);
+  if (info)
+    return info->nameentry;
+  else
     return nullptr;
-  }
-
-  return info->nameentry;
 }
 
 BEGIN_EXTERN_C
@@ -551,29 +594,40 @@ STEntry *sym_getsym_with_symtable(SymTable *st, int idx, int parent, SymTable **
 }
 
 STEntry *sym_get_function_entry_for_domain(ASTNode *name) {
-  if (name->domainn.relative) {
-    std::stringstream ss;
-    ss << symname_get((long)vec_at(name->domainn.parts, 0));
-    for (int i = 1; i < name->domainn.count; ++i) {
-      ss << "::";
-      ss << symname_get((long)vec_at(name->domainn.parts, i));
-    }
+  // TODO: handle mod name before struct name mod1::AA::method1
 
-    int domain_id = symname_check_insert(ss.str().c_str());
-    typeid_t domain_fn_id = sym_form_function_id(domain_id);
-    SymTable *entry_st = nullptr;
-    STEntry *entry =
-      sym_getsym_with_symtable(name->symtable, domain_fn_id, 1, &entry_st);
-    if (!entry) {
-      caerror(&(name->begloc), &(name->endloc), "cannot find declared function: '%s'",
-              symname_get(domain_id));
-    }
-
-    return entry;
-  } else {
+  if (!name->domainn.relative) {
     // NEXT TODO: how to handle the absolution path
     return nullptr;
   }
+
+  // try to find method from struct impl
+  std::stringstream ss;
+  ss << symname_get((long)vec_at(name->domainn.parts, 0));
+  for (int i = 1; i < name->domainn.count; ++i) {
+    ss << "::";
+    ss << symname_get((long)vec_at(name->domainn.parts, i));
+  }
+
+  int domain_id = symname_check_insert(ss.str().c_str());
+  typeid_t domain_fn_id = sym_form_function_id(domain_id);
+  SymTable *entry_st = nullptr;
+  STEntry *entry =
+      sym_getsym_with_symtable(name->symtable, domain_fn_id, 1, &entry_st);
+  if (entry)
+    return entry;
+
+  // try to find method from trait impl
+  int struct_name = (int)(long)vec_at(name->domainn.parts, name->domainn.count-2);
+  int method_name = (int)(long)vec_at(name->domainn.parts, name->domainn.count-1);
+  std::unique_ptr<MethodImplInfo> info = get_method_impl_info(name, struct_name, method_name);
+  if (!info) {
+    caerror(&(name->begloc), &(name->endloc),
+            "cannot find declared function: '%s'", symname_get(domain_id));
+    return nullptr;
+  }
+
+  return info->nameentry;
 }
 
 static CADataType *query_type_with_novalue(TStructFieldOp *sfopn, void **self_value) {

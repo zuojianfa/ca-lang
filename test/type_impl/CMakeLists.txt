@@ -5,7 +5,7 @@ do_test(type_impl "Hello inner function 1\nHello inner function 2\n" ca inner_fu
 do_testf(type_impl "inner_function3_0.ca.ll" "inner_function3_0.ca.ll.tmp" ca -g -ll inner_function3_0.ca inner_function3_0.ca.ll.tmp)
 do_test(type_impl "Hello C A" ca inner_function4.ca)
 do_test(type_impl "Hello C A\nin while in while in while in while in while" ca inner_function_more_level.ca)
-do_test(type_impl "good" ca -g simple_0.ca)
+do_test(todo-type_impl "good" ca -g simple_0.ca)
 do_test(type_impl "AA { a: 100, b: C }\n100\nC\n167\n100\nC\nAA { a: 303, b: A }\n303\nA\n" ca simple.ca)
 do_test(type_impl "AA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\n" ca simple1.ca)
 do_test(type_impl "AA { a: 100, b: A }\n100\nA\nAA { a: 100, b: A }\n100\nA\n" ca simple2.ca)

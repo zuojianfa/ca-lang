@@ -320,10 +320,18 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
+- [ ] check if function return value match definition, check if have return value, report error
 - [ ] support trait
-  - [ ] check how to implement convert trait ASTNode into trait inner object for comparing the function argument use in `make_trait_defs` or in `walk_trait_fnlist`, or record all the trait ASTNode node and parse them between pass 1 and pass 2
-  - [ ] trait definition
-  - [ ] trait implementation
+  - [x] convert trait ASTNode into trait inner object for comparing the function argument use in `make_trait_defs` in `make_trait_defs`
+  - [x] trait definition
+  - [x] trait implementation
+  - [ ] support absolute path method call after supporting mod
+  - [ ] copy ASTNode and implement the function impl in use_default_impls
+  - [ ] support full path call for trait method, or domain trait method, when there is also have implementations in struct or in trait
+	```
+	<AA as TT>::method();
+	<a as TT>.method();
+	```
 - [ ] support box(type) grammar a long with box(expr) grammar
 - [ ] implement ca runtime system to support the compiler functionality, like output slice object, it need runtime system support, because slice type's length is not determined in compile time, and cannot fixed print in compile, so need use runtime system to support printing it
   - [ ] perfect runtime libraries to support others

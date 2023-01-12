@@ -1,5 +1,6 @@
 trait TT {
-    fn static_method();
+    fn static_method1();
+    fn static_method2(a: i32, b: i32) -> i32;
 }
 
 struct AA {
@@ -12,14 +13,14 @@ impl AA {
 }
 
 impl TT for AA {
-    fn static_method() {
-	print "TT::static_method\n";
+    fn static_method1() {
+	print "TT::static_method1\n";
     }
 }
 
 fn main() {
     let a = AA::new();
     print a; print "\n";
-    AA::static_method();
+    AA::static_method1();
 }
 

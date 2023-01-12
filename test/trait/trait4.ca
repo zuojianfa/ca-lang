@@ -1,0 +1,24 @@
+trait TT {
+    fn output(self);
+}
+
+struct AA {
+}
+
+impl AA {
+    fn new() -> AA {
+	return AA {};
+    }
+}
+
+impl TT for AA {
+    fn output(self) {
+	print "TT::output: Hello CA\n";
+    }
+}
+
+fn main() {
+    let a = AA::new();
+    a.output();
+}
+

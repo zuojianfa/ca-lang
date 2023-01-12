@@ -72,4 +72,5 @@ add_subdirectory(shielding)
 add_subdirectory(range)
 add_subdirectory(slice)
 add_subdirectory(type_impl)
+add_subdirectory(trait)
 

@@ -1,0 +1,59 @@
+trait TT {
+    fn no_self_fn1();
+    fn no_self_fn2(p1: i32);
+    fn output(self);
+    fn add(self, a: i32, b: i32) -> i32;
+}
+
+struct AA {
+}
+
+impl AA {
+    fn new() -> AA {
+	return AA {};
+    }
+
+    fn no_self_fn1() {
+	print "AA::no_self_fn1\n";
+    }
+
+    fn output(self) {
+	print "AA::output: Hello CA\n";
+    }
+
+    fn add(self, a: i32, b: i32) -> i32 {
+	print "AA:add: ";
+	return a + b;
+    }
+}
+
+impl TT for AA {
+    fn no_self_fn1() {
+	print "TT::no_self_fn1\n";
+    }
+
+    fn no_self_fn2(p2: i32) {
+	print "TT::no_self_fn2: ";
+	print p2;
+	print '\n';
+    }
+
+    fn add(self, a: i32, b: i32) -> i32 {
+	return a + b;
+    }
+
+    fn output(self) {
+	print "TT::output: Hello CA\n";
+    }
+}
+
+fn main() {
+    let a = AA::new();
+    a.output();
+    AA::no_self_fn1();
+    AA::no_self_fn2(301);
+
+    let v = a.add(1,2);
+    print v; print '\n';
+}
+

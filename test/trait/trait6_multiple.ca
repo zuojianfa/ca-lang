@@ -1,0 +1,80 @@
+trait TT {
+    fn no_self_fn1();
+    fn no_self_fn2(p1: i32);
+    fn output(self);
+    fn add(self, a: i32, b: i32) -> i32;
+}
+
+struct AA {
+}
+
+impl AA {
+    fn new() -> AA {
+	return AA {};
+    }
+
+    fn no_self_fn1() {
+	print "AA::no_self_fn1\n";
+    }
+
+    fn output(self) {
+	print "AA::output: Hello CA\n";
+    }
+}
+
+impl TT for AA {
+    fn no_self_fn1() {
+	print "TT::no_self_fn1\n";
+    }
+
+    fn no_self_fn2(p2: i32) {
+	print "TT::no_self_fn2: ";
+	print p2;
+	print '\n';
+    }
+
+    fn add(self, a: i32, b: i32) -> i32 {
+	return a + b;
+    }
+
+    fn output(self) {
+	print "TT::output: Hello CA\n";
+    }
+}
+
+trait TT2 {
+    fn mul(self, other: i32) -> i32;
+}
+
+impl TT2 for AA {
+    fn mul(self, other: i32) -> i32 {
+	return other * 8;
+    }
+}
+
+trait TDIV {
+    fn div(self, a: i32, b: i32) -> i32;
+}
+
+impl TDIV for AA {
+    fn div(self, a: i32, b: i32) -> i32 {
+	return a / b;
+    }
+}
+
+fn main() {
+    let a = AA::new();
+    a.output();
+    AA::no_self_fn1();
+    AA::no_self_fn2(301);
+ 
+    let v = a.add(1,2);
+    print v; print '\n';
+
+    let v2 = a.mul(4);
+    print v2; print '\n';
+
+    let v3 = a.div(16728, 5);
+    print v3;
+}
+

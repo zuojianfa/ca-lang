@@ -1,0 +1,31 @@
+trait TT {
+    fn static_method1();
+    fn static_method2(a: i32, b: i32) -> i32;
+}
+
+struct AA {
+}
+
+impl AA {
+    fn new() -> AA {
+	return AA{};
+    }
+}
+
+impl TT for AA {
+    fn static_method1() {
+	print "TT::static_method1\n";
+    }
+
+    fn static_method2(a: i32, b: i32) -> i32 {
+	return a + b;
+    }
+}
+
+fn main() {
+    let a = AA::new();
+    AA::static_method1();
+    let b = AA::static_method2(0x1234567, 0x7654321);
+    print b;
+}
+

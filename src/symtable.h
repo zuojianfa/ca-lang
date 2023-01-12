@@ -466,7 +466,7 @@ STEntry *sym_getsym(SymTable *st, int idx, int parent);
 STEntry *sym_gettypesym_by_name(SymTable *st, const char *name, int parent);
 STEntry *sym_get_function_entry_for_domain(struct ASTNode *name);
 STEntry *sym_get_function_entry_for_method_novalue(struct ASTNode *name, struct CADataType **struct_catype);
-void runable_add_entry(STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry);
+void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry);
 int sym_tablelen(SymTable *t);
 SymType sym_gettype(SymTable *t, int idx, int parent);
 SLoc sym_getsloc(SymTable *t, int idx, int parent);

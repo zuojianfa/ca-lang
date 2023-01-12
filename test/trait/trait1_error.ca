@@ -1,0 +1,13 @@
+trait TT {
+    fn static_method();
+}
+
+struct AA {
+}
+
+impl TT for AA {
+}
+
+fn main() {
+}
+

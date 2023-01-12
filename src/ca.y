@@ -647,7 +647,7 @@ trait_fn_defs:	trait_fn_defs trait_fn_def { $$ = trait_fn_next($1, $2); }
 	|	trait_fn_def { $$ = trait_fn_begin($1); }
 	;
 
-trait_fn_def:	fn_proto ';' { $$ = $1; }
+trait_fn_def:	fn_proto ';' { $$ = $1; pop_symtable(); }
 	|	fn_def   { $$ = $1; /* for default function implementation in trait */ }
 	;
 
