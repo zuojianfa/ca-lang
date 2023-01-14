@@ -1,0 +1,52 @@
+
+trait TT2 {
+    fn static_out();
+    fn output(self);
+}
+
+trait TT {
+    fn static_out();
+    fn output(self);
+}
+
+struct AA {
+    a: i32,
+}
+
+impl TT for AA {
+    fn static_out() {
+        print("TT::static_out\n");
+    }
+
+    fn output(self) {
+        print("TT::output\n");
+    }
+}
+
+impl TT2 for AA {
+    fn static_out() {
+        print("TT2::static_out\n");
+    }
+
+    fn output(self) {
+        print("TT2::output\n");
+    }
+}
+
+impl AA {
+    fn static_out() {
+        print("AA::static_out\n");
+    }
+
+    fn output(self) {
+        print("AA::output\n");
+    }
+}
+
+fn main() {
+    let a = AA{a: 33};
+    a.output();
+    AA::output(&a);
+    AA::static_out();
+}
+

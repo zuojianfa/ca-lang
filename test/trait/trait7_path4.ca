@@ -7,6 +7,10 @@ struct AA {
 }
 
 impl AA {
+    fn new() -> AA {
+	return AA{};
+    }
+
     fn static_method1() {
 	print "AA::static_method1\n";
     }
@@ -29,8 +33,9 @@ impl TT for AA {
 }
 
 fn main() {
-    <AA as TT>::static_method1(); 
-    let b = <AA as TT>::static_method2(6, 6);
+    let a = AA::new();
+    AA::static_method1();
+    let b = AA::static_method2(6, 6);
     print b;
 }
 

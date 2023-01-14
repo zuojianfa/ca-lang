@@ -2545,7 +2545,7 @@ int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry, 
      ||
      !formalparam->contain_varg && formalparam->argc != argc) {
     SLoc stloc = {glineno, gcolno};
-    caerror(&param->begloc, &param->endloc, "actual parameter number `%d` not match formal parameter number `%d`",
+    caerror(&param->begloc, &param->endloc, "actual parameter count `%d` not match formal parameter count `%d`",
 	    param->arglistn.argc, formalparam->argc);
     return -1;
   }

@@ -1,65 +1,44 @@
 trait TT {
-    fn no_self_fn1();
-    fn no_self_fn2(p1: i32);
-    fn output(self);
-    fn add(self, a: i32, b: i32) -> i32;
-    // fn sub(self, a: i32, b: i32) -> i32 {
-    // 	return a - b;
-    // }
-    // fn div(self, a: i32, b: i32) -> i32 {
-    // 	return a / b;
-    // }
-}
-
-struct AA {
-}
-
-impl AA {
-    fn new() -> AA {
-	return AA {};
-    }
-
-    fn no_self_fn1() {
-	print "AA::no_self_fn1\n";
+    fn default_static_method() {
+	print "TT::default_static_method\n";
     }
 
     fn output(self) {
-	print "AA::output: Hello CA\n";
-    }
-}
-
-impl TT for AA {
-    fn no_self_fn1() {
-	print "TT::no_self_fn1\n";
-    }
-
-    fn no_self_fn2(p2: i32) {
-	print "TT::no_self_fn2: ";
-	print p2;
+	print "TT::output: ";
+	print *self;
 	print '\n';
     }
 
     fn add(self, a: i32, b: i32) -> i32 {
 	return a + b;
     }
+}
+
+struct AA {
+    v: i32,
+}
+
+impl AA {
+    fn new(v: i32) -> AA {
+	return AA {v};
+    }
+
+    fn add(self, a: i32, b: i32) -> i32 {
+	return a + b + v;
+    }
 
     fn output(self) {
-	print "TT::output: Hello CA\n";
+	print "TT::output: ";
+	print *self;
+	print '\n';
     }
 }
 
-trait TT2 {
-    fn mul(self, other: i32) -> i32;
-}
-
-impl TT2 for AA {
-    fn mul(self, other: i32) -> i32 {
-	return other * 8;
-    }
+impl TT for AA {
 }
 
 fn main() {
-    let a = AA::new();
+    let a = AA::new(1024);
     a.output();
     AA::no_self_fn1();
     AA::no_self_fn2(301);

@@ -3145,19 +3145,19 @@ static void walk_expr_call(ASTNode *p) {
   }
   case TTE_Expr: {
     CADataType *catype = nullptr;
+    // get struct entry from domain subparts
     entry = sym_get_function_entry_for_method_value(name, &self_value, &catype);
 
     check_and_determine_param_type(name, args, istuple, entry,
                                    catype->signature, name->exprn.operands[0]->sfopn.direct);
     fnname = symname_get(name->exprn.operands[0]->sfopn.fieldname);
-    istuple = 0;
     break;
   }
   case TTE_Domain: {
     // get struct entry from domain subparts
     entry = sym_get_function_entry_for_domain(name);
+    check_and_determine_param_type(name, args, istuple, entry, typeid_novalue, 0);
     fnname = symname_get((long)vec_at(name->domainn.parts, name->domainn.count - 1));
-    istuple = 0;
     break;
   }
   default:

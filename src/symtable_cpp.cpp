@@ -164,37 +164,60 @@ typedef std::map<int, std::unique_ptr<MethodImplInfo>> impl_info_map_t;
 // The trait implemented function / method is in different map (the trait map)
 struct StructImplInfo {
   impl_info_map_t method_in_struct;
+
+  // key: trait id, value method in trait map
   std::map<int, impl_info_map_t> method_in_traits;
 };
 
-static std::unique_ptr<MethodImplInfo> runable_find_entry_from_map(impl_info_map_t &method_map, int fnname) {
+static MethodImplInfo *runable_find_entry_from_map(impl_info_map_t &method_map, int fnname) {
   auto itr = method_map.find(fnname);
   if (itr != method_map.end()) {
-    auto info = std::make_unique<MethodImplInfo>();
-    *info = *itr->second;
-    return info;
+    return itr->second.get();
+    // auto info = std::make_unique<MethodImplInfo>();
+    // *info = *itr->second;
+    // return info;
   }
 
   return nullptr;
 }
 
-std::unique_ptr<MethodImplInfo> runable_find_entry(STEntry *cls_entry, int fnname) {
+static MethodImplInfo *runable_find_entry(STEntry *cls_entry, int fnname) {
   if (!cls_entry->u.datatype.runables.opaque)
     return nullptr;
 
   StructImplInfo *m = (StructImplInfo *)cls_entry->u.datatype.runables.opaque;
 
   // first find from the struct impl part
-  std::unique_ptr<MethodImplInfo> result;
-  if ((result = runable_find_entry_from_map(m->method_in_struct, fnname)).get())
+  MethodImplInfo *result = nullptr;
+  if ((result = runable_find_entry_from_map(m->method_in_struct, fnname)) != nullptr)
     return result;
+
   // then find from all trait impl part
+  std::vector<std::pair<typeid_t, MethodImplInfo *>> multiple_impls;
   for (auto iter = m->method_in_traits.begin(); iter != m->method_in_traits.end(); ++iter) {
-    if ((result = runable_find_entry_from_map(iter->second, fnname)).get())
-      return result;
+    if ((result = runable_find_entry_from_map(iter->second, fnname)) != nullptr) {
+      multiple_impls.push_back(std::make_pair(iter->first, result));
+    }
   }
 
-  return nullptr;
+  if (multiple_impls.empty())
+    return nullptr;
+
+  if (multiple_impls.size() > 1) {
+    caerror_noexit(&cls_entry->sloc, nullptr, "multiple applicable items in scope");
+    
+    for (int i = 0; i < multiple_impls.size(); ++i) {
+      caerror_noexit(&multiple_impls[i].second->nameentry->sloc, nullptr,
+		     "note: candidate #%d is defined in an impl of the trait `%s` for the type `%s`",
+		     i + 1,
+		     catype_get_type_name(multiple_impls[i].first),
+		     catype_get_type_name(cls_entry->u.datatype.id));
+    }
+    exit(-1);
+    return nullptr;
+  }
+
+  return multiple_impls[0].second;
 }
 
 void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry) {
@@ -227,7 +250,7 @@ void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, 
   info_map->insert(std::make_pair(fnname, std::move(info)));
 }
 
-static std::unique_ptr<MethodImplInfo> get_method_impl_info(ASTNode *name, int struct_name, int method_name) {
+static MethodImplInfo *get_method_impl_info(ASTNode *name, int struct_name, int method_name) {
   SymTable *entry_st = nullptr;
   typeid_t name_type = sym_form_type_id(struct_name);
   STEntry *cls_entry =
@@ -280,7 +303,7 @@ STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_
                         ? catype->struct_layout->name
                         : catype->pointer_layout->type->struct_layout->name;
 
-  std::unique_ptr<MethodImplInfo> info = get_method_impl_info(name, struct_name, sfopn->fieldname);
+  MethodImplInfo *info = get_method_impl_info(name, struct_name, sfopn->fieldname);
   if (info)
     return info->nameentry;
   else
@@ -620,7 +643,7 @@ STEntry *sym_get_function_entry_for_domain(ASTNode *name) {
   // try to find method from trait impl
   int struct_name = (int)(long)vec_at(name->domainn.parts, name->domainn.count-2);
   int method_name = (int)(long)vec_at(name->domainn.parts, name->domainn.count-1);
-  std::unique_ptr<MethodImplInfo> info = get_method_impl_info(name, struct_name, method_name);
+  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name);
   if (!info) {
     caerror(&(name->begloc), &(name->endloc),
             "cannot find declared function: '%s'", symname_get(domain_id));

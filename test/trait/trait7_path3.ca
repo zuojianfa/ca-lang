@@ -1,41 +1,49 @@
 trait TT {
-    fn static_method1();
-    fn static_method2(a: i32, b: i32) -> i32;
+    fn output(self);
+    fn increase(self, count: i32) -> i32;
 }
 
 struct AA {
+    v: i32,
 }
 
 impl AA {
-    fn new() -> AA {
-	return AA{};
+    fn new(v: i32) -> AA {
+	return AA{v};
     }
 
-    fn static_method1() {
-	print "AA::static_method1\n";
+    fn output(self) {
+	print "AA::output\n";
     }
 
-    fn static_method2(a: i32, b: i32) -> i32 {
-	print "AA::static_method2\n";
-	return a * b;
+    fn increase(self, count: i32) -> i32 {
+	print "AA::increase\n";
+	self->v += count;
+	return self->v;
     }
 }
 
 impl TT for AA {
-    fn static_method1() {
-	print "TT::static_method1\n";
+    fn output(self) {
+	print "TT::output\n";
     }
 
-    fn static_method2(a: i32, b: i32) -> i32 {
-	print "TT::static_method2\n";
-	return a + b;
+    fn increase(self, count: i32) -> i32 {
+	print "TT::increase\n";
+	self->v += count;
+	return self->v;
     }
 }
 
 fn main() {
-    let a = AA::new();
-    AA::static_method1();
-    let b = AA::static_method2(6, 6);
-    print b;
+    let a = AA::new(3);
+    TT::output(&a);
+    <AA as TT>::output(&a);
+
+    let v = TT::increase(333);
+    print v; print '\n';
+
+    let v2 = <AA as TT>::increase(222);
+    print v2;
 }
 
