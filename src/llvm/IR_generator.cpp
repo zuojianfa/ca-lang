@@ -2939,6 +2939,23 @@ static void walk_unary_expr(ASTNode *p) {
   oprand_stack.push_back(std::make_unique<CalcOperand>(OT_Calc, v, dt));
 }
 
+static typeid_t domain_get_function_name(ASTNode *name) {
+  typeid_t fnname = typeid_novalue;
+  switch (name->domainfn.type) {
+  case DFT_Domain:
+    fnname = (int)(long)vec_at(name->domainfn.u.domain->parts, name->domainfn.u.domain->count - 1);
+    break;
+  case DFT_DomainAs:
+    fnname = name->domainfn.u.domain_as->fnname;
+    break;
+  default:
+    caerror(&name->begloc, &name->endloc, "unknown domain type: %d\n", name->domainfn.type);
+    break;;
+  }
+
+  return fnname;
+}
+
 static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tuple, STEntry *entry,
 					   typeid_t method_struct_signature, int is_direct_call) {
   typeid_t fnname = typeid_novalue;
@@ -2950,7 +2967,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
     fnname = name->exprn.operands[0]->sfopn.fieldname;
     break;
   case TTE_Domain:
-    fnname = (int)(long)vec_at(name->domainn.parts, name->domainn.count - 1);
+    fnname = domain_get_function_name(name);
     break;
   default:
     yyerror("bad function call type: %d", name->type);
@@ -3155,9 +3172,9 @@ static void walk_expr_call(ASTNode *p) {
   }
   case TTE_Domain: {
     // get struct entry from domain subparts
-    entry = sym_get_function_entry_for_domain(name);
+    entry = sym_get_function_entry_for_domainfn(name, args);
     check_and_determine_param_type(name, args, istuple, entry, typeid_novalue, 0);
-    fnname = symname_get((long)vec_at(name->domainn.parts, name->domainn.count - 1));
+    fnname = symname_get(domain_get_function_name(name));
     break;
   }
   default:

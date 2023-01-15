@@ -1567,7 +1567,7 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       break;
     }
     case TTE_Domain: {
-      STEntry *entry = sym_get_function_entry_for_domain(idn);
+      STEntry *entry = sym_get_function_entry_for_domainfn(idn, node->exprn.operands[1]);
       type1 = entry->u.f.rettype;
       break;
     }
@@ -2585,16 +2585,47 @@ void domain_append(DomainNames *names, int name) {
   names->count += 1;
 }
 
-ASTNode *make_domain(DomainNames *names) {
+DomainAs make_domain_as(DomainNames *type, DomainNames *as, int fnname) {
+  DomainNames *domain_main = (DomainNames *)malloc(sizeof(DomainNames));
+  DomainNames *domain_trait = (DomainNames *)malloc(sizeof(DomainNames));
+  *domain_main = *type;
+  *domain_trait = *as;
+
+  return (DomainAs){
+    .domain_main = domain_main,
+    .domain_trait = domain_trait,
+    .fnname = fnname,
+  };
+}
+
+DomainFn make_domainfn_domain(DomainNames *domain_names) {
+  DomainNames *domain = (DomainNames *)malloc(sizeof(DomainNames));
+  *domain = *domain_names;
+  return (DomainFn) {
+    .type = DFT_Domain,
+    .u.domain = domain,
+  }; 
+}
+
+DomainFn make_domainfn_domainas(DomainAs *domainas) {
+  DomainAs *domain_as = (DomainAs *)malloc(sizeof(DomainAs));
+  *domain_as = *domainas;
+  return (DomainFn) {
+    .type = DFT_DomainAs,
+    .u.domain_as = domain_as,
+  };
+}
+
+ASTNode *make_domain(DomainFn *domain_fn) {
     ASTNode *p = new_ASTNode(TTE_Domain);
-    p->domainn = *names;
+    p->domainfn = *domain_fn;
 
     set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
     return p;
 }
 
-ASTNode *make_domain_call(DomainNames *names, ASTNode *param) {
-  ASTNode *domainnode = make_domain(names);
+ASTNode *make_domain_call(DomainFn *domain_fn, ASTNode *param) {
+  ASTNode *domainnode = make_domain(domain_fn);
   return make_expr(FN_CALL, 2, domainnode, param);
 }
 

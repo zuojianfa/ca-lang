@@ -74,6 +74,8 @@ extern int yychar, yylineno;
   GeneralRange range;
   TypeImplInfo impl_info;
   DomainNames domain_names;
+  DomainFn domain_fn;
+  DomainAs domain_as;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
@@ -129,7 +131,9 @@ extern int yychar, yylineno;
 %type	<patterngroup>	pattern_struct_args_all pattern_tuple_args_all pattern_tuple_args pattern_struct_args
 %type	<range>		general_range
 %type	<impl_info>	type_impl_head
-%type	<domain_names>	domain
+%type	<domain_names>	domain domain_extend
+%type	<domain_as>	domain_as
+%type	<domain_fn>	domain_fn
 
 %start program
 
@@ -196,12 +200,25 @@ fn_call_or_tuple:
 fn_method_call:	structfield_op '(' fn_args_call_or_tuple ')' {$$ = make_method_call($1, $3);}
 		;
 
-fn_domain_call: domain '(' fn_args_call_or_tuple ')' { $$ = make_domain_call(&$1, $3); }
+fn_domain_call: domain_fn '(' fn_args_call_or_tuple ')' { $$ = make_domain_call(&$1, $3); }
 		;
+
+domain_fn:	domain    { $$ = make_domainfn_domain(&$1); }
+	|	domain_as { $$ = make_domainfn_domainas(&$1); }
+	;
 
 domain: 	domain DOMAIN IDENT  { domain_append(&$1, $3); $$ = $1; }
 	|	IDENT DOMAIN IDENT   { $$ = domain_init(1, $1); domain_append(&$$, $3); }
 	|	DOMAIN IDENT         { $$ = domain_init(0, $2); }
+	;
+
+domain_as:	'<' domain_extend AS domain_extend '>' DOMAIN IDENT {
+		$$ = make_domain_as(&$2, &$4, $7);
+		}
+	;
+
+domain_extend:	domain { $$ = $1; }
+	| 	IDENT  { $$ = domain_init(1, $1); }
 	;
 
 fn_proto:	FN IDENT

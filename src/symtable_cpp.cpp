@@ -181,21 +181,26 @@ static MethodImplInfo *runable_find_entry_from_map(impl_info_map_t &method_map, 
   return nullptr;
 }
 
-static MethodImplInfo *runable_find_entry(STEntry *cls_entry, int fnname) {
+static MethodImplInfo *runable_find_entry(STEntry *cls_entry, int fnname, int trait_name) {
   if (!cls_entry->u.datatype.runables.opaque)
     return nullptr;
 
   StructImplInfo *m = (StructImplInfo *)cls_entry->u.datatype.runables.opaque;
 
-  // first find from the struct impl part
   MethodImplInfo *result = nullptr;
-  if ((result = runable_find_entry_from_map(m->method_in_struct, fnname)) != nullptr)
-    return result;
+  if (trait_name == -1) {
+    // first find from the struct impl part
+    if ((result = runable_find_entry_from_map(m->method_in_struct, fnname)) != nullptr)
+      return result;
+  }
 
   // then find from all trait impl part
   std::vector<std::pair<typeid_t, MethodImplInfo *>> multiple_impls;
   for (auto iter = m->method_in_traits.begin(); iter != m->method_in_traits.end(); ++iter) {
     if ((result = runable_find_entry_from_map(iter->second, fnname)) != nullptr) {
+      if (iter->first == trait_name)
+	return result;
+
       multiple_impls.push_back(std::make_pair(iter->first, result));
     }
   }
@@ -250,22 +255,36 @@ void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, 
   info_map->insert(std::make_pair(fnname, std::move(info)));
 }
 
-static MethodImplInfo *get_method_impl_info(ASTNode *name, int struct_name, int method_name) {
+static MethodImplInfo *get_method_impl_info(ASTNode *name, int struct_name, int method_name, int trait_name) {
   SymTable *entry_st = nullptr;
   typeid_t name_type = sym_form_type_id(struct_name);
   STEntry *cls_entry =
       sym_getsym_with_symtable(name->symtable, name_type, 1, &entry_st);
-  if (!cls_entry || cls_entry->sym_type != Sym_DataType) {
+  if (!cls_entry) {
     caerror(&name->begloc, &name->endloc, "cannot find symbol entry for type '%s'",
             catype_get_type_name(name_type));
     return nullptr;
   }
 
+  if (cls_entry->sym_type != Sym_DataType && cls_entry->sym_type != Sym_TraitDef) {
+    caerror(&name->begloc, &name->endloc, "expected `data` or `trait` type, but find wrong symbol entry type '%s'",
+            catype_get_type_name(name_type));
+    return nullptr;
+  }
+
+  if (cls_entry->sym_type == Sym_TraitDef)
+    return nullptr;
+
   // fieldname is method name
-  auto info = runable_find_entry(cls_entry, method_name);
+  auto info = runable_find_entry(cls_entry, method_name, trait_name);
   if (info == nullptr) {
-    caerror(&name->begloc, &name->endloc, "cannot find method `%s` for struct '%s'",
-            symname_get(method_name), catype_get_type_name(name_type));
+    if (trait_name) {
+      caerror(&name->begloc, &name->endloc, "cannot find method `%s` for struct `%s` on trait `%s`",
+	      symname_get(method_name), catype_get_type_name(name_type), catype_get_type_name(trait_name));
+    } else {
+      caerror(&name->begloc, &name->endloc, "cannot find method `%s` for struct '%s'",
+	      symname_get(method_name), catype_get_type_name(name_type));
+    }
     return nullptr;
   }
 
@@ -303,7 +322,7 @@ STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_
                         ? catype->struct_layout->name
                         : catype->pointer_layout->type->struct_layout->name;
 
-  MethodImplInfo *info = get_method_impl_info(name, struct_name, sfopn->fieldname);
+  MethodImplInfo *info = get_method_impl_info(name, struct_name, sfopn->fieldname, -1);
   if (info)
     return info->nameentry;
   else
@@ -616,41 +635,113 @@ STEntry *sym_getsym_with_symtable(SymTable *st, int idx, int parent, SymTable **
   return NULL;
 }
 
-STEntry *sym_get_function_entry_for_domain(ASTNode *name) {
-  // TODO: handle mod name before struct name mod1::AA::method1
-
-  if (!name->domainn.relative) {
+static STEntry *sym_get_function_entry_for_domain(ASTNode *name, ASTNode *args) {
+  DomainNames &domainn = *name->domainfn.u.domain;
+  if (!domainn.relative) {
     // NEXT TODO: how to handle the absolution path
+    caerror(&name->begloc, &name->endloc, "Not implemented yet for absolution path for domain");
     return nullptr;
   }
 
+#if 0
+  // not find from full path here for it is not flexible to support the path searching and
+  // support all kinds of ways to find the type implementation
   // try to find method from struct impl
   std::stringstream ss;
-  ss << symname_get((long)vec_at(name->domainn.parts, 0));
-  for (int i = 1; i < name->domainn.count; ++i) {
-    ss << "::";
-    ss << symname_get((long)vec_at(name->domainn.parts, i));
+  ss << symname_get((long)vec_at(domainn.parts, 0));
+  for (int i = 1; i < domainn.count; ++i) {
+    ss << "::" << symname_get((long)vec_at(domainn.parts, i));
   }
 
   int domain_id = symname_check_insert(ss.str().c_str());
   typeid_t domain_fn_id = sym_form_function_id(domain_id);
+
   SymTable *entry_st = nullptr;
   STEntry *entry =
       sym_getsym_with_symtable(name->symtable, domain_fn_id, 1, &entry_st);
   if (entry)
     return entry;
+#endif
 
   // try to find method from trait impl
-  int struct_name = (int)(long)vec_at(name->domainn.parts, name->domainn.count-2);
-  int method_name = (int)(long)vec_at(name->domainn.parts, name->domainn.count-1);
-  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name);
-  if (!info) {
+  int struct_name = (int)(long)vec_at(domainn.parts, domainn.count-2);
+  int method_name = (int)(long)vec_at(domainn.parts, domainn.count-1);
+  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, -1);
+  if (info)
+    return info->nameentry;
+
+  // for the TT::method(&a, ...) call
+  int trait_name = struct_name;
+
+  // get struct name by the first real parameter type
+  if (args->arglistn.argc < 1) {
     caerror(&(name->begloc), &(name->endloc),
-            "cannot find declared function: '%s'", symname_get(domain_id));
+	    "cannot find declared method: '%s' on struct `%s`",
+	    symname_get(method_name), symname_get(struct_name));
+    return nullptr;
+  }
+
+  typeid_t struct_type = inference_expr_type(args->arglistn.exprs[0]);
+  CADataType *struct_catype = catype_get_by_name(args->arglistn.exprs[0]->symtable, struct_type);
+  if (struct_catype->type != POINTER) {
+    caerror(&(name->begloc), &(name->endloc), "wrong parameter type: `%s`",
+	    symname_get(struct_catype->signature));
+    return nullptr;
+  }
+
+  struct_name = struct_catype->pointer_layout->type->formalname;
+  info = get_method_impl_info(name, struct_name, method_name, trait_name);
+
+  if (!info) {
+    caerror(&(name->begloc), &(name->endloc), "cannot find declared method: '%s' on struct `%s`",
+	    symname_get(method_name), symname_get(struct_name));
     return nullptr;
   }
 
   return info->nameentry;
+}
+
+static STEntry *sym_get_function_entry_for_domainas(ASTNode *name) {
+  // there are 2 ways to find for the `domain as` type path `<AA as TT>::method_name()`
+  // 1. throught the manged full path to find the entry directly
+  // 2. find the impl struct entry and then find the called method
+  // I choose the option 2 for the entending purpose later (using absolute path, or using mod)
+
+  // try to find method from trait impl
+  DomainAs &domain_as = *name->domainfn.u.domain_as;
+  if (!domain_as.domain_main->relative || domain_as.domain_main->count != 1) {
+    // NEXT TODO: how to handle the absolution path
+    caerror(&name->begloc, &name->endloc, "Not implemented yet for absolution path for domain as main");
+    return nullptr;
+  }
+
+  if (!domain_as.domain_trait->relative || domain_as.domain_trait->count != 1) {
+    // NEXT TODO: how to handle the absolution path
+    caerror(&name->begloc, &name->endloc, "Not implemented yet for absolution path for domain as trait");
+    return nullptr;
+  }
+
+  int struct_name = (int)(long)vec_at(domain_as.domain_main->parts, 0);
+  int trait_name = (int)(long)vec_at(domain_as.domain_trait->parts, 0);
+  int method_name = domain_as.fnname;
+  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, trait_name);
+  if (info)
+    return info->nameentry;
+  else
+    return nullptr;
+}
+
+STEntry *sym_get_function_entry_for_domainfn(ASTNode *name, ASTNode *args) {
+  // TODO: handle mod name before struct name mod1::AA::method1
+  switch (name->domainfn.type) {
+  case DFT_Domain:
+    return sym_get_function_entry_for_domain(name, args);
+  case DFT_DomainAs:
+    return sym_get_function_entry_for_domainas(name);
+  default:
+    caerror(&name->begloc, &name->endloc, "unknown domain type: %d\n", name->domainfn.type);
+    return nullptr;
+  }
 }
 
 static CADataType *query_type_with_novalue(TStructFieldOp *sfopn, void **self_value) {

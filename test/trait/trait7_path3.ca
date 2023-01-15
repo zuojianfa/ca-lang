@@ -38,12 +38,16 @@ impl TT for AA {
 fn main() {
     let a = AA::new(3);
     TT::output(&a);
+    AA::output(&a);
     <AA as TT>::output(&a);
 
-    let v = TT::increase(333);
+    let v = TT::increase(&a, 333);
     print v; print '\n';
 
-    let v2 = <AA as TT>::increase(222);
-    print v2;
+    let v = AA::increase(&a, 222);
+    print v; print '\n';
+
+    let v = <AA as TT>::increase(&a, 222);
+    print v;
 }
 

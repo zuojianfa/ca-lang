@@ -464,7 +464,7 @@ int sym_dump(SymTable *st, FILE *file);
 STEntry *sym_getsym_with_symtable(SymTable *st, int idx, int parent, SymTable **entry_st);
 STEntry *sym_getsym(SymTable *st, int idx, int parent);
 STEntry *sym_gettypesym_by_name(SymTable *st, const char *name, int parent);
-STEntry *sym_get_function_entry_for_domain(struct ASTNode *name);
+STEntry *sym_get_function_entry_for_domainfn(struct ASTNode *name, struct ASTNode *args);
 STEntry *sym_get_function_entry_for_method_novalue(struct ASTNode *name, struct CADataType **struct_catype);
 void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry);
 int sym_tablelen(SymTable *t);

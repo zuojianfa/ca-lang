@@ -29,8 +29,11 @@ impl TT for AA {
 }
 
 fn main() {
+    AA::static_method1();
     <AA as TT>::static_method1(); 
-    let b = <AA as TT>::static_method2(6, 6);
-    print b;
+    let b = AA::static_method2(6, 6);
+    print b; print '\n';
+    let b2 = <AA as TT>::static_method2(6, 6);
+    print b2;
 }
 

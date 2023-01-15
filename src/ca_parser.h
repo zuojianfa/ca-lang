@@ -203,6 +203,25 @@ typedef struct DomainNames {
   void *parts; // vector, each domain part occupies one vector item
 } DomainNames, TDomainNames;
 
+enum DomainFnType {
+  DFT_Domain,
+  DFT_DomainAs,
+};
+
+typedef struct DomainAs {
+  DomainNames *domain_main;
+  DomainNames *domain_trait;
+  int fnname;
+} DomainAs;
+
+typedef struct DomainFn {
+  enum DomainFnType type;
+  union {
+    DomainNames *domain;
+    DomainAs *domain_as;
+  } u;
+} DomainFn, TDomainFn;
+
 typedef struct DerefLeft {
   int derefcount;
   struct ASTNode *expr;
@@ -316,7 +335,8 @@ typedef struct ASTNode {
     TRange rangen;       /* range node */
     TVarInit varinitn;
     TFnDefNodeImpl fndefn_impl; /* for function definition in type impl */
-    TDomainNames domainn; /* for domain method call */
+    //TDomainNames domainn; /* for domain method call */
+    TDomainFn domainfn;
     TTraitFnList traitfnlistn; /* trait function list */
   };
 } ASTNode;
@@ -444,7 +464,10 @@ ASTNode *make_fn_call_or_tuple(int fnid, ASTNode *param);
 ASTNode *make_method_call(StructFieldOp fieldop, ASTNode *param);
 DomainNames domain_init(int relative, int name);
 void domain_append(DomainNames *names, int name);
-ASTNode *make_domain_call(DomainNames *names, ASTNode *param);
+DomainAs make_domain_as(DomainNames *main, DomainNames *as, int fnname);
+DomainFn make_domainfn_domain(DomainNames *domain_names);
+DomainFn make_domainfn_domainas(DomainAs *domainas);
+ASTNode *make_domain_call(DomainFn *domain_fn, ASTNode *param);
 ASTNode *make_gen_tuple_expr(ASTNode *param);
 ASTNode *make_ident_expr(int id);
 ASTNode *make_uminus_expr(ASTNode *expr);
