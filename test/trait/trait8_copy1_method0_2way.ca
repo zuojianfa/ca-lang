@@ -1,0 +1,35 @@
+trait TT {
+    fn output(self, v: i32) -> i32 {
+	print "TT::output = ";
+	print v;
+	print '\n';
+	return 3;
+    }
+    fn output2(self);
+}
+
+struct AA {}
+
+impl TT for AA {
+    fn output2(self) {
+	print "TT::output2 in AA\n";
+    }
+}
+
+struct BB {}
+impl TT for BB {
+    fn output2(self) {
+	print "TT::output2 in BB\n";
+    }
+}
+
+fn main() {
+    let a = AA{};
+    a.output(400);
+    a.output2();
+
+    let b = BB{};
+    b.output(500);
+    b.output2();
+}
+

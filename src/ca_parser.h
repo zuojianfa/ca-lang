@@ -367,11 +367,15 @@ int parse_lexical_char(const char *text);
 int parse_tuple_fieldname(int fieldname);
 int enable_emit_main();
 void check_return_type(typeid_t fnrettype);
+SymTable *push_new_symtable_with_parent(SymTable *parent);
 SymTable *push_new_symtable();
 SymTable *push_symtable(SymTable *st);
 SymTable *pop_symtable();
+void free_symtable(SymTable *symtable);
 int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var);
 int add_fn_args_actual(SymTable *st, ASTNode *arg);
+ASTNode *new_ASTNode(ASTNodeType nodetype);
+void free_ASTNode(ASTNode *node);
 const char *sym_form_label_name(const char *name);
 const char *sym_form_type_name(const char *name);
 const char *sym_form_function_name(const char *name);
@@ -421,6 +425,7 @@ ASTNode *make_stmtexpr_list(ASTNode *stmts, ASTNode *expr);
 typeid_t make_pointer_type(typeid_t datatype);
 typeid_t make_array_type(typeid_t type, LitBuffer *size);
 typeid_t make_tuple_type(ST_ArgList *arglist);
+STEntry *make_type_def_entry(int id, typeid_t type, SymTable *symtable, SLoc *beg, SLoc *end);
 ASTNode *make_type_def(int name, typeid_t type);
 typeid_t make_ret_type_void();
 void make_type_postfix(IdToken *idt, int id, int typetok);
@@ -535,6 +540,9 @@ END_EXTERN_C
 
 const static char *OSELF = "self";
 const static char *CSELF = "Self";
+// used for form the skeleton for the trait, because '$' cannot be used in
+// source code, so here it be used to identify the unique `* Self`
+const static char *CSELFID = "$Self$";
 
 #endif
 

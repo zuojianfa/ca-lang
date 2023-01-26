@@ -373,8 +373,32 @@ typedef struct STEntry {
   } u;
 } STEntry;
 
+typedef enum SymTableAssocType {
+  STAT_Generic,
+  STAT_Num,
+} SymTableAssocType;
+
+typedef struct SymTableAssoc {
+  SymTableAssocType type;
+  // assoc table is a table related to the struct plus a level of symbol table
+  // which store Self or template parameter definitions
+  struct SymTable *assoc_table;
+  void *extra_id_list; // this is set type
+} SymTableAssoc;
+
 typedef struct SymTable {
   void *opaque;
+
+  // for association Symbol Table, some node travel need more than one symbol table
+  // like generic type and trait method, because the node come from several part.
+  // e.g. When implement struct with and use the trait method default implementation
+  // one part is coming from the trait method symbol table, another part coming from
+  // the struct method symbol table part. so here need association type.
+  // when assoc is null, then just use the normal symbol table search path
+  // when assoc is not null, then according to the assoc type to do the job.
+  // the assoc just like a hook, when using it, it take affect, when not use, it will
+  // not take affect
+  SymTableAssoc *assoc;
   struct SymTable *parent;
 } SymTable;
 
@@ -388,6 +412,14 @@ typedef struct GeneralRange {
   struct ASTNode *start;
   struct ASTNode *end;
 } GeneralRange;
+
+typedef struct SymbolQueryParams {
+  SymTable *st_normal;
+  SymTable *st_extra;
+  void *extra_id_list;
+  int idx;
+  int parent;
+} SymbolQueryParams;
 
 // parameter handling
 // because function call can use embed form:
@@ -451,6 +483,7 @@ int symname_insert(const char *name);
 int symname_check(const char *name);
 int symname_check_insert(const char *name);
 const char *symname_get(int pos);
+const char *sg(int pos);
 
 int sym_init(SymTable *t, SymTable *parent);
 STEntry *sym_check_insert(SymTable *st, int encode, SymType type);
@@ -461,12 +494,19 @@ STEntry *sym_insert(SymTable *st, int encode, SymType type);
 int sym_dump(SymTable *st, FILE *file);
 
 // parent: if search parent symtable
+SymTable *symtable_get_with_assoc(SymTable *symtable, int idx);
 STEntry *sym_getsym_with_symtable(SymTable *st, int idx, int parent, SymTable **entry_st);
 STEntry *sym_getsym(SymTable *st, int idx, int parent);
+STEntry *sym_getsym_st2_with_symtable(SymbolQueryParams *params, SymTable **entry_st);
+STEntry *sym_getsym_st2(SymbolQueryParams *params);
 STEntry *sym_gettypesym_by_name(SymTable *st, const char *name, int parent);
 STEntry *sym_get_function_entry_for_domainfn(struct ASTNode *name, struct ASTNode *args);
 STEntry *sym_get_function_entry_for_method_novalue(struct ASTNode *name, struct CADataType **struct_catype);
 void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry);
+struct MethodImplInfo *runable_find_entry(STEntry *cls_entry, int fnname, int trait_name);
+int runable_is_method_in_struct(STEntry *cls_entry, int fnname);
+void runable_add_entry_assoc(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, SymTableAssoc *assoc);
+SymTableAssoc *runable_find_entry_assoc(STEntry *cls_entry, int fnname, int trait_name);
 int sym_tablelen(SymTable *t);
 SymType sym_gettype(SymTable *t, int idx, int parent);
 SLoc sym_getsloc(SymTable *t, int idx, int parent);
@@ -519,8 +559,11 @@ void set_drop(void *handle);
 GeneralRange *general_range_init(GeneralRange *gr, short inclusive,
                                  struct ASTNode *start, struct ASTNode *end);
 
-// create trait defines entry data for convenient use 
+// create trait defines entry data for convenient use
 void *sym_create_trait_defs_entry(struct ASTNode *node);
+SymTableAssoc *new_SymTableAssoc(SymTableAssocType type, SymTable *assoc_table);
+void sym_assoc_add_item(SymTableAssoc *assoc, int value);
+void free_SymTableAssoc(SymTableAssoc *assoc);
 
 #ifdef __cplusplus
 END_EXTERN_C

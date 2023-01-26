@@ -1,16 +1,16 @@
 trait TT {
     fn default_static_method() {
-	print "TT::default_static_method\n";
+	print "inner TT::default_static_method\n";
     }
 }
 
 struct AA {
 }
 
-impl TT for AA {
-}
-
 fn main() {
+    impl TT for AA {
+    }
+
     AA::default_static_method();
 }
 

@@ -1,0 +1,16 @@
+trait TT {
+    fn default_static_method() {
+	print "inner TT::default_static_method\n";
+    }
+}
+
+fn main() {
+    struct AA {
+    }
+
+    impl TT for AA {
+    }
+
+    AA::default_static_method();
+}
+

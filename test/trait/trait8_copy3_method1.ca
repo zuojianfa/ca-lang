@@ -1,0 +1,38 @@
+struct AA {
+}
+
+fn main() {
+    trait TT {
+	fn default_static_method() {
+	    print "TT::default_static_method\n";
+	}
+
+	fn output(self, v: i32) -> i32 {
+	    print "TT::output = ";
+	    print v;
+	    print '\n';
+	    return 3;
+	}
+
+	fn output2(self, v1: i32, v2: i32) -> i32 {
+	    self->output(v1);
+	    self->output(v2);
+	    return v1 + v2;
+	}
+    }
+
+    impl AA {
+	fn new() -> AA {
+	    return AA{};
+	}
+    }
+
+    impl TT for AA {
+    }
+
+    AA::default_static_method();
+    let a = AA::new();
+    a.output(400);
+    a.output2(300, 500);
+}
+

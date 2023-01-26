@@ -153,22 +153,6 @@ std::vector<void *> *structexpr_deref(CAStructExpr obj) {
   return v;
 }
 
-struct MethodImplInfo {
-  int fnname;
-  STEntry *nameentry;
-  int fnname_manged;
-};
-
-typedef std::map<int, std::unique_ptr<MethodImplInfo>> impl_info_map_t;
-
-// The trait implemented function / method is in different map (the trait map)
-struct StructImplInfo {
-  impl_info_map_t method_in_struct;
-
-  // key: trait id, value method in trait map
-  std::map<int, impl_info_map_t> method_in_traits;
-};
-
 static MethodImplInfo *runable_find_entry_from_map(impl_info_map_t &method_map, int fnname) {
   auto itr = method_map.find(fnname);
   if (itr != method_map.end()) {
@@ -181,7 +165,7 @@ static MethodImplInfo *runable_find_entry_from_map(impl_info_map_t &method_map, 
   return nullptr;
 }
 
-static MethodImplInfo *runable_find_entry(STEntry *cls_entry, int fnname, int trait_name) {
+MethodImplInfo *runable_find_entry(STEntry *cls_entry, int fnname, int trait_name) {
   if (!cls_entry->u.datatype.runables.opaque)
     return nullptr;
 
@@ -225,19 +209,81 @@ static MethodImplInfo *runable_find_entry(STEntry *cls_entry, int fnname, int tr
   return multiple_impls[0].second;
 }
 
-void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry) {
+static StructImplInfo *runable_get_or_create_impl_info(STEntry *cls_entry) {
   StructImplInfo *m= nullptr;
   if (cls_entry->u.datatype.runables.opaque)
     m = (StructImplInfo *)cls_entry->u.datatype.runables.opaque;
-  else
+  else {
     m = new StructImplInfo;
+    cls_entry->u.datatype.runables.opaque = m;
+  }
+
+  return m;
+}
+
+int runable_is_method_in_struct(STEntry *cls_entry, int fnname) {
+  StructImplInfo *m = (StructImplInfo *)cls_entry->u.datatype.runables.opaque;
+  if (!m)
+    return 0;
+
+  return runable_find_entry_from_map(m->method_in_struct, fnname) != nullptr;
+}
+
+SymTableAssoc *runable_find_entry_assoc(STEntry *cls_entry, int fnname, int trait_name) {
+  StructImplInfo *m = (StructImplInfo *)cls_entry->u.datatype.runables.opaque;
+  if (!m)
+    return nullptr;
+
+  // then find from all trait impl part
+  std::vector<std::pair<typeid_t, SymTableAssoc *>> multiple_impls;
+  for (auto iter = m->method_in_traits_copied.begin(); iter != m->method_in_traits_copied.end(); ++iter) {
+    auto iter_fn = iter->second.find(fnname);
+    if (iter_fn != iter->second.end()) {
+      if (iter->first == trait_name)
+	return iter_fn->second;
+
+      multiple_impls.push_back(std::make_pair(iter->first, iter_fn->second));
+    }
+  }
+
+  if (multiple_impls.empty())
+    return nullptr;
+
+  if (multiple_impls.size() > 1) {
+    caerror_noexit(&cls_entry->sloc, nullptr, "multiple applicable items in scope");
+    
+    for (int i = 0; i < multiple_impls.size(); ++i) {
+      caerror_noexit(nullptr, nullptr,
+		     "note: candidate #%d is defined in an impl of the trait `%s` for the type `%s`",
+		     i + 1,
+		     catype_get_type_name(multiple_impls[i].first),
+		     catype_get_type_name(cls_entry->u.datatype.id));
+    }
+    exit(-1);
+    return nullptr;
+  }
+
+  return multiple_impls[0].second;
+}
+
+void runable_add_entry_assoc(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, SymTableAssoc *assoc) {
+  StructImplInfo *m = runable_get_or_create_impl_info(cls_entry);
+  auto iter = m->method_in_traits_copied.find(impl_info->trait_id);
+  if (iter == m->method_in_traits_copied.end()) {
+    m->method_in_traits_copied[impl_info->trait_id] = impl_assoc_info_map_t();
+    iter = m->method_in_traits_copied.find(impl_info->trait_id);
+  }
+
+  iter->second.insert(std::make_pair(fnname, assoc));
+}
+
+void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry) {
+  StructImplInfo *m = runable_get_or_create_impl_info(cls_entry);
 
   auto info = std::make_unique<MethodImplInfo>();
   info->fnname = fnname;
   info->fnname_manged = fnname_mangled;
   info->nameentry = nameentry;
-
-  cls_entry->u.datatype.runables.opaque = m;
 
   impl_info_map_t *info_map = nullptr;
   if (impl_info->trait_id == -1) {
@@ -255,7 +301,7 @@ void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, 
   info_map->insert(std::make_pair(fnname, std::move(info)));
 }
 
-static MethodImplInfo *get_method_impl_info(ASTNode *name, int struct_name, int method_name, int trait_name) {
+static MethodImplInfo *get_method_impl_info(ASTNode *name, int struct_name, int method_name, int trait_name, STEntry **cls_entry_out) {
   SymTable *entry_st = nullptr;
   typeid_t name_type = sym_form_type_id(struct_name);
   STEntry *cls_entry =
@@ -275,6 +321,9 @@ static MethodImplInfo *get_method_impl_info(ASTNode *name, int struct_name, int 
   if (cls_entry->sym_type == Sym_TraitDef)
     return nullptr;
 
+  if (cls_entry_out)
+    *cls_entry_out = cls_entry;
+
   // fieldname is method name
   auto info = runable_find_entry(cls_entry, method_name, trait_name);
   if (info == nullptr) {
@@ -291,7 +340,7 @@ static MethodImplInfo *get_method_impl_info(ASTNode *name, int struct_name, int 
   return info;
 }
 
-STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_fn, void **self_value, CADataType **struct_catype) {
+STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_fn, void **self_value, CADataType **struct_catype, STEntry **cls_entry) {
   assert(name->type == TTE_Expr && name->exprn.op == STRUCTITEM &&
          name->exprn.noperand == 1 &&
          name->exprn.operands[0]->type == TTE_StructFieldOpRight);
@@ -322,7 +371,7 @@ STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_
                         ? catype->struct_layout->name
                         : catype->pointer_layout->type->struct_layout->name;
 
-  MethodImplInfo *info = get_method_impl_info(name, struct_name, sfopn->fieldname, -1);
+  MethodImplInfo *info = get_method_impl_info(name, struct_name, sfopn->fieldname, -1, cls_entry);
   if (info)
     return info->nameentry;
   else
@@ -544,11 +593,14 @@ int symname_check(const char *name) {
 
 const char *symname_get(int pos) { return &s_symname_buffer[pos]; }
 
+const char *sg(int pos) { return symname_get(pos); }
+
 ///////////////////////////////////////////////////////
 
 int sym_init(SymTable *st, SymTable *parent) {
   st->parent = parent;
   st->opaque = new SymTableInner;
+  st->assoc = nullptr;
   SymTableInner *t = (SymTableInner *)st->opaque;
 
   return 0;
@@ -613,7 +665,32 @@ int sym_dump(SymTable *st, FILE *file) {
   return totallen;
 }
 
-STEntry *sym_getsym_with_symtable(SymTable *st, int idx, int parent, SymTable **entry_st) {
+SymTable *symtable_get_with_assoc(SymTable *symtable, int idx) {
+  SymTable *st = symtable;
+  if (st->assoc) {
+    switch (st->assoc->type) {
+    case STAT_Generic: {
+      // find if the idx is under the association table scope
+      std::set<int> *ids = (std::set<int> *)st->assoc->extra_id_list;
+      auto iter = ids->find(idx);
+      if (iter != ids->end()) {
+        st = st->assoc->assoc_table;
+      }
+
+      break;
+    }
+    default:
+      yyerror("unknown symbol table association type: %d\n", st->assoc->type);
+
+      return nullptr;
+    }
+  }
+
+  return st;
+}
+
+STEntry *sym_getsym_with_symtable(SymTable *symtable, int idx, int parent, SymTable **entry_st) {
+  SymTable *st = symtable_get_with_assoc(symtable, idx);
   while (st) {
     SymTableInner *t = ((SymTableInner *)st->opaque);
     auto itr = t->find(idx);
@@ -666,7 +743,7 @@ static STEntry *sym_get_function_entry_for_domain(ASTNode *name, ASTNode *args) 
   // try to find method from trait impl
   int struct_name = (int)(long)vec_at(domainn.parts, domainn.count-2);
   int method_name = (int)(long)vec_at(domainn.parts, domainn.count-1);
-  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, -1);
+  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, -1, nullptr);
   if (info)
     return info->nameentry;
 
@@ -690,7 +767,7 @@ static STEntry *sym_get_function_entry_for_domain(ASTNode *name, ASTNode *args) 
   }
 
   struct_name = struct_catype->pointer_layout->type->formalname;
-  info = get_method_impl_info(name, struct_name, method_name, trait_name);
+  info = get_method_impl_info(name, struct_name, method_name, trait_name, nullptr);
 
   if (!info) {
     caerror(&(name->begloc), &(name->endloc), "cannot find declared method: '%s' on struct `%s`",
@@ -724,7 +801,7 @@ static STEntry *sym_get_function_entry_for_domainas(ASTNode *name) {
   int struct_name = (int)(long)vec_at(domain_as.domain_main->parts, 0);
   int trait_name = (int)(long)vec_at(domain_as.domain_trait->parts, 0);
   int method_name = domain_as.fnname;
-  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, trait_name);
+  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, trait_name, nullptr);
   if (info)
     return info->nameentry;
   else
@@ -753,11 +830,26 @@ static CADataType *query_type_with_novalue(TStructFieldOp *sfopn, void **self_va
 }
 
 STEntry *sym_get_function_entry_for_method_novalue(ASTNode *name, CADataType **struct_catype) {
-  return sym_get_function_entry_for_method(name, query_type_with_novalue, nullptr, struct_catype);
+  return sym_get_function_entry_for_method(name, query_type_with_novalue, nullptr, struct_catype, nullptr);
 }
 
 STEntry *sym_getsym(SymTable *st, int idx, int parent) {
   return sym_getsym_with_symtable(st, idx, parent, nullptr);
+}
+
+STEntry *sym_getsym_st2_with_symtable(SymbolQueryParams *params, SymTable **entry_st) {
+  std::set<int> *ids = (std::set<int> *)params->extra_id_list;
+  SymTable *st = params->st_normal;
+  auto iter = ids->find(params->idx);
+  if (iter != ids->end()) {
+    st = params->st_extra;
+  }
+
+  return sym_getsym_with_symtable(st, params->idx, params->parent, entry_st);
+}
+
+STEntry *sym_getsym_st2(SymbolQueryParams *params) {
+  return sym_getsym_st2_with_symtable(params, nullptr);
 }
 
 STEntry *sym_gettypesym_by_name(SymTable *st, const char *name, int parent) {
@@ -1084,6 +1176,23 @@ void *sym_create_trait_defs_entry(ASTNode *node) {
   } 
 
   return info;
+}
+
+SymTableAssoc *new_SymTableAssoc(SymTableAssocType type, SymTable *assoc_table) {
+  SymTableAssoc *assoc = new SymTableAssoc;
+  assoc->type = type;
+  assoc->assoc_table = assoc_table;
+  assoc->extra_id_list = (void *)new std::set<int>();
+  return assoc;
+}
+
+void sym_assoc_add_item(SymTableAssoc *assoc, int value) {
+  ((std::set<int> *)assoc->extra_id_list)->insert(value);
+}
+
+void free_SymTableAssoc(SymTableAssoc *assoc) {
+  delete (std::set<int> *)assoc->extra_id_list;
+  delete assoc;
 }
 
 END_EXTERN_C

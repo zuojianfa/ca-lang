@@ -1727,6 +1727,7 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name) {
   // 3) find in the primitive (global datatype) table, if find then return the type object
   // 4) if not find, then uses the unwinded typeid create the type object
   // 5) put the object into global table and s_symtable_type_map table
+  symtable = symtable_get_with_assoc(symtable, name);
 
   // step 1: find type from symtable type table
   typeid_t windst = sym_form_symtable_type_id(symtable, name);

@@ -2956,7 +2956,7 @@ static typeid_t domain_get_function_name(ASTNode *name) {
   return fnname;
 }
 
-static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tuple, STEntry *entry,
+static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tuple, STEntry *param_entry, STEntry *cls_entry,
 					   typeid_t method_struct_signature, int is_direct_call) {
   typeid_t fnname = typeid_novalue;
   switch (name->type) {
@@ -2980,19 +2980,24 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
   }
 
   int is_method = name->type == TTE_Expr;
-  check_fn_define(fnname, param, tuple, entry, is_method);
+  check_fn_define(fnname, param, tuple, param_entry, is_method);
 
   ST_ArgList *formalparam = nullptr;
   if (tuple)
-    formalparam = entry->u.datatype.members;
+    formalparam = param_entry->u.datatype.members;
   else
-    formalparam = entry->u.f.arglists;
+    formalparam = param_entry->u.f.arglists;
 
   if (is_method) {
+    if (!runable_is_method_in_struct(cls_entry, fnname)) {
+      SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname, -1);
+      formalparam->symtable->assoc = assoc;
+    }
+
     // check first formal parameter with object type
     STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[0], 0);
     typeid_t datatype = paramentry->u.varshielding.current->datatype;
-    CADataType *dt = catype_get_by_name(name->symtable, datatype);
+    CADataType *dt = catype_get_by_name(formalparam->symtable, datatype);
     CHECK_GET_TYPE_VALUE(param, dt, datatype);
     typeid_t formaltype = dt->signature;
 
@@ -3048,9 +3053,12 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
     if (!catype_check_identical_in_symtable(name->symtable, realtype, param->symtable, formaltype)) {
       caerror(&(param->begloc), &(param->endloc), "the %d parameter type '%s' not match the parameter declared type '%s'",
 	      i, catype_get_type_name(realtype), catype_get_type_name(formaltype));
+      formalparam->symtable->assoc = nullptr;
       return;
     }
   }
+
+  formalparam->symtable->assoc = nullptr;
 }
 
 static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<Value *> &values) {
@@ -3124,7 +3132,7 @@ static void walk_expr_gentuple(ASTNode *p) {
 
 static void walk_expr(ASTNode *p);
 
-extern STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_fn, void **self_value, CADataType **struct_catype);
+extern STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_fn, void **self_value, CADataType **struct_catype, STEntry **cls_entry);
 static CADataType *query_type_with_value(TStructFieldOp *sfopn, void **self_value) {
   walk_stack(sfopn->expr);
   auto pair = pop_right_value("struct", !sfopn->direct);
@@ -3135,8 +3143,8 @@ static CADataType *query_type_with_value(TStructFieldOp *sfopn, void **self_valu
   return pair.second;
 }
 
-static STEntry *sym_get_function_entry_for_method_value(ASTNode *name, Value **self_value, CADataType **struct_catype) {
-  return sym_get_function_entry_for_method(name, query_type_with_value, (void **)self_value, struct_catype);
+static STEntry *sym_get_function_entry_for_method_value(ASTNode *name, Value **self_value, CADataType **struct_catype, STEntry **cls_entry) {
+  return sym_get_function_entry_for_method(name, query_type_with_value, (void **)self_value, struct_catype, cls_entry);
 }
 
 // the expression call may be a function call or tuple literal definition,
@@ -3157,15 +3165,15 @@ static void walk_expr_call(ASTNode *p) {
       return;
     }
 
-    check_and_determine_param_type(name, args, istuple, entry, typeid_novalue, 0);
+    check_and_determine_param_type(name, args, istuple, entry, nullptr, typeid_novalue, 0);
     break;
   }
   case TTE_Expr: {
     CADataType *catype = nullptr;
+    STEntry *cls_entry = nullptr;
     // get struct entry from domain subparts
-    entry = sym_get_function_entry_for_method_value(name, &self_value, &catype);
-
-    check_and_determine_param_type(name, args, istuple, entry,
+    entry = sym_get_function_entry_for_method_value(name, &self_value, &catype, &cls_entry);
+    check_and_determine_param_type(name, args, istuple, entry, cls_entry,
                                    catype->signature, name->exprn.operands[0]->sfopn.direct);
     fnname = symname_get(name->exprn.operands[0]->sfopn.fieldname);
     break;
@@ -3173,7 +3181,7 @@ static void walk_expr_call(ASTNode *p) {
   case TTE_Domain: {
     // get struct entry from domain subparts
     entry = sym_get_function_entry_for_domainfn(name, args);
-    check_and_determine_param_type(name, args, istuple, entry, typeid_novalue, 0);
+    check_and_determine_param_type(name, args, istuple, entry, nullptr, typeid_novalue, 0);
     fnname = symname_get(domain_get_function_name(name));
     break;
   }
@@ -3872,6 +3880,10 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
       return -1;
     }
 
+    // NEXT TODO: consider how to handle the trait default implementation ASTNode tree into struct implementation
+    // 1. operate the only one ASTNode entry and walk for it, the node is shared by every struct implemenation that
+    // implement it.
+    // 2. clone the trait fn ASTNode tree into struct and walk the struct
     CADataType *prevcatype = catype_get_by_name(prevargs->symtable, preventry->u.varshielding.current->datatype);
     CADataType *currcatype = catype_get_by_name(currargs->symtable, currentry->u.varshielding.current->datatype);
 
@@ -3958,7 +3970,7 @@ static int lexical_find_symtable_pos(SymTable *symtable) {
 }
 
 static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, TypeImplInfo *impl_info,
-					  STEntry **cls_entry = nullptr) {
+					  STEntry **cls_entry, SymTable *st_type) {
   if (!impl_info) {
     if (lexical_scope_stack.size() == 1)
       return catype_get_function_name(fnname);
@@ -3980,7 +3992,7 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
     return nullptr;
   }
 
-  symtable = sym_parent_or_global(symtable);
+  symtable = st_type ? st_type : sym_parent_or_global(symtable);
 
   // the symbol table which storing the struct entry
   SymTable *entry_st = nullptr;
@@ -4033,10 +4045,14 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
   return mangling_function_name_nottype(pos + 1, trait_name_fn);
 }
 
-static Function *walk_fn_declare_full(ASTNode *p, TypeImplInfo *impl_info) {
+static Function *walk_fn_declare_full_withsym(ASTNode *p, TypeImplInfo *impl_info, SymTable *st_type) {
   STEntry *cls_entry = nullptr;
   STEntry **cls_entry_out = impl_info ? &cls_entry : nullptr;
-  const char *fnname_full = mangling_function_name(p->symtable, p->fndecln.name, impl_info, cls_entry_out);
+
+  // here using symbol table of class implementation
+  const char *fnname_full = mangling_function_name(p->symtable, p->fndecln.name, impl_info, cls_entry_out, st_type);
+
+  // if impl_info is not null then cls_entry must cannot be null
   assert(impl_info == nullptr || cls_entry != nullptr);
   int fnname_full_id = symname_check_insert(fnname_full);
 
@@ -4082,6 +4098,26 @@ static Function *walk_fn_declare_full(ASTNode *p, TypeImplInfo *impl_info) {
       return nullptr;
     }
 
+#if 0
+    SymTable *st = p->symtable;
+    typeid_t typeid_st = entry->u.varshielding.current->datatype;
+    if (i == 0 && impl_info) {
+      // for the first parameter
+      typeid_t trait_self_ptr_id = catype_trait_self_ptr_id();
+      typeid_t trait_type = entry->u.varshielding.current->datatype;
+      if (trait_type == trait_self_ptr_id) {
+	// it is a *Self skeleton parameter, here should replace it with the real type
+	typeid_st = sym_form_pointer_id(impl_info->class_id);
+	entry->u.varshielding.current->datatype = typeid_st;
+	if (st_type)
+	  st = st_type;
+      }
+    }
+
+    CADataType *dt = catype_get_by_name(st, typeid_st);
+    CHECK_GET_TYPE_VALUE(p, dt, entry->u.varshielding.current->datatype);
+#endif
+
     CADataType *dt = catype_get_by_name(p->symtable, entry->u.varshielding.current->datatype);
     CHECK_GET_TYPE_VALUE(p, dt, entry->u.varshielding.current->datatype);
 
@@ -4097,17 +4133,34 @@ static Function *walk_fn_declare_full(ASTNode *p, TypeImplInfo *impl_info) {
   fn->setCallingConv(CallingConv::C);
 
   if (walk_pass == 1) {
-    preventry->u.f.mangled_id = fnname_full_id;
     if (cls_entry) {
       typeid_t name = catype_struct_impl_id_to_function_name(p->fndecln.name);
+      if (st_type) {
+	// for trait copied default method of generic method, then copy an entry
+	typeid_t fnname = sym_form_method_id(name, impl_info->class_id, impl_info->trait_id);
+
+	STEntry *preventry_copyed = sym_check_insert(st_type, fnname, Sym_FnDef);
+        preventry_copyed->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
+        *preventry_copyed->u.f.arglists = *preventry->u.f.arglists;
+	preventry_copyed->u.f.rettype = preventry->u.f.rettype;
+	preventry_copyed->u.f.mangled_id = fnname_full_id;
+	preventry = preventry_copyed;
+      }
+
       runable_add_entry(impl_info, cls_entry, name, fnname_full_id, preventry);
     }
+
+    preventry->u.f.mangled_id = fnname_full_id;
   }
 
   //AttrListPtr func_printf_PAL;
   //fn->setAttributes(func_printf_PAL);
 
   return fn;
+}
+
+static Function *walk_fn_declare_full(ASTNode *p, TypeImplInfo *impl_info) {
+  return walk_fn_declare_full_withsym(p, impl_info, nullptr);
 }
 
 static void walk_fn_declare(ASTNode *p) {
@@ -4137,9 +4190,9 @@ static void generate_final_return(ASTNode *p) {
     ir1.builder().CreateRetVoid();
 }
 
-static Function *walk_fn_define_full(ASTNode *p, TypeImplInfo *impl_info) {
+static Function *walk_fn_define_full_withsym(ASTNode *p, TypeImplInfo *impl_info, SymTable *symtable) {
   g_with_ret_value = false;
-  Function *fn = walk_fn_declare_full(p->fndefn.fn_decl, impl_info);
+  Function *fn = walk_fn_declare_full_withsym(p->fndefn.fn_decl, impl_info, symtable);
   if (walk_pass == 1) {
     walk_stack(p->fndefn.stmts);
     return fn;
@@ -4215,6 +4268,10 @@ static Function *walk_fn_define_full(ASTNode *p, TypeImplInfo *impl_info) {
   }
 
   return fn;
+}
+
+static Function *walk_fn_define_full(ASTNode *p, TypeImplInfo *impl_info) {
+  return walk_fn_define_full_withsym(p, impl_info, nullptr);
 }
 
 static void walk_fn_define(ASTNode * p) {
@@ -4448,6 +4505,8 @@ static void check_trait_impl_match(ASTNode *node, std::vector<std::pair<typeid_t
 }
 
 static void walk_fn_define_impl(ASTNode *node) {
+  // pair.first: the method name
+  // pair.second: the method implementation
   std::vector<std::pair<typeid_t, ASTNode *>> use_default_impls;
   if (node->fndefn_impl.impl_info.trait_id != -1) {
     check_trait_impl_match(node, use_default_impls);
@@ -4458,6 +4517,33 @@ static void walk_fn_define_impl(ASTNode *node) {
   for (int i = 0; i < node->fndefn_impl.count; ++i) {
     ASTNode *node_impl = static_cast<ASTNode *>(vec_at(handle, i));
     walk_fn_define_full(node_impl, &node->fndefn_impl.impl_info);
+  }
+
+  // NEXT TODO: copy trait default method implementation and walk
+  // pick up the method with *Self as the first parameter
+  for (auto pair : use_default_impls) {
+    // in order to not copy the entire ASTNode tree for trait method definition, so here just
+    // create temporary symbol table for storing `Self` type alias or generic type alias
+    // information (used in generic function)
+    SymTable *symtable = push_new_symtable_with_parent(node->symtable);
+    int id = symname_check_insert(CSELF);
+    STEntry *entry = make_type_def_entry(id, node->fndefn_impl.impl_info.class_id,
+					 symtable, &node->begloc, &node->endloc);
+    SymTableAssoc *assoc = new_SymTableAssoc(STAT_Generic, symtable);
+    sym_assoc_add_item(assoc, entry->sym_name); // sym_name: t:Self
+    sym_assoc_add_item(assoc, node->fndefn_impl.impl_info.class_id);
+    pair.second->symtable->assoc = assoc;
+
+    auto impl_info = &node->fndefn_impl.impl_info;
+    STEntry *cls_entry = sym_getsym_with_symtable(symtable, impl_info->class_id, 1, nullptr);
+    //runable_add_entry(impl_info, cls_entry, pair.first, -1, entry);
+    runable_add_entry_assoc(impl_info, cls_entry, pair.first, assoc);
+
+    // NEXT TODO: need clone ASTNode here and pass symtable? or steal the sym
+    
+    walk_fn_define_full_withsym(pair.second, impl_info, symtable);
+    pair.second->symtable->assoc = nullptr;
+    //free_symtable(symtable);
   }
 }
 

@@ -113,6 +113,10 @@ ASTNode *new_ASTNode(ASTNodeType nodetype) {
   return p;
 }
 
+void free_ASTNode(ASTNode *node) {
+  free(node);
+}
+
 const char *sym_form_label_name(const char *name) {
   // TODO: the buffer need reimplement
   static char label_buf[1024];
@@ -273,7 +277,12 @@ const char *sym_form_struct_signature(const char *name, SymTable *st) {
 typeid_t sym_form_symtable_type_id(SymTable *st, typeid_t name) {
   static char name_buf[1024];
   const char *chname = catype_get_type_name(name);
-  sprintf(name_buf, "%s@%p", chname, st);
+  if (st->assoc)
+    // TODO: when st->assoc->assoc_table table is temporary created table, it should never hit the cache
+    sprintf(name_buf, "%s@%p@%p", chname, st, st->assoc->assoc_table);
+  else
+    sprintf(name_buf, "%s@%p", chname, st);
+
   return symname_check_insert(name_buf);
 }
 
@@ -565,36 +574,39 @@ typeid_t make_tuple_type(ST_ArgList *arglist) {
   return id;
 }
 
-ASTNode *make_type_def(int id, typeid_t type) {
+STEntry *make_type_def_entry(int id, typeid_t type, SymTable *symtable, SLoc *beg, SLoc *end) {
   // make it can have the same name for the type name and variable name
   // implemented just like the label type: add a prefix before the type name
   typeid_t newtype = sym_form_type_id(id);
   CADataType *primtype = catype_get_primitive_by_name(newtype);
   if (primtype) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "type alias id `%s` cannot be primitive type", symname_get(id));
+    caerror(beg, NULL, "type alias id `%s` cannot be primitive type", symname_get(id));
     return NULL;
   }
 
-  STEntry *entry = sym_getsym(curr_symtable, newtype, 0);
+  STEntry *entry = sym_getsym(symtable, newtype, 0);
   if (entry) {
-    SLoc stloc = {glineno, gcolno};
-    caerror(&stloc, NULL, "type `%s` defined multiple times", symname_get(id));
+    caerror(beg, NULL, "type `%s` defined multiple times", symname_get(id));
     return NULL;
   }
 
-  entry = sym_insert(curr_symtable, newtype, Sym_DataType);
+  entry = sym_insert(symtable, newtype, Sym_DataType);
   entry->u.datatype.id = type;
-  entry->u.datatype.idtable = curr_symtable;
+  entry->u.datatype.idtable = symtable;
   entry->u.datatype.runables.opaque = NULL;
   entry->u.datatype.members = NULL;
-  SLoc loc = {glineno, gcolno};
-  entry->sloc = loc;
+  entry->sloc = *beg;
 
+  return entry;
+}
+
+ASTNode *make_type_def(int id, typeid_t type) {
+  SLoc stloc = {glineno, gcolno};
+  STEntry *entry = make_type_def_entry(id, type, curr_symtable, &stloc, NULL);
   ASTNode *p = new_ASTNode(TTE_TypeDef);
-  p->typedefn.newtype = newtype;
+  p->typedefn.newtype = entry->sym_name;
   p->typedefn.type = type;
-  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &(SLoc){glineno, gcolno});
+  set_address(p, &(SLoc){glineno_prev, gcolno_prev}, &stloc);
   return p;
 }
 
@@ -678,9 +690,14 @@ void create_string_literal(CALiteral *lit, const LitBuffer *litb) {
   lit->u.strvalue.len = litb->len;
 }
 
-SymTable *push_new_symtable() {
+SymTable *push_new_symtable_with_parent(SymTable *parent) {
     SymTable *st = (SymTable *)malloc(sizeof(SymTable));
-    sym_init(st, curr_symtable);
+    sym_init(st, parent);
+    return st;
+}
+
+SymTable *push_new_symtable() {
+    SymTable *st = push_new_symtable_with_parent(curr_symtable);
     curr_symtable = st;
     return st;
 }
@@ -696,6 +713,10 @@ SymTable *pop_symtable() {
     curr_symtable = curr_symtable->parent;
 
   return curr_symtable;
+}
+
+void free_symtable(SymTable *symtable) {
+  free(symtable);
 }
 
 int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {

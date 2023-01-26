@@ -320,6 +320,7 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
+- [ ] not allow define the type with name Self
 - [ ] search domainn and replace it with domainfn, supporting `<TT as AA>::fnname`
 - [ ] check if function return value match definition, check if have return value, report error
 - [ ] support trait

@@ -1,0 +1,48 @@
+trait TT {
+    fn default_static_method() {
+	print "TT::default_static_method\n";
+    }
+
+    // fn output(self) {
+    // 	print "TT::output: ";
+    // 	print *self;
+    // 	print '\n';
+    // }
+
+    // fn add(self, a: i32, b: i32) -> i32 {
+    // 	return a + b;
+    // }
+}
+
+//impl AA {
+    // fn new(v: i32) -> AA {
+    // 	return AA {v};
+    // }
+
+    // fn add(self, a: i32, b: i32) -> i32 {
+    // 	return a + b + v;
+    // }
+
+    // fn output(self) {
+    // 	print "TT::output: ";
+    // 	print *self;
+    // 	print '\n';
+    // }
+//}
+
+fn main() {
+    struct AA {
+	v: i32,
+    }
+
+    impl TT for AA {
+    }
+
+    AA::default_static_method();
+
+    // let a = AA::new(1024);
+    // a.output();
+    // let v = a.add(1,2);
+    // print v; print '\n';
+}
+
