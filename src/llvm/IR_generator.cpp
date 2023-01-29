@@ -2988,12 +2988,14 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
   else
     formalparam = param_entry->u.f.arglists;
 
-  if (is_method) {
+  if (cls_entry) {
     if (!runable_is_method_in_struct(cls_entry, fnname)) {
       SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname, -1);
       formalparam->symtable->assoc = assoc;
     }
+  }
 
+  if (is_method) {
     // check first formal parameter with object type
     STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[0], 0);
     typeid_t datatype = paramentry->u.varshielding.current->datatype;
@@ -3030,7 +3032,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
 	datatype = paramentry->u.varshielding.current->datatype;
       }
 
-      CADataType *dt = catype_get_by_name(name->symtable, datatype);
+      CADataType *dt = catype_get_by_name(formalparam->symtable, datatype);
       CHECK_GET_TYPE_VALUE(param, dt, datatype);
       formaltype = dt->signature;
     }
@@ -3179,9 +3181,11 @@ static void walk_expr_call(ASTNode *p) {
     break;
   }
   case TTE_Domain: {
+    STEntry *cls_entry = nullptr;
+
     // get struct entry from domain subparts
-    entry = sym_get_function_entry_for_domainfn(name, args);
-    check_and_determine_param_type(name, args, istuple, entry, nullptr, typeid_novalue, 0);
+    entry = sym_get_function_entry_for_domainfn(name, args, &cls_entry);
+    check_and_determine_param_type(name, args, istuple, entry, cls_entry, typeid_novalue, 0);
     fnname = symname_get(domain_get_function_name(name));
     break;
   }

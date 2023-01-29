@@ -321,19 +321,16 @@ is scopeline the real skip function start for debugging? try it
 
 NEXT TODO:
 - [ ] not allow define the type with name Self
-- [ ] search domainn and replace it with domainfn, supporting `<TT as AA>::fnname`
 - [ ] check if function return value match definition, check if have return value, report error
 - [ ] support trait
   - [x] convert trait ASTNode into trait inner object for comparing the function argument use in `make_trait_defs` in `make_trait_defs`
   - [x] trait definition
   - [x] trait implementation
+  - [x] support trait default method
+  - [x] support full path call for trait method, or domain trait method, when there also have implementations in struct or in trait `<AA as TT>::method(); <a as TT>.method();`
+  - [x] search domainn and replace it with domainfn, supporting `<TT as AA>::fnname`
+  - [ ] support Self skeleton
   - [ ] support absolute path method call after supporting mod
-  - [ ] copy ASTNode and implement the function impl in use_default_impls
-  - [ ] support full path call for trait method, or domain trait method, when there is also have implementations in struct or in trait
-	```
-	<AA as TT>::method();
-	<a as TT>.method();
-	```
 - [ ] support box(type) grammar a long with box(expr) grammar
 - [ ] implement ca runtime system to support the compiler functionality, like output slice object, it need runtime system support, because slice type's length is not determined in compile time, and cannot fixed print in compile, so need use runtime system to support printing it
   - [ ] perfect runtime libraries to support others

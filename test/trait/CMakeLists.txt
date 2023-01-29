@@ -34,4 +34,10 @@ do_test(trait "TT::default_static_method\nTT::output = 400\nTT::output = 300\nTT
 do_test(trait "TT::default_static_method\nAA::output = 400\nAA::output = 300\nAA::output = 500" ca trait8_copy4_method2.ca)
 do_test(trait "TT::default_static_method\nTT::output = 400\nTT::output = 300\nTT::output = 500" ca trait8_copy5_method1.ca)
 do_test(trait "TT::default_static_method\nAA::output = 400\nAA::output = 300\nAA::output = 500" ca trait8_copy5_method2.ca)
+do_test(trait "134\n2245\n" ca trait_self_type0.ca)
+do_test(trait "AA { a: 33, b: 34 }\n2245\nAA { a: 33, b: 34 }\n2245\n34" ca trait_self_type1.ca)
+do_test(todo-trait "2245\n2279\n" ca trait_self_type2.ca)
+do_test(todo-trait "2245\n2245\n" ca trait_self_type_copy1.ca)
+do_test(todo-trait "134\n2245\n" ca trait_self_type_copy1_2.ca)
+do_test(todo-trait "134\n2245\n" ca trait_self_type_copy2.ca)
 

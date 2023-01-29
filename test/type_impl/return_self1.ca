@@ -1,0 +1,15 @@
+struct AA {
+    a: i32,
+}
+
+impl AA {
+    fn new() -> Self {
+	return Self {a: 33};
+    }
+}
+
+fn main() {
+    let a = AA::new();
+    print a;
+}
+

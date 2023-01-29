@@ -345,6 +345,9 @@ ASTNode *make_fn_def_impl_begin(ASTNode *fndef) {
   p->fndefn_impl.count = fndef ? 1 : 0;
   p->fndefn_impl.data = vec_new();
   if (fndef) {
+    int id = symname_check_insert(CSELF);
+    STEntry *entry = make_type_def_entry(id, current_type_impl->class_id, fndef->symtable, &fndef->begloc, &fndef->endloc);
+
     vec_append(p->fndefn_impl.data, (void *)fndef);
     set_address(p, &fndef->begloc, &fndef->endloc);
   } else {
@@ -359,6 +362,9 @@ ASTNode *make_fn_def_impl_next(ASTNode *impl, ASTNode *fndef) {
     caerror(&fndef->begloc, &fndef->endloc, "wrong impl type: %d required, but %d found", TTE_FnDefImpl, impl->type);
     return NULL;
   }
+
+  int id = symname_check_insert(CSELF);
+  STEntry *entry = make_type_def_entry(id, current_type_impl->class_id, fndef->symtable, &fndef->begloc, &fndef->endloc);
 
   impl->fndefn_impl.count += 1;
   vec_append(impl->fndefn_impl.data, (void *)fndef);
@@ -1588,7 +1594,7 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       break;
     }
     case TTE_Domain: {
-      STEntry *entry = sym_get_function_entry_for_domainfn(idn, node->exprn.operands[1]);
+      STEntry *entry = sym_get_function_entry_for_domainfn(idn, node->exprn.operands[1], NULL);
       type1 = entry->u.f.rettype;
       break;
     }

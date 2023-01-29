@@ -1,0 +1,23 @@
+struct AA {
+    a: i32,
+    b: i32,
+}
+
+impl AA {
+    fn sum(self) -> i32 {
+	let a: Self = Self{33, 34};
+	let a1 = self->a + a.a;
+	let b1 = self->b + a.b;
+
+	let b = Self{33, 34};
+	print b; print '\n';
+	return a1 + b1;
+    }
+}
+
+fn main() {
+    let a = AA{33, 34};
+    let s = a.sum();
+    print s;
+}
+

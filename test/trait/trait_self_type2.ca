@@ -1,0 +1,43 @@
+struct AA {
+    a: i32,
+    b: i32,
+}
+
+trait TT {
+    fn sum(self) -> i32;
+}
+
+impl TT for AA {
+    fn sum(self) -> i32 {
+	let a = Self{33, 34};
+	let a1 = self->a * a.a;
+	let b1 = self->b * a.b;
+
+	let b: Self = Self{33, 34};
+	return a1 + b1;
+    }
+}
+
+struct AA2 {
+    a: i32,
+    b: i32,
+}
+
+impl AA2 {
+    fn sum(self, other: *AA) -> i32 {
+	let t1 = self->a + self->b;
+	let t2 = other->sum();
+	return t1 + t2;
+    }
+}
+
+fn main() {
+    let a = AA{33, 34};
+    let s = a.sum();
+    print s; print '\n';
+
+    let b = AA2{11,23};
+    let s = b.sum(&a);
+    print s; print '\n';
+}
+
