@@ -2471,6 +2471,7 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
 
   check_arglist_names(arglist);
 
+#if 0
   // replace Self with the real struct name
   if (current_type_impl) {
     const char *ret_type = catype_get_type_name(rettype);
@@ -2480,6 +2481,7 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
       rettype = current_type_impl->class_id;
     }
   }
+#endif
 
   curr_fn_rettype = rettype;
 
@@ -2501,6 +2503,7 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
       entry = sym_check_insert(symtable, fnname, Sym_FnDecl);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
       *entry->u.f.arglists = *arglist;
+      entry->u.f.ca_func_type = CAFT_Function;
     }
     entry->u.f.rettype = rettype;
 
@@ -2535,6 +2538,16 @@ ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
       entry = sym_check_insert(symtable, fnname, Sym_FnDef);
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
       *entry->u.f.arglists = *arglist;
+
+      if (current_trait_id)
+	entry->u.f.ca_func_type = CAFT_MethodInTrait;
+      else if (current_type_impl && current_type_impl->fn_def_recursive_count == 0) {
+	if (current_type_impl->trait_id != -1)
+	  entry->u.f.ca_func_type = CAFT_MethodForTrait;
+	else
+	  entry->u.f.ca_func_type = CAFT_Method;
+      } else
+	entry->u.f.ca_func_type = CAFT_Function;
     }
     entry->u.f.rettype = rettype;
 

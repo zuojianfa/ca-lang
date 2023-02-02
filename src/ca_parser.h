@@ -540,9 +540,6 @@ END_EXTERN_C
 
 const static char *OSELF = "self";
 const static char *CSELF = "Self";
-// used for form the skeleton for the trait, because '$' cannot be used in
-// source code, so here it be used to identify the unique `* Self`
-const static char *CSELFID = "$Self$";
 
 #endif
 

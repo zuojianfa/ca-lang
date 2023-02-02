@@ -4,12 +4,11 @@ struct AA {
 }
 
 trait TT {
-    fn sum(self) -> i32 {
-	let a = Self{33, 34};
+    fn sum(self, a: i32) -> i32 {
+	let b = Self{33, 34};
 	let b: Self = Self{33, 34};
-	self->a;
-	let a1 = self->a * a.a;
-	let b1 = self->b * a.b;
+	let a1 = self->a * a + b.a;
+	let b1 = self->b * a + b.b;
 	return a1 + b1;
     }
 }
@@ -27,11 +26,13 @@ impl TT for AA2 {
 
 fn main() {
     let a = AA{33, 34};
-    let s = a.sum();
+    let s = a.sum(6);
     print s; print '\n';
 
     let b = AA2{11, 22};
-    let s2 = b.sum();
+    let s2 = b.sum(8);
     print s2; print '\n';
+
+    // dbgprinttype(typeof(b));
 }
 

@@ -207,6 +207,22 @@ std::vector<std::unique_ptr<LexicalScope>> lexical_scope_stack;
 static LexicalScope *curr_lexical_scope = nullptr;
 static LexicalScope *root_lexical_scope = nullptr;
 
+struct GenericTypeVarInfo {
+  GenericTypeVarInfo(typeid_t *datatype_addr, typeid_t old_value,
+                     typeid_t new_value)
+    : datatype_addr(datatype_addr), old_value(old_value), new_value(new_value)
+  {
+  }
+
+  typeid_t *datatype_addr;
+  typeid_t old_value;
+  typeid_t new_value;
+};
+
+typedef std::map<typeid_t *, GenericTypeVarInfo> generic_type_var_set_t;
+
+static std::vector<std::pair<SymTableAssoc *, generic_type_var_set_t>> generic_type_stack;
+
 // for handling function parameter checking
 static std::unordered_map<typeid_t, void *> g_function_post_check_map;
 
@@ -986,13 +1002,66 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bo
   return var;
 }
 
+static typeid_t catype_get_core_type(typeid_t type) {
+  // NEXT TODO: get the type's core type
+  // 1. *AA, [AA;2], *[AA;3], [*[AA;3]; 2]
+  // 2. new defined struct is not cored for generic type because the new defined struct type will create new symbol table
+
+  // reference the catype_get_by_name
+  return type;
+}
+
+static void generic_type_record_replace(typeid_t *datatype_addr, typeid_t old_value, typeid_t new_value) {
+  if (generic_type_stack.empty())
+    return;
+
+  SymTableAssoc *assoc = generic_type_stack.back().first;
+  if (!assoc)
+    return;
+
+  // to avoid the different value with the same addresses, like following, or it need compare the same address
+  // {
+  //   {datatype_addr = 0x5555556cd410, old_value = 201, new_value = 395},
+  //   {datatype_addr = 0x5555556cdd70, old_value = -1, new_value = 21},
+  //   {datatype_addr = 0x5555556cd410, old_value = 395, new_value = 395}
+  // }
+  if (old_value == new_value)
+    return;
+
+  if (generic_type_stack.back().second.find(datatype_addr) != generic_type_stack.back().second.end())
+    return;
+
+#if 0 // when enabled it will only record the necessary types of variable (the generic type or trait type),
+  // but for now it will need realize function `catype_get_core_type`, so when function `catype_get_core_type`
+  // is realized, it should reopened
+  std::set<int> *ids = (std::set<int> *)assoc->extra_id_list;
+
+  typeid_t old_value_core = catype_get_core_type(old_value);
+  if (ids->find(old_value_core) == ids->end())
+    return;
+#endif
+
+  generic_type_stack.back().second.insert(std::make_pair(datatype_addr, GenericTypeVarInfo(datatype_addr, old_value, new_value)));
+}
+
+static void generic_type_handle_replace(std::pair<SymTableAssoc *, generic_type_var_set_t> &assoc_pair) {
+  if (!assoc_pair.first)
+    return;
+
+  for (auto iter = assoc_pair.second.begin(); iter != assoc_pair.second.end(); ++iter) {
+    *iter->second.datatype_addr = iter->second.old_value;
+  }
+}
+
 static Value *walk_id(ASTNode *p) {
   if (walk_pass == 1)
     return nullptr;
 
   CADataType *catype = catype_get_by_name(p->symtable, p->entry->u.varshielding.current->datatype);
   CHECK_GET_TYPE_VALUE(p, catype, p->entry->u.varshielding.current->datatype);
-  
+
+  generic_type_record_replace(&p->entry->u.varshielding.current->datatype, p->entry->u.varshielding.current->datatype, catype->signature);
+ 
   p->entry->u.varshielding.current->datatype = catype->signature;
 
   Value *var = nullptr;
@@ -2108,11 +2177,9 @@ static CADataType *capattern_check_get_type(CAPattern *cap, ASTNode *exprn) {
   return catype;
 }
 
-static void determine_letbind_type(CAPattern *cap, CADataType *catype,
-                                   SymTable *symtable);
-
 static void register_variable_catype(int var, typeid_t type, SymTable *symtable) {
   STEntry *entry = sym_getsym(symtable, var, 0);
+  generic_type_record_replace(&entry->u.varshielding.current->datatype, entry->u.varshielding.current->datatype, type);
   entry->u.varshielding.current->datatype = type;
 }
 
@@ -2147,6 +2214,7 @@ static void inference_letbind_pattern_range(CAPattern *rotate_top_cap, CAPattern
   }
 }
 
+static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable *symtable);
 static void determine_letbind_type_range(CAPattern *cap, CADataType *catype, int from, int to, SymTable *symtable) {
   for (int i = from; i < to; ++i) {
     determine_letbind_type(cap->items->patterns[i], catype, symtable);
@@ -2989,7 +3057,8 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
     formalparam = param_entry->u.f.arglists;
 
   if (cls_entry) {
-    if (!runable_is_method_in_struct(cls_entry, fnname)) {
+    //if (!runable_is_method_in_struct(cls_entry, fnname)) {
+    if (param_entry->u.f.ca_func_type == CAFT_MethodInTrait) {
       SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname, -1);
       formalparam->symtable->assoc = assoc;
     }
@@ -4146,6 +4215,7 @@ static Function *walk_fn_declare_full_withsym(ASTNode *p, TypeImplInfo *impl_inf
 	STEntry *preventry_copyed = sym_check_insert(st_type, fnname, Sym_FnDef);
         preventry_copyed->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
         *preventry_copyed->u.f.arglists = *preventry->u.f.arglists;
+	preventry_copyed->u.f.ca_func_type = preventry->u.f.ca_func_type;
 	preventry_copyed->u.f.rettype = preventry->u.f.rettype;
 	preventry_copyed->u.f.mangled_id = fnname_full_id;
 	preventry = preventry_copyed;
@@ -4201,6 +4271,11 @@ static Function *walk_fn_define_full_withsym(ASTNode *p, TypeImplInfo *impl_info
     walk_stack(p->fndefn.stmts);
     return fn;
   }
+
+  if (symtable)
+    generic_type_stack.push_back(std::make_pair(p->symtable->assoc, generic_type_var_set_t()));
+  else
+    generic_type_stack.push_back(std::make_pair(nullptr, generic_type_var_set_t()));
 
   if (p->fndefn.fn_decl->fndecln.args.argc != fn->arg_size())
     yyerror("argument number not identical with definition (%d != %d)",
@@ -4270,6 +4345,12 @@ static Function *walk_fn_define_full_withsym(ASTNode *p, TypeImplInfo *impl_info
     curr_fn = curr_fn_stack.back().llvm_fn;
     curr_fn_stack.pop_back();
   }
+
+  if (symtable) {
+    generic_type_handle_replace(generic_type_stack.back());
+  }
+
+  generic_type_stack.pop_back();
 
   return fn;
 }
@@ -4534,7 +4615,9 @@ static void walk_fn_define_impl(ASTNode *node) {
     STEntry *entry = make_type_def_entry(id, node->fndefn_impl.impl_info.class_id,
 					 symtable, &node->begloc, &node->endloc);
     SymTableAssoc *assoc = new_SymTableAssoc(STAT_Generic, symtable);
-    sym_assoc_add_item(assoc, entry->sym_name); // sym_name: t:Self
+    sym_assoc_add_item(assoc, entry->sym_name); // sym_name: t:Self, for Self stub type
+
+    // tell it to find struct entry from association table, because current template may have no such type information
     sym_assoc_add_item(assoc, node->fndefn_impl.impl_info.class_id);
     pair.second->symtable->assoc = assoc;
 
@@ -4544,7 +4627,7 @@ static void walk_fn_define_impl(ASTNode *node) {
     runable_add_entry_assoc(impl_info, cls_entry, pair.first, assoc);
 
     // NEXT TODO: need clone ASTNode here and pass symtable? or steal the sym
-    
+
     walk_fn_define_full_withsym(pair.second, impl_info, symtable);
     pair.second->symtable->assoc = nullptr;
     //free_symtable(symtable);
