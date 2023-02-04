@@ -743,7 +743,7 @@ static STEntry *sym_get_function_entry_for_domain(ASTNode *name, ASTNode *args, 
   // try to find method from trait impl
   int struct_name = (int)(long)vec_at(domainn.parts, domainn.count-2);
   int method_name = (int)(long)vec_at(domainn.parts, domainn.count-1);
-  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, -1, nullptr);
+  MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, -1, cls_entry);
   if (info)
     return info->nameentry;
 

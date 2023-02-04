@@ -3241,7 +3241,9 @@ static void walk_expr_call(ASTNode *p) {
   ASTNode *args = p->exprn.operands[1];
 
   const char *fnname = nullptr;
+  typeid_t fnname_id = typeid_novalue;
   STEntry *entry = nullptr;
+  STEntry *cls_entry = nullptr;
   int istuple = 0;
   Value *self_value = nullptr;
   switch (name->type) {
@@ -3257,21 +3259,20 @@ static void walk_expr_call(ASTNode *p) {
   }
   case TTE_Expr: {
     CADataType *catype = nullptr;
-    STEntry *cls_entry = nullptr;
     // get struct entry from domain subparts
     entry = sym_get_function_entry_for_method_value(name, &self_value, &catype, &cls_entry);
     check_and_determine_param_type(name, args, istuple, entry, cls_entry,
                                    catype->signature, name->exprn.operands[0]->sfopn.direct);
-    fnname = symname_get(name->exprn.operands[0]->sfopn.fieldname);
+    fnname_id = name->exprn.operands[0]->sfopn.fieldname;
+    fnname = symname_get(fnname_id);
     break;
   }
   case TTE_Domain: {
-    STEntry *cls_entry = nullptr;
-
     // get struct entry from domain subparts
     entry = sym_get_function_entry_for_domainfn(name, args, &cls_entry);
     check_and_determine_param_type(name, args, istuple, entry, cls_entry, typeid_novalue, 0);
-    fnname = symname_get(domain_get_function_name(name));
+    fnname_id = domain_get_function_name(name);
+    fnname = symname_get(fnname_id);
     break;
   }
   default:
@@ -3317,8 +3318,16 @@ static void walk_expr_call(ASTNode *p) {
   }
  
   CallInst *callret = ir1.builder().CreateCall(fn, argv, isvoidty ? "" : fnname);
-  CADataType *retdt = catype_get_by_name(p->symtable, itr->second->fndecln.ret);
-  CHECK_GET_TYPE_VALUE(p, retdt, itr->second->fndecln.ret);
+  // if (cls_entry) {
+  //   if (entry->u.f.ca_func_type != CAFT_Function) {
+  //     SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname_id, -1);
+  //     itr->second->symtable->assoc = assoc;
+  //   }
+  // }
+
+  CADataType *retdt = catype_get_by_name(itr->second->symtable, itr->second->fndecln.ret);
+  CHECK_GET_TYPE_VALUE(itr->second, retdt, itr->second->fndecln.ret);
+  //itr->second->symtable->assoc = nullptr;
 
   OperandType optype = OT_CallInst;
   Value *newv = callret;
@@ -4621,9 +4630,13 @@ static void walk_fn_define_impl(ASTNode *node) {
   }
 
   void *handle = node->fndefn_impl.data;
+  int self_id = symname_check_insert(CSELF);
 
   for (int i = 0; i < node->fndefn_impl.count; ++i) {
     ASTNode *node_impl = static_cast<ASTNode *>(vec_at(handle, i));
+    // STEntry *entry = make_type_def_entry(self_id, node->fndefn_impl.impl_info.class_id,
+    // 					 node_impl->symtable, &node->begloc, &node->endloc);
+
     walk_fn_define_full(node_impl, &node->fndefn_impl.impl_info);
   }
 
@@ -4634,8 +4647,7 @@ static void walk_fn_define_impl(ASTNode *node) {
     // create temporary symbol table for storing `Self` type alias or generic type alias
     // information (used in generic function)
     SymTable *symtable = push_new_symtable_with_parent(node->symtable);
-    int id = symname_check_insert(CSELF);
-    STEntry *entry = make_type_def_entry(id, node->fndefn_impl.impl_info.class_id,
+    STEntry *entry = make_type_def_entry(self_id, node->fndefn_impl.impl_info.class_id,
 					 symtable, &node->begloc, &node->endloc);
     SymTableAssoc *assoc = new_SymTableAssoc(STAT_Generic, symtable);
     sym_assoc_add_item(assoc, entry->sym_name); // sym_name: t:Self, for Self stub type

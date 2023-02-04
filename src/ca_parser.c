@@ -1595,8 +1595,15 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       break;
     }
     case TTE_Domain: {
-      STEntry *entry = sym_get_function_entry_for_domainfn(idn, node->exprn.operands[1], NULL);
-      type1 = entry->u.f.rettype;
+      STEntry *cls_entry = NULL;
+      STEntry *entry = sym_get_function_entry_for_domainfn(idn, node->exprn.operands[1], &cls_entry);
+      if (entry->u.f.ca_func_type != CAFT_Function) {
+	CADataType *catype = catype_get_by_name(entry->u.f.arglists->symtable, entry->u.f.rettype);
+	CHECK_GET_TYPE_VALUE(idn, catype, entry->u.f.rettype);
+	type1 = catype->signature;
+      } else {
+	type1 = entry->u.f.rettype;
+      }
       break;
     }
     default:
