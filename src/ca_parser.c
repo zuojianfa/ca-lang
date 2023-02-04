@@ -748,6 +748,7 @@ int add_fn_args(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
 
     entry = sym_insert(st, name, Sym_Variable);
     entry->u.varshielding.current = cavar_create(name, var->datatype);
+    entry->u.varshielding.varlist = vec_new();
     arglist->argnames[arglist->argc++] = name;
     entry->sloc = var->loc;
     return 0;

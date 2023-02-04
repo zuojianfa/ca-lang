@@ -1,0 +1,21 @@
+fn sum(a: i32) {
+    print a; print ' ';
+    {
+	let a = 33.3;
+	print a; print ' ';
+	{
+	    print a; print ' ';
+	    let a = 'a';
+	    print a; print ' ';
+	}
+    }
+    print a; print '\n';
+}
+
+fn main() {
+    let a: i32 = 1;
+    sum(a);
+    sum(3i32);
+    sum(4);
+}
+

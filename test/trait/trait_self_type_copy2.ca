@@ -15,10 +15,10 @@ impl AA {
 trait TT {
     fn sum(self) -> i32 {
 	let a = Self{33, 34};
-	//let b: Self = Self{33, 34};
-	// let a1 = self->a * a.a;
-	// let b1 = self->b * a.b;
-	// return a1 + b1;
+	let b: Self = Self{33, 34};
+	let a1 = self->a * a.a;
+	let b1 = self->b * a.b;
+	return a1 + b1;
     }
 }
 

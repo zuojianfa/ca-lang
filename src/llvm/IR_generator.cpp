@@ -439,6 +439,7 @@ static std::pair<Value *, CADataType *> pop_right_value(const char *name = "load
 }
 
 static int enable_debug_info() { return genv.emit_debug; }
+static void varshielding_rotate_variable(CAVariableShielding *shielding, bool is_back = false);
 
 static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, int startrow) {
   int row = startrow;
@@ -480,6 +481,7 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     if (entry->sym_type != Sym_Variable)
       yyerror("symbol type is not variable: (%d != %d)", entry->sym_type, Sym_Variable);
 #if 1 // TODO: check if can use function parameter directly without copying the parameter
+    varshielding_rotate_variable(&entry->u.varshielding);
     CADataType *dt = catype_get_by_name(st, entry->u.varshielding.current->datatype);
     CHECK_GET_TYPE_VALUE(curr_fn_node, dt, entry->u.varshielding.current->datatype);
 
@@ -499,6 +501,7 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
 #endif
     // save the value into symbol table
     entry->u.varshielding.current->llvm_value = static_cast<void *>(slot);
+    //varshielding_rotate_variable(&entry->u.varshielding, true);
 
     ++i;
   }
@@ -2735,7 +2738,7 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
   }
 }
 
-static void varshielding_rotate_variable(CAVariableShielding *shielding, bool is_back = false) {
+static void varshielding_rotate_variable(CAVariableShielding *shielding, bool is_back) {
   if (vec_size(shielding->varlist)) {
     if (is_back) {
       vec_pushfront(shielding->varlist, shielding->current);
@@ -2810,6 +2813,11 @@ static void walk_letbind(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
+  // The variable rebind functionality have rebind order, the rebind list is created in the order of
+  // the rebind declaratin in the first pass (building AST tree), and the current variable in rebind
+  // list is the last rebind variable after the AST tree is just build over, and so in the walk pass,
+  // it will need firstly rotate forward and make current point to the first binded variable, so here
+  // need rotate forward operation
   varshielding_rotate_capattern(cap, p->symtable);
 
   if (exprn->type != TTE_VarDefZeroValue) {
@@ -2819,8 +2827,13 @@ static void walk_letbind(ASTNode *p) {
     inference_letbind_type(cap, exprn);
 
     // 2. walk right side node and get Value
+    // Here is a convention about rotation: the current variable bind is already reset to the last rebind variable
+    // in the rebind list, so that the inner rotate operation is also in the order. So here will rotate
+    // back to the last rebind variable, and in walk_stack will also using this convention
     varshielding_rotate_capattern(cap, exprn->symtable, true);
     walk_stack(exprn);
+
+    // the inner walk operation for variabe bind will already reset to the state of ...
     varshielding_rotate_capattern(cap, exprn->symtable, false);
 
     //auto pair = pop_right_value("tmpexpr", false);
@@ -3098,7 +3111,10 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
 	datatype = formalparam->types[j];
       } else {
 	STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[j], 0);
+
+        varshielding_rotate_variable(&paramentry->u.varshielding);
 	datatype = paramentry->u.varshielding.current->datatype;
+	varshielding_rotate_variable(&paramentry->u.varshielding, true);
       }
 
       CADataType *dt = catype_get_by_name(formalparam->symtable, datatype);
@@ -3957,8 +3973,13 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
     // 1. operate the only one ASTNode entry and walk for it, the node is shared by every struct implemenation that
     // implement it.
     // 2. clone the trait fn ASTNode tree into struct and walk the struct
+    varshielding_rotate_variable(&preventry->u.varshielding);
     CADataType *prevcatype = catype_get_by_name(prevargs->symtable, preventry->u.varshielding.current->datatype);
+    varshielding_rotate_variable(&preventry->u.varshielding, true);
+
+    varshielding_rotate_variable(&currentry->u.varshielding);
     CADataType *currcatype = catype_get_by_name(currargs->symtable, currentry->u.varshielding.current->datatype);
+    varshielding_rotate_variable(&currentry->u.varshielding, true);
 
     if (prevcatype->signature != currcatype->signature) {
       caerror(&prev->sloc, NULL, "function '%s' parameter type not identical, `%s` != `%s` see: line %d, col %d.",
@@ -4191,8 +4212,10 @@ static Function *walk_fn_declare_full_withsym(ASTNode *p, TypeImplInfo *impl_inf
     CHECK_GET_TYPE_VALUE(p, dt, entry->u.varshielding.current->datatype);
 #endif
 
+    varshielding_rotate_variable(&entry->u.varshielding);
     CADataType *dt = catype_get_by_name(p->symtable, entry->u.varshielding.current->datatype);
     CHECK_GET_TYPE_VALUE(p, dt, entry->u.varshielding.current->datatype);
+    varshielding_rotate_variable(&entry->u.varshielding, true);
 
     Type *type = llvmtype_from_catype(dt);
     params.push_back(type);
