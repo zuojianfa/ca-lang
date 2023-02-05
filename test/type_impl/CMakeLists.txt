@@ -26,4 +26,5 @@ do_test(type_impl "AA { a: 33 }" ca return_self1.ca)
 do_test(type_impl "33 AA { a: 33 }" ca return_self2.ca)
 do_test(type_impl "AA { a: 33 }\nAA { a: 66 }\nAA { a: 198 }" ca return_self3.ca)
 do_test(type_impl "AA { a: 33, b: 34 }\n134" ca self_type.ca)
+do_test(type_impl "`i32` type required, but found `i8`" ca aa.ca)
 

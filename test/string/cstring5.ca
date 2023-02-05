@@ -21,7 +21,7 @@ fn main() {
 
     puts(buffer);
 
-    let pos = strchr(buffer, 'w');
+    let pos = strchr(buffer, 'w' as i32);
     puts(pos);
 
     free(buffer as *void);

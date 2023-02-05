@@ -270,9 +270,15 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call
 	- [x] support call method with form a.b.c.method1()
 	- [x] support domain call with form AA::new()
 	- [x] use self as first method parameter which stand for the pointer to the object
-	- [ ] use Self as returned parameter
+	- [x] use Self as returned parameter
 	- [ ] allow function closure
-  - [ ] support trait
+  - [x] support trait
+	- [x] trait definition
+	- [x] trait implementation
+	- [x] support trait default method
+	- [x] support full path call for trait method, or domain trait method `<AA as TT>::method(); <a as TT>.method();`
+	- [x] supporting `<TT as AA>::fnname`
+	- [x] support Self skeleton
 
 
 ## Makefile
@@ -320,17 +326,8 @@ is scopeline the real skip function start for debugging? try it
 123 - type49-struct_use2.ca (Failed) because of stack is too small, resolve with: ulimit -s 102400
 
 NEXT TODO:
-- [ ] not allow define the type with name Self
-- [ ] check if function return value match definition, check if have return value, report error
-- [ ] support trait
-  - [x] convert trait ASTNode into trait inner object for comparing the function argument use in `make_trait_defs` in `make_trait_defs`
-  - [x] trait definition
-  - [x] trait implementation
-  - [x] support trait default method
-  - [x] support full path call for trait method, or domain trait method, when there also have implementations in struct or in trait `<AA as TT>::method(); <a as TT>.method();`
-  - [x] search domainn and replace it with domainfn, supporting `<TT as AA>::fnname`
-  - [ ] support Self skeleton
-  - [ ] support absolute path method call after supporting mod
+- [ ] support generic function
+- [ ] support absolute path method call after supporting mod for struct and trait implementation
 - [ ] support box(type) grammar a long with box(expr) grammar
 - [ ] implement ca runtime system to support the compiler functionality, like output slice object, it need runtime system support, because slice type's length is not determined in compile time, and cannot fixed print in compile, so need use runtime system to support printing it
   - [ ] perfect runtime libraries to support others

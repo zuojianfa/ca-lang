@@ -1,0 +1,14 @@
+struct AA {
+}
+
+impl AA {
+	fn new() -> i32 {
+		return 'A';
+	}
+}
+
+fn main() {
+	let a = AA::new();
+	print a;
+}
+

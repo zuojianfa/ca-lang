@@ -682,7 +682,7 @@ void check_return_type(typeid_t fnrettype) {
 void create_literal(CALiteral *lit, int textid, tokenid_t littypetok, tokenid_t postfixtypetok) {
   lit->textid = textid;
   lit->littypetok = littypetok;
-  lit->postfixtypetok = postfixtypetok;
+  lit->postfixtypetok = littypetok == I8 ? I8 : postfixtypetok; // the 'a' character is the same as postfixed typetok
   lit->fixed_type = 0;
   lit->datatype = typeid_novalue;
 }

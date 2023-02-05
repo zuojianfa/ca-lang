@@ -3,8 +3,8 @@ extern fn putchar(c: i32) -> i32;
 fn main() {
     putchar(53);
     putchar(54);
-    putchar('e');
-    putchar('\n');
+    putchar('e' as i32);
+    putchar('\n' as i32);
     //let a = getchar();
 }
 
