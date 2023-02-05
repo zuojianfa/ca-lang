@@ -510,7 +510,7 @@ STEntry *sym_getsym(SymTable *st, int idx, int parent);
 STEntry *sym_getsym_st2_with_symtable(SymbolQueryParams *params, SymTable **entry_st);
 STEntry *sym_getsym_st2(SymbolQueryParams *params);
 STEntry *sym_gettypesym_by_name(SymTable *st, const char *name, int parent);
-STEntry *sym_get_function_entry_for_domainfn(struct ASTNode *name, struct ASTNode *args, STEntry **cls_entry);
+STEntry *sym_get_function_entry_for_domainfn(struct ASTNode *name, struct ASTNode *args, STEntry **cls_entry, int *fnname);
 STEntry *sym_get_function_entry_for_method_novalue(struct ASTNode *name, struct CADataType **struct_catype);
 void runable_add_entry(TypeImplInfo *impl_info, STEntry *cls_entry, int fnname, int fnname_mangled, STEntry *nameentry);
 struct MethodImplInfo *runable_find_entry(STEntry *cls_entry, int fnname, int trait_name);

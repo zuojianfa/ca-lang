@@ -1596,10 +1596,17 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     }
     case TTE_Domain: {
       STEntry *cls_entry = NULL;
-      STEntry *entry = sym_get_function_entry_for_domainfn(idn, node->exprn.operands[1], &cls_entry);
+      int fnname = 0;
+      STEntry *entry = sym_get_function_entry_for_domainfn(idn, node->exprn.operands[1], &cls_entry, &fnname);
       if (entry->u.f.ca_func_type != CAFT_Function) {
+	if (entry->u.f.ca_func_type == CAFT_MethodInTrait || entry->u.f.ca_func_type == CAFT_GenericFunction) {
+	  SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname, -1);
+	  entry->u.f.arglists->symtable->assoc = assoc;
+	}
+
 	CADataType *catype = catype_get_by_name(entry->u.f.arglists->symtable, entry->u.f.rettype);
 	CHECK_GET_TYPE_VALUE(idn, catype, entry->u.f.rettype);
+	entry->u.f.arglists->symtable->assoc = NULL;
 	type1 = catype->signature;
       } else {
 	type1 = entry->u.f.rettype;

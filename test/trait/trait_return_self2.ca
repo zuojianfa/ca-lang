@@ -1,0 +1,35 @@
+struct AA {
+    a: i32,
+}
+
+trait TT {
+    fn copy(a: Self) -> Self;
+}
+
+impl TT for AA {
+    fn copy(a: Self) -> Self {
+	return Self {a: a.a};
+    }
+}
+
+struct AA2 {
+    a: i32,
+    b: char,
+}
+
+impl TT for AA2 {
+    fn copy(other: Self) -> Self {
+	return Self {a: other.a, b: other.b};
+    }
+}
+
+fn main() {
+    let a1 = AA {a: 76};
+    let a2 = AA::copy(a1);
+    print a2; print '\n';
+
+    let b1 = AA2 {a: 67, b: 'A'};
+    let b2 = AA2::copy(b1);
+    print b2;
+}
+

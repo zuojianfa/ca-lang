@@ -712,7 +712,7 @@ STEntry *sym_getsym_with_symtable(SymTable *symtable, int idx, int parent, SymTa
   return NULL;
 }
 
-static STEntry *sym_get_function_entry_for_domain(ASTNode *name, ASTNode *args, STEntry **cls_entry) {
+static MethodImplInfo *sym_get_function_entry_for_domain(ASTNode *name, ASTNode *args, STEntry **cls_entry) {
   DomainNames &domainn = *name->domainfn.u.domain;
   if (!domainn.relative) {
     // NEXT TODO: how to handle the absolution path
@@ -745,7 +745,7 @@ static STEntry *sym_get_function_entry_for_domain(ASTNode *name, ASTNode *args, 
   int method_name = (int)(long)vec_at(domainn.parts, domainn.count-1);
   MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, -1, cls_entry);
   if (info)
-    return info->nameentry;
+    return info;
 
   // for the TT::method(&a, ...) call
   int trait_name = struct_name;
@@ -775,10 +775,10 @@ static STEntry *sym_get_function_entry_for_domain(ASTNode *name, ASTNode *args, 
     return nullptr;
   }
 
-  return info->nameentry;
+  return info;
 }
 
-static STEntry *sym_get_function_entry_for_domainas(ASTNode *name, STEntry **cls_entry) {
+static MethodImplInfo *sym_get_function_entry_for_domainas(ASTNode *name, STEntry **cls_entry) {
   // there are 2 ways to find for the `domain as` type path `<AA as TT>::method_name()`
   // 1. throught the manged full path to find the entry directly
   // 2. find the impl struct entry and then find the called method
@@ -802,19 +802,26 @@ static STEntry *sym_get_function_entry_for_domainas(ASTNode *name, STEntry **cls
   int trait_name = (int)(long)vec_at(domain_as.domain_trait->parts, 0);
   int method_name = domain_as.fnname;
   MethodImplInfo *info = get_method_impl_info(name, struct_name, method_name, trait_name, cls_entry);
-  if (info)
-    return info->nameentry;
-  else
-    return nullptr;
+  return info;
 }
 
-STEntry *sym_get_function_entry_for_domainfn(ASTNode *name, ASTNode *args, STEntry **cls_entry) {
+STEntry *sym_get_function_entry_for_domainfn(ASTNode *name, ASTNode *args, STEntry **cls_entry, int *fnname) {
   // TODO: handle mod name before struct name mod1::AA::method1
   switch (name->domainfn.type) {
-  case DFT_Domain:
-    return sym_get_function_entry_for_domain(name, args, cls_entry);
-  case DFT_DomainAs:
-    return sym_get_function_entry_for_domainas(name, cls_entry);
+  case DFT_Domain: {
+    MethodImplInfo *info = sym_get_function_entry_for_domain(name, args, cls_entry);
+    if (fnname)
+      *fnname = info->fnname;
+
+    return info->nameentry;
+  }
+  case DFT_DomainAs: {
+    MethodImplInfo *info = sym_get_function_entry_for_domainas(name, cls_entry);
+    if (fnname)
+      *fnname = info->fnname;
+
+    return info->nameentry;
+  }
   default:
     caerror(&name->begloc, &name->endloc, "unknown domain type: %d\n", name->domainfn.type);
     return nullptr;

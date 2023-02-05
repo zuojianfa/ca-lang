@@ -42,4 +42,8 @@ do_test(trait "2245\n1111\n" ca trait_self_type_copy1_2.ca)
 do_test(trait "469\n331\n" ca trait_self_type_copy1_3.ca)
 do_test(trait "AA { a: 33, b: 34 } 6 AA { a: 33, b: 34 }\n2245\nAA2 { a: 11, b: 22 } 8 AA { a: 33, b: 34 }\n1111" ca trait_self_type_copy1_4.ca)
 do_test(trait "134\n2245\n" ca trait_self_type_copy2.ca)
+do_test(trait "AA { a: 33 }\nAA2 { a: 33, b: C }" ca trait_return_self1.ca)
+do_test(trait "AA { a: 76 }\nAA2 { a: 67, b: A }" ca trait_return_self2.ca)
+do_test(trait "AA { a: 0 }\nAA2 { a: 0, b: Z }" ca trait_return_self_copy1.ca)
+do_test(trait "AA { a: 76 } AA { a: 76 }\nAA2 { a: 67, b: A } AA2 { a: 67, b: A }" ca trait_return_self_copy2.ca)
 

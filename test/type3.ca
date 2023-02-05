@@ -11,6 +11,6 @@ fn main() -> i32 {
     print 2.3;
     let b = a + func1() + func2();
     print b;
-    //return b;
+    return b as i32;
 }
 

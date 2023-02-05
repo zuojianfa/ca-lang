@@ -24,5 +24,6 @@ do_test(type_impl "hello" ca inner_call2.ca)
 do_test(type_impl "fn func1\\(a: i32, self: i32\\) {\n                             \\^\n`self` must be the first parameter of an associated function" ca self_pos.ca)
 do_test(type_impl "AA { a: 33 }" ca return_self1.ca)
 do_test(type_impl "33 AA { a: 33 }" ca return_self2.ca)
+do_test(type_impl "AA { a: 33 }\nAA { a: 66 }\nAA { a: 198 }" ca return_self3.ca)
 do_test(type_impl "AA { a: 33, b: 34 }\n134" ca self_type.ca)
 

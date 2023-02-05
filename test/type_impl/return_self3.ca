@@ -1,0 +1,30 @@
+struct AA {
+    a: i32,
+}
+
+impl AA {
+    fn new() -> Self {
+	let a = Self {a: 33};
+	return a;
+    }
+
+    fn new_copy_double(other: *Self) -> Self {
+	return Self {a: other->a * 2};
+    }
+
+    fn new_copy_triple(self: *Self) -> Self {
+	return Self {a: self->a * 3};
+    }
+}
+
+fn main() {
+    let a = AA::new();
+    print a; print '\n';
+
+    let b = AA::new_copy_double(&a);
+    print b; print '\n';
+
+    let c = AA::new_copy_triple(&b);
+    print c;
+}
+

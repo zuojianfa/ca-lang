@@ -1,0 +1,31 @@
+struct AA {
+    a: i32,
+}
+
+struct AA2 {
+    a: i32,
+    b: char,
+}
+
+trait TT {
+    fn new() -> Self {
+	let a: Self = __zero_init__;
+	return a;
+    }
+}
+
+impl TT for AA {
+}
+
+impl TT for AA2 {
+}
+
+fn main() {
+    let a = AA::new();
+    print a; print '\n';
+
+    let b = AA2::new();
+    b.b = 'Z';
+    print b;
+}
+

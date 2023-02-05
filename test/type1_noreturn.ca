@@ -2,6 +2,5 @@ fn main() -> i32 {
     let e = 2.6 + 6.3;
     print e;
     print '\n';
-    return 0;
 }
 

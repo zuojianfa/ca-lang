@@ -3269,7 +3269,7 @@ static void walk_expr_call(ASTNode *p) {
   }
   case TTE_Domain: {
     // get struct entry from domain subparts
-    entry = sym_get_function_entry_for_domainfn(name, args, &cls_entry);
+    entry = sym_get_function_entry_for_domainfn(name, args, &cls_entry, NULL /* &fnname_id */);
     check_and_determine_param_type(name, args, istuple, entry, cls_entry, typeid_novalue, 0);
     fnname_id = domain_get_function_name(name);
     fnname = symname_get(fnname_id);
@@ -3318,16 +3318,14 @@ static void walk_expr_call(ASTNode *p) {
   }
  
   CallInst *callret = ir1.builder().CreateCall(fn, argv, isvoidty ? "" : fnname);
-  // if (cls_entry) {
-  //   if (entry->u.f.ca_func_type != CAFT_Function) {
-  //     SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname_id, -1);
-  //     itr->second->symtable->assoc = assoc;
-  //   }
-  // }
+  if (cls_entry && entry->u.f.ca_func_type == CAFT_MethodInTrait) {
+    SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname_id, -1);
+    itr->second->symtable->assoc = assoc;
+  }
 
   CADataType *retdt = catype_get_by_name(itr->second->symtable, itr->second->fndecln.ret);
   CHECK_GET_TYPE_VALUE(itr->second, retdt, itr->second->fndecln.ret);
-  //itr->second->symtable->assoc = nullptr;
+  itr->second->symtable->assoc = nullptr;
 
   OperandType optype = OT_CallInst;
   Value *newv = callret;
@@ -4279,21 +4277,25 @@ static void generate_final_return(ASTNode *p) {
   CADataType *retdt = catype_get_by_name(p->symtable, p->fndefn.fn_decl->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, p->fndefn.fn_decl->fndecln.ret);
 
+  if (retdt->type == VOID) {
+    ir1.builder().CreateRetVoid();
+    return;
+  }
+
   if (g_with_ret_value) {
-    if (retdt->type == VOID) {
-      ir1.builder().CreateRetVoid();
-    } else {
-      Value *v = ir1.builder().CreateLoad((Value *)p->fndefn.retslot, "retret");
-      ir1.builder().CreateRet(v);
-    }
+    Value *v = ir1.builder().CreateLoad((Value *)p->fndefn.retslot, "retret");
+    ir1.builder().CreateRet(v);
+    return;
+  }
+
+  if (!enable_emit_main()) {
+    caerror(&p->begloc, &p->endloc, "There is no return value in function `%s`",
+	    catype_get_function_name(p->fndefn.fn_decl->fndecln.name));
     return;
   }
 
   Value *retv = create_default_integer_value(retdt->type);
-  if (retv)
-    ir1.builder().CreateRet(retv);
-  else
-    ir1.builder().CreateRetVoid();
+  ir1.builder().CreateRet(retv);
 }
 
 static Function *walk_fn_define_full_withsym(ASTNode *p, TypeImplInfo *impl_info, SymTable *symtable) {
@@ -4524,10 +4526,11 @@ static bool compare_trait_and_impl_args(CADataType *cls_catype, ASTNode *traitfn
   return true;
 }
 
-static bool compare_trait_and_impl_signature(CADataType *cls_catype, ASTNode *traitfnn, ASTNode *implfnn) {
+static bool compare_trait_and_impl_signature(CADataType *cls_catype, ASTNode *traitfnn, ASTNode *implfnn, SymTableAssoc *assoc) {
   assert(traitfnn->type == TTE_FnDecl && implfnn->type == TTE_FnDecl);
 
   // check return code
+  traitfnn->symtable->assoc = assoc;
   CADataType *trait_ret_catype = catype_get_by_name(traitfnn->symtable, traitfnn->fndecln.ret);
   CADataType *impl_ret_catype = catype_get_by_name(implfnn->symtable, implfnn->fndecln.ret);
   if (trait_ret_catype->signature != impl_ret_catype->signature) {
@@ -4546,10 +4549,12 @@ static bool compare_trait_and_impl_signature(CADataType *cls_catype, ASTNode *tr
     return false;
   }
 
-  return compare_trait_and_impl_args(cls_catype, traitfnn, implfnn);
+  bool ok = compare_trait_and_impl_args(cls_catype, traitfnn, implfnn);
+  traitfnn->symtable->assoc = nullptr;
+  return ok;
 }
 
-static void check_trait_impl_match(ASTNode *node, std::vector<std::pair<typeid_t, ASTNode *>> &use_default_impls) {
+static void check_trait_impl_match(ASTNode *node, std::vector<std::pair<typeid_t, ASTNode *>> &use_default_impls, SymTableAssoc *assoc) {
   int trait_id = node->fndefn_impl.impl_info.trait_id;
   STEntry *entry = sym_getsym(node->symtable, trait_id, 1);
   if (!entry) {
@@ -4582,7 +4587,7 @@ static void check_trait_impl_match(ASTNode *node, std::vector<std::pair<typeid_t
       return;
     }
 
-    if (!compare_trait_and_impl_signature(cls_catype, iter->second->fndefn.fn_decl, decln)) {
+    if (!compare_trait_and_impl_signature(cls_catype, iter->second->fndefn.fn_decl, decln, assoc)) {
       caerror(&impl_fn_node->begloc, &impl_fn_node->endloc, "method `%s` signature not match trait `%s`",
 	      catype_get_type_name(decln->fndecln.name), catype_get_type_name(impl_fn_node->fndefn.fn_decl->fndecln.name));
       return;
@@ -4624,36 +4629,36 @@ static void check_trait_impl_match(ASTNode *node, std::vector<std::pair<typeid_t
 static void walk_fn_define_impl(ASTNode *node) {
   // pair.first: the method name
   // pair.second: the method implementation
+  SymTableAssoc *assoc = nullptr;
+
+  // in order to not copy the entire ASTNode tree for trait method definition, so here just
+  // create temporary symbol table for storing `Self` type alias or generic type alias
+  // information (used in generic function)
+  int self_id = symname_check_insert(CSELF);
+  SymTable *symtable = push_new_symtable_with_parent(node->symtable);
+  STEntry *entry = make_type_def_entry(self_id, node->fndefn_impl.impl_info.class_id,
+				       symtable, &node->begloc, &node->endloc);
+  assoc = new_SymTableAssoc(STAT_Generic, symtable);
+  sym_assoc_add_item(assoc, entry->sym_name); // sym_name: t:Self, for Self stub type
+
+  // tell it to find struct entry from association table, because current template may have no such type information
+  sym_assoc_add_item(assoc, node->fndefn_impl.impl_info.class_id);
+
   std::vector<std::pair<typeid_t, ASTNode *>> use_default_impls;
   if (node->fndefn_impl.impl_info.trait_id != -1) {
-    check_trait_impl_match(node, use_default_impls);
+    check_trait_impl_match(node, use_default_impls, assoc);
   }
 
   void *handle = node->fndefn_impl.data;
-  int self_id = symname_check_insert(CSELF);
 
   for (int i = 0; i < node->fndefn_impl.count; ++i) {
     ASTNode *node_impl = static_cast<ASTNode *>(vec_at(handle, i));
-    // STEntry *entry = make_type_def_entry(self_id, node->fndefn_impl.impl_info.class_id,
-    // 					 node_impl->symtable, &node->begloc, &node->endloc);
-
     walk_fn_define_full(node_impl, &node->fndefn_impl.impl_info);
   }
 
   // NEXT TODO: copy trait default method implementation and walk
   // pick up the method with *Self as the first parameter
   for (auto pair : use_default_impls) {
-    // in order to not copy the entire ASTNode tree for trait method definition, so here just
-    // create temporary symbol table for storing `Self` type alias or generic type alias
-    // information (used in generic function)
-    SymTable *symtable = push_new_symtable_with_parent(node->symtable);
-    STEntry *entry = make_type_def_entry(self_id, node->fndefn_impl.impl_info.class_id,
-					 symtable, &node->begloc, &node->endloc);
-    SymTableAssoc *assoc = new_SymTableAssoc(STAT_Generic, symtable);
-    sym_assoc_add_item(assoc, entry->sym_name); // sym_name: t:Self, for Self stub type
-
-    // tell it to find struct entry from association table, because current template may have no such type information
-    sym_assoc_add_item(assoc, node->fndefn_impl.impl_info.class_id);
     pair.second->symtable->assoc = assoc;
 
     auto impl_info = &node->fndefn_impl.impl_info;

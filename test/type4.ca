@@ -106,6 +106,6 @@ fn main() -> i32 {
     print g3; print '\n';
     print h3; print '\n';
     print i3; print '\n';
-
+    return 0;
 }
 
