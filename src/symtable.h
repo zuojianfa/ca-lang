@@ -338,14 +338,12 @@ typedef struct TypeImplInfo {
   int fn_def_recursive_count;
 } TypeImplInfo;
 
-typedef enum CAFunctionType {
-  CAFT_Function, // The general function
-  CAFT_Method,   // The method impled for a type
-  CAFT_MethodForTrait, // The method impled for a trait
-  CAFT_MethodInTrait, // The default method impled for a trait
-  CAFT_GenericFunction, // The generic function
-  CAFT_Num,
-} CAFunctionType;
+typedef int CAFunctionType;
+#define CAFT_Function 0        // The general function
+#define CAFT_Method 1          // The method impled for a type
+#define CAFT_MethodForTrait 2  // The method impled for a trait
+#define CAFT_MethodInTrait 4   // The default method impled for a trait
+#define CAFT_GenericFunction 8 // The generic function
 
 // for the labels the symbol name will append a prefix of 'l:' which is
 // impossible to be as a variable name. example: l:l1

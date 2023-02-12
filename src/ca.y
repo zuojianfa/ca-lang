@@ -76,6 +76,8 @@ extern int yychar, yylineno;
   DomainNames domain_names;
   DomainFn domain_fn;
   DomainAs domain_as;
+  FnNameInfo fnname_info;
+  void *generic_types;
 };
 
 %token	<litb>		LITERAL STR_LITERAL
@@ -112,6 +114,8 @@ extern int yychar, yylineno;
 %type	<astnode>	stmt stmt_list stmt_list_block label_def paragraphs fn_def fn_decl vardef_value type_impl fn_impl_defs fn_impl_defs_all
 %type	<astnode>	expr arith_expr cmp_expr logic_expr bit_expr
 %type	<astnode>	fn_unit fn_proto fn_args fn_call_or_tuple fn_body fn_args_call_or_tuple gen_tuple_expr gen_tuple_expr_args
+%type	<fnname_info>	fn_proto_name
+%type	<generic_types>	fn_proto_generic generic_types
 %type	<astnode>	fn_args_p fn_args_call_or_tuple_p fn_call fn_method_call fn_domain_call
 %type	<astnode>	ifstmt stmt_list_star block_body let_stmt assignment_stmt assign_op_stmt struct_type_def tuple_type_def type_def
 %type	<astnode>	trait_def trait_fn_defs trait_fn_def trait_fn_defs_all
@@ -221,8 +225,7 @@ domain_extend:	domain { $$ = $1; }
 	| 	IDENT  { $$ = domain_init(1, $1); }
 	;
 
-fn_proto:	FN IDENT
-		{
+fn_proto_name: FN IDENT fn_proto_generic {
 		    if (enable_emit_main()) {
 			// popup generated main function, current will be global symbol table
 		        pop_symtable();
@@ -238,8 +241,19 @@ fn_proto:	FN IDENT
 
 		    curr_arglist.argc = 0;
 		    curr_arglist.symtable = curr_symtable;
+		    $$.fnname = $2;
+		    $$.generic_types = $3;
 		}
-		'(' fn_args ')' ret_type { $$ = make_fn_proto($2, &curr_arglist, $7); }
+
+fn_proto_generic:                     { $$ = NULL; }
+	|	'<' generic_types '>' { $$ = $2; }
+	;
+
+generic_types: 	generic_types ',' IDENT { vec_append($1, (void *)(long)$3); $$ = $1; }
+	|	IDENT { $$ = vec_new(); vec_append($$, (void *)(long)$1); }
+		;
+
+fn_proto:	fn_proto_name '(' fn_args ')' ret_type { $$ = make_fn_proto(&$1, &curr_arglist, $5); }
 		;
 
 fn_args:	fn_args_p              { add_fn_args_p(&curr_arglist, 0); }

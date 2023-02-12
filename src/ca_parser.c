@@ -2473,8 +2473,11 @@ static void check_arglist_names(ST_ArgList *arglist) {
   }
 }
 
-ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t rettype) {
+ASTNode *make_fn_proto(FnNameInfo *name_info, ST_ArgList *arglist, typeid_t rettype) {
   dot_emit("fn_proto", "FN IDENT ...");
+  int fnid = name_info->fnname;
+
+  // NEXT TODO: handle name_info->generic_types
 
   typeid_t fnname = typeid_novalue;
   if (current_trait_id)

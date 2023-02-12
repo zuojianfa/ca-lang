@@ -222,6 +222,11 @@ typedef struct DomainFn {
   } u;
 } DomainFn, TDomainFn;
 
+typedef struct FnNameInfo {
+  int fnname;
+  void *generic_types; // int vector
+} FnNameInfo;
+
 typedef struct DerefLeft {
   int derefcount;
   struct ASTNode *expr;
@@ -464,7 +469,7 @@ ASTNode *new_ifstmt_node();
 ASTNode *make_ifpart(ASTNode *p, ASTNode *cond, ASTNode *body);
 ASTNode *make_elsepart(ASTNode *p, ASTNode *body);
 ASTNode *make_if(int isexpr, int argc, ...);
-ASTNode *make_fn_proto(int fnid, ST_ArgList *arglist, typeid_t type);
+ASTNode *make_fn_proto(FnNameInfo *name_info, ST_ArgList *arglist, typeid_t type);
 ASTNode *make_fn_call_or_tuple(int fnid, ASTNode *param);
 ASTNode *make_method_call(StructFieldOp fieldop, ASTNode *param);
 DomainNames domain_init(int relative, int name);
