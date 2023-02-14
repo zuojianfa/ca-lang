@@ -1598,8 +1598,8 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       STEntry *cls_entry = NULL;
       int fnname = 0;
       STEntry *entry = sym_get_function_entry_for_domainfn(idn, node->exprn.operands[1], &cls_entry, &fnname);
-      if (entry->u.f.ca_func_type != CAFT_Function) {
-	if (entry->u.f.ca_func_type == CAFT_MethodInTrait || entry->u.f.ca_func_type == CAFT_GenericFunction) {
+      if (IS_GENERIC_FUNCTION(entry->u.f.ca_func_type) || entry->u.f.ca_func_type != CAFT_Function) {
+	if (IS_GENERIC_FUNCTION(entry->u.f.ca_func_type) || entry->u.f.ca_func_type == CAFT_MethodInTrait) {
 	  SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname, -1);
 	  entry->u.f.arglists->symtable->assoc = assoc;
 	}
@@ -2320,10 +2320,11 @@ ASTNode *build_mock_main_fn_node() {
   return p;
 }
 
-static ASTNode *build_fn_decl(typeid_t name, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
+static ASTNode *build_fn_decl(typeid_t name, void *generic_types, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
     ASTNode *p = new_ASTNode(TTE_FnDecl);
     p->fndecln.ret = rettype;
     p->fndecln.name = name;
+    p->fndecln.generic_types = generic_types;
     p->fndecln.args = *al;
     p->fndecln.is_extern = 0; // TODO: make extern real extern
 
@@ -2331,8 +2332,8 @@ static ASTNode *build_fn_decl(typeid_t name, ST_ArgList *al, typeid_t rettype, S
     return p;
 }
 
-static ASTNode *build_fn_define(typeid_t name, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
-    ASTNode *decl = build_fn_decl(name, al, rettype, beg, end);
+static ASTNode *build_fn_define(typeid_t name, void *generic_types, ST_ArgList *al, typeid_t rettype, SLoc beg, SLoc end) {
+    ASTNode *decl = build_fn_decl(name, generic_types, al, rettype, beg, end);
     ASTNode *p = new_ASTNode(TTE_FnDef);
     p->fndefn.fn_decl = decl;
     p->fndefn.stmts = NULL;
@@ -2489,18 +2490,6 @@ ASTNode *make_fn_proto(FnNameInfo *name_info, ST_ArgList *arglist, typeid_t rett
 
   check_arglist_names(arglist);
 
-#if 0
-  // replace Self with the real struct name
-  if (current_type_impl) {
-    const char *ret_type = catype_get_type_name(rettype);
-
-    // when returning type is Self in class impl, then change it into the class id
-    if (!strcmp(ret_type, CSELF)) {
-      rettype = current_type_impl->class_id;
-    }
-  }
-#endif
-
   curr_fn_rettype = rettype;
 
   SLoc beg = {glineno, gcolno};
@@ -2522,10 +2511,11 @@ ASTNode *make_fn_proto(FnNameInfo *name_info, ST_ArgList *arglist, typeid_t rett
       entry->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
       *entry->u.f.arglists = *arglist;
       entry->u.f.ca_func_type = CAFT_Function;
+      entry->u.f.generic_types = NULL;
     }
     entry->u.f.rettype = rettype;
 
-    ASTNode *decln = build_fn_decl(fnname, arglist, rettype, beg, end);
+    ASTNode *decln = build_fn_decl(fnname, name_info->generic_types, arglist, rettype, beg, end);
 
     return decln;
   } else {
@@ -2566,10 +2556,15 @@ ASTNode *make_fn_proto(FnNameInfo *name_info, ST_ArgList *arglist, typeid_t rett
 	  entry->u.f.ca_func_type = CAFT_Method;
       } else
 	entry->u.f.ca_func_type = CAFT_Function;
+
+      entry->u.f.generic_types = name_info->generic_types;
+      if (name_info->generic_types) {
+	entry->u.f.ca_func_type |= CAFT_GenericFunction;
+      }
     }
     entry->u.f.rettype = rettype;
 
-    ASTNode *defn = build_fn_define(fnname, arglist, rettype, beg, end);
+    ASTNode *defn = build_fn_define(fnname, name_info->generic_types, arglist, rettype, beg, end);
 
     // fix the symbol table, when function can defined in inner scope, the symbol table should used
     // the parent symbol table

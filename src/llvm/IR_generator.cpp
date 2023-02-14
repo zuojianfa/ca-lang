@@ -3071,7 +3071,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
 
   if (cls_entry) {
     //if (!runable_is_method_in_struct(cls_entry, fnname)) {
-    if (param_entry->u.f.ca_func_type == CAFT_MethodInTrait) {
+    if (IS_GENERIC_FUNCTION(param_entry->u.f.ca_func_type) || param_entry->u.f.ca_func_type == CAFT_MethodInTrait) {
       SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname, -1);
       formalparam->symtable->assoc = assoc;
     }
@@ -3237,6 +3237,10 @@ static STEntry *sym_get_function_entry_for_method_value(ASTNode *name, Value **s
 // the expression call may be a function call or tuple literal definition,
 // because the tuple literal form is the same as function, so handle it here
 static void walk_expr_call(ASTNode *p) {
+  // NEXT TODO: walk generic function and cache it and call it
+  //Function *walk_fn_define_full_withsym_generic(ASTNode *p, TypeImplInfo *impl_info, SymTable *symtable, bool generic);
+  // 
+
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
 
@@ -3318,7 +3322,7 @@ static void walk_expr_call(ASTNode *p) {
   }
  
   CallInst *callret = ir1.builder().CreateCall(fn, argv, isvoidty ? "" : fnname);
-  if (cls_entry && entry->u.f.ca_func_type == CAFT_MethodInTrait) {
+  if ((cls_entry && (IS_GENERIC_FUNCTION(entry->u.f.ca_func_type) || entry->u.f.ca_func_type == CAFT_MethodInTrait))) {
     SymTableAssoc *assoc = runable_find_entry_assoc(cls_entry, fnname_id, -1);
     itr->second->symtable->assoc = assoc;
   }
@@ -4246,6 +4250,7 @@ static Function *walk_fn_declare_full_withsym(ASTNode *p, TypeImplInfo *impl_inf
         preventry_copyed->u.f.arglists = (ST_ArgList *)malloc(sizeof(ST_ArgList));
         *preventry_copyed->u.f.arglists = *preventry->u.f.arglists;
 	preventry_copyed->u.f.ca_func_type = preventry->u.f.ca_func_type;
+	preventry_copyed->u.f.generic_types = preventry->u.f.generic_types;
 	preventry_copyed->u.f.rettype = preventry->u.f.rettype;
 	preventry_copyed->u.f.mangled_id = fnname_full_id;
 	preventry = preventry_copyed;
@@ -4298,7 +4303,10 @@ static void generate_final_return(ASTNode *p) {
   ir1.builder().CreateRet(retv);
 }
 
-static Function *walk_fn_define_full_withsym(ASTNode *p, TypeImplInfo *impl_info, SymTable *symtable) {
+static Function *walk_fn_define_full_withsym_generic(ASTNode *p, TypeImplInfo *impl_info, SymTable *symtable, bool generic) {
+  if (p->fndefn.fn_decl->fndecln.generic_types && !generic)
+    return nullptr;
+
   g_with_ret_value = false;
   Function *fn = walk_fn_declare_full_withsym(p->fndefn.fn_decl, impl_info, symtable);
   if (walk_pass == 1) {
@@ -4387,6 +4395,10 @@ static Function *walk_fn_define_full_withsym(ASTNode *p, TypeImplInfo *impl_info
   generic_type_stack.pop_back();
 
   return fn;
+}
+
+static Function *walk_fn_define_full_withsym(ASTNode *p, TypeImplInfo *impl_info, SymTable *symtable) {
+  return walk_fn_define_full_withsym_generic(p, impl_info, symtable, false);
 }
 
 static Function *walk_fn_define_full(ASTNode *p, TypeImplInfo *impl_info) {
@@ -4656,18 +4668,16 @@ static void walk_fn_define_impl(ASTNode *node) {
     walk_fn_define_full(node_impl, &node->fndefn_impl.impl_info);
   }
 
-  // NEXT TODO: copy trait default method implementation and walk
+  // copy trait default method implementation and walk
   // pick up the method with *Self as the first parameter
   for (auto pair : use_default_impls) {
     pair.second->symtable->assoc = assoc;
 
     auto impl_info = &node->fndefn_impl.impl_info;
     STEntry *cls_entry = sym_getsym_with_symtable(symtable, impl_info->class_id, 1, nullptr);
-    //runable_add_entry(impl_info, cls_entry, pair.first, -1, entry);
     runable_add_entry_assoc(impl_info, cls_entry, pair.first, assoc);
 
     // NEXT TODO: need clone ASTNode here and pass symtable? or steal the sym
-
     walk_fn_define_full_withsym(pair.second, impl_info, symtable);
     pair.second->symtable->assoc = nullptr;
     //free_symtable(symtable);
@@ -4675,11 +4685,9 @@ static void walk_fn_define_impl(ASTNode *node) {
 }
 
 static void walk_trait_fnlist(ASTNode *node) {
+  // TODO: remove the useless code
   for (int i = 0; i < node->traitfnlistn.count; ++i) {
     ASTNode *traitfn = (ASTNode *)vec_at(node->traitfnlistn.data, i);
-    // NEXT TODO: how to use trait
-    //node->traitfnlistn.trait_id;
-    //walk_stack(traitfn);
   }
 }
 

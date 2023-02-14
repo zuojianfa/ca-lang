@@ -117,6 +117,7 @@ typedef struct TFnDeclNode {
   int is_extern;   // is extern function
   typeid_t ret;    // specify the return type of the function, typeid_novalue stand for no return value
   typeid_t name;        // function name subscript to sym array
+  void *generic_types; // int vector
   ST_ArgList args;
 } TFnDeclNode;
 

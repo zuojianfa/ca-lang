@@ -345,6 +345,8 @@ typedef int CAFunctionType;
 #define CAFT_MethodInTrait 4   // The default method impled for a trait
 #define CAFT_GenericFunction 8 // The generic function
 
+#define IS_GENERIC_FUNCTION(FUNC_TYPE) ((FUNC_TYPE) | CAFT_GenericFunction)
+
 // for the labels the symbol name will append a prefix of 'l:' which is
 // impossible to be as a variable name. example: l:l1
 // for function it will append a prefix of 'f:'. example: f:fibs
@@ -358,7 +360,8 @@ typedef struct STEntry {
       typeid_t rettype;
       typeid_t mangled_id;
       CAFunctionType ca_func_type;
-    } f;                // when type is Sym_ArgList and contains return type
+      void *generic_types; // int vector, null when the function is generic typed function
+    } f;                // when type is Sym_FnDef (Sym_ArgList and contains return type)
     //CAVariable *var;    // when sym_type are Sym_Variable Sym_Member
     CAVariableShielding varshielding;  // when sym_type are Sym_Variable Sym_Member
     //CADataType *datatype; // when sym_type is Sym_DataType
