@@ -3258,6 +3258,18 @@ static void walk_expr_call(ASTNode *p) {
       return;
     }
 
+    if (IS_GENERIC_FUNCTION(entry->u.f.ca_func_type)) {
+      // handle generic function
+      // 1. get generic function signature, with generic type list
+      //   1.1 get parameter list of function and pickup the generic type in parameter list
+      //   1.2 when is hidden expand (`add(a, b)` without generic type) check if the generic parameter list can cover the generic type provided
+      //     a. when cannot cover all then report error,
+      //     b. when can all cover then inference the generic parameter type from true argument list
+      //   1.3 when is `add<i32>(a, b)` with generic type check 
+      // 2. check if the function already created exists
+      // 3. 
+    }
+
     check_and_determine_param_type(name, args, istuple, entry, nullptr, typeid_novalue, 0);
     break;
   }
