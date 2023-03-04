@@ -3259,15 +3259,28 @@ static void walk_expr_call(ASTNode *p) {
     }
 
     if (IS_GENERIC_FUNCTION(entry->u.f.ca_func_type)) {
-      // handle generic function
+      // handle generic function concretion
       // 1. get generic function signature, with generic type list
       //   1.1 get parameter list of function and pickup the generic type in parameter list
       //   1.2 when is hidden expand (`add(a, b)` without generic type) check if the generic parameter list can cover the generic type provided
-      //     a. when cannot cover all then report error,
-      //     b. when can all cover then inference the generic parameter type from true argument list
-      //   1.3 when is `add<i32>(a, b)` with generic type check 
-      // 2. check if the function already created exists
-      // 3. 
+      //     a. when cannot cover all then report error, because cannot inference all generic types
+      //     b. when can cover all then inference the generic parameter type from true argument list
+      //   1.3 when is `add<i32>(a, b)` with generic type check, it should include all the generic type
+      //   1.4 form generic function signature from function name and the binded generic type with order
+      //   1.5 in the upper process, it will also check and determine the parameter type
+      // 2. check if the function already created before
+      //   2.1 when exist, create call with prepared argument list
+      //   2.2 when not exist, walk the generic function, and form the llvm function, then call it
+      // 3. when generic function exists recursive call it self
+      //   3.1 not really recursive call: when recursive call form a different concrete function,
+      //       then just like the processing of this notice to concrete it
+      //     a. function already concreted, then call it directly
+      //     b. function not concreted, concreted it and then call it
+      //   3.2 really recursive call: when the function form a same concrete function,
+      //       then it's no need to do function concretion for the called same function, so just generate call to it
+      // 4. about the caches of concreted generic functions, there is a cache to store the concreted function
+      //    for each generic function definition in a scope with it's symbol table, so it should be good to maintain
+      //    the data structure in the one entry of generic function
     }
 
     check_and_determine_param_type(name, args, istuple, entry, nullptr, typeid_novalue, 0);
