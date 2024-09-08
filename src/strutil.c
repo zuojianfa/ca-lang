@@ -10,7 +10,7 @@ int strutil_parse_ident_str(const char *input, char *output) {
   int i = 0;
   do {
     output[i++] = *input++;
-  } while(isalnum(*input));
+  } while(isalnum(*input) || *input == '_');
 
   output[i] = '\0';
   return i;

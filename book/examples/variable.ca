@@ -1,0 +1,8 @@
+extern fn printf(fmt: *char, ...) -> i32;
+fn main() -> i32 {
+	let s1 = "Hello world";
+	dbgprinttype typeof(s1);
+	printf(s1);
+	return 0;
+}
+

@@ -5028,7 +5028,11 @@ static const char *make_native_linker_command(const char *input, const char *out
   // sprintf(command, "clang %s -o %s", input, output);
 
   //sprintf(command, "ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o build/CMakeFiles/ca.dir/ca_runtime.c.o %s -o %s -lc", input, output);
-  sprintf(command, "ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o %s -o %s -lc -lgc", input, output);
+  const char *cruntime = std::getenv("CA_RUNTIME_LIBPATH");
+  if (!cruntime)
+    cruntime = "cruntime";
+
+  sprintf(command, "ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 %s/*.o %s -o %s -lc -lgc", cruntime, input, output);
 
   return command;
 }

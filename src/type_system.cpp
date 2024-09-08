@@ -46,6 +46,7 @@
 #include <unordered_map>
 #include <map>
 #include <set>
+#include <limits>
 
 BEGIN_EXTERN_C
 #include "ca.tab.h"

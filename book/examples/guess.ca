@@ -1,0 +1,31 @@
+type time_t = i64;
+extern fn rand() -> i32;
+extern fn srand(seed: u32);
+extern fn time(tloc: *time_t) -> time_t;
+extern fn printf(f: *char, ...) -> i32;
+extern fn scanf(format: * char, ...) -> i32;
+
+fn main() -> i32 {
+    print "Guess the number!\n";
+    srand(time(0) as u32);
+    let secret_number = rand() % 100;
+
+    loop {
+	print "Please input your guess:\n";
+	let guess = 0;
+	scanf("%d", &guess);
+
+        printf("You guessed: %d\n", guess);
+	if (guess < secret_number) {
+	    print "Too small!\n";
+	} else if (guess > secret_number) {
+	    print "Too big!\n";
+	} else {
+            print "You win!\n";
+            break;
+	}
+    }
+
+    return 0;
+}
+

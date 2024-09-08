@@ -1,22 +1,64 @@
-# the llvm-ir ca compiler with no defined function support
-This branch support compile source code into llvm ir aims: include ll file, native object file (.o), native assembly file (.s) and jit running with gcc debug support and optimization.
+# CA compiler
+CA is a new language which uses rust-like grammar, but internally it just like C language in many aspects and compatible with C ABI, it support memory garbage collection which is powered by gc library which does not use reference count. CA language support a lot of flexible but powerful grammars which make it easy to program.
+CA compiler is powered by LLVM. It support JIT functionality, you can run ca program directly with ca compiler without compile it. Of course you can compile it into native executable program.
+
+Currently, Although CA language is still under development but it almost has all the features a general language should have.
+
+## Features
+- CA is static type language
+- Support compile CA source file into llvm ir representation
+- Support JIT functionality that run from source file directly
+- Support compile CA source file into native executable file: ELF file on linux
+- Support compile CA source file into readable IR assembly file `.ll`
+- Support compile CA source file into native (as) assembly file: `.s`
+- Support debug with gdb debugger
+- The object file uses C ABI
+- Internal Suppport C library functions
+- Support garbage collection feature using gc
+- Support generate default main function when source code not defined
+- Support generate `.dot` file to show the graph of grammar tree
+- Support llvm12 or llvm13 library
+- It include the whole test cases in the source code
+
+
+## Supportted Grammers
+- datatype can be defined in any scope
+- Support pointer like in C language
+- Support multi-dimension array and their initialization
+- Support array convert to pointer
+- Support char array c onvert into string type
+- Support inner debug `print` statement, which can print any value
+- Support `typeof` statement to get the type of one variable dynamically, and then use the type to define another variable
+- Not like rust the variable is mutable by default (and only can be mutable)
+- Support binary number literal
+- 
 
 This branch support functions.
 
 The llvm-ir or rename it into ca contains the llvm code generation, can compiled into many objectives: llvm IR, native `as` assembly language (.s), native object file (.o elf64) and can run with jit with or without optimization.
 
+## Environment Preparing
+When using rpm package based linux system like fedora install following packages
+- llvm13 llvm13-devel
+- flex
+- bison
+- gc-devel
+
+
 ## Usage
 ```
-./llvm-ir
-Usage: ca [-ll] | [-S] | [-native] | [-c] | [-jit] [-O] | [-g] <input> [<output>]
+./ca
+Usage: ca [options] <input> [<output>]
 Options:
          -ll:      compile into IR assembly file: .ll (llvm)
          -S:       compile into native (as) assembly file: .s
          -native:  compile into native execute file: ELF file on linux, PE file on windows (default value)
          -c:       compile into native object file: .o
          -jit:     interpret using jit (llvm)
-         -O:       do optimization
+         -O[123]:  do optimization of level 1 2 3, default is level 2
          -g:       do not do any optimization (default value)
+         -main:    do generate the default main function
+         -dot <dotfile>:  generate the do not generate the default main function
 ```
 
 ## Compile

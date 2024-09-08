@@ -1,0 +1,5 @@
+extern fn printf(f: *char, ...) -> i32;
+
+fn main() {
+    printf("Hello %s\n", "World!");
+}

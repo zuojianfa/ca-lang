@@ -502,6 +502,7 @@ ifstmt1:   	ifpart elsepart
 		;
 
 ifpart:  	IF '(' expr ')' stmt_list_block { make_ifpart(ifstmt_current(), $3, $5); }
+//	|	IF expr stmt_list_block { make_ifpart(ifstmt_current(), $2, $3); }
 		;
 
 elsepart:	ELSE stmt_list_block { make_elsepart(ifstmt_current(), $2); }
