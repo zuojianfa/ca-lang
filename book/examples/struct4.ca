@@ -1,0 +1,21 @@
+// struct4.ca
+extern fn printf(fmt: *char, ...) -> i32;
+
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30u32,
+        height: 5u32
+    };
+
+    printf("The area of the rectangle is %d square pixels.", area(&rect1));
+}
+
+fn area(rectangle: *Rectangle) -> u32 {
+    return rectangle->width * rectangle->height;
+}
+

@@ -1,0 +1,24 @@
+// pointer3.ca
+extern fn printf(fmt: *i8, ...) -> i32;
+extern fn strlen(s: *i8) -> i32;
+
+fn main() {
+    // str is a pointer to a char type. It is initialized with a string literal
+    let str: *char = "Hello CA!\n";
+    printf(str);
+
+    // call C function strlen to get the C string length
+    let len = strlen(str);
+    print "length: "; print len; print '\n';
+
+    // astr is an array, and initialized with several char literals
+    let astr = ['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A', '\0'];
+    print astr; print '\n';
+
+    // cast char array into char pointer, array variable implicitly represents the address of the array
+    let str2: *char = astr as *char;
+    printf(str);
+
+    let len = strlen(str2);
+    print "length: "; print len; print '\n';
+}

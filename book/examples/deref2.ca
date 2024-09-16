@@ -1,0 +1,22 @@
+// deref2.ca
+extern fn printf(fmt: *i8, ...) -> i32;
+fn main() {
+    // define a C string, terminated by '\0' character
+    let pt = Point {x: 100, y: 200, z: 150};
+    let ppt = &pt;
+
+    // Dereference field of Point with '*'
+    printf("Dereference field of Point with '*'\n");
+    printf("Point: (%d, %d, %d)\n\n", (*ppt).x, (*ppt).y, (*ppt).z);
+
+    // Dereference field of Point with '->'
+    printf("Dereference field of Point with '->'\n");
+    printf("Point: (%d, %d, %d)\n", ppt->x, ppt->y, ppt->z);
+}
+
+struct Point {
+    x: i32,
+    y: i32,
+    z: i32
+}
+

@@ -1,0 +1,16 @@
+// pointer1.ca
+fn main() {
+    let i = 34i8;
+    let p1: *i8 = &i;// 1-dimension pointer to 1 byte integer and initialize it
+    let p2: **i32;	// 2-dimension pointer to 4 byte integer without initialize the value
+    let p3: ***f64;	// 3-dimension pointer to double float
+    let p4: *Point;	// 1-dimension pointer to a struct
+    let p5: **Point;// 2-dimension pointer to a struct
+    
+    let pt = Point(3.2, 6.4);
+    p4 = &pt;	// define a pointer to a Point tuple struct
+    p5 = &p4;	// define a pointer to a Point tuple struct
+}
+
+struct Point (f32, f32);
+

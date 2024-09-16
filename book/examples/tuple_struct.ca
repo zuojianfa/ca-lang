@@ -1,0 +1,14 @@
+// tuple_struct.ca
+struct Color(i32, i32, i32);
+struct Point(i32, i32, i32);
+struct Pixel(Point, Color);
+
+fn main() {
+    let black = Color(0xff, 0, 0xff);
+    let origin = Point(0, 0xff, 0x33);
+    let pixel = Pixel(origin, black);
+    print black; print '\n';
+    print origin; print '\n';
+    print pixel; print '\n';
+}
+

@@ -1,0 +1,30 @@
+// struct3.ca
+extern fn printf(f: *char, ...) -> i32;
+fn main() {
+    // We can also define a new type within a function in different scope,
+    // and the type will be visible only within that function's scope.
+    struct User {
+		active: bool,
+		username: *char,
+		email: *char,
+		sign_in_count: u64,
+    }
+
+    let user1 = User {
+        active: true,
+        username: "someusername123",
+        email: "someone@example.com",
+        sign_in_count: 1u64
+    };
+
+    let user1 = &user1;
+
+    print "active: "; print user1->active; print '\n';
+    
+    // using printf output the C string
+    printf("username: %s\n", user1->username);
+    printf("email: %s\n", user1->email);
+ 
+    print "sign_in_count: "; print user1->sign_in_count; print '\n';
+}
+

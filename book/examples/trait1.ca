@@ -1,0 +1,46 @@
+trait TraitName {
+    // method signatures without implementation
+    fn method_name(self);
+
+    // method with a default implementation
+    fn default_method(self) {
+        print("This is the default implementation.\n");
+    }
+
+    // static method
+    fn static_method();
+    
+    // static method with default implmentation
+    fn default_static_method() {
+        print("This is the default implementation of a static method.\n");
+    }
+}
+
+// define a empty struct or called unit struct
+struct MyStruct {}
+
+// implement the trait for the struct
+impl TraitName for MyStruct {
+    fn method_name(self) {
+        print "Method implemented for MyStruct.\n";
+    }
+
+    fn static_method() {
+	print("The static method implemented in the trait implementation\n");
+    }
+}
+
+impl MyStruct {
+    fn new() -> Self {
+	return MyStruct{};
+    }
+}
+
+fn main() {
+    let obj = MyStruct::new();
+    obj.method_name();
+    obj.default_method();
+    MyStruct::static_method();
+    MyStruct::default_static_method();
+}
+

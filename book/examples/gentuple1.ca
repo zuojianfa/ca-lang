@@ -1,0 +1,24 @@
+// gentuple1.ca
+fn main() {
+    // Create an unnamed tuple, bind it into a variable and initalize it with value
+    let a1: (i32, i32) = (3, 4);
+    print a1; print '\n';
+    
+    // Assign a value to an unnamed item at a specified position within the tuple
+    a1.0 = 100;
+    a1.1 = 1000;
+    print a1; print '\n';
+
+    // Create a temporary unnamed tuple, and print it directly, it's value coming from another tuple
+    print (a1.0 + 1, a1.1 + 1); print '\n';
+
+    // Create an unnamed tuple and bind it to a variable, and infer variable's type
+    // from the unnamed tuple's value and structure.
+    let a2 = (3, 4);
+    print a2; print ' ';
+
+    // Bind an unnamed tuple to a variable, and infer it's type. The tuple element can be of complex type
+    let a3 = ([1,2,3], 4.5);
+    print a3; print '\n';
+}
+

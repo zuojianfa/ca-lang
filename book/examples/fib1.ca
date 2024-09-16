@@ -1,0 +1,28 @@
+fn fibonacci(index: i32) -> u64 {
+    if (index == 0 || index == 1) {
+	return 1;
+    }
+
+    let a = 1u64;
+    let b = 1u64;
+    let c = 0;
+    let t = 0u64;
+    index -= 1;
+    while (c < index) {
+	t = a;
+	a = b;
+	b = t + a;
+	c = c + 1;
+    }
+
+    return b;
+}
+
+print fibonacci(0); print '\n';
+print fibonacci(1); print '\n';
+print fibonacci(2); print '\n';
+print fibonacci(3); print '\n';
+print fibonacci(10); print '\n';
+print fibonacci(30); print '\n';
+print fibonacci(40); print '\n';
+

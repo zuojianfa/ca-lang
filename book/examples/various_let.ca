@@ -1,0 +1,32 @@
+// various_let.ca
+fn main() {
+    // define a tuple variable and initalize all it's memory area with zero value
+    let a: (i32, (i32, i32)) = __zero_init__;
+    print a; print '\n';
+    
+    // this statement declares two variables: `a1` and `b1` use the form of pattern matching
+    // the two variables are expected to be part of a tuple with two `i32` values, 
+    // and initialize them with zero value
+    let (a1, b1): (i32, i32) = (3, 4);
+    print (a1, b1); print '\n';
+
+    // define a tuple struct
+    struct A(i32, i32);
+
+    let a2 = A(300, 200);
+
+    // uses the pattern to extract data from a2, and bind data into variable n2 and o2
+    let A(n2, o2) = a2;
+
+    // the right-hand A(n3, o3) is the pattern, the m3 stand for the whole of pattern.
+    let m3@A(n3, o3) = a2;
+    print (m3, n3, o3); print '\n';
+
+    // the m3 and n3 is bound the whole value of the right-hand.
+    // aa and a3 bound to value 100
+    // bb is bound to (200, 300)
+    // b3 is bound to 200, and b31 is bound to 300
+    let m3@n3@(aa@a3, bb@(b3, b31)) = (100, (200, 300));
+    print (m3, n3, aa, a3, bb, b3, b31);
+}
+

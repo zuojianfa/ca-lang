@@ -1,0 +1,17 @@
+// pointer2.ca
+fn main() {
+    let a = 1;
+    
+    // following defines different pointer types, their type in inferenced
+    // automatically from the value
+    let pa = &a;			// Define a pointer to an integer variable.
+    let ppa = &pa;			// Define a pointer to a 1-dimension pointer.
+    let pppa = &ppa;		// Define a pointer to a 2-dimension pointer.
+    
+    // print the variable type
+    dbgprinttype typeof(a);
+    dbgprinttype typeof(pa);
+    dbgprinttype typeof(ppa);
+    dbgprinttype typeof(pppa);
+}
+

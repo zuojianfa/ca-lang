@@ -1952,7 +1952,7 @@ static void walk_dbgprinttype(ASTNode *p) {
   int typesize = dt->size;
 
   // print datatype information when compiling
-  debug_catype_datatype(dt);
+  // debug_catype_datatype(dt);
 
 #if 1 // when need print in run uncomment it
   Function *printf_fn = ir1.module().getFunction("printf");

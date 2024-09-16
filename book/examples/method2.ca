@@ -1,0 +1,63 @@
+// method2.ca
+extern fn printf(fmt: *char, ...) -> i32;
+
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+// Implementing the method of Rectangle type
+impl Rectangle {
+    fn area(self) -> u32 {
+    	// self is of type *Rectangle, so the field must accessed through arrow -> operator, not dot .
+        return self->width * self->height;
+    }
+
+    fn can_hold(self, other: *Rectangle) -> bool {
+        return self->width > other->width && self->height > other->height;
+    }
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 123u32,
+        height: 345u32
+    };
+
+    let rect2 = Rectangle {
+        width: 126u32,
+        height: 344u32
+    };
+
+    // call method area
+    let area = rect1.area();
+    printf("The area of the rectangle 1 is %d square pixels\n", area);
+    printf("The area of the rectangle 2 is %d square pixels\n", rect2.area());
+
+    // call another method with extra parameter
+    let can = rect2.can_hold(&rect1);
+    let can_str: *char = __zero_init__;
+    if (can) {
+	can_str = "can";
+    } else {
+	can_str = "cannot";
+    }
+
+    printf("The first rectangle %s hold the second rectangle\n", can_str);
+
+    // invoke the associated function
+    let square = Rectangle::square(100);
+    print square;
+}
+
+// Postpone the implementation
+impl Rectangle {
+    // The associated function, it is not a method, because the first parameter is not self
+    fn square(size: u32) -> Self {
+        return Self {
+            width: size,
+            height: size
+        };
+    }
+}
+

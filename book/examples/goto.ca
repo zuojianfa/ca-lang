@@ -1,0 +1,13 @@
+fn main() {
+    let count = 0;
+l1:
+    if (count >= 1115000000) {
+    	goto l2;
+    }
+
+    count = count + 1;
+    goto l1;
+
+l2:
+    print count;
+}

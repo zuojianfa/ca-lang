@@ -1,0 +1,7 @@
+// tuple.ca
+fn main() {
+    let t1 = ("Age", 40);
+    print t1; print '\n';
+    dbgprinttype(typeof(t1));
+}
+

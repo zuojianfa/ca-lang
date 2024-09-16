@@ -1,0 +1,10 @@
+// shadowing.ca
+fn main() {
+    let x = 100;
+    print x; print '\n';
+    let x = x + 1;
+    print x; print '\n';
+    let x = 1.22;
+    print x; print '\n';
+}
+

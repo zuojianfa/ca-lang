@@ -1,0 +1,29 @@
+// forptr.ca
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    // create an array of Point object
+    let pt = [
+        Point {x: 100, y: 300},
+        Point {x: 300, y: 200},
+        Point {x: 300, y: 300},
+        Point {x: 500, y: 400},
+        Point {x: 600, y: 100}
+    ];
+
+    // item hold the address of items in pt, so item is a pointer
+    for (*item in pt) {
+        // print type of item, it should be a pointer to Point object
+        dbgprinttype(typeof(item));
+        
+        // print the item, it's an address
+        print item; print ": ";
+        
+        // dereference and print the object
+        print *item; print "\n\n";
+    }
+}
+

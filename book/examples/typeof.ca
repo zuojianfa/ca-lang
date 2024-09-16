@@ -1,0 +1,20 @@
+// typeof.ca
+fn main() {
+    let c = 100.1;
+
+    // print the type information
+    dbgprinttype(typeof(c));
+
+    // use typeof to define a variable with the same type as c
+    let d: typeof(c);
+
+    // assign value to d
+    if (c != 0.0) {
+	d = 200.322;
+    } else {
+	d = c;
+    }
+    print c; print '\n';
+    print d;
+}
+

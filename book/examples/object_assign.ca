@@ -1,0 +1,58 @@
+struct AComplexType {
+    slot: Point,
+    batch: PointVector,
+    convert: PointConvert,
+    area: (f64, f64)
+}
+
+impl AComplexType {
+    fn new() -> AComplexType {
+	return AComplexType {
+	    slot: Point {
+		x: 100,
+		y: 150
+	    },
+	    batch: PointVector {
+		vx: [2,3,4,5,6],
+		vy: [3,2,3,4,1]
+	    },
+	    convert: PointConvert {
+		pt: [
+		    Point {x: 100, y: 300},
+		    Point {x: 300, y: 200},
+		    Point {x: 300, y: 300},
+		    Point {x: 500, y: 400},
+		    Point {x: 600, y: 100}
+		]
+	    },
+	    area: (30.4, 9.9)
+	};
+    }
+}
+
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+struct PointVector {
+    vx: [i32; 5],
+    vy: [i32; 5],
+}
+
+struct PointConvert {
+    pt: [Point; 5]
+}
+
+fn main() {
+    // create a new object
+    let obj1 = AComplexType::new();
+
+    // assign object with value
+    let obj2 = obj1;
+    print "address, obj1: "; print &obj1; print '\n';
+    print "address, obj2: "; print &obj2; print "\n\n";
+    print obj1; print "\n\n";
+    print obj2;
+}
+

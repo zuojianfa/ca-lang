@@ -1,0 +1,33 @@
+// array_copy.ca
+fn main() {
+    let a1 = ["hello", "CA"];
+    let a2 = a1;
+
+    print "For string element:\n";
+    print a1[0]; print '\n';
+    print a2[0]; print '\n';
+
+    dbgprinttype(typeof(a1[0]));
+    dbgprinttype(typeof(a2));
+
+    let a3 = [[1,2],[3,4],[5,6]];
+    let a4 = a3;
+
+    print "\nFor array element:\n";
+    print "value: "; print a3[0]; print " address: "; print &a3[0]; print '\n';
+    print "value: "; print a4[0]; print " address: "; print &a4[0]; print '\n';
+
+    dbgprinttype(typeof(a3[0]));
+    dbgprinttype(typeof(a4));
+
+    let a5 = [(1,2),(3,4),(5,6)];
+    let a6 = a5;
+
+    print "\nFor tuple element:\n";
+    print "value: "; print a5[0]; print " address: "; print &a5[0]; print '\n';
+    print "value: "; print a6[0]; print " address: "; print &a6[0]; print '\n';
+
+    dbgprinttype(typeof(a5[0]));
+    dbgprinttype(typeof(a6));
+}
+

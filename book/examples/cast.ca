@@ -1,0 +1,23 @@
+// cast.ca
+struct Point (u32, u32);
+
+fn main() {
+    // cast an hex number into a pointer of i8
+    let message_address = 0x432abc4f as *i8;
+
+    // create unamed tuple
+    let point_tuple = (100u32, 200u32);
+
+    // cast unnamed tuple into named tuple with the same fields
+    let point_ptr = &point_tuple as *Point;
+
+    print &point_tuple; print '\n';
+    print point_ptr; print '\n';
+    
+    dbgprinttype(typeof(point_tuple));
+    print point_tuple; print "\n\n";
+
+    dbgprinttype(typeof(*point_ptr));
+    print *point_ptr; print '\n';
+}
+

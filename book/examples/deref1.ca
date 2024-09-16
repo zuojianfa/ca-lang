@@ -1,0 +1,17 @@
+// deref1.ca
+extern fn printf(fmt: *i8, ...) -> i32;
+fn main() {
+    // define a C string, terminated by '\0' character
+    let str: *char = "Hello CA!\n";
+    let p = str;
+
+    // dereference the value from pointer `p` and compare them
+    while(*p != '\0') {
+	// dereference the value and get the next character in its ASCII encoding
+	print ((*p + 1char) as i32 % 128) as char; print ' ';
+
+	// move the pointer forward by 1 step
+	p = p + 1;
+    }
+}
+

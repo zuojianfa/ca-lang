@@ -1,0 +1,15 @@
+// non_zero_init.ca
+struct Bunch (i32, i32, *usize, f64, *char);
+fn main() {
+    let c: i32;
+    let f: f64;
+    let ptr: *i32;
+    let arr: [usize; 10];
+    let bunch: Bunch;
+    print c; print '\n';
+    print f; print '\n';
+    print ptr; print '\n';
+    print arr; print '\n';
+    print bunch;
+}
+

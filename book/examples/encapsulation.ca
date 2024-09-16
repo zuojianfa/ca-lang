@@ -1,0 +1,38 @@
+// encapsulation.ca
+extern fn printf(fmt: *char, ...) -> i32;
+
+struct Phone {
+    size: Rectangle,
+    os: *char,
+    satellite: bool,
+    cell: u32,
+}
+
+struct Rectangle {width: u32, height: u32}
+
+impl Phone {
+    pub fn new() -> Phone {
+        return Phone {
+            size: Rectangle {width: 0u32, height: 0u32},
+            os: "android",
+            satellite: false,
+            cell: 0u32
+        };
+    }
+
+    // all field must be accessed by the method in object, when acccess control supported
+    pub fn size(self) -> Rectangle { return self->size; }
+    pub fn set_size(self, rect: Rectangle) { self->size = rect; }
+
+    pub fn operating_system(self) -> *char { return self->os; }
+    pub fn support_satellite_call(self) -> bool { return self->satellite; }
+}
+
+fn main() {
+    let phone = Phone::new();
+
+    // the size must be accessed through the method in the object
+    print phone.size(); print '\n';
+    printf("%s\n", phone.operating_system());
+}
+

@@ -1,0 +1,14 @@
+// loop.ca
+fn main() {
+    let i = 0;
+    let j = 0;
+    loop {
+        i += 1;
+        j += i;
+        if (i > 10) {
+            break;
+        }
+
+        print j; print ' ';
+    }
+}

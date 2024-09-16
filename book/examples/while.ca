@@ -1,0 +1,10 @@
+// while.ca
+fn main() {
+    let i = 0;
+    let j = 0;
+    while (i < 10) {
+        i += 1;
+        j += i;
+        print j; print ' ';
+    }
+}

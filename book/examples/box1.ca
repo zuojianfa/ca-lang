@@ -1,0 +1,15 @@
+// box1.ca
+extern fn printf(fmt: *char, ...) -> i32;
+fn main() {
+    box(0);
+    
+    // s1 is of **i8 type, because "Hello CA!" is a *i8 type
+    let s1 = box("Hello CA!");
+   	// dereference the value of **i8 and get *i8 value
+    printf("%s\n", *s1);
+
+    // boxing an char array
+    let s2 = box(['H', 'e', 'l', 'l', 'o', ' ', 'C', 'A', '!', '\0']);
+    printf("%s\n", s2);
+}
+

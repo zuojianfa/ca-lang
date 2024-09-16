@@ -1,0 +1,26 @@
+fn main() {
+    let num1 = 100;
+    let num2 = 100i32;
+    let num3 = 100i64;
+    let num4 = 100.1f32;
+    let num5 = 100.1f64;
+    let num6: u32 = 100;
+    let num7: u64 = 100;
+    let s1 = "Hello World!";
+    let a1: [i8; 12] = "Hello World!";
+    print s1; print '\n';
+    print a1; print '\n';
+    dbgprinttype typeof(num1);
+    dbgprinttype typeof(num2);
+    dbgprinttype typeof(num3);
+    dbgprinttype typeof(num4);
+    dbgprinttype typeof(num5);
+    dbgprinttype typeof(num6);
+    dbgprinttype typeof(num7);
+    dbgprinttype typeof(s1);
+
+    dbgprinttype i32;
+    dbgprinttype u64;
+    dbgprinttype f32;
+    dbgprinttype bool;
+}

@@ -1,0 +1,15 @@
+fn main() {
+    let tuple: (i32, (i32, i32)) = (1, (2, 3));
+
+    // Pattern matching with bindings
+    let m3@n3@(aa@a3, bb@(b3, b31)): (i32, (i32, i32)) = tuple;
+
+    print m3; print '\n';
+    print n3; print '\n';
+    print n31; print '\n';
+    print aa; print '\n';
+    print a3; print '\n';
+    print bb; print '\n';
+    print b3; print '\n';
+    print b31; print '\n';
+}

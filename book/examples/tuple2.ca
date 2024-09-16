@@ -1,0 +1,12 @@
+// tuple2.ca
+extern fn printf(fmt: *char, ...) -> i32;
+
+fn main() {
+    let rect1 = (30u32, 50u32);
+    printf("The area of the rectangle is %d square pixels.", area(rect1));
+}
+
+fn area(dimensions: (u32, u32)) -> u32 {
+    return dimensions.0 * dimensions.1;
+}
+

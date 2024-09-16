@@ -1,0 +1,147 @@
+extern fn printf(fmt: *char, ...) -> i32;
+trait Shape {
+    // instance methods
+    fn area(self) -> f64;
+    fn perimeter(self) -> f64;
+    fn draw(self);
+    fn bounding_box(self) -> Rect;
+    fn contains_point(self, point: Point) -> bool;
+    fn transform(self, transformation: Transformation);
+
+    // static methods
+    fn default_shape() -> Self;
+    fn from_dimensions(dimensions: *f64, size: usize) -> Self;
+
+    fn validate_dimensions(dimensions: *f64, size: usize) -> bool {
+        // default implementation: assume dimensions are valid if not empty
+        return size != 0usize;
+    }
+
+    fn unit_shape() -> Self;
+
+    fn calculate_area(dimensions: *f64, size: usize) -> f64 {
+        // default implementation: returns 0 if dimensions are not suitable
+	return 0.0;
+    }
+
+    fn calculate_perimeter(dimensions: *f64, size: usize) -> f64 {
+        // default implementation: returns 0 if dimensions are not suitable
+	return 0.0;
+    }
+}
+
+// Example implementation for Circle
+struct Circle {
+    radius: f64,
+}
+
+impl Shape for Circle {
+    fn area(self) -> f64 {
+        return 3.14f64 * self->radius * self->radius;
+    }
+
+    fn perimeter(self) -> f64 {
+        return 2.0 * 3.13f64 * self->radius;
+    }
+
+    fn draw(self) {
+        printf("Drawing a circle with radius: %lf\n", self->radius);
+    }
+
+    fn bounding_box(self) -> Rect {
+        return Rect {
+            width: 2.0 * self->radius,
+            height: 2.0 * self->radius
+        };
+    }
+
+    fn contains_point(self, point: Point) -> bool {
+        let dx = point.x;
+        let dy = point.y;
+        return (dx * dx + dy * dy) <= (self->radius * self->radius);
+    }
+
+    fn transform(self, _transformation: Transformation) {
+        // apply transformation to the circle
+    }
+
+    // static methods
+    fn default_shape() -> Self {
+        return Circle { radius: 1.0 };
+    }
+
+    fn from_dimensions(dimensions: *f64, size: usize) -> Self {
+        if (size == 1usize && *dimensions > 0.0) {
+            return Circle { radius: *dimensions };
+        } else {
+            return Circle { radius: 0.0 };
+        }
+    }
+
+    fn unit_shape() -> Self {
+        return Circle { radius: 1.0 };
+    }
+
+    fn calculate_area(dimensions: *f64, size: usize) -> f64 {
+        if (size == 1usize) {
+            return 3.14f64 * *dimensions * *dimensions;
+        } else {
+            return 0.0;
+        }
+    }
+
+    fn calculate_perimeter(dimensions: *f64, size: usize) -> f64 {
+        if (size == 1usize) {
+            return 2.0 * 3.14f64 * *dimensions;
+        } else {
+            return 0.0;
+        }
+    }
+}
+
+// Definitions for Rect, Point, and Transformation
+struct Rect {
+    width: f64,
+    height: f64,
+}
+
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+struct Transformation {
+    // Define transformation details here
+}
+
+fn main() {
+    // Create a default Circle
+    let default_circle = Circle::default_shape();
+    printf("Default Circle: radius = %lf\n", default_circle.radius);
+    printf("Area: %lf\n", default_circle.area());
+    printf("Perimeter: %lf\n", default_circle.perimeter());
+
+    // Create a Circle from dimensions
+    let dimensions = 5.0f64;
+    let circle = Circle::from_dimensions(&dimensions, 1);
+    
+    if (circle.radius != 0.0){
+        printf("Created Circle from dimensions:\n");
+        printf("Area: %lf\n", circle.area());
+        printf("Perimeter: %lf\n", circle.perimeter());
+    } else {
+        printf("Invalid dimensions for Circle.\n");
+    }
+
+    // Validate dimensions
+    if (Circle::validate_dimensions(&dimensions, 1)) {
+        printf("Dimensions are valid for Circle.\n");
+    } else {
+        printf("Dimensions are not valid for Circle.\n");
+    }
+
+    // Calculate area and perimeter from dimensions
+    printf("Calculated Area: %lf\n", Circle::calculate_area(&dimensions, 1));
+    printf("Calculated Perimeter: %lf\n", Circle::calculate_perimeter(&dimensions, 1));
+}
+

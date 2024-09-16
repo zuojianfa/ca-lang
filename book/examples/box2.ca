@@ -1,0 +1,21 @@
+// box2.ca
+extern fn printf(s: *char, ...) -> i32;
+fn main() {
+    // create an Record object
+    let obj = Record{33, 323.333};
+
+    // boxing the Record object, objptr1 is a pointer to Record, or `*Record` type
+    let objptr1 = box(obj);
+    // dereference and print it's value
+    print (*objptr1); print '\n';
+
+    // create a Record object and boxing it
+    let objptr2 = box(Record{3, 3.33});
+    print (*objptr2); print '\n';
+}
+
+struct Record {
+    f1: i32,
+    f2: f64
+}
+

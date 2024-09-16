@@ -1,0 +1,9 @@
+// type_gentuple.ca
+type A = (i32, i32);
+
+fn main() {
+    let a: A;
+    a = (100, 200);
+    print a;
+}
+

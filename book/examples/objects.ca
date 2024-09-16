@@ -1,0 +1,41 @@
+// objects.ca
+extern fn printf(fmt: *char, ...) -> i32;
+
+struct Phone {
+    size: Rectangle,
+    os: *char,
+    satellite: bool,
+    cell: u32,
+}
+
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Phone {
+    fn new() -> Phone {
+        return Phone {
+            size: Rectangle {width: 0u32, height: 0u32},
+            os: "android",
+            satellite: false,
+            cell: 0u32
+        };
+    }
+
+    fn operating_system(self) -> *char {
+	return self->os;
+    }
+
+    fn support_satellite_call(self) -> bool {
+	return self->satellite;
+    }
+}
+
+fn main() {
+    let phone = Phone::new();
+    // access the `size` field directly. It not allowed when the field accessing control is supported
+    print phone.size; print '\n';
+    printf("%s\n", phone.operating_system());
+}
+
