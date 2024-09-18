@@ -32,14 +32,6 @@ fn add(a: i32, b: i32) -> i32 {
 }
 ```
 
-#### Using Traits
-
-```language
-trait Describable {
-    fn describe(&self) -> String;
-}
-```
-
 ### Advanced Example
 
 Here’s a more advanced code snippet showcasing a feature:
@@ -158,7 +150,7 @@ This project is licensed under the Mulan PSL v2 License. You may obtain a copy o
 - **Organization:** Rocket Software
 - **GitHub:** [github.com/zuojianfa](https://github.com/zuojianfa)
   Explore my projects and contributions!
-- **LinkedIn:** [linkedin.com/in/rusheng-xia](https://www.linkedin.com/in/rusheng-xia)  
+- **LinkedIn:** [linkedin.com/in/zuojianfa](https://www.linkedin.com/in/zuojianfa)
   Connect with me for professional networking!
 
 ## 📫 Contact Information
