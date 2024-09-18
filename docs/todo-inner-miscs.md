@@ -234,6 +234,90 @@ NEXT TODO:
 - [ ] add graphviz (dot graph) option for outputing the grammar tree
 - [ ] function definition can be in any scope
 
+## Compile
+- make all executable
+  `make`
+- make llvm-ir
+  `make llvm-ir`
+- make only object file (.o) for test program (.ca) with `-ll` option and invoke `llc`
+  `make llvm-test-to-o`
+- make executable file for test program (.ca) with `llvm-test-to-o` aim and `clang`
+  `make llvm-test-clang`
+- make native assembly file (.s) for test program (.ca) with `-ll` option and invoke `llc`
+  `make llvm-test-to-s`
+- make executable file for test program (.ca) with `llvm-test-to-s` aim and `as` `ld` with `c runtime` object file (`crt1.o, crti.o, crtn.o, crtbegin.o crtend.o`)
+  `make llvm-test-as-ld`
+- make executable file for test program (.ca) with `llvm-test-to-s` aim and `as` `ld` with direct assembly entry without `c runtime` object file
+  `make llvm-test-as-ld2`
+- make executable file for test program (.ca) with `-c` option to create object file (.o) and `ld` with `c runtime` object file (`crt1.o, crti.o, crtn.o, crtbegin.o crtend.o`)
+  `make llvm-test-o`
+- clean code
+  `make clean`
+  
+## Compile with cmake
+
+### Debug Version
+```
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+make -j3
+```
+
+### Release Version with Debug
+```
+mkdir rbuild && cd rbuild
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j3
+or 
+cmake --build .
+```
+
+## debug & optimization
+### -g
+Add debug information into the object file, and can use gdb to debug the code
+
+### -O
+Add optimization pass for the llvm (optimization) pass
+
+### -g -O
+Add debug information into the object file and add llvm optimization pass 
+
+## Install
+```
+cmake --install . --prefix "/home/to/dir"
+```
+
+## make package / installer
+```
+cpack
+# or
+cpack -G ZIP -C Debug
+```
+
+### make source code distribution
+```
+cpack --config CPackSourceConfig.cmake
+# or
+cpack --config CPackSourceConfig.cmake
+```
+
+## An code example
+```rust
+x = 0;
+print x;
+y = 0;
+while (x < 10) {
+	print x;
+	x = x * 2 + 4 / y;
+	y = y + 1;
+	z = z + 1;
+	i = i + 1;
+	j = i + 1;
+}
+
+print y;
+```
+
 # License
 See `LICENSE` file in this directory, for license in directory `cruntime` see cruntime/README.md
 

@@ -1,0 +1,58 @@
+// quickcode.ca
+
+// introduce external function
+extern fn printf(fmt: *char, ...) -> i32;
+
+fn fibonacci_at(index: i32) -> u64 {
+    if (index == 0 || index == 1) {
+		return 1;
+    }
+
+    let a = 1u64;
+    let b = 1u64;
+    let c = 0;
+    let t = 0u64;
+    index -= 1;
+    while (c < index) {
+        t = a;
+        a = b;
+        b = t + a;
+        c = c + 1;
+    }
+
+    return b;
+}
+
+struct Integer {
+    value: i64
+}
+
+impl Integer {
+    fn new(value: i64) -> Integer {
+		return Integer {value};
+    }
+
+    fn fibonacci(self) -> u64 {
+		return fibonacci_at(self->value as i32);
+    }
+}
+
+fn main() -> i32 {
+    // define variable, whose type is inferred from the right-hand side value
+    let f10 = fibonacci_at(10);
+    printf("fibonacci number at 10 is: %llu\n", f10);
+    
+    // print the type information of variable f10
+    print "return type is: ";
+    dbgprinttype(typeof(f10));
+
+    // create an Integer instance
+    let v1 = Integer::new(30);
+    printf("\nfibonacci number at 30 is: %llu\n", v1.fibonacci()); 
+    
+    print "return type is: ";
+    dbgprinttype(typeof(v1));
+
+    return 0;
+}
+

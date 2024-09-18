@@ -1,4 +1,4 @@
-# The CA Programming Language
+# 🖥️ The CA Programming Language
 *By Rusheng Xia (xrsh_2004@163.com)*
 
 CA is a new language which has similar grammars as rust language, but internally in many aspects it is more similar to C language and compatible with C ABI - it support raw pointers, able to call C functions directly. CA language support garbage collections in memory management which is powered by the Mark-and-Sweep algorithm in GC library. CA language support a lot of flexible but powerful grammars which make it easy to program.
@@ -7,7 +7,7 @@ CA compiler uses LLVM as its backend, and uses JIT or AOT technology of LLVM. Yo
 
 Currently, CA language is still under development but it already has most features of a general programming language should have. Also it offered huge of test cases in the test directory of the source code, all language features are covered in these test cases. So if you want to know all about the languages aspect the best way is reviewing the test cases.
 
-# 1 Getting Started
+# 🚀 1. Getting Started
 ## 1.1 Installation
 
 Currently, you can only build from source code to get the compiler binary.
@@ -107,7 +107,7 @@ Hello CA!
 return value: 1
 ```
 
-# 2 Programming a Guessing Game
+# 🎮 2. Programming a Guessing Game
 
 The traditional number guess Game.
 
@@ -192,7 +192,7 @@ You win!
 return value: 0
 ```
 
-# 3 Common Programming Concept
+# 📚 3. Common Programming Concept
 
 ## 3.1 Variable
 
@@ -513,7 +513,7 @@ The type information is printed with the type's size and type signature.
 
 We should have noticed that the string literal `"Hello CA!"` can be bound to variables with two different types in CA. In statement  `let s1 = "Hello CA!";` the value `"Hello CA!"` is bound to variable `s1` with type `*i8`, and in statement `let a1: [i8; 12] = "Hello CA!";` the value is bound to variable `a1` with an array type of `[i8'12]`.
 
-# 4 Array & Slice
+# 📊 4. Array & Slice
 
 ## 4.1 Array
 
@@ -704,7 +704,7 @@ size = 24, type: t:[(;i32,i32);3]
 
 From the result, we can observe that for a literal string, which has a base type of `*i8`, the operation simply copies the `*i8` value into the new slot of the array. It does not copy the entire string itself but only the `*i8` pointer value. This occurs because the string type is represented as a type of ` *i8` a pointer of `i8` type.
 
-# 5 Structs type
+# 🏛️ 5. Structs type
 
 CA Using `struct` to Structure Related Data,
 
@@ -1087,7 +1087,7 @@ impl Rectangle {
 
 Note implemented yet.
 
-# 6 Pointer
+# 📍 6 Pointer
 
 `CA` language supports multi-dimensional pointers, enabling complex data structures and providing flexibility in their use.
 
@@ -1259,7 +1259,7 @@ Dereference field of Point with '->'
 Point: (100, 200, 150)
 ```
 
-# 7 Patterns Matching and variable binding
+# 🧩 7 Patterns Matching and variable binding
 
 Pattern matching functionality is used to determine whether a value conforms to a specific pattern. The pattern represents a structure, template, or shape that defines what you are looking for. When a value matches this pattern, the system can extract or handle data according to the structure defined by the pattern.
 
@@ -1387,7 +1387,7 @@ For more testing code see the directory of `test/pattern` in the source code.
 
 Not implemented yet.
 
-# 8 Traits
+# 🌟 8 Traits
 
 In CA, a trait is a fundamental concept that allows for defining shared behavior across different types. It is somewhat analogous to interfaces in other languages but with some unique features.
 
@@ -1654,7 +1654,7 @@ Calculated Perimeter: 31.400000
 
 Will implement in the future.
 
-# 9 Object Oriented Programming (OOP)
+# 🧱 9 Object Oriented Programming (OOP)
 
 According to some senses, not all senses, the Object Oriented Languages have following common characteristics
 
@@ -1775,11 +1775,11 @@ CA language only support the inheritance through `traits`, it not support object
 
 Through `trait` object, CA support polymorphism. This functionality is under development.
 
-## 9.5 Abstraction
+## 9.5 Abstraction (Future Planned)
 
 The `trait` and `generic` programming offers abstraction to object in CA. This functionality is under development.
 
-# 10 Dynamic memory management 
+# 🗑️ 10 Dynamic memory management 
 
 ## 10.1 dynamic memory allocation - boxing
 
@@ -1877,7 +1877,7 @@ let buffer = box(i8; buffer_size);
 
 The type followed a size. It will allocate memory in heap without initialize a value.
 
-### 10.1.6 Different scenarios use Heap Memory
+### 10.1.6 Different scenarios using Heap Memory
 
 - Pass out of the function
 - Use in data structure's, like list, tree
@@ -1888,7 +1888,7 @@ The type followed a size. It will allocate memory in heap without initialize a v
 
 To simplify memory management and eliminate concerns about manual deallocation, the CA language introduced a garbage collection mechanism. Uses garbage collection, it's similar to programming in `java` or `C#`, where a garbage collection mechanism is already built-in. You don't need worry about the memory management: when you need a new memory in heap, just allocate it, and then use it without considering the release of the variable.
 
-### 10.2.1 Use Mark-and-Sweep algorithm
+### 10.2.1 Mark-and-Sweep algorithm
 
 Unlike other garbage-collected languages, such as `java`, which use reference counting to manage object deallocation. CA language employs a different mechanism for controlling object release, it uses Mark-and-Sweep algorithm to do the job with support of libgc library.
 
@@ -1908,19 +1908,19 @@ fn main() {
 
 
 
-## 10.3 use extern memory mechanism
+## 10.3 use extern memory
 
 It is not recommended to mix external memory management mechanisms, such as C functions like `malloc` and `free`, with the language's built-in memory management. Doing so can add complexity and may lead to issues if not handled properly.
 
-# 11 Generic Programming (Future Planned)
+# 🔄  11 Generic Programming (Future Planned)
 
 Not Implemented Yet.
 
-# 12 Module Design (Future Planned)
+# 📦 12 Module Design (Future Planned)
 
 Not Implemented Yet.
 
-# 13 Special Language Features
+# ✨ 13 Special Language Aspects
 
 The CA language specifies several features. These features collectively enhance the language’s capability, providing a rich set of tools for diverse programming needs.
 
@@ -2517,6 +2517,119 @@ Includes all arithmetic, logical, and bitwise operators, similar to those found 
 ## 13.19 Destructuring Assignment
 
 Allows matching and extracting values from arrays and tuples, such as `let [f1, f2, _, ..] = [1, 2, 3, 4, 5];`.
+
+# 📄 14 Compile Unit
+
+CA compiler treats each CA source file as a separate compile unit. A compile unit can be compiled into an object file or an executable file when the compile unit contains `main` function. The object file can have the `.o`  postfix or any other name you like. When compiled into an executable file, the compiler need to link necessary C runtime functions to support the execution of the executable file.
+
+In a real-world scenario, a project can include many source files or compile units, which are eventually combined using binary tool chains. For CA language the compile unit can also be linked together using binary tool chains and form a complete executable.
+
+At the current stage, the CA language compiler only supports linking for names that conform to the C-ABI. If a name in the object file does not meet the requirements of C-ABI, the linker will be unable to find and link it. Consequently, if the source code includes names that do not meet these requirements, those names will not be visible to other compile units. 
+
+In the future stage, support for full linking across different compile units will be added.
+
+## 14.1 link 2 compile unit
+
+### **The main unit**
+
+In the source file `unit1.ca`, it defines main function. In the main function, it calls 2 functions which is coming from outside unit: `unit2.ca`.
+
+```rust
+// unit1.ca
+extern fn ca_add(a: u32, b: u32) -> u32;
+extern fn ca_mul(a: u64, b: u64) -> u64;
+
+fn main() {
+    let v1 = ca_add(100, 3);
+    let v2 = ca_mul(3, 9);
+    print v1; print '\n';
+    print v2; print '\n';
+}
+```
+
+### **The library unit**
+
+In this source file, it defined 2 functions `ca_add` and `ca_mul` which will be called from `unit1.ca`
+
+```rust
+// unit2.ca
+struct U32Param {
+    a: u32,
+    b: u32,
+}
+
+impl U32Param {
+    // defined a method which not meet C-ABI, it is not use C namings for the name in object
+    fn output(self) {
+		print *self;
+		print '\n';
+    }
+}
+
+struct U64Param {
+    a: u64,
+    b: u64,
+}
+
+impl U64Param {
+    fn output(self) {
+		print *self;
+		print '\n';
+    }
+}
+
+fn ca_add(a: u32, b: u32) -> u32 {
+    U32Param{a, b}.output();
+    return a + b;
+}
+
+fn ca_mul(a: u64, b: u64) -> u64 {
+    U64Param{a, b}.output();
+    return a * b;
+}
+```
+
+### **compile and link**
+
+```bash
+$ ca -c unit1.c unit1.o # compile unit1.ca
+$ ca -c unit2.c unit2.o # compile unit2.ca
+
+# link them together with GNU linker
+$ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o linked unit1.o unit2.o -lc
+```
+
+In the command above, the GNU linker `ld` is used to link the 2 compile units or object files together. Alternatively you can treat the the compiled unit or object file as a C object file and use `gcc` or `clang` to create an executable file. Like this:
+
+```bash
+$ gcc -o linked unit1.o unit2.o
+```
+
+gcc handles all the behind-the-scenes tasks to combine them together.
+
+### Non C-ABI Names
+
+Although the two functions `add` and `mul`, can be used by external units, the `struct` types `U64Param` and `U32Param`, along with their methods, cannot be used directly at this stage because they do not conform to the C ABI.
+
+We can view the symbols in the two files using the `nm` command-line tool.
+
+```
+$ nm unit1.o
+                 U ca_add
+                 U ca_mul
+0000000000000000 T main
+                 U printf
+$ nm unit2.o
+0000000000000000 T _CA$SF8U32Param6output
+00000000000000e0 T _CA$SF8U64Param6output
+00000000000001c0 T ca_add
+0000000000000200 T ca_mul
+                 U printf
+```
+
+We observe that the symbol names `ca_add` and `ca_mul` match the names used in the source file, adhering to the C ABI. However, the names `_CA$SF8U32Param6output` and `_CA$SF8U64Param6output` do not appear in the source file and therefore do not conform to the C ABI. The reason of this kind of symbols name appears is that the CA language has many functionalities that require the compiler to perform name mangling to support them, so the compiler mangled the name of the `output` method which belongs to the two type `U32Param` and `U64Param` , and so the mangled name become `_CA$SF8U32Param6output` and `_CA$SF8U64Param6output`.
+
+At the current stage, the CA language and compiler cannot import the manged names. In the next phase, will extend the language grammar to support a `use` statement for importing external symbols that conform to the CA ABI. With this enhancement, the linker will be able to link these symbols together.
 
 # TODO
 

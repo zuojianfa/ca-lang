@@ -1,3 +1,15 @@
+/**
+ * Copyright (c) 2023 Rusheng Xia <xrsh_2004@163.com>
+ * CA Programming Language and CA Compiler are licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 /* Type system design:
    string representation:
    internal primitive types: t:i8, t:i32, t:u8, t:u32, t:f32, t:bool, ...,

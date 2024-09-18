@@ -1,3 +1,19 @@
+/**
+ * Copyright (c) 2023 Rusheng Xia <xrsh_2004@163.com>
+ * CA Programming Language and CA Compiler are licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+/**
+ * @file parser tree building, grammar analyzer auxiliary, some symbol table operations.
+ */
+
 #ifndef __CA_H__
 #define __CA_H__
 
@@ -8,25 +24,26 @@ BEGIN_EXTERN_C
 #endif
 
 #include "symtable.h"
-/*
-  The relationship between the enum and data structure:
-  TTE_Literal: TLiteralNode
-  TTE_Id, TTE_Label, TTE_LabelGoto: TIdNode
-  TTE_Expr: TExprNode
+
+/**
+ * @brief relationship between the enum and data structure:
+ * TTE_Literal: TLiteralNode
+ * TTE_Id, TTE_Label, TTE_LabelGoto: TIdNode
+ * TTE_Expr: TExprNode
  */
 typedef enum {
-  TTE_Empty,       // for empty expression
-  TTE_Literal,     // literal type
-  TTE_Id,          // identifier type
-  TTE_Label,       // label type
-  TTE_LabelGoto,   // label type in goto statement
-  TTE_Expr,        // operation type
-  TTE_FnDecl,      // function declaration: [extern] fn fnname(fnarg1, fnarg2);
-  TTE_FnDef,       // function definition
+  TTE_Empty,       /// for empty expression
+  TTE_Literal,     /// literal type
+  TTE_Id,          /// identifier type
+  TTE_Label,       /// label type
+  TTE_LabelGoto,   /// label type in goto statement
+  TTE_Expr,        /// operation type
+  TTE_FnDecl,      /// function declaration: [extern] fn fnname(fnarg1, fnarg2);
+  TTE_FnDef,       /// function definition
   TTE_While,
   TTE_If,
   TTE_As,
-  TTE_Struct,      // struct definition
+  TTE_Struct,      /// struct definition
   TTE_DbgPrint,
   TTE_DbgPrintType,
   TTE_Ret,
@@ -34,7 +51,7 @@ typedef enum {
   TTE_ArgList,
   TTE_StmtList,
   TTE_TypeDef,
-  TTE_VarDefZeroValue, // the value of `__zero_init__` to specify initial all with 0, carry nothing
+  TTE_VarDefZeroValue, /// the value of `__zero_init__` to specify initial all with 0, carry nothing
   TTE_ArrayDef,
   TTE_DerefLeft,
   TTE_ArrayItemLeft,
@@ -59,73 +76,74 @@ typedef enum {
 
 typedef enum {
   TTEId_Empty,
-  TTEId_VarDef,    // when TTE_Id
-  TTEId_VarAssign, // when TTE_Id
-  TTEId_VarUse,    // when TTE_Id
-  TTEId_FnName,    // when TTE_Id
-  TTEId_Type,      // when TTE_Id, the symname of type name
-  TTEId_Label,     // when TTE_Label
-  TTEId_LabelGoto, // when TTE_LabelGoto
+  TTEId_VarDef,    /// when TTE_Id
+  TTEId_VarAssign, /// when TTE_Id
+  TTEId_VarUse,    /// when TTE_Id
+  TTEId_FnName,    /// when TTE_Id
+  TTEId_Type,      /// when TTE_Id, the symname of type name
+  TTEId_Label,     /// when TTE_Label
+  TTEId_LabelGoto, /// when TTE_LabelGoto
   TTEId_Num,
 } IdType;
 
-// this type is used for transferring grammar info (type) into later pass such
-// as into walk_* routine to transfer information directly when needed, to let
-// the walk routine know what it walking for. when needed add new type into this
-// enum to tell walk routine it walking for and do special action according to
-// the grammar information (type)
+/**
+ * @details type is used for transferring grammar info (type) into later pass such
+ * as into walk_* routine to transfer information directly when needed, to let
+ * the walk routine know what it walking for. when needed add new type into this
+ * enum to tell walk routine it walking for and do special action according to
+ * the grammar information (type)
+ */
 typedef enum {
   NGT_None,
   NGT_stmt_expr,
   NGT_Num,
 } ASTNodeGrammartype;
 
-/* following used to define the statement tree related structure */
+// following part define the statement structure of grammar tree
 
 struct ASTNode;
 
-/* literals */
+/// @brief literals
 typedef struct {
-  CALiteral litv; /* value of literal */
+  CALiteral litv; /// value of literal
 } TLiteralNode;
 
 typedef struct {
   CAArrayExpr aexpr;
 } TArrayNode;
 
-/* identifiers */
+/// @brief identifiers
 typedef struct {
   IdType idtype;
-  int i; /* subscript to sym array */
+  int i; /// subscript to sym array
 } TIdNode;
 
-/* operators */
+/// @brief operators
 typedef struct {
-  int op;       /* operator */
-  int noperand; /* number of operands */
+  int op;       /// operator
+  int noperand; /// number of operands
 
-  /* the expression's type: see borning_var_type. When the node not suitable for
-     value type or there is no type determined for the expression then it have
-     `0` value, or it is the intention type value may be used inference in later
-     use
+  /** @brief the expression's type: see borning_var_type. When the node not suitable for
+   * value type or there is no type determined for the expression then it have
+   * `0` value, Alternatively, the intended type value may be inferred for later use.
    */
   typeid_t expr_type;
-  struct ASTNode **operands; /* operands */
+  struct ASTNode **operands; /// operands
 } TExprNode;
 
 typedef struct TFnDeclNode {
-  int is_extern;   // is extern function
-  typeid_t ret;    // specify the return type of the function, typeid_novalue stand for no return value
-  typeid_t name;        // function name subscript to sym array
-  void *generic_types; // int vector
+  int is_extern;       /// is extern function
+  typeid_t ret;        /// specify the return type of the function, typeid_novalue stand for no return value
+  typeid_t name;       /// function name subscript to sym array
+  void *generic_types; /// int vector
   ST_ArgList args;
 } TFnDeclNode;
 
 typedef struct TFnDefNode {
   struct ASTNode *fn_decl;
   struct ASTNode *stmts;
-  void *retbb;   // opaque value for storing llvm::BasicBlock
-  void *retslot; // opaque value for storing return value slot
+  void *retbb;   /// opaque value for storing llvm::BasicBlock
+  void *retslot; /// opaque value for storing return value slot
 } TFnDefNode;
 
 typedef struct TWhileNode {
@@ -133,9 +151,10 @@ typedef struct TWhileNode {
   struct ASTNode *body;
 } TWhileNode;
 
-/* if else condition, when have no else scope remain is null, when have mutiple
-   if else, then conds and bodies stores the nodes, ncond is count of if else
-*/
+/**
+ * @brief if else condition, when have no else scope remain is null, when have mutiple
+ * if else, then conds and bodies stores the nodes, ncond is the count of if else pair.
+ */
 typedef struct TIfNode {
   int ncond;
   int isexpr;
@@ -168,7 +187,7 @@ typedef struct TRet {
 
 typedef struct TAssign {
   struct ASTNode *id;
-  int op; // when op is not -1, then it is the assignment operation
+  int op; /// when op is not -1, then it is the assignment operation
   struct ASTNode *expr;
 } TAssign;
 
@@ -183,8 +202,8 @@ typedef struct TRange {
 } TRange;
 
 typedef struct TArgList {
-  int argc; /* number of arguments */
-  struct ASTNode **exprs; /* operands */
+  int argc; /// number of arguments
+  struct ASTNode **exprs; /// operands
 } TArgList;
 
 typedef struct TStmtList {
@@ -195,13 +214,13 @@ typedef struct TStmtList {
 typedef struct TFnDefNodeImpl {
   TypeImplInfo impl_info;
   int count;
-  void *data; // vector, each array element occupies one vector item
+  void *data; /// vector, each array element occupies one vector item
 } TFnDefNodeImpl;
 
 typedef struct DomainNames {
-  int relative; // whether it is relative search path
+  int relative; /// whether it is relative search path
   int count;
-  void *parts; // vector, each domain part occupies one vector item
+  void *parts;  /// vector, each domain part occupies one vector item
 } DomainNames, TDomainNames;
 
 enum DomainFnType {
@@ -225,7 +244,7 @@ typedef struct DomainFn {
 
 typedef struct FnNameInfo {
   int fnname;
-  void *generic_types; // int vector
+  void *generic_types; /// int vector
 } FnNameInfo;
 
 typedef struct DerefLeft {
@@ -237,16 +256,17 @@ typedef struct ArrayItem {
   //int varname;
   struct ASTNode *arraynode;
 
-  // the indices into the array `arraynode`, it may be multiple like:
-  // `let arr: [[[i32;7];8];9] = ???; arr[3][4]`
+  /** @brief the indices into the array `arraynode`, it can be multiple dimensioned:
+   * `let arr: [[[i32;7];8];9] = ???; arr[3][4]`
+   */
   void *indices;
 } ArrayItem, TArrayItem;
 
 typedef struct StructFieldOp {
-  struct ASTNode *expr; // the expr may also be a expression with this struct
+  struct ASTNode *expr; /// the expr may also be a expression with this struct
   int fieldname;
-  int direct; // direct: . op, indirect: -> op
-  int tuple;  // 1: when is tuple, fieldname is the parsed numeric field name, 0: when is not tuple
+  int direct; /// direct: . op, indirect: -> op
+  int tuple;  /// 1: when is tuple, fieldname is the parsed numeric field name, 0: when is not tuple
 } StructFieldOp, TStructFieldOp;
 
 typedef enum LVType {
@@ -260,20 +280,20 @@ typedef struct LeftValueId {
   LVType type;
   union {
     int var;
-    DerefLeft deleft; /* represent dereference left value */
-    ArrayItem aitem;  /* array item */
-    StructFieldOp structfieldop; /* struct field operation */
+    DerefLeft deleft; /// represent dereference left value
+    ArrayItem aitem;  /// array item
+    StructFieldOp structfieldop; /// struct field operation
   };
 } LeftValueId;
 
 typedef struct ForStmtId {
-  int vartype; // 0: for value, '*': for pointer, '&': for reference
+  int vartype; /// 0: for value, '*': for pointer, '&': for reference
   int var;
 } ForStmtId;
 
 typedef struct TLexicalBody {
   struct ASTNode *stmts;
-  struct ASTNode *fnbuddy; /* if not null it is also a function body */
+  struct ASTNode *fnbuddy; /// if not null it is also a function body
 } TLexicalBody;
 
 typedef struct TLoop {
@@ -291,12 +311,12 @@ typedef struct TBox {
 } TBox;
 
 typedef struct TDrop {
-  int var; /* subscript to sym array */
+  int var; /// subscript to sym array
 } TDrop;
 
 typedef enum VarInitType {
-  VarInit_Zero,   // zero filled
-  VarInit_NoInit, // no initialize, just use the memory value by what it is
+  VarInit_Zero,   /// zero filled
+  VarInit_NoInit, /// no initialize, just use the memory value by what it is
 } VarInitType;
 
 typedef struct TVarInit {
@@ -304,46 +324,46 @@ typedef struct TVarInit {
 } TVarInit;
 
 typedef struct ASTNode {
-  ASTNodeType type;      /* type of node */
-  ASTNodeGrammartype grammartype; /* grammartype for transfer grammar info into node */
-  SymTable *symtable;    /* the scoped symbol table */
-  STEntry *entry;        /* when type is TTE_Id, it can speed up lookup, may can be removed later */
-  SLoc begloc;           /* the source code begin location of code unit */
-  SLoc endloc;           /* the source code end location of code unit */
+  ASTNodeType type;      /// @brief type of node
+  ASTNodeGrammartype grammartype; /// @brief grammartype for transfer grammar info into node
+  SymTable *symtable;    /// @brief the scoped symbol table
+  STEntry *entry;        /// @brief when type is TTE_Id, it can speed up lookup, may can be removed later
+  SLoc begloc;           /// @brief the source code begin location of code unit
+  SLoc endloc;           /// @brief the source code end location of code unit
   int seq;
   union {
-    TLiteralNode litn;   /* literals */
-    TIdNode idn;         /* identifiers, include label, goto identifier */
-    TExprNode exprn;     /* operators */
-    TFnDeclNode fndecln; /* function declaration */
-    TFnDefNode fndefn;   /* function definition */
-    TWhileNode whilen;   /* while statement */
-    TIfNode ifn;         /* if statement */
-    TExprAsNode exprasn; /* as statement */
-    TPrintNode printn;   /* print statement */
-    TPrintTypeNode printtypen;   /* print type statement */
-    TTypeDef typedefn;   /* handle typedef, just for type checking */
-    TRet retn;           /* return statement */
-    TAssign assignn;     /* assigment value */
-    TArgList arglistn;   /* actual argument list */
-    TStmtList stmtlistn; /* statement list */
-    TArrayNode anoden;   /* array expresssion node */
-    TDerefLeft deleftn;  /* dereference left node */
-    TArrayItem aitemn;   /* array item operation: left or right */
-    TStructFieldOp sfopn;/* struct field operation */
-    CAStructExpr snoden; /* struct expression definition */
-    TLexicalBody lnoden; /* lexical scope body */
-    TLoop loopn;         /* loop node */
-    TFor forn;           /* for node */
-    TBox boxn;           /* box node */
-    TDrop dropn;         /* drop node */
-    TLetBind letbindn;   /* the binding operation for let */
-    TRange rangen;       /* range node */
+    TLiteralNode litn;   /// @brief literals
+    TIdNode idn;         /// @brief identifiers, include label, goto identifier
+    TExprNode exprn;     /// @brief operators
+    TFnDeclNode fndecln; /// @brief function declaration
+    TFnDefNode fndefn;   /// @brief function definition
+    TWhileNode whilen;   /// @brief while statement
+    TIfNode ifn;         /// @brief if statement
+    TExprAsNode exprasn; /// @brief as statement
+    TPrintNode printn;   /// @brief print statement
+    TPrintTypeNode printtypen;   /// @brief print type statement
+    TTypeDef typedefn;   /// @brief handle typedef, just for type checking
+    TRet retn;           /// @brief return statement
+    TAssign assignn;     /// @brief assigment value
+    TArgList arglistn;   /// @brief actual argument list
+    TStmtList stmtlistn; /// @brief statement list
+    TArrayNode anoden;   /// @brief array expresssion node
+    TDerefLeft deleftn;  /// @brief dereference left node
+    TArrayItem aitemn;   /// @brief array item operation: left or right
+    TStructFieldOp sfopn;/// @brief struct field operation
+    CAStructExpr snoden; /// @brief struct expression definition
+    TLexicalBody lnoden; /// @brief lexical scope body
+    TLoop loopn;         /// @brief loop node
+    TFor forn;           /// @brief for node
+    TBox boxn;           /// @brief box node
+    TDrop dropn;         /// @brief drop node
+    TLetBind letbindn;   /// @brief the binding operation for let
+    TRange rangen;       /// @brief range node
     TVarInit varinitn;
-    TFnDefNodeImpl fndefn_impl; /* for function definition in type impl */
-    //TDomainNames domainn; /* for domain method call */
+    TFnDefNodeImpl fndefn_impl; /// @brief for function definition in type impl
+    //TDomainNames domainn; /// @brief for domain method call
     TDomainFn domainfn;
-    TTraitFnList traitfnlistn; /* trait function list */
+    TTraitFnList traitfnlistn; /// @brief trait function list
   };
 } ASTNode;
 

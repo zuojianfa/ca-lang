@@ -1,176 +1,195 @@
-# CA compiler
-*By Rusheng Xia (xrsh_2004@163.com)*
+# The CA Programming Language
+
+## 🌟 About
 
 CA is a programming language which has similar grammars as rust language, similar to C language in many features, compatible with C ABI, support calling C functions directly without any matching and transformation. It uses Mark-and-Sweep style garbage collections for it's memory management.
 
-CA compiler uses LLVM as its backend, and uses JIT or AOT technology in LLVM to run program directly without compile.
-
-Currently, CA compiler is under development, it has already realized most of grammars, but still have a lot of works to do. 
+CA compiler uses LLVM as its backend, and uses JIT or AOT technology in LLVM to run program directly without compile. Currently, CA compiler is under development, it has already realized most of grammars, but still have a lot of works to do. 
 
 For language details see the book: [CA book](book/ca-book.md).
 
-## Features
-- CA is static type language
-- Support compile CA source file into llvm ir representation
-- Support JIT functionality that run from source file directly
-- Support compile CA source file into native executable file: ELF file on linux
-- Support compile CA source file into readable IR assembly file `.ll`
-- Support compile CA source file into native (as) assembly file: `.s`
-- Support debug with gdb debugger
-- The object file uses C ABI
-- Internal Suppport C library functions
-- Support garbage collection feature using gc
-- Support generate default main function when source code not defined
-- Support generate `.dot` file to show the graph of grammar tree
-- Support llvm12 or llvm13 library
-- It include the whole test cases in the source code
+## ⚡ Quick Code
 
+### Getting Started
 
-## Supportted Grammers
-- datatype can be defined in any scope
-- Support pointer like in C language
-- Support multi-dimension array and their initialization
-- Support array convert to pointer
-- Support char array c onvert into string type
-- Support inner debug `print` statement, which can print any value
-- Support `typeof` statement to get the type of one variable dynamically, and then use the type to define another variable
-- Not like rust the variable is mutable by default (and only can be mutable)
-- Support binary number literal
-- 
+Here’s a simple example to help you get started quickly:
 
-This branch support functions.
-
-The llvm-ir or rename it into ca contains the llvm code generation, can compiled into many objectives: llvm IR, native `as` assembly language (.s), native object file (.o elf64) and can run with jit with or without optimization.
-
-## Environment Preparing
-When using rpm package based linux system like fedora install following packages
-- llvm13 llvm13-devel
-- flex
-- bison
-- gc-devel
-
-
-## Usage
-```
-./ca
-Usage: ca [options] <input> [<output>]
-Options:
-         -ll:      compile into IR assembly file: .ll (llvm)
-         -S:       compile into native (as) assembly file: .s
-         -native:  compile into native execute file: ELF file on linux, PE file on windows (default value)
-         -c:       compile into native object file: .o
-         -jit:     interpret using jit (llvm)
-         -O[123]:  do optimization of level 1 2 3, default is level 2
-         -g:       do not do any optimization (default value)
-         -main:    do generate the default main function
-         -dot <dotfile>:  generate the do not generate the default main function
+```rust
+// Example of basic functionality
+fn main() {
+    let greeting = "Hello, CA!\n";
+    print(greeting);
+}
 ```
 
-## Compile
-- make all executable
-`make`
+### Key Features
 
-- make llvm-ir
-`make llvm-ir`
+#### Function Definition
 
-- make only object file (.o) for test program (.ca) with `-ll` option and invoke `llc`
-`make llvm-test-to-o`
-
-- make executable file for test program (.ca) with `llvm-test-to-o` aim and `clang`
-`make llvm-test-clang`
-
-- make native assembly file (.s) for test program (.ca) with `-ll` option and invoke `llc`
-`make llvm-test-to-s`
-
-- make executable file for test program (.ca) with `llvm-test-to-s` aim and `as` `ld` with `c runtime` object file (`crt1.o, crti.o, crtn.o, crtbegin.o crtend.o`)
-`make llvm-test-as-ld`
-
-- make executable file for test program (.ca) with `llvm-test-to-s` aim and `as` `ld` with direct assembly entry without `c runtime` object file
-`make llvm-test-as-ld2`
-
-- make executable file for test program (.ca) with `-c` option to create object file (.o) and `ld` with `c runtime` object file (`crt1.o, crti.o, crtn.o, crtbegin.o crtend.o`)
-`make llvm-test-o`
-
-- clean code
-`make clean`
-
-## Compile with cmake
-### Debug Version
-```
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-make -j3
+```rust
+fn add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
 ```
 
-### Release Version
-```
-mkdir rbuild && cd rbuild
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j3
+#### Using Traits
+
+```language
+trait Describable {
+    fn describe(&self) -> String;
+}
 ```
 
-### Release Version with Debug
-```
-mkdir rbuild && cd rbuild
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j3
-or 
-cmake --build .
-```
+### Advanced Example
 
-## debug & optimization
-### -g
-Add debug information into the object file, and can use gdb to debug the code
+Here’s a more advanced code snippet showcasing a feature:
 
-### -O
-Add optimization pass for the llvm (optimization) pass
+```rust
+// quickcode.ca
 
-### -g -O
-Add debug information into the object file and add llvm optimization pass 
+// introduce external function
+extern fn printf(fmt: *char, ...) -> i32;
 
-## Install
-```
-cmake --install . --prefix "/home/to/dir"
-```
+fn fibonacci_at(index: i32) -> u64 {
+    if (index == 0 || index == 1) {
+		return 1;
+    }
 
-## make package / installer
-```
-cpack
-# or
-cpack -G ZIP -C Debug
-```
+    let a = 1u64;
+    let b = 1u64;
+    let c = 0;
+    let t = 0u64;
+    index -= 1;
+    while (c < index) {
+        t = a;
+        a = b;
+        b = t + a;
+        c = c + 1;
+    }
 
-### make source code distribution
-```
-cpack --config CPackSourceConfig.cmake
-# or
-cpack --config CPackSourceConfig.cmake
-```
-
-## An code example
-```
-x = 0;
-print x;
-y = 0;
-while (x < 10) {
-	print x;
-	x = x * 2 + 4 / y;
-	y = y + 1;
-	z = z + 1;
-	i = i + 1;
-	j = i + 1;
+    return b;
 }
 
-print y;
+struct Integer {
+    value: i64
+}
+
+impl Integer {
+    fn new(value: i64) -> Integer {
+		return Integer {value};
+    }
+
+    fn fibonacci(self) -> u64 {
+		return fibonacci_at(self->value as i32);
+    }
+}
+
+fn main() -> i32 {
+    // define variable, whose type is inferred from the right-hand side value
+    let f10 = fibonacci_at(10);
+    printf("fibonacci number at 10 is: %llu\n", f10);
+    
+    // print the type information of variable f10
+    print "return type is: ";
+    dbgprinttype(typeof(f10));
+
+    // create an Integer instance
+    let v1 = Integer::new(30);
+    printf("\nfibonacci number at 30 is: %llu\n", v1.fibonacci()); 
+    
+    print "return type is: ";
+    dbgprinttype(typeof(v1));
+    return 0;
+}
 ```
 
-# Features
-## link multiple object
+Run result:
+
 ```
-ca -c -g test/extern_call2.ca extern_call2.o
-ca -c -g -nomain test/extern_call2_assist.ca extern_call2_assist.o
-clang test/extern_call2.ca test/extern_call2_assist.ca -o call2
-# or
-ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 cruntime/*.o -o call2 extern_call2.o extern_call2_assist.o -lc
+fibonacci number at 10 is: 89
+return type is: size = 8, type: t:u64
+
+fibonacci number at 30 is: 1346269
+return type is: size = 8, type: t:{Integer;value:i64}
 ```
 
+## 🌟 Features
+
+- **CA is static type language**
+- **Supports optimization through LLVM IR.**
+- **Supports JIT functionality that run from source file directly**
+- **Supports compile CA source file into native executable file: ELF file on linux**
+- **Supports compile CA source file into readable IR assembly file `.ll`**
+- **Supports compile CA source file into native (as) assembly file: `.s`**
+- **Supports debug with gdb debugger**
+- **The object file compatible with C ABI**
+- **Internal Support standard C library functions**
+- **Supports garbage collection feature using GC**
+- **Supports run as script feature, with `-main` option**
+- **Supports generate `.dot` file to show the graph of grammar tree**
+- **Supports llvm12 or llvm13 library**
+- **Supports compile unit which adhering with C ABI**
+- **Include the whole test cases in the source code**
+
+## 📜 Supported Grammars
+
+The grammar of CA language is similar to rust language in most cases. For the details see [CA book](book/ca-book.md). Here list some of the special grammars in CA.
+
+- **Support pointer like in C language**
+- **Support array convert to pointer**
+- **Support char array convert into string type**
+- **Support `print` or `dbgprint`statement for debugging purpose, which can print any value**
+- **Support `dbgprinttype` statement which is used to print the type informations**
+- **Support `typeof` statement to get the type of a variable dynamically, also support and then use the type to define another variable**
+- **The CA variable is mutable**
+- **Support binary number literals**
+- **Support zero Initialization keyword `__zero_init__`**
+- **support `box`, `drop` grammar for memory management**
+- **support pointer in `for .. in` statement**
+- **support `goto` statement**
+
+## 🛡️ License
+This project is licensed under the Mulan PSL v2 License. You may obtain a copy of the license at http://license.coscl.org.cn/MulanPSL2.
+
+## ✍️ Author
+
+​	**Rusheng Xia**
+
+- **Organization:** Rocket Software
+- **GitHub:** [github.com/zuojianfa](https://github.com/zuojianfa)
+  Explore my projects and contributions!
+- **LinkedIn:** [linkedin.com/in/rusheng-xia](https://www.linkedin.com/in/rusheng-xia)  
+  Connect with me for professional networking!
+
+## 📫 Contact Information
+
+Have questions, suggestions, or want to contribute? Feel free to reach out!
+
+- **Email:** [xrsh_2004@163.com](mailto:xrsh_2004@163.com)
+
+Looking forward to hearing from you!
+
+## 🚀 Roadmap for the Language
+
+### Core Language Features
+
+- **Support for String Type in Language Level**
+- **Generic Programming**
+- **Union Types**
+- **Enumerated Types (Tagged Union Types)**
+- **Function Pointers**
+- **Module System**
+
+### Language Structure and Organization
+
+- **Compile Units Management**.
+- **Interfaces between Compile Units**: Establish mechanisms for communication and data sharing between different compile units, crucial for modularity and reusability.
+- **External Libraries Interactive**: Providing mechanisms for integrating external libraries can expand the language's capabilities and ecosystem.
+- **Package Management Tools**
+- **Runtime Libraries**
+
+### Language Features and Constructs
+
+- **Match Statement**
+- **Trait Objects and Polymorphism**
+- **Multi-line Comments (`/* ... */`)**

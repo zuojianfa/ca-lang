@@ -1,0 +1,10 @@
+extern fn ca_add(a: u32, b: u32) -> u32;
+extern fn ca_mul(a: u64, b: u64) -> u64;
+
+fn main() {
+    let v1 = ca_add(100, 3);
+    let v2 = ca_mul(3, 9);
+    print v1; print '\n';
+    print v2; print '\n';
+}
+
