@@ -1,4 +1,4 @@
-# 馃枼锔� The CA Programming Language
+# 🖥️ The CA Programming Language
 *By Rusheng Xia (xrsh_2004@163.com)*
 
 CA is a new language which has similar grammars as rust language, but internally in many aspects it is more similar to C language and compatible with C ABI - it support raw pointers, able to call C functions directly. CA language support garbage collections in memory management which is powered by the Mark-and-Sweep algorithm in GC library. CA language support a lot of flexible but powerful grammars which make it easy to program.
@@ -7,7 +7,7 @@ CA compiler uses LLVM as its backend, and uses JIT or AOT technology of LLVM. Yo
 
 Currently, CA language is still under development but it already has most features of a general programming language should have. Also it offered huge of test cases in the test directory of the source code, all language features are covered in these test cases. So if you want to know all about the languages aspect the best way is reviewing the test cases.
 
-# 馃殌 1. Getting Started
+# 🚀 1. Getting Started
 ## 1.1 Installation
 
 Currently, you can only build from source code to get the compiler binary.
@@ -107,7 +107,7 @@ Hello CA!
 return value: 1
 ```
 
-# 馃幃 2. Programming a Guessing Game
+# 🎮 2. Programming a Guessing Game
 
 The traditional number guess Game.
 
@@ -192,7 +192,7 @@ You win!
 return value: 0
 ```
 
-# 馃摎 3. Common Programming Concept
+# 📚 3. Common Programming Concept
 
 ## 3.1 Variable
 
@@ -513,7 +513,7 @@ The type information is printed with the type's size and type signature.
 
 We should have noticed that the string literal `"Hello CA!"` can be bound to variables with two different types in CA. In statement  `let s1 = "Hello CA!";` the value `"Hello CA!"` is bound to variable `s1` with type `*i8`, and in statement `let a1: [i8; 12] = "Hello CA!";` the value is bound to variable `a1` with an array type of `[i8'12]`.
 
-# 馃搳 4. Array & Slice
+# 📊 4. Array & Slice
 
 ## 4.1 Array
 
@@ -704,7 +704,7 @@ size = 24, type: t:[(;i32,i32);3]
 
 From the result, we can observe that for a literal string, which has a base type of `*i8`, the operation simply copies the `*i8` value into the new slot of the array. It does not copy the entire string itself but only the `*i8` pointer value. This occurs because the string type is represented as a type of ` *i8` a pointer of `i8` type.
 
-# 馃彌锔� 5. Structs type
+# 🏛️ 5. Structs type
 
 CA Using `struct` to Structure Related Data,
 
@@ -1087,7 +1087,7 @@ impl Rectangle {
 
 Note implemented yet.
 
-# 馃搷 6 Pointer
+# 📍 6 Pointer
 
 `CA` language supports multi-dimensional pointers, enabling complex data structures and providing flexibility in their use.
 
@@ -1259,7 +1259,7 @@ Dereference field of Point with '->'
 Point: (100, 200, 150)
 ```
 
-# 馃З 7 Patterns Matching and variable binding
+# 🧩 7 Patterns Matching and variable binding
 
 Pattern matching functionality is used to determine whether a value conforms to a specific pattern. The pattern represents a structure, template, or shape that defines what you are looking for. When a value matches this pattern, the system can extract or handle data according to the structure defined by the pattern.
 
@@ -1387,7 +1387,7 @@ For more testing code see the directory of `test/pattern` in the source code.
 
 Not implemented yet.
 
-# 馃専 8 Traits
+# 🌟 8 Traits
 
 In CA, a trait is a fundamental concept that allows for defining shared behavior across different types. It is somewhat analogous to interfaces in other languages but with some unique features.
 
@@ -1654,7 +1654,7 @@ Calculated Perimeter: 31.400000
 
 Will implement in the future.
 
-# 馃П 9 Object Oriented Programming (OOP)
+# 🧱 9 Object Oriented Programming (OOP)
 
 According to some senses, not all senses, the Object Oriented Languages have following common characteristics
 
@@ -1719,7 +1719,7 @@ fn main() {
 
 ## 9.2 Encapsulation
 
-According to `rust` documentation, the encapsulation means that the implementation details of an object aren鈥檛 accessible to code using that object. Therefore, the only way to interact with an object is through its public API; code using the object shouldn鈥檛 be able to reach into the object鈥檚 internals and change data or behavior directly. This enables the programmer to change and refactoring an object鈥檚 internals without needing to change the code that uses the object.
+According to `rust` documentation, the encapsulation means that the implementation details of an object arené¥æª accessible to code using that object. Therefore, the only way to interact with an object is through its public API; code using the object shouldné¥æª be able to reach into the objecté¥æª internals and change data or behavior directly. This enables the programmer to change and refactoring an object's internals without needing to change the code that uses the object.
 
 For CA language, currently all field include data field can be accessed directly. The CA compiler will add field accessing control in the future. After that, it will support `pub` keyword to control the field accessing, by default the field without a `pub` prefix, it will cannot accessed directly outside the method of the object, and that time it will fully support the encapsulation feature. 
 
@@ -1779,7 +1779,7 @@ Through `trait` object, CA support polymorphism. This functionality is under dev
 
 The `trait` and `generic` programming offers abstraction to object in CA. This functionality is under development.
 
-# 馃棏锔� 10 Dynamic memory management 
+# 🗑️ 10 Dynamic memory management 
 
 ## 10.1 dynamic memory allocation - boxing
 
@@ -1912,17 +1912,17 @@ fn main() {
 
 It is not recommended to mix external memory management mechanisms, such as C functions like `malloc` and `free`, with the language's built-in memory management. Doing so can add complexity and may lead to issues if not handled properly.
 
-# 馃攧  11 Generic Programming (Future Planned)
+# 🔄  11 Generic Programming (Future Planned)
 
 Not Implemented Yet.
 
-# 馃摝 12 Module Design (Future Planned)
+# 📦 12 Module Design (Future Planned)
 
 Not Implemented Yet.
 
-# 鉁� 13 Special Language Aspects
+# ✨ 13 Special Language Aspects
 
-The CA language specifies several features. These features collectively enhance the language鈥檚 capability, providing a rich set of tools for diverse programming needs.
+The CA language specifies several features. These features collectively enhance the language's capability, providing a rich set of tools for diverse programming needs.
 
 ## 13.1 Internal Print Statements
 
@@ -2518,7 +2518,7 @@ Includes all arithmetic, logical, and bitwise operators, similar to those found 
 
 Allows matching and extracting values from arrays and tuples, such as `let [f1, f2, _, ..] = [1, 2, 3, 4, 5];`.
 
-# 馃搫 14 Compile Unit
+# 📄 14 Compile Unit
 
 CA compiler treats each CA source file as a separate compile unit. A compile unit can be compiled into an object file or an executable file when the compile unit contains `main` function. The object file can have the `.o`  postfix or any other name you like. When compiled into an executable file, the compiler need to link necessary C runtime functions to support the execution of the executable file.
 
