@@ -1,6 +1,6 @@
 # The CA Programming Language
 
-## 🌟 About
+## 馃専 About
 
 CA is a programming language which has similar grammars as rust language, similar to C language in many features, compatible with C ABI, support calling C functions directly without any matching and transformation. It uses Mark-and-Sweep style garbage collections for it's memory management.
 
@@ -8,11 +8,11 @@ CA compiler uses LLVM as its backend, and uses JIT or AOT technology in LLVM to 
 
 For language details see the book: [CA book](book/ca-book.md).
 
-## ⚡ Quick Code
+## 鈿� Quick Code
 
 ### Getting Started
 
-Here’s a simple example to help you get started quickly:
+Here鈥檚 a simple example to help you get started quickly:
 
 ```rust
 // Example of basic functionality
@@ -34,7 +34,7 @@ fn add(a: i32, b: i32) -> i32 {
 
 ### Advanced Example
 
-Here’s a more advanced code snippet showcasing a feature:
+Here鈥檚 a more advanced code snippet showcasing a feature:
 
 ```rust
 // quickcode.ca
@@ -44,7 +44,7 @@ extern fn printf(fmt: *char, ...) -> i32;
 
 fn fibonacci_at(index: i32) -> u64 {
     if (index == 0 || index == 1) {
-		return 1;
+        return 1;
     }
 
     let a = 1u64;
@@ -68,11 +68,11 @@ struct Integer {
 
 impl Integer {
     fn new(value: i64) -> Integer {
-		return Integer {value};
+        return Integer {value};
     }
 
     fn fibonacci(self) -> u64 {
-		return fibonacci_at(self->value as i32);
+        return fibonacci_at(self->value as i32);
     }
 }
 
@@ -105,7 +105,7 @@ fibonacci number at 30 is: 1346269
 return type is: size = 8, type: t:{Integer;value:i64}
 ```
 
-## 🌟 Features
+## 馃専 Features
 
 - **CA is static type language**
 - **Supports optimization through LLVM IR.**
@@ -123,7 +123,7 @@ return type is: size = 8, type: t:{Integer;value:i64}
 - **Supports compile unit which adhering with C ABI**
 - **Include the whole test cases in the source code**
 
-## 📜 Supported Grammars
+## 馃摐 Supported Grammars
 
 The grammar of CA language is similar to rust language in most cases. For the details see [CA book](book/ca-book.md). Here list some of the special grammars in CA.
 
@@ -140,12 +140,12 @@ The grammar of CA language is similar to rust language in most cases. For the de
 - **support pointer in `for .. in` statement**
 - **support `goto` statement**
 
-## 🛡️ License
+## 馃洝锔� License
 This project is licensed under the Mulan PSL v2 License. You may obtain a copy of the license at http://license.coscl.org.cn/MulanPSL2.
 
-## ✍️ Author
+## 鉁嶏笍 Author
 
-​	**Rusheng Xia**
+鈥�	**Rusheng Xia**
 
 - **Organization:** Rocket Software
 - **GitHub:** [github.com/zuojianfa](https://github.com/zuojianfa)
@@ -153,7 +153,7 @@ This project is licensed under the Mulan PSL v2 License. You may obtain a copy o
 - **LinkedIn:** [linkedin.com/in/zuojianfa](https://www.linkedin.com/in/zuojianfa)
   Connect with me for professional networking!
 
-## 📫 Contact Information
+## 馃摣 Contact Information
 
 Have questions, suggestions, or want to contribute? Feel free to reach out!
 
@@ -161,7 +161,7 @@ Have questions, suggestions, or want to contribute? Feel free to reach out!
 
 Looking forward to hearing from you!
 
-## 🚀 Roadmap for the Language
+## 馃殌 Roadmap for the Language
 
 ### Core Language Features
 

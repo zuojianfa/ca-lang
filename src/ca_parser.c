@@ -19,8 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ca.tab.h"
 #include "ca_parser.h"
+#include "ca.tab.h"
 #include "ca_types.h"
 #include "config.h"
 #include "dotgraph.h"
@@ -993,27 +993,29 @@ ASTNode *make_global_vardef(CAVariable *var, ASTNode *exprn, int global) {
   SymTable *symtable = curr_symtable;
   var->global = 0;
 
-  // curr_symtable == g_main_symtable` already include the judgement
+  // curr_symtable == g_main_symtable` already includes the judgement
   if (enable_emit_main()) {
-    // only take effect when `-main` used to generate main function
+    // only take effect when `-main` option is specified to generate main function
     var->global = global;
 
-    // it is in generated main function scope, and `#[scope(global)]` is
-    // provided
+    // it is in generated main function scope, and `#[scope(global)]` is provided
     if (curr_symtable == g_main_symtable && var->global) {
       // generate a global variable, use global symbol table here
       symtable = &g_root_symtable;
 
-      // TODO: FIXME, there are a bugs when declare the global variable with
-      // attribute, because when right expression is complex and/or is not in
-      // global scope (because when using generated main function the declared
-      // variable (in global scope) will be put into main function scope and the
-      // declared variable becoming non-global variable) then there be some bugs
-      // here just reassign the symtable using global table to fix it, but still
-      // have some bugs
+      /*
+       * TODO: FIXME: There are bugs when declaring global variables with attributes.
+       * When the right expression is complex and/or not in global scope (due to
+       * the use of a generated main function), the declared variable (in global
+       * scope) will be placed into the main function scope, causing it to become
+       * a non-global variable. 
+       * 
+       * To address this, reassign the symtable using the global table. However,
+       * some bugs may still persist.
+       */
       exprn->symtable = symtable;
     }
-    // all else generate local variable against main or defined function
+    // or else generate local variable against main or defined function
   }
 
   register_variable(var, symtable);
@@ -1072,7 +1074,7 @@ void register_structpattern_symtable(CAPattern *cap, int withname, int withsub,
   if (withsub) {
     PatternGroup *pg = cap->items;
     if (cap->type == PT_Array) {
-      // array type need all element be the same data type
+      // array type need all elements be the same data type
       for (int i = 1; i < pg->size; ++i) {
         if (pg->patterns[i - 1]->datatype != pg->patterns[i]->datatype) {
           caerror(loc, loc,
@@ -1131,7 +1133,7 @@ static const char *capattern_check_ignore(CAPattern *cap) {
     if (!count)
       return NULL;
 
-    // struct ignore range must be at the end
+    // The struct ignore range must be placed at the end of the declaration
     if (count > 1)
       return "capattern: can only have one ignore range field";
 
@@ -1149,7 +1151,10 @@ static const char *capattern_check_ignore(CAPattern *cap) {
   }
 }
 
-// when exprn is NULL, then it's no initialized let binding: `let a: i32;`
+/**
+ * @brief When the `exprn` is NULL, it indicates an uninitialized let binding:
+ * let a: i32;.
+ */
 ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
   const char *error = NULL;
   if ((error = capattern_check_ignore(cap)) != NULL) {
@@ -1158,8 +1163,10 @@ ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
     return NULL;
   }
 
-  // parse variables (may with different datatype) in CAPattern and record them
-  // in the symbol table for later use
+  /*
+   * Parse variables (possibly with different data types) in the CApattern 
+   * and record them in the symbol table for later use.
+   */
   if (curr_symtable == &g_root_symtable && cap->type != PT_Var) {
     SLoc stloc = {glineno, gcolno};
     caerror(&stloc, NULL, "left `%s` cannot do pattern match for `%s` globally",
@@ -1265,9 +1272,12 @@ ASTNode *make_assign_op(LeftValueId *lvid, int op, ASTNode *exprn) {
 
 ASTNode *make_goto(int labelid) {
   dot_emit("stmt", "GOTO label_id");
-  /* because the label name can using the same name as other names (variable,
-     function, etc) so innerly represent the label name as "l:<name>", in order
-     to distinguish them */
+
+  /*
+   * Because the label name can use the same name as other entities 
+   * (variables, functions, etc.), it is internally represented as 
+   * "l:<name>" to distinguish them.
+   */
   int lpos = sym_form_label_id(labelid);
   STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
   if (entry) {
@@ -1296,9 +1306,11 @@ ASTNode *make_label_def(int labelid) {
 
   const char *name = symname_get(labelid);
 
-  /* because the label name can using the same name as other names (variable,
-     function, etc) so innerly represent the label name as "l:<name>", in order
-     to distinguish them */
+  /*
+   * Because the label name can use the same name as other entities 
+   * (variables, functions, etc.), it is internally represented as 
+   * "l:<name>" to distinguish them.
+   */
   int lpos = sym_form_label_id(labelid);
   STEntry *entry = sym_getsym(curr_fn_symtable, lpos, 0);
   if (entry) {
@@ -1313,7 +1325,7 @@ ASTNode *make_label_def(int labelid) {
       break;
     default: {
       SLoc stloc = {glineno, gcolno};
-      caerror(&stloc, NULL, "label name '%s' appear but not aim to be a label",
+      caerror(&stloc, NULL, "label name '%s' appear but not aimed to be a label",
               name);
       return NULL;
     }
@@ -1408,9 +1420,11 @@ typeid_t get_expr_type_from_tree(ASTNode *node) {
     return catype->signature;
   }
   case TTE_ArrayItemLeft: {
-    // STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
-    // CADataType *catype = catype_get_by_name(node->symtable,
-    // entry->u.var->datatype);
+    /*
+    STEntry *entry = sym_getsym(node->symtable, node->aitemn.varname, 1);
+    CADataType *catype = catype_get_by_name(node->symtable,
+    entry->u.var->datatype);
+    */
     inference_expr_type(node->aitemn.arraynode);
     typeid_t arraytype = get_expr_type_from_tree(node->aitemn.arraynode);
     CADataType *catype = catype_get_by_name(node->symtable, arraytype);
@@ -1446,8 +1460,11 @@ const char *get_node_name_or_value(ASTNode *node) {
   case TTE_Id:
     return symname_get(node->idn.i);
   default:
-    // TODO: trival the node and get the string representation of the node when
-    // not literal of id walk_node_string or from lexcial analyze
+    /*
+     * TODO: Traverse the node and get the string representation of the node 
+     * when it is not a literal ID, using walk_node_string or from lexical 
+     * analysis.
+     */
     return "";
   }
 }
@@ -1667,7 +1684,8 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
     break;
   }
   case FN_CALL: {
-    // handle calls call when idn is all kinds of call type
+    // Handle calls: suitable for cases when the idn is of all kinds of call types
+
     // get function return type
     ASTNode *idn = node->exprn.operands[0];
     switch (idn->type) {
@@ -1731,7 +1749,7 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
       return typeid_novalue;
     }
 
-    // TODO; check if the pointer signature is already formalized
+    // TODO: check if the pointer signature is already formalized
     type1 = catype->pointer_layout->type->signature;
     break;
   case ADDRESS:
@@ -1792,21 +1810,26 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
   return type1;
 }
 
-// inference and set the expr type for the expr, when the expr have no a
-// determined type, different from `determine_expr_type`, the later is used by
-// passing a defined type
+/**
+ * @brief Infer from and set the type property to `expr` when the `expr` have no
+ * determined type associated. This is different from the function
+ * `determine_expr_type`, which need to pass a defined type when it is called.
+ */
 typeid_t inference_expr_type(ASTNode *p) {
-  // steps, it's a recursive steps
-  // 1. firstly inference the expression type, it need check if the type can
-  // conflict, and determine a type
-  // 2. resolve the node type by using `determine_expr_type(exprn, type)`
+  /*
+   * Steps: this is a recursive process.
+   * 1. First, infer the expression type. It needs to check for type conflicts 
+   *    and determine a valid type.
+   * 2. Resolve the node type using function `determine_expr_type(exprn, type)`.
+   */
   typeid_t type1 = typeid_novalue;
   CADataType *typedt, *exprdt;
   switch (p->type) {
   case TTE_Literal: {
     CALiteral *litv = &p->litn.litv;
     if (litv->postfixtypetok != tokenid_novalue && !litv->fixed_type) {
-      // when literal carry a postfix like i32 u64 etc, determine them directly
+      // when the literal carries a postfix, such as i32, u64 etc,
+      // then determine them directly
       CADataType *catype = catype_get_primitive_by_token(litv->postfixtypetok);
       determine_primitive_literal_type(litv, catype);
       type1 = catype->signature;
@@ -1824,7 +1847,7 @@ typeid_t inference_expr_type(ASTNode *p) {
     return p->entry->u.varshielding.current->datatype;
   case TTE_As:
     type1 = inference_expr_type(p->exprasn.expr);
-    // TODO: handle when complex type
+    // TODO: handle when it is a complex type
     typedt = catype_get_by_name(p->symtable, p->exprasn.type);
     CHECK_GET_TYPE_VALUE(p, typedt, p->exprasn.type);
 
@@ -1849,8 +1872,8 @@ typeid_t inference_expr_type(ASTNode *p) {
       return typeid_novalue;
     }
 
-    // determine if expression type
-    // TODO: realize multiple if else statement
+    // determine the if expression type
+    // TODO: realize multiple if else statement for the if expression
     type1 = inference_expr_type((ASTNode *)(vec_at(p->ifn.bodies, 0)));
     if (p->ifn.remain) {
       typeid_t type2 = inference_expr_type(p->ifn.remain);
@@ -1888,8 +1911,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 
   switch (node->exprn.op) {
   case ARRAY: {
-    // most important is check if the inference type and the determined is
-    // compatible
+    // Most importantly, check if the inferred type and the determined are compatible
     CADataType *determinedcatype = catype_get_by_name(node->symtable, type);
     if (determinedcatype->type != ARRAY) {
       caerror(&(node->begloc), &(node->endloc),
@@ -1918,14 +1940,18 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     break;
   }
   case ARRAYITEM: {
-    // arrayitem operation should not determine the type, the array type should
-    // already be determined following just do some checks
+    /*
+     * For the arrayitem operation, its type should not be determined here, 
+     * as its type should already be established before arriving at this point.
+     * The following statement is just performing some checks.
+     */
     assert(node->exprn.noperand == 1);
     ASTNode *right = node->exprn.operands[0];
     assert(right->type == TTE_ArrayItemRight);
-    // STEntry *entry = sym_getsym(right->symtable, right->aitemn.varname, 1);
-    // CADataType *catype = catype_get_by_name(right->symtable,
-    // entry->u.var->datatype);
+    /* STEntry *entry = sym_getsym(right->symtable, right->aitemn.varname, 1);
+       CADataType *catype = catype_get_by_name(right->symtable,
+       entry->u.var->datatype);
+    */
     inference_expr_type(right->aitemn.arraynode);
     typeid_t arraytype = get_expr_type_from_tree(right->aitemn.arraynode);
     CADataType *catype = catype_get_by_name(right->symtable, arraytype);
@@ -1954,8 +1980,12 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     break;
   }
   case STRUCTITEM: {
-    // structitem operation should not determine the type, the struct type
-    // should already be determined following just do some checks
+    /*
+     * Just like the condition of ARRAYITEM.
+     * For the structitem operation, its type should not be determined here, 
+     * as its type should already be established before arriving at this point.
+     * The following statement is just performing some checks.
+     */
     assert(node->exprn.noperand == 1);
     ASTNode *p = node->exprn.operands[0];
     assert(p->type == TTE_StructFieldOpRight);
@@ -1971,7 +2001,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     break;
   }
   case FN_CALL: {
-    // get function return type
+    // get return type of the function
     // NEXT TODO: handle method call and domain call when idn is not normal id
     ASTNode *idn = node->exprn.operands[0];
     typeid_t type1 = get_fncall_form_datatype(node, idn->idn.i);
@@ -1997,8 +2027,10 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
     determine_expr_type(node->exprn.operands[0], datatype->signature);
     break;
   case ADDRESS: {
-    // check if right side is a variable and it's address type the same as
-    // determined one only the variable can have an address
+    /*
+     * Check if the right-hand side is a variable and if its address type 
+     * matches the determined type. Only a variable can have an address.
+     */
     // TODO: handle function address
     ASTNode *idnode = node->exprn.operands[0];
     if (idnode->type != TTE_Id) {
@@ -2035,11 +2067,11 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
   case LE:
   case NE:
   case EQ: {
-    // determine logical expresssion type, must be bool
+    // determine the type of logical expresssion, they must be bool
     datatype = catype_get_by_name(node->symtable, type);
     if (datatype->type != BOOL) {
       caerror(&(node->begloc), &(node->endloc),
-              "`bool` required for determining logical operation, but `%s` "
+              "`bool` type is required for determining the logical operation, but `%s` "
               "type found",
               catype_get_type_name(datatype->signature));
       return -1;
@@ -2110,8 +2142,11 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
   return 0;
 }
 
-// determine and set the expr type for the expr for a specified type, different
-// from `inference_expr_type` which have no a defined type parameter
+/**
+ * @brief Determine and set the type property to `expr`. The type property is
+ * coming from @param type. This function is different from function
+ * `inference_expr_type` which lack of @param type.
+*/
 int determine_expr_type(ASTNode *node, typeid_t type) {
   // TODO: handle when complex type
   CADataType *catype = catype_get_by_name(node->symtable, type);
@@ -2122,7 +2157,8 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
   case TTE_Literal: {
     CALiteral *litv = &node->litn.litv;
     if (litv->postfixtypetok != tokenid_novalue && !litv->fixed_type) {
-      // when literal carry a postfix like i32 u64 etc, determine them directly
+      // when the literal carries a postfix, such as i32, u64 etc,
+      // then determine them directly
       CADataType *postcatype =
           catype_get_primitive_by_token(litv->postfixtypetok);
       determine_primitive_literal_type(litv, postcatype);
@@ -2139,8 +2175,10 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     if (litv->fixed_type)
       return 0;
 
-    // here determine the literal type in this place compare to when create
-    // literal node
+    /*
+     * Here, determine the literal type at this point, 
+     * in contrast to when creating the literal node.
+     */
     determine_literal_type(litv, catype);
     break;
   }
