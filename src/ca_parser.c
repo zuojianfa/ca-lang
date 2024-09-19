@@ -2143,7 +2143,7 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 }
 
 /**
- * @brief Determine and set the type property to `expr`. The type property is
+ * @brief Determining and set the type property to `expr`. The type property is
  * coming from @param type. This function is different from function
  * `inference_expr_type` which lack of @param type.
 */
@@ -2270,13 +2270,14 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
   case TTE_Expr:
     return determine_expr_expr_type(node, type);
   case TTE_If:
+    // only expression can arrive here, statement cannot go here
     if (!node->ifn.isexpr) {
       SLoc stloc = {glineno, gcolno};
       caerror(&stloc, NULL, "if statement is not if expression");
       return -1;
     }
 
-    // determine if expression type
+    // determine `if` expression type
     // TODO: realize multiple if else statement
     determine_expr_expr_type((ASTNode *)(vec_at(node->ifn.bodies, 0)), type);
     if (node->ifn.remain) {
@@ -2296,7 +2297,7 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
     break;
   }
   default:
-    // the node need not determine a type, not a literal and an expression node
+    // this node don't need to determine a type, for it's not a literal or expression node
     break;
   }
 
@@ -2309,13 +2310,31 @@ int determine_expr_type(ASTNode *node, typeid_t type) {
 // type and the right expression's type when the expression's type not
 // determined: int reduce_node_and_type(ASTNode *p, typeid_t *expr_types, int
 // noperands)
+
+/**
+ * @brief
+ * In this function, the 'reduce' word means to infer something from a group
+ * of nodes. Here, it infers the node type as a whole. When one of the nodes
+ * in the group already has a type associated with it, then the node group type
+ * can be determined. When none of the nodes in the group has an associated
+ * type, then the node group's type cannot be determined.
+ *
+ * During the walk stage, for the assignment statement, both the left side
+ * variable and the right side expression can have their types determined
+ * if the expression type is not already determined.
+ */
 typeid_t reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types,
                                     int nodenum, int assignop) {
-  // check if exist type in the each node and type is conflicting for each node
-  // but here cannot create literal value when the value not determined a type
-  // because it may be a tree, or can make the type by tranverlling the tree?
-  // The answer is yes, here can determine the literal type when the expression
-  // exists an fixed type part
+  /*
+   * Check each node in the group to see if they are already associated with
+   * a type, and verify if there are any conflicts for the nodes that already
+   * have an associated type. However, a literal value cannot have a
+   * determined type if it is not associated with one. When the literal value
+   * is in tree form, we can still infer the tree's type by traversing the
+   * tree nodes and find if any node can be determined a type. For
+   * example, when the expression contains a fixed type postfix, we can
+   * definitely determine its type.
+   */
   typeid_t type1 = typeid_novalue;
   int typei = 0;
   int notypeid = 0;
@@ -2375,7 +2394,7 @@ typeid_t reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types,
     }
   }
 
-  // when the expression have any fixed type node
+  // when the group contains any node with fixed type
   for (int i = 0; i < nodenum; ++i) {
     if (nonfixed_node[i]) {
       determine_expr_type(nodes[i], type1);
@@ -2385,12 +2404,14 @@ typeid_t reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types,
   return type1;
 }
 
-// UMINUS + - * / < > GE LE NE EQ
-// the left type and right type seperately calculation and interface, if the
-// right side have the fixed type, or the right side will use the left side's
-// type, and when the left side not have a type yet, then it will use the right
-// side's type and when the right side have no fixed type then, the right side
-// literal will use the literal itself's default type or intent type
+/**
+ * For the expression of UMINUS + - * / < > GE LE NE EQ
+ * The left and right side type are calculated or inferred separately.
+ * If the right side has a fixed type, or if the right side will use the 
+ * left side's type, and the left side does not have a type yet, then it 
+ * will use the right side's type. If the right side has no fixed type, 
+ * the right side literal will use its default type or intended type.
+ */
 ASTNode *make_expr(int op, int noperands, ...) {
   dot_emit_expr("from", "to", op);
 
@@ -2407,7 +2428,7 @@ ASTNode *make_expr(int op, int noperands, ...) {
     return NULL;
   }
 
-  // try to inference the expression type here
+  // try to infer the expression's type here
   va_start(ap, noperands);
   for (i = 0; i < noperands; i++) {
     p->exprn.operands[i] = va_arg(ap, ASTNode *);
@@ -2593,8 +2614,7 @@ ASTNode *make_for(ForStmtId id, ASTNode *listnode, ASTNode *stmts) {
 ASTNode *make_for_stmt(ForStmtId id, ASTNode *listnode, ASTNode *stmts) {
   ASTNode *forn = make_for(id, listnode, stmts);
 
-  // the inner variable and / or listnode also need a lexical body in for
-  // statement
+  // Inner variable and(or) listnode also need a lexical body in the for statement
   ASTNode *node = make_lexical_body(forn);
   SymTable *st = pop_symtable();
   return node;
@@ -2632,13 +2652,15 @@ ASTNode *make_elsepart(ASTNode *p, ASTNode *body) {
   return p;
 }
 
-// compare if the previous defined function proto is the same as the current
-// defining
+/**
+ * @details Compare if the function prototype which is defined prevously is the
+ * same as current defining
+ */
 static int pre_check_fn_proto(STEntry *prev, typeid_t fnname,
                               ST_ArgList *currargs, typeid_t rettype) {
   ST_ArgList *prevargs = prev->u.f.arglists;
 
-  /* check if function declaration is the same */
+  // check if function declaration is the same
   if (currargs->argc != prevargs->argc) {
     SLoc stloc = {glineno, gcolno};
     caerror(&stloc, NULL,
@@ -2786,17 +2808,18 @@ ASTNode *make_fn_proto(FnNameInfo *name_info, ST_ArgList *arglist,
     ASTNode *defn = build_fn_define(fnname, name_info->generic_types, arglist,
                                     rettype, beg, end);
 
-    // fix the symbol table, when function can defined in inner scope, the
-    // symbol table should used the parent symbol table
-    // node->symtable = symtable;
-
+    /*
+     * fix the symbol table, when function can be defined in inner scope,
+     * it should uses the parent's symbol table
+     * node->symtable = symtable;
+     */
     return defn;
   }
 }
 
 int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry,
                     int is_method) {
-  // check formal parameter and actual parameter
+  // check for formal parameter and actual parameter
   ST_ArgList *formalparam = NULL;
   if (tuple)
     formalparam = entry->u.datatype.members;
@@ -2828,7 +2851,9 @@ int check_fn_define(typeid_t fnname, ASTNode *param, int tuple, STEntry *entry,
   return 0;
 }
 
-// id: can be function name or tuple name, tuple is special
+/**
+ * @param id can be function name or tuple name, tuple is special
+ */
 ASTNode *make_fn_call_or_tuple(int id, ASTNode *param) {
   dot_emit("fn_call", symname_get(id));
   typeid_t fnname = sym_form_function_id(id);
