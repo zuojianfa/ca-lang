@@ -10,6 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file The LLVM intermediate represention manager.
+ */
+
 #ifndef __codegen_ir1_h__
 #define __codegen_ir1_h__
 

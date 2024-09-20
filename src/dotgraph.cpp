@@ -23,11 +23,23 @@
       return;					\
   } while (0)
 
-// the name sequence number, each left (from) name will increase it's sequence
-// number and as the new left dot name, each right (to) name will find it's
-// current sequence number which as the new right dot name, the right (to) name
-// should already registered in the map, because the bison is a LR bottom-up
-// parser.
+/**
+ * @brief Description of the DOT file format for the grammar tree.
+ *
+ * The DOT file format includes left and right nodes representing
+ * the connections in the grammar tree. Sequence numbers are used
+ * to denote the order of procedures within the grammar tree.
+ *
+ * The name sequence number works as follows:
+ * - Each left (from) name increments its sequence number, becoming
+ *   the new left dot name.
+ * - Each right (to) name retrieves its current sequence number,
+ *   serving as the new right dot name.
+ *
+ * @note The right (to) name must already be registered in the map,
+ * as Bison is an LR bottom-up parser, ensuring that all references
+ * are valid.
+ */
 std::unordered_map<std::string, int> s_name_seq;
 
 void dot_init() {
@@ -61,15 +73,21 @@ void dot_emit(const char *from, const char *to) {
     return;
   }
 
-  // if first from not exist the map return number will be 0 and seq will be 1
+  /*
+   * If the first "from" name does not exist in the map, the returned
+   * number will be 0, and the sequence (seq) will be set to 1.
+   */
   int seqfrom = ++s_name_seq[from];
   const char *seqfromname = create_seqname(from, seqfrom, 1);
 
-  // when seqto is 0, it means the right name is just generating or parsing
+  /*
+   * When seqto is 0, it indicates that the right name is either being
+   * generated or parsed for the first time.
+   */
   int seqto = s_name_seq[to];
   const char *seqtoname = create_seqname(to, seqto, 0);
 
-  // TODO: set original name as the label to the dot node
+  // TODO: Set the original name as the label for the dot node.
   fprintf(genv.dotout, "\t\"%s\" -> \"%s\" [ label=\"%d\" ];\n",
 	  seqfromname, seqtoname, ++genv.dot_step);
 }
@@ -80,9 +98,9 @@ void dot_emit_expr(const char *from, const char *to, int op) {
     dot_emit("stmt", "DBGPRINT expr");
     break;
   case RET:
-    // when return expression
+    // if return an expression
     dot_emit("stmt", "RET expr");
-    // or when return nothing
+    // or if return nothing
     dot_emit("stmt", "RET");
     break;
   case UMINUS:

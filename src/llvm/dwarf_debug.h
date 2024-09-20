@@ -10,6 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file the debug module, which uses dwarf format.
+*/
+
 #ifndef __codegen_dwarf_debug_h__
 #define __codegen_dwarf_debug_h__
 

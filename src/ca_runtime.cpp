@@ -28,4 +28,3 @@ extern "C" {
   using U32Slice = GenSlice<uint32_t>;
   using U64Slice = GenSlice<uint64_t>;
 }
-

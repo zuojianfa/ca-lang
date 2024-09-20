@@ -10,6 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file for runtime functionalities
+ */
+
 #ifndef __ca_runtime_h__
 #define __ca_runtime_h__
 

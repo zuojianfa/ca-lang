@@ -124,8 +124,15 @@ struct LexicalScope {
 
   llvm::DIScope *discope;
   llvm::DISubprogram *difn;
-  SymTable *symtable; // for storing corresponding SymTable object
-  int lexical_id; // the globally unique id for this compile unit, used to create unique global function (or may be variable) name
+
+  /// For storing the corresponding Symbol Table object.
+  SymTable *symtable;
+
+  /**
+   * The globally unique ID for the current compile unit, used to create
+   * a unique global function name (or possibly a variable name).
+   */
+  int lexical_id;
   LexicalType lexical_type;
   union {
     typeid_t function_name;
@@ -160,8 +167,13 @@ ir_codegen::IR1 ir1;
 extern SymTable g_root_symtable;
 extern ASTNode *main_fn_node;
 
-// first walk for iterating function prototype into llvm object
-// second walk for iterating all tree nodes
+/**
+ * @brief Perform two iterations:
+ *
+ * - The first pass iterates through function prototypes, converting them into
+ *   LLVM objects.
+ * - The second pass traverses all tree nodes for further processing.
+ */
 static int walk_pass = 0;
 static std::unique_ptr<dwarf_debug::DWARFDebugInfo> diinfo;
 static std::unique_ptr<jit_codegen::JIT1> jit1;
@@ -169,27 +181,34 @@ static ExitOnError exit_on_error;
 static bool g_with_ret_value = false;
 static int curr_lexical_count = 0;
 
-// llvm section
-
-// note: rust not support different type variable to do
-// calculation, so add `as` to convert between type
-// 1. mathimatic calculation must need the same type or error
-// 2. the literal type have 2 forms:
-//   a. with postfix to indicate it's type,
-//   b. without postfix, just consider it's value when do calculation. example
-//   432432 means integer value (any integer value), -43433 mean an Neg bound to
-//   43433, 33.33 mean f64 value (default is f64 not f32 value)
-// 
-//   
-// 
-// So I need to seperate this two condition
-//
-
+/**
+ * @brief LLVM section.
+ *
+ * Note: Rust does not support operations between variables of different types,
+ * so the `as` keyword is used to convert between types.
+ *
+ * 1. Mathematical calculations require operands to be of the same type;
+ *    otherwise, an error occurs.
+ *
+ * 2. Literal types have two forms:
+ *    - a. With a postfix to indicate their type.
+ *    - b. Without a postfix, where the type is inferred from the value
+ *         during calculations.
+ *       - For example:
+ *         - `432432` represents an integer value (any integer).
+ *         - `-43433` represents a negative bound to `43433`.
+ *         - `33.33` indicates a `f64` value (the default is `f64`, not `f32`).
+ *
+ * Therefore, I need to separate these two conditions.
+ */
 static llvm::Function *g_box_fn = nullptr;
 static llvm::Function *g_drop_fn = nullptr;
 static llvm::Function *main_fn = nullptr;
 
-// handle when processing current function, the top level function is main function
+/**
+ * @brief The handler for processing the current function.
+ * The top-level function is the main function.
+ */
 static llvm::Function *curr_fn = nullptr;
 static ASTNode *curr_fn_node = nullptr;
 struct CurrFnInfo {
@@ -206,13 +225,19 @@ static llvm::BasicBlock *main_bb = nullptr;
 static llvm::DIFile *diunit = nullptr;
 static std::vector<std::unique_ptr<CalcOperand>> oprand_stack;
 
-// for storing defined BasicBlock, or pre-define BasicBlock in GOTO statement
+/**
+ * @brief For storing defined `BasicBlock` objects or pre-defined `BasicBlock`
+ * references in a GOTO statement.
+ */
 static std::map<std::string, BasicBlock *> label_map;
 static std::map<std::string, ASTNode *> function_map;
 
-// TODO: should here using a current debug info instead of the map, it no need
-// to use a map here, because it only used when function define, just like
-// curr_fn
+/**
+ * @todo Use the current debug info instead of the map.
+ *
+ * There is no need to use a map here, as it is only required during
+ * function definition, similar to curr_fn.
+ */
 static std::map<Function *, std::unique_ptr<FnDebugInfo>> fn_debug_map;
 
 std::vector<std::unique_ptr<LexicalScope>> lexical_scope_stack;
@@ -235,7 +260,7 @@ typedef std::map<typeid_t *, GenericTypeVarInfo> generic_type_var_set_t;
 
 static std::vector<std::pair<SymTableAssoc *, generic_type_var_set_t>> generic_type_stack;
 
-// for handling function parameter checking
+/// For handling function parameter checks.
 static std::unordered_map<typeid_t, void *> g_function_post_check_map;
 
 static std::vector<std::unique_ptr<LoopControlInfo>> g_loop_controls;
@@ -249,7 +274,6 @@ std::vector<ASTNode *> *arrayexpr_deref(CAArrayExpr obj);
 std::vector<void *> *structexpr_deref(CAStructExpr obj);
 
 static void init_printf_fn() {
-  // TODO: add grammar for handling extern functions instead hardcoded here
   Function *printf_fn = ir1.module().getFunction("printf");
   if (!printf_fn) {
     auto param_names = std::vector<const char *>(1, "s");
@@ -264,7 +288,7 @@ static void init_printf_fn() {
 }
 
 static void init_box_fn() {
-  // void *malloc(size_t size);
+  // GC_malloc
   Function *box_fn = ir1.module().getFunction(box_fn_name);
   if (!box_fn) {
     auto param_names = std::vector<const char *>(1, "size");
@@ -281,7 +305,7 @@ static void init_box_fn() {
 }
 
 static void init_drop_fn() {
-  // void free(void *ptr);
+  // GC_free
   Function *drop_fn = ir1.module().getFunction(drop_fn_name);
   if (!drop_fn) {
     auto param_names = std::vector<const char *>(1, "ptr");
@@ -344,26 +368,36 @@ static Value *llvmcode_drop(Value *ptr) {
   return callret;
 }
 
-// There are 2 options to implement the inner slice type
-// 1. use a record (struct) Value
-// 2. use 2 (or more) separate Value
-// Here just select 1, because all needed information is packed into a record,
-// and the content of record:
-// The record content have 2 options
-// option 1:
-// struct {
-//    ptr: *T, // ptr is the start address of the memory allocated by alloca or
-//    heap offset: usize, // the offset of start address of slice: slice_offset
-//    = ptr + offset len: usize,    // the length of the slice
-// }
-//
-// option 2: the pointer is just the start address of slice not the allocated
-// address, don't know if it can work
-// struct {
-//    ptr: *T,       // the ptr is the start address of slice directly
-//    len: usize,    // the length of the slice
-// }
-//
+/**
+ * @brief Auxiliary copy of LLVM value to store.
+ *
+ * There are two options to implement the inner slice type:
+ *
+ * 1. Use a record (struct) for `Value`.
+ * 2. Use two (or more) separate `Value` instances.
+ *
+ * This implementation selects option 1, as all necessary information is
+ * packed into a record. The record content has two options:
+ *
+ * **Option 1:**
+ * ```rust
+ * struct {
+ *    ptr: *T,              // ptr is the start address of memory allocated by alloca
+ *    heap_offset: usize,   // the offset of the start address of the slice: slice_offset
+ *    len: usize            // the length of the slice (ptr + offset)
+ * }
+ * ```
+ *
+ * **Option 2:**
+ * The pointer is just the start address of the slice, not the allocated address.
+ * It's uncertain if this will work:
+ * ```rust
+ * struct {
+ *    ptr: *T,      // ptr is the start address of the slice directly
+ *    len: usize    // the length of the slice
+ * }
+ * ```
+ */
 static void aux_copy_llvmvalue_to_store(Type *type, Value *dest, Value *src, const char *name);
 static Value *llvmcode_create_slice(Value *start, Value *offset, Value *len, CADataType *item_catype) {
   Value *slice_start = nullptr;
@@ -379,7 +413,7 @@ static Value *llvmcode_create_slice(Value *start, Value *offset, Value *len, CAD
 
   StructType *slice_type = static_cast<StructType *>(llvmtype_from_catype(slice_catype));
 
-  // allocate new array and copy related elements to the array
+  // allocate a new array and copy the relevant elements into it
   AllocaInst *slice_value = ir1.gen_entry_block_var(curr_fn, slice_type, "slice_value");
 
   Value *idxv0 = ir1.gen_int((int)0);
@@ -486,13 +520,14 @@ static void init_fn_param_info(Function *fn, ST_ArgList &arglist, SymTable *st, 
     int argn = arglist.argnames[i];
     STEntry *entry = sym_getsym(st, argn, 0);
 
-    /* should equal to arg.getName().str().c_str() */
+    // should equal to arg.getName().str().c_str()
     const char *name = symname_get(argn);
 
-    // get the argument from call parameter into this field
+    // get the argument from the call parameter and store it in this field
     if (entry->sym_type != Sym_Variable)
       yyerror("symbol type is not variable: (%d != %d)", entry->sym_type, Sym_Variable);
-#if 1 // TODO: check if can use function parameter directly without copying the parameter
+#if 1
+    // TODO: Check if the function parameter can be used directly without the need to copy it.
     varshielding_rotate_variable(&entry->u.varshielding);
     CADataType *dt = catype_get_by_name(st, entry->u.varshielding.current->datatype);
     CHECK_GET_TYPE_VALUE(curr_fn_node, dt, entry->u.varshielding.current->datatype);
@@ -533,7 +568,8 @@ static DIType *ditype_create_from_catype(CADataType *catype, DIScope *scope) {
 
     DINodeArray difields = diinfo->dibuilder->getOrCreateArray(fields);
 
-    // not use lexical scope for struct definition, just use function or null when globally defined structure
+    // Do not use lexical scope for struct definitions instead,
+    // use the function or null when the structure is defined globally
     DICompositeType *pty = diinfo->dibuilder->createStructType(scope, structname, diunit, lineno, catype->size * 8, 0,
 							       DINode::DIFlags::FlagZero, nullptr, difields);
     for (int i = 0; i < catype->struct_layout->fieldnum; ++i) {
@@ -626,7 +662,6 @@ static Value *aux_set_zero_to_store(Type *type, Value *var) {
 }
 
 static void aux_copy_llvmvalue_to_store(Type *type, Value *dest, Value *src, const char *name) {
-  // TODO: how to make the array transfer short
   Type::TypeID id = type->getTypeID();
   if (id != Type::ArrayTyID && id != Type::StructTyID) {
     ir1.builder().CreateStore(src, dest, name);
@@ -705,11 +740,15 @@ static Value *extract_value_from_array(ASTNode *node) {
   assert(size == 1);
   assert(arraycatype->array_layout->dimension == 1);
 
-  // Question: how to check the index is in scope of an array?
-  // Answer: when the index is not constant, only can through runtime checking, e.g.
-  // insert index scope checking code into generated code, (convert array bound into
-  // llvm::Value object, and insert code to compare the index value and the bound value
-  // print error or exit when out of bound
+  /*
+   * Question: How to check if an index is within the scope of an array?
+   *
+   * Answer: When the index is not constant, runtime checking is required. This involves:
+   * - Inserting index scope checking code into the generated code.
+   * - Converting the array bounds into `llvm::Value` objects.
+   * - Inserting code to compare the index value with the bound value.
+   * - Printing an error message or exiting the program when the index is out of bounds.
+   */
 
   // NEXT TODO: handle when `arraycatype->type` is slice
   if (arraycatype->type != ARRAY) {
@@ -738,11 +777,14 @@ static Value *extract_value_from_array(ASTNode *node) {
     vindices.push_back(ir1.gen_int(0));
     vindices.push_back(pair.first);
 
-    // arrayitemvalue: is an alloc memory address, so following can store value into it
+    // arrayitemvalue: is an alloc'ed memory address, so it can store value later
     arrayitemvalue = ir1.builder().CreateInBoundsGEP(arrayvalue, vindices);
   } else {
-    // condition of when index_catype->type is RANGE, the range type provide the limitation of
-    // `start` and the length `end - start` when fetching value
+    /*
+     * Condition when index_catype->type is RANGE.
+     * The range type provides limitations on `start` and the length,
+     * defined as `end - start`, when fetching values.
+     */
     Value *offset_value = nullptr;
     Value *len_value = nullptr;
     Value *valueone = nullptr;
@@ -764,32 +806,41 @@ static Value *extract_value_from_array(ASTNode *node) {
       len_value = ir1.gen_int(array_len);
       break;
     case InclusiveRangeTo:
-      // length is the corresponding value of `range_layout->end + 1`
+      // length is the relevant value of `range_layout->end + 1`
       valueone = create_default_integer_value(index_catype->range_layout->range->type, 1);
       len_value = ir1.gen_add(pair.first, valueone, "slice_len");
 
-      // NEXT TODO: generate range check code here array size > size(range_layout->end)
-      // something like following code, but in llvm code style
-      //if (len_value <= array_len) {
-      // runtime_error();
-      //}
+      /*
+       * NEXT TODO: Generate runtime range check code here for when
+       * array size is greater than size(range_layout->end).
+       *
+       * Something like this, but it's in LLVM code style:
+       *
+       * if (len_value <= array_len) {
+       *     runtime_error();
+       * }
+       */
       break;
     case RightExclusiveRangeTo:
-      // length is the corresponding value of `range_layout->end`
+      // The length is the corresponding value of `range_layout->end`
       len_value = pair.first;
 
-      // NEXT TODO: generate range check code here array size >= size(range_layout->end)
+      // NEXT TODO: generate the runtime range check code here array
+      // size >= size(range_layout->end)
       break;
     case RangeFrom:
-      // NEXT TODO: generate range check code here for following 3 enum variant array size >= size(range_layout->start)
+      // NEXT TODO: generate the runtime range check code here for following 3
+      // enum variant array size >= size(range_layout->start)
       offset_value = pair.first;
       len_value = ir1.gen_int(array_len);
       len_value = ir1.gen_sub(len_value, pair.first, "slice_len");
       break;
     case InclusiveRange:
-      // NEXT TODO: generate range check code here array size > size(range_layout->end) (for both start and end)
+      // NEXT TODO: generate the runtime range check code here
+      // array size > size(range_layout->end) (for both start and end)
     case RightExclusiveRange:
-      // NEXT TODO: generate range check code here array size >= size(range_layout->end) (for both start and end)
+      // NEXT TODO: generate the runtime range check code here
+      // array size >= size(range_layout->end) (for both start and end)
       offset_value = ir1.builder().CreateExtractValue(pair.first, 0);
       valuetwo = ir1.builder().CreateExtractValue(pair.first, 1);
       len_value = ir1.gen_sub(valuetwo, offset_value, "slice_len");
@@ -869,14 +920,16 @@ static Value *extract_value_from_struct(ASTNode *node) {
   vindices.push_back(ir1.gen_int(0));
   vindices.push_back(ir1.gen_int(fieldindex));
 
-  // structfieldvalue: is an alloc memory address, so following can store value into it
+  // structfieldvalue: is an alloc-ed memory address, so following operation can store value into it
   Value *structfieldvalue = ir1.builder().CreateInBoundsGEP(pair.first, vindices);
   return structfieldvalue;
 }
 
 static inline bool is_create_global_var(STEntry *entry) {
-  // if nomain specified then curr_fn and main_fn are all nullptr, so they are also equal
-  // here determine if `#[scope(global)]` is specified
+  /* If the '-nomain' option is specified, then the value of curr_fn and main_fn
+   * all be nullptr, so the value of them are also identical.
+   * here determine if `#[scope(global)]` is specified.
+   */
   return curr_fn == main_fn && (!main_fn || entry->u.varshielding.current->global);
 }
 
@@ -979,6 +1032,16 @@ static Value *inplace_assignop_assistant(ASTNode *p, CADataType *idtype, Type *t
 // a function but `-nomain` is specified then generate a global variable else
 // also generate a global variable for other use
 // `arrayleftvalue` for TTE_ArrayItemLeft type
+/**
+ * @brief Generates a variable based on the current context.
+ *
+ * This function determines if the variable is local or global:
+ * - If inside a function, it creates a local variable.
+ * - If outside a function and `-nomain` is specified, it generates a global variable.
+ * - Otherwise, it generates a global variable for other uses.
+ *
+ * arrayleftvalue of type TTE_ArrayItemLeft.
+ */
 static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bool zeroinitial = false, Value *defval = nullptr) {
   Value *var = nullptr;
   const char *name = symname_get(p->idn.i);
@@ -1018,11 +1081,22 @@ static Value *walk_id_defv(ASTNode *p, CADataType *idtype, int assignop = -1, bo
 }
 
 static typeid_t catype_get_core_type(typeid_t type) {
-  // NEXT TODO: get the type's core type
-  // 1. *AA, [AA;2], *[AA;3], [*[AA;3]; 2]
-  // 2. new defined struct is not cored for generic type because the new defined struct type will create new symbol table
+  /*
+   * NEXT TODO: Get the type's core type.
+   *
+   * 1. Examples of core types include:
+   *    - *AA
+   *    - [AA;2]
+   *    - *[AA;3]
+   *    - [*[AA;3]; 2]
+   *
+   * 2. A newly defined struct is not core type for generic types,
+   *    because the newly defined struct type creates a new symbol table.
+   *
+   * reference the catype_get_by_name
+   */
 
-  // reference the catype_get_by_name
+
   return type;
 }
 
@@ -1034,21 +1108,28 @@ static void generic_type_record_replace(typeid_t *datatype_addr, typeid_t old_va
   if (!assoc)
     return;
 
-  // to avoid the different value with the same addresses, like following, or it need compare the same address
-  // {
-  //   {datatype_addr = 0x5555556cd410, old_value = 201, new_value = 395},
-  //   {datatype_addr = 0x5555556cdd70, old_value = -1, new_value = 21},
-  //   {datatype_addr = 0x5555556cd410, old_value = 395, new_value = 395}
-  // }
+  /*
+   * to avoid the different value with the same addresses, like following,
+   * or it need compare the same address.
+   * {
+   *   {datatype_addr = 0x5555556cd410, old_value = 201, new_value = 395},
+   *   {datatype_addr = 0x5555556cdd70, old_value = -1, new_value = 21},
+   *   {datatype_addr = 0x5555556cd410, old_value = 395, new_value = 395}
+   * }
+   */
   if (old_value == new_value)
     return;
 
   if (generic_type_stack.back().second.find(datatype_addr) != generic_type_stack.back().second.end())
     return;
 
-#if 0 // when enabled it will only record the necessary types of variable (the generic type or trait type),
-  // but for now it will need realize function `catype_get_core_type`, so when function `catype_get_core_type`
-  // is realized, it should reopened
+#if 0
+  /*
+   * When enabled, this will only record the necessary types of variables
+   * (the generic type or trait type). However, it currently requires the
+   * realization of the function `catype_get_core_type`. Once the function
+   * `catype_get_core_type` is realized, this feature should be reopened.
+   */
   std::set<int> *ids = (std::set<int> *)assoc->extra_id_list;
 
   typeid_t old_value_core = catype_get_core_type(old_value);
@@ -1272,8 +1353,11 @@ static void walk_for(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->forn.listnode->endloc.row, p->forn.listnode->endloc.col, curr_lexical_scope->discope);
 
-  // TODO: currently only support iterator array & range, later will support generator list e.g. (1..6)
-  // the generator list also need allocate just like variable
+  /*
+   * TODO: Currently, only support iterator arrays and ranges. Later,
+   * support generator lists, e.g., (1..6). The generator lists will
+   * also need allocation similar to variables.
+   */
 
   // prepare list nodes and the variable
   inference_expr_type(p->forn.listnode);
@@ -1301,7 +1385,7 @@ static void walk_for(ASTNode *p) {
 
   CADataType *itemcatype = nullptr;
 
-  // the reference use the same type as value
+  // the reference uses the same type as value
   switch (list_catype->type) {
   case ARRAY:
     itemcatype = list_catype->array_layout->type;
@@ -1312,7 +1396,8 @@ static void walk_for(ASTNode *p) {
     else
       itemcatype = list_catype->range_layout->range;
 
-    // TODO: check itemcatype, it should not be complex, the complex type may need a user defined comparing function
+    // TODO: Check itemcatype; it should not be complex. Complex types may
+    // need a user-defined comparison function.
     if (!catype_is_integer(itemcatype->type)) {
       caerror(&p->forn.listnode->begloc, &p->forn.listnode->endloc, "type `%s` not support step into next yet",
 	      catype_get_type_name(itemcatype->signature));
@@ -1387,7 +1472,7 @@ static void walk_for(ASTNode *p) {
   curr_fn->getBasicBlockList().push_back(condbb);
   ir1.builder().SetInsertPoint(condbb);
 
-  // branch according to the list nodes, when no node left then out else loop again
+  // branch according to the list nodes, when there is no node left then out else loop again
   // 4. load value index value
   Value *indexv = ir1.builder().CreateLoad(indexvslot, "idxv");
 
@@ -1441,12 +1526,17 @@ static void walk_for(ASTNode *p) {
   ir1.builder().SetInsertPoint(endloopbb);
 }
 
-// complex type, allocate, pointer, memcpy:
-// box([1, 2]): allocated, not equal type, not need load, need memcpy
-// a = [1, 2]; box(a), allocated, not equal type, not need load, need memcpy
-// simple type:
-// box(33): not need load, not need memcpy
-// a = 33; box(a); need load, not need memcpy
+/**
+ * @brief Walk the box tree node.
+ *
+ * Complex type, allocate, pointer, memcpy:
+ * - box([1, 2]): allocated, not equal type, no need to load, need memcpy.
+ * - a = [1, 2]; box(a): allocated, not equal type, no need to load, need memcpy.
+ *
+ * Simple type:
+ * - box(33): no need to load, no need for memcpy.
+ * - a = 33; box(a): need to load, no need for memcpy.
+ */
 static void walk_box(ASTNode *p) {
   if (walk_pass == 1)
     return;
@@ -1530,9 +1620,14 @@ static void walk_while(ASTNode *p) {
   auto pair = pop_right_value("cond");
   Value *cond = pair.first;
   if (pair.second->type != BOOL) {
-    // when grammar also support other type compare, here should convert the other
-    // type into bool type, like following, but need generate compare with right
-    // type not hardcoded `int` type
+    /*
+     * Handle type comparison in grammar.
+     *
+     * When the grammar supports comparison for other types, this should convert
+     * those types into boolean. For instance, it needs to generate comparisons
+     * with the appropriate type instead of hardcoding to `int`.
+     */
+
     //cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
     caerror(&(p->begloc), &(p->endloc), "condition only accept `bool` type, but find `%s`",
 	    get_type_string(pair.second->type));
@@ -1548,7 +1643,7 @@ static void walk_while(ASTNode *p) {
   walk_stack(p->whilen.body);
   g_loop_controls.pop_back();
 
-  // TBD: how to remove the stack element that never used?
+  // TBD: how to remove the stack element which is never used?
   ir1.builder().CreateBr(condbb);
 
   curr_fn->getBasicBlockList().push_back(endwhilebb);
@@ -1576,9 +1671,9 @@ static void walk_if_common(ASTNode *p) {
 
   Value *tmpv1 = nullptr;
   Value *tmpv2 = nullptr;
-  // the clang always alloca in the header of the function, it may error
-  // occurs when alloca in other blocks. Answer: not exactly
-  Value *tmpc = nullptr; // for storing if expression temporary value
+  // the clang always generate alloca code in the header of the function,
+  // if error may occurs when alloca in other blocks. Answer: not exactly
+  Value *tmpc = nullptr; // to store the temporary value of if expression
   if (isexpr)
     tmpc = ir1.gen_entry_block_var(curr_fn, ir1.int_type<int>(), "tmpc");
 
@@ -1592,9 +1687,13 @@ static void walk_if_common(ASTNode *p) {
   auto pair = pop_right_value("cond");
   Value *cond = pair.first;
   if (pair.second->type != BOOL) {
-    // when grammar also support other type compare, here should convert the other
-    // type into bool type, like following, but need generate compare with right
-    // type not hardcoded `int` type
+    /*
+     * Handle type comparison in grammar.
+     *
+     * When the grammar supports comparison for other types, this should convert
+     * those types into boolean. For instance, it needs to generate comparisons
+     * with the appropriate type instead of hardcoding to `int`.
+     */
     //cond = ir1.builder().CreateICmpNE(cond, ir1.gen_int(0), "if_cond_cmp");
     caerror(&(p->begloc), &(p->endloc), "condition only accept `bool` type, but find `%s`",
 	    get_type_string(pair.second->type));
@@ -1680,8 +1779,8 @@ static void walk_if_common2(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->begloc.row, p->begloc.col, curr_lexical_scope->discope);
 
-  // the clang always alloca in the header of the function, it may error
-  // occurs when alloca in other blocks. Answer: not exactly
+  // the clang always generate alloca code in the header of the function,
+  // if error may occurs when alloca in other blocks. Answer: not exactly
 
   // initialize BasicBlock
   int condsize = vec_size(p->ifn.conds);
@@ -1990,78 +2089,78 @@ static void walk_dbgprinttype(ASTNode *p) {
 #endif
 }
 
-// How to inference the type of variable and determine the literal type in right
-// expression?
-// 1. when variable type already determined, the variable type will used to
-// guide and check the right side type. it requires the right expression have
-// the same type as the variable.
-//   when the right side expression is a final (left) expression (id or literal)
-//   1) When the right side type already determined then check if it match the
-//   variable type, when not match then report an error.
-//   2) When the right side type not determined, then try to determinate the
-//   right side type as the same type of the variable. when cannot make the same
-//   type then error occurs.
-//   when the right side is a complex expression, then recursive the procedure
-//   of following
-//   1) the complex expression finally should have the same type as the variable
-//   2) each children expression of the complex expression should have the same
-//   type as the variable, then recursive each children expression for the type
-//   until to leaf and when arrive to leaf it is the procedure of above.
-//
-// 2. when variable type not determined, the variable's type need inferenced
-// according to the right expression, it will use the right side expression's
-// type as it's type.
-//   when the right side is a final expression (id or literal) then use the id
-//   or the literal's type as the variable's type.
-//   2) when the literal type is determined (with a postfix type), then check if
-//   the literal value matches the determined type.
-//
-//   when the right side is a complex expression, then all the children node of
-//   it should have or inferenced into the same type, when they have different
-//   type then report error. when all have the same type then the variable type
-//   uses it as it's type.
-//   1) for each children of the right side expression, do determinate their's
-//   type recursively (because the children may also have it's children, so it's
-//   recursive), the recursive finally case is the above condition (final
-//   expression).
-//   TBD: how to spread one determined type in the deep tree structure
-//   e.g. let a = (3243 + (432432 + (3432 * 43243 + 43i64 * (433 + 232)))) +
-//   333;
-//               +
-//         +        333
-//   3243        +
-//        432432     +
-//                *             *
-//           3432   43243 43i64    +
-//                             433   232
-//
-//   the 43i64 will make all the other part have the same type with it, the
-//   32i64 is deeper and in different layers, how to determined it?
-//
-// Generally, the type of left and right side have following regular:
-// 1) when both side have not determined a type then, the right side will use
-// the common literal regular to determine the expression's type, and the left
-// variable use the right side's type
-// 2) when both side have a determined type then they should have the same type,
-// or report an error.
-// 3) when left side determined a type, right side not determined a type, then
-// the left side will guide the right side's type and will check if the literal
-// matches the left side type
-// 4) when left side not determined a type and the right side determined a type
-// then the left side will use the right side's type
-// 5) when the right side is complexed expression, then all the part of the
-// expression should have the same type. when some part not have a determined
-// type then it will use the type in the same expression. 
-//
-
-// consider following 4 condition, for an assigment:
-// 1) left have a type, right have a type, then check if they are the same
-// 2) left have a type, right no type, then invoke `determine_literal_type`
-// function uses left's type as the expression's type
-// 3) left no type, right have a type, then use the right side type as the left
-// (variable)'s type
-// 4) both have no type, then inference the right side expression type with
-// default one and apply it into the left side variable
+/**
+ * @brief Infer the type of a variable and determine the literal type in the
+ * right expression.
+ * @question How to inference the type of variable and determine the literal
+ * type in right expression?
+ *
+ * 1. When the variable type is already determined, it will guide and check the
+ * right side type. The right expression must have the same type as the
+ * variable.
+ *    - If the right side expression is a final expression (id or literal):
+ *      1) If the right side type is determined, check for a match with the
+ *         variable type. When not match, then report error.
+ *      2) If the right side type is not determined, attempt to designate its
+ *         type to the variable's type. Report an error if this is not possible.
+ *    - If the right side is a complex expression, recursively check:
+ *      1) Finally, the complex expression should have the type as the variable.
+ *      2) Each child expression of the complex expression should have the same
+ *         type as the variable. Recursively check each child expression for the
+ *         type until reaching the leaf. Upon arrival at the leaf, follow the
+ *         procedure described above.
+ *
+ * 2. When the variable type is not determined, infer it from the right side
+ *    expression. it uses the type of the right side expression as its type.
+ *    Following steps check the right side expression.
+ *    - If the right side is a final expression (identifier or literal),
+        then use its type for the variable.
+ *    - If the literal type is determined/designated (with a postfix), then
+ *      check if the literal value matches the designated type.
+ *    - For complex expressions, all children must either have or be inferred to
+ *      the same type. Report an error if types differ. Else use the type.
+ *      - Recursively determine types for each child.
+ *      @question TBD: how to spread one determined type in deep tree structure?
+ *      - Example:
+ *        let a = (3243 + (43232 + (3432 * 43243 + 43i64 * (433 + 232)))) + 333;
+ *
+ *                    +
+ *              +        333
+ *        3243        +
+ *             43232      +
+ *                     *             *
+ *                3432   43243 43i64    +
+ *                                  433   232
+ *        In this case, the 43i64 will spread it's type to all the other parts,
+ *        necessitating a method to propagate determined types through the tree
+ *        structure. the node 32i64 is deeper in the tree in different layers,
+          how to determined it?
+ *
+ * Generally, the type of left and right sides follows these rules:
+ * 1) If both sides lack of determined type, then the right side uses the common
+ *    literal rules to determine its type, which will then be applied to the
+ *    left variable.
+ * 2) If both sides have determined types, they must match, or report error.
+ * 3) If the left side has a determined type and the right side does not, then
+ *    the left side will guide to determine the right side's type. In the
+ *    procedure, check if the literal matches the left side type.
+ * 4) If the left side lacks a type and the right side has one, adopt the right
+ *    side type for the left variable.
+ * 5) If the right side is a complex expressions, all parts must share the same
+ *    type. If some parts lack a determined type, then uses the type from the
+ *    other part in the same expression which owns determined type.
+ *
+ * Consider the following conditions for an assignment:
+ * 1) If both sides have determined types, check for equality.
+ * 2) If the left side has a type and the right side does not, then invoke
+ *    function @function `determine_literal_type` to designate the right side
+ *    with the left side's type.
+ * 3) If the left side lacks a type and the right side has one, then designate
+ *    the type of the right side to the left variable.
+ * 4) If both sides lack determined types, then infer the type from right side,
+ *    and apply it to the left variable. In the procedure of inferring the type,
+ *    it may uses default type regulation.
+ */
 static void inference_assign_type(ASTNode *idn, ASTNode *exprn, int assignop = -1) {
   typeid_t expr_types[2];
   ASTNode *group[2] = {idn, exprn};
@@ -2101,7 +2200,7 @@ static void walk_assign(ASTNode *p) {
   if (walk_pass == 1)
     return;
 
-  // idn can be type of TTE_Id or TTE_DerefLeft or TTE_ArrayItemLeft
+  // idn can be TTE_Id or TTE_DerefLeft or TTE_ArrayItemLeft
   ASTNode *idn = p->assignn.id;
   ASTNode *exprn = p->assignn.expr;
   int assignop = p->assignn.op;
@@ -2131,8 +2230,10 @@ static void walk_assign(ASTNode *p) {
 
   bool iscomplextype = catype_is_complex_type(dt);
 
-  // when zero_initialize is true, it means to initialize the new allocated
-  // variable of specified type with all zero value
+  /*
+   * If the zero_initialize flag is true, it indicates that the newly allocated
+   * variable of the specified type should be initialized with all zero values.
+   */
   bool zero_initialize = false;
   Value *v = nullptr;
   if (exprn->type != TTE_VarDefZeroValue) {
@@ -2149,7 +2250,7 @@ static void walk_assign(ASTNode *p) {
     }
   } else { // zero initial value
     // TODO: TTE_VarDefZeroValue seems not support assign, only support binding (let)
-    // handle left value type of TTE_Id for zero initialized value
+    // Handle the left value with type TTE_Id for zero-initialized values
     assert(idn->type == TTE_Id);
     typeid_t id = get_expr_type_from_tree(idn);
     if (id == typeid_novalue) {
@@ -2167,8 +2268,10 @@ static void walk_assign(ASTNode *p) {
   else
     vp = walk_id_defv(idn, dt, assignop, zero_initialize, v);
   
-  // in fact the pushed value should not used, because value assignment syntax is
-  // not an expresssion ande have no a value
+  /*
+   * In fact, the pushed value is not used, because the value assignment
+   * syntax is not an expression and it does not have a value.
+   */
   auto u = std::make_unique<CalcOperand>(OT_Alloc, vp, dt);
   oprand_stack.push_back(std::move(u));
 }
@@ -2222,7 +2325,10 @@ static int capattern_ignorerange_pos(CAPattern *cap) {
 
 static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPattern *cap, ASTNode *exprn);
 
-// determine variable types in pattern and do format checking for let binding operation
+/**
+ * @brief Determine variable types in the pattern and perform format checking
+ * for the `let` binding statement.
+ */
 static void inference_letbind_pattern_range(CAPattern *rotate_top_cap, CAPattern *cap, ASTNode *tuplenode, int from, int to, int typeoffset) {
   for (int i = from; i < to; ++i) {
     inference_letbind_type_both_side(rotate_top_cap, cap->items->patterns[i], tuplenode->arglistn.exprs[i + typeoffset]);
@@ -2238,13 +2344,18 @@ static void determine_letbind_type_range(CAPattern *cap, CADataType *catype, int
 
 static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bool is_back = false);
 
-// parameter `rotate_top_cap` used for handle the case of `let (f1, f2) = (1, 2); let (f2, f1) = (f1, f2)`
+/**
+ * @brief Infer let bind type for both sides.
+ *
+ * @param rotate_top_cap Used to handle the case of
+ *        `let (f1, f2) = (1, 2); let (f2, f1) = (f1, f2)`.
+ */
 static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPattern *cap, ASTNode *exprn) {
   switch (cap->type) {
   case PT_IgnoreOne:
   case PT_IgnoreRange:
   case PT_Var: {
-    // for variable shielding, resolving `let a = a;` statement
+    // for the variable shielding, resolving `let a = a;` statement
     varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
     typeid_t type = inference_expr_type(exprn);
     varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
@@ -2255,7 +2366,8 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
   }
   case PT_GenTuple: {
     if (exprn->type == TTE_Id) {
-      // handle the condition when exprn->type s TTE_Id, the type is just come from the left side
+      // handle the condition when exprn->type is TTE_Id, the type is just
+      // coming from the left side
       varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
       typeid_t type = inference_expr_type(exprn);
       varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
@@ -2289,8 +2401,11 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
       // with no ignore range ..
       inference_letbind_pattern_range(rotate_top_cap, cap, tuplenode, 0, cap->items->size, 0);
     } else {
-      // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
-      // handle starting and ending matches
+      /*
+       * With the pattern ellipsis (.., x1, x2, .., xm, xn), for example:
+       * (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn).
+       * Handle starting and ending matches.
+       */
       inference_letbind_pattern_range(rotate_top_cap, cap, tuplenode, 0, ignorerangepos, 0);
       inference_letbind_pattern_range(rotate_top_cap, cap, tuplenode, ignorerangepos + 1, cap->items->size, tuplenode->arglistn.argc - cap->items->size);
     }
@@ -2320,7 +2435,7 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
       assert(arraynode->type == TTE_ArrayDef);
     }
 
-    // inference right side type directly and determine right side type
+    // inference right side type directly and designate it
     varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, true);
     typeid_t type = inference_expr_type(exprn);
     varshielding_rotate_capattern(rotate_top_cap, exprn->symtable, false);
@@ -2341,13 +2456,27 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
     CADataType *subcatype = catype->array_layout->type;
 
     if (ignorerangepos == -1) {
-      // with no ignore range .. condition: `let [a, b, c] = [1, 2, 3]`, then inference type only from right side
-      // for this condition inference type from left side: `let [a, b, c]: [u8; 3] = [1, 2, 3]`, it should already
-      // be done in function `capattern_check_get_type -> catype_from_capattern`, so here need not coping with it
+      /*
+       * Handle the case with no pattern ellipsis.
+       *
+       * 1. In the condition `let [a, b, c] = [1, 2, 3]`, infer the type
+       *    only from the right side.
+       * 2. For the condition `let [a, b, c]: [u8; 3] = [1, 2, 3]`,
+       *    infer type from the left side.
+       *
+       * This should already be handled in the function
+       * `capattern_check_get_type -> catype_from_capattern`, so
+       * there's no need to cope with it here.
+       */
       determine_letbind_type(cap, catype, exprn->symtable);
     } else {
-      // with ignore range .., x1, x2, .., xm, xn condition: `(v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)`
-      // handle starting and ending matches
+      /*
+       * Handle the condition with pattern ellipsis.
+       *
+       * The condition of pattern ellipsis (.., x1, x2, .., xm, xn):
+       * `(v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)`.
+       * Handle starting and ending matches.
+       */
       determine_letbind_type_range(cap, subcatype, 0, ignorerangepos, exprn->symtable);
       determine_letbind_type_range(cap, subcatype, ignorerangepos + 1, cap->items->size, exprn->symtable);
     }
@@ -2359,11 +2488,13 @@ static void inference_letbind_type_both_side(CAPattern *rotate_top_cap, CAPatter
   }
   case PT_Tuple:
   case PT_Struct:
-    // following 2 case should cannot come here, because it's caller `inference_letbind_type`
-    // already handlered and returned it when in catype != NULL case, because PT_Tuple and
-    // PT_Struct all have a name and in function `capattern_check_get_type` which is invoked
-    // by function `inference_letbind_type`, it can get the datatype according to the name,
-    // so need needed here
+    /*
+     * The following two cases should not be reached here because they are already
+     * handled and returned by the caller `inference_letbind_type` when `catype`
+     * is not NULL. Both PT_Tuple and PT_Struct have a name, and the function
+     * `capattern_check_get_type` (invoked by `inference_letbind_type`) can get
+     * the datatype according to the name. Therefore, they are not needed here.
+     */
     caerror(&exprn->begloc,  &exprn->endloc, NULL,
 	    "(internal) Pattern type `%s` should not come here for inferencing",
 	    cap->type == PT_Tuple ? "PT_Tuple" : "PT_Struct"
@@ -2386,11 +2517,19 @@ static void inference_letbind_type(CAPattern *cap, ASTNode *exprn) {
     return;
   }
 
-  // when cannot directly get datatype from pattern then inference type for / from both side (right expression)
+  /*
+   * When the datatype cannot be directly obtained from the pattern,
+   * infer the type from both sides (right expression).
+   */
   inference_letbind_type_both_side(cap, cap, exprn);
 }
 
-// determine variable types in pattern and do format checking for let binding operation
+/**
+ * @brief Determine variable types for let ranged pattern.
+ *
+ * Determine variable types in the pattern and perform format
+ * checking for let binding operations.
+ */
 static void determine_letbind_pattern_range(CAPattern *cap, CADataType *catype, SymTable *symtable, int from, int to, int typeoffset) {
   for (int i = from; i < to; ++i) {
     determine_letbind_type(cap->items->patterns[i], catype->struct_layout->fields[i + typeoffset].type, symtable);
@@ -2415,7 +2554,7 @@ static CADataType *struct_subcatype_from_fieldname(CADataType *catype, int field
 }
 
 static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype, SymTable *symtable) {
-  // come here struct or named tuple must already defined datatype
+  // when come to this function, the data type of struct or named tuple must already be determined
   if (catype->type != STRUCT) {
     caerror(&(cap->loc), NULL, "required a struct type, but found `%s` type", catype_get_type_name(catype->signature));
     return;
@@ -2440,7 +2579,10 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
   if (cap->morebind)
     bind_register_variable_catype(cap->morebind, catype->signature, symtable);
 
-  // determine variable position in tuple and related catype and recursive invoke this function
+  /*
+   * Determine the variable position in the tuple and the related
+   * catype, then recursively invoke this function when needed.
+   */
   int ignorerangepos = capattern_ignorerange_pos(cap);
   if (ignorerangepos == -1 && cap->items->size != catype->struct_layout->fieldnum) {
     caerror(&(cap->loc), NULL, "pattern have less field `%d` than `%d` of datatype `%s`",
@@ -2449,7 +2591,7 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
     return;
   }
 
-  // implement variable position in struct
+  // implement determine variable position in struct
   if (cap->type == PT_Struct) {
     int endpos = cap->items->size;
     if (ignorerangepos != -1) {
@@ -2463,7 +2605,7 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
       assert(fieldname != -1);
       CADataType *dt = nullptr;
       if (catype->struct_layout->type == Struct_NamedTuple) {
-	// when it is a named tuple, the fieldname is the tuple item position
+	// when it is a named tuple, the fieldname corresponds to the tuple item position
 	if (fieldname >= catype->struct_layout->fieldnum) {
 	  caerror(&(cap->loc), NULL, "tuple numbered field `%d` out of range `(0 ~ %d]` of datatype `%s`",
 		  fieldname, catype->struct_layout->fieldnum, catype_get_type_name(catype->signature));
@@ -2488,7 +2630,8 @@ static void determine_letbind_type_for_struct(CAPattern *cap, CADataType *catype
     // with no ignore range ..
     determine_letbind_pattern_range(cap, catype, symtable, 0, cap->items->size, 0);
   } else {
-    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
+    // with the condition Pattern ellipsis .., x1, x2, .., xm, xn
+    // For example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
     // handle starting and ending matches
     determine_letbind_pattern_range(cap, catype, symtable, 0, ignorerangepos, 0);
     determine_letbind_pattern_range(cap, catype, symtable, ignorerangepos + 1, cap->items->size, catype->struct_layout->fieldnum-cap->items->size);
@@ -2503,8 +2646,11 @@ static void determine_letbind_type(CAPattern *cap, CADataType *catype, SymTable 
   case PT_Tuple:
   case PT_GenTuple:
   case PT_Struct:
-    // when `catype->struct_layout->type` is not `Struct_NamedStruct` it means the left pattern used
-    // struct form matching for the right object (tuple)
+    /*
+     * when `catype->struct_layout->type` is not `Struct_NamedStruct`
+     * This means the left pattern uses the form of `struct` to match
+     * the right side object (tuple).
+     */
     determine_letbind_type_for_struct(cap, catype, symtable);
     break;
   case PT_Array:
@@ -2583,7 +2729,10 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
                                  Value *value, bool inplace_value,
                                  CADataType *catype, VarInitType init_type);
 
-// determine variable types in pattern and do format checking for let binding operation
+/**
+ * @brief Determine variable types in the pattern and perform format
+ * checking for let binding operations.
+ */
 static void capattern_bind_tuple_pattern_range(SymTable *symtable,
                                                CAPattern *cap, Value *value,
                                                CADataType *catype, int from,
@@ -2614,11 +2763,14 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap,
                                         Value *value, CADataType *catype,
                                         VarInitType init_type)
 {
-  // when in this function the value should already come with the type of capattern
+  // when the function is called, the value should already connected to the type of capattern
   if (cap->morebind)
     atmore_bind_variable_value(symtable, cap->morebind, value, init_type);
 
-  // get the ignore variant position in struct / tuple, the check should already checked previously
+  /*
+   * Get the pattern ellipsis variant position in the struct/tuple.
+   * The check should have already been performed previously.
+   */
   int ignorerangepos = capattern_ignorerange_pos(cap);
 
   // implement variable position in struct
@@ -2658,8 +2810,10 @@ static void capattern_bind_struct_value(SymTable *symtable, CAPattern *cap,
     capattern_bind_tuple_pattern_range(symtable, cap, value, catype, 0,
                                        cap->items->size, 0, init_type);
   } else {
-    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm,
-    // vn) = (t1, t2, t3, ..., tx, tm, tn) handle starting and ending matches
+    /* For the condition of pattern ellipsis (.., x1, x2, .., xm, xn)
+     * For  example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
+     * handle starting and ending matches
+     */
     capattern_bind_tuple_pattern_range(symtable, cap, value, catype, 0,
                                        ignorerangepos, 0, init_type);
     capattern_bind_tuple_pattern_range(
@@ -2703,16 +2857,20 @@ static void capattern_bind_array_value(SymTable *symtable, CAPattern *cap,
   if (cap->morebind)
     atmore_bind_variable_value(symtable, cap->morebind, value, init_type);
 
-  // get the ignore variant position in struct / tuple, the check should already checked previously
+  /*
+   * Get the pattern ellipsis variant position in the struct/tuple.
+   * The check should have already been performed previously.
+   */
   int ignorerangepos = capattern_ignorerange_pos(cap);
 
   if (ignorerangepos == -1) {
-    // with no ignore range ..
+    // with no pattern ellipsis ..
     capattern_bind_array_pattern_range(symtable, cap, value, catype, 0,
                                        cap->items->size, 0, init_type);
   } else {
-    // with ignore range .., x1, x2, .., xm, xn, example: (v1, v2, ..(2), vm,
-    // vn) = (t1, t2, t3, ..., tx, tm, tn) handle starting and ending matches
+    // with pattern ellipsis .., x1, x2, .., xm, xn.
+    // For example: (v1, v2, ..(2), vm, vn) = (t1, t2, t3, ..., tx, tm, tn)
+    // handle starting and ending matches
     capattern_bind_array_pattern_range(symtable, cap, value, catype, 0,
                                        ignorerangepos, 0, init_type);
     capattern_bind_array_pattern_range(
@@ -2721,7 +2879,9 @@ static void capattern_bind_array_value(SymTable *symtable, CAPattern *cap,
   }
 }
 
-// bind value for the variable variant in the pattern
+/**
+ * @brief Bind value for the variable variant in the pattern.
+ */
 static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
                                  Value *value, bool inplace_value,
                                  CADataType *catype, VarInitType init_type) {
@@ -2732,8 +2892,11 @@ static void capattern_bind_value(SymTable *symtable, CAPattern *cap,
   case PT_Tuple:
   case PT_GenTuple:
   case PT_Struct:
-    // when `catype->struct_layout->type` is not `Struct_NamedStruct` it means the left pattern used
-    // struct form matching for the right object (tuple)
+    /*
+     * when `catype->struct_layout->type` is not `Struct_NamedStruct`
+     * This means the left pattern uses the form of `struct` to match
+     * the right side object (tuple).
+     */
     capattern_bind_struct_value(symtable, cap, value, catype, init_type);
     break;
   case PT_Array:
@@ -2810,7 +2973,7 @@ static void varshielding_rotate_capattern(CAPattern *cap, SymTable *symtable, bo
   }
 }
 
-// TODO: for local and global variable binding, refactor walk_assign function
+// TODO: Refactor walk_assign function for local and global variable binding
 static void walk_letbind(ASTNode *p) {
   if (walk_pass == 1)
     return;
@@ -2825,27 +2988,45 @@ static void walk_letbind(ASTNode *p) {
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
-  // The variable rebind functionality have rebind order, the rebind list is created in the order of
-  // the rebind declaratin in the first pass (building AST tree), and the current variable in rebind
-  // list is the last rebind variable after the AST tree is just build over, and so in the walk pass,
-  // it will need firstly rotate forward and make current point to the first binded variable, so here
-  // need rotate forward operation
+  /*
+   * The variable rebind functionality has a rebind order.
+   * The rebind list is created in the order of the rebind
+   * declaration during the first pass (building the AST tree).
+   * The current variable in the rebind list is the last
+   * rebind variable after the AST tree has just been built.
+   * Therefore, in the walk pass, it needs to rotate forward
+   * to point the current variable to the first bound variable.
+   * This requires a rotate forward operation.
+   */
   varshielding_rotate_capattern(cap, p->symtable);
 
   if (exprn->type != TTE_VarDefZeroValue) {
-    // 1. inference type for both side of binding, to determine the types of both side
-    // when is not zeroinitial
-    // Should rotating as whole, the reason see segment `Rotation As a Whole` of document `variable-shielding.md`
+    /*
+     * 1. Infer the type for both sides of the binding to determine
+     * the types when it is not zero-initialized.
+     * The rotation should be done as a whole; see the segment
+     * "Rotation As a Whole" in the document `variable-shielding.md`
+     * for the reasoning.
+     */
+
     inference_letbind_type(cap, exprn);
 
-    // 2. walk right side node and get Value
-    // Here is a convention about rotation: the current variable bind is already reset to the last rebind variable
-    // in the rebind list, so that the inner rotate operation is also in the order. So here will rotate
-    // back to the last rebind variable, and in walk_stack will also using this convention
+    /*
+     * 2. Walk the right side node and get the value.
+     *
+     * Here is a convention about rotation: the current variable
+     * binding is already reset to the last rebind variable in the
+     * rebind list, so the inner rotate operation follows this order.
+     * Therefore, it will rotate back to the last rebind variable,
+     * and this convention will also be used in `walk_stack`.
+     */
     varshielding_rotate_capattern(cap, exprn->symtable, true);
     walk_stack(exprn);
 
-    // the inner walk operation for variabe bind will already reset to the state of ...
+    /*
+     * The inner walk operation for variable binding will already
+     * reset to the state of the last rebind variable.
+     */
     varshielding_rotate_capattern(cap, exprn->symtable, false);
 
     //auto pair = pop_right_value("tmpexpr", false);
@@ -2865,12 +3046,15 @@ static void walk_letbind(ASTNode *p) {
     // }
 
   } else {
-    // 1. inference type for both side of binding, to determine the types of both side
-    // when the pattern specified a type, example: let AA {f1, f2, ...}: datatype = __zero_initial__
+    /*
+     * 1. Infer the type for both sides of the binding to determine
+     * the types when the pattern specifies a type.
+     * Example: `let AA {f1, f2, ...}: datatype = __zero_initial__`.
+     */
     catype = capattern_check_get_type(cap, exprn);
     CHECK_GET_TYPE_VALUE(exprn, catype, cap->datatype);
 
-    // catype can be null and the datatype must can obtain from pattern
+    // `catype` can be null and the datatype must can be obtained from pattern
     determine_letbind_type(cap, catype, exprn->symtable);
 
     init_type = exprn->varinitn.type;
@@ -2879,11 +3063,17 @@ static void walk_letbind(ASTNode *p) {
   if (v && ot == OT_Alloc && !catype_is_complex_type(catype))
     v = ir1.builder().CreateLoad(v, "tmpexpr");
 
-  // 3. walk left side again and copy data from right side
-  // here only when the value v is come from literal directly the inplace_value
-  // can be set to true, or when it is a variable, if using insplace method, it
-  // will use the same value for 2 variables. TODO: determine the direct literal
-  // example and set inplace_value = true
+  /*
+   * 3. Walk the left side again and copy data from the right side.
+   *
+   * Here, the `inplace_value` can be set to true only when the value
+   * `v` comes directly from a literal. If it is a variable, using
+   * the inplace method will result in the same value being used for
+   * two variables.
+   *
+   * TODO: Determine the direct literal example and set
+   * `inplace_value = true`.
+   */
   capattern_bind_value(exprn->symtable, cap, v, false, catype, init_type);
 }
 
@@ -2939,7 +3129,10 @@ static void walk_range(ASTNode *p) {
     value = end_value;
     optype = end_optype;
   } else {
-    // when full range, there is no llvm value counterparter, so just use the integer value
+    /*
+     * When using the full range, there is no LLVM value counterpart,
+     * so just use the integer value here.
+     */
     value = ir1.gen_int(0);
     optype = OT_Const;
   }
@@ -3090,7 +3283,7 @@ static void check_and_determine_param_type(ASTNode *name, ASTNode *param, int tu
   }
 
   if (is_method) {
-    // check first formal parameter with object type
+    // check the first formal parameter with object type
     STEntry *paramentry = sym_getsym(formalparam->symtable, formalparam->argnames[0], 0);
     typeid_t datatype = paramentry->u.varshielding.current->datatype;
     CADataType *dt = catype_get_by_name(formalparam->symtable, datatype);
@@ -3172,7 +3365,7 @@ static void walk_expr_tuple_common(ASTNode *p, CADataType *catype, std::vector<V
     return;
   }
 
-  // allocate new array and copy related elements to the array
+  // allocate a new array and copy the related elements to the array
   StructType *structype = static_cast<StructType *>(llvmtype_from_catype(catype));
   AllocaInst *structure = ir1.gen_entry_block_var(curr_fn, structype);
   Value *idxv0 = ir1.gen_int((int)0);
@@ -3206,7 +3399,7 @@ static void walk_expr_tuple(ASTNode *p, STEntry *entry, std::vector<Value *> &va
 
 static void llvmvalue_from_exprs(ASTNode **exprs, int len, std::vector<Value *> &argv, bool isvalue) {
   for (int i = 0; i < len; ++i) {
-    // how to get the name for an expr? not possible / neccessary to get it
+    // Q: how to get the name for an expr? A: not possible/neccessary to get it
     walk_stack(exprs[i]);
     bool iscomplextype = false;
     if (!isvalue)
@@ -3246,12 +3439,16 @@ static STEntry *sym_get_function_entry_for_method_value(ASTNode *name, Value **s
   return sym_get_function_entry_for_method(name, query_type_with_value, (void **)self_value, struct_catype, cls_entry);
 }
 
-// the expression call may be a function call or tuple literal definition,
-// because the tuple literal form is the same as function, so handle it here
+/**
+ * @brief Walk the call expression.
+ *
+ * The expression call may be a function call or a tuple literal
+ * definition, as the form of tuple literal is the same as a function.
+ * Therefore, handle it here.
+ */
 static void walk_expr_call(ASTNode *p) {
-  // NEXT TODO: walk generic function and cache it and call it
-  //Function *walk_fn_define_full_withsym_generic(ASTNode *p, TypeImplInfo *impl_info, SymTable *symtable, bool generic);
-  // 
+  // NEXT TODO: walk generic function, cache it and call it
+  // Function *walk_fn_define_full_withsym_generic(ASTNode *p, TypeImplInfo *impl_info, SymTable *symtable, bool generic);
 
   ASTNode *name = p->exprn.operands[0];
   ASTNode *args = p->exprn.operands[1];
@@ -3271,28 +3468,47 @@ static void walk_expr_call(ASTNode *p) {
     }
 
     if (IS_GENERIC_FUNCTION(entry->u.f.ca_func_type)) {
-      // handle generic function concretion
-      // 1. get generic function signature, with generic type list
-      //   1.1 get parameter list of function and pickup the generic type in parameter list
-      //   1.2 when is hidden expand (`add(a, b)` without generic type) check if the generic parameter list can cover the generic type provided
-      //     a. when cannot cover all then report error, because cannot inference all generic types
-      //     b. when can cover all then inference the generic parameter type from true argument list
-      //   1.3 when is `add<i32>(a, b)` with generic type check, it should include all the generic type
-      //   1.4 form generic function signature from function name and the binded generic type with order
-      //   1.5 in the upper process, it will also check and determine the parameter type
-      // 2. check if the function already created before
-      //   2.1 when exist, create call with prepared argument list
-      //   2.2 when not exist, walk the generic function, and form the llvm function, then call it
-      // 3. when generic function exists recursive call it self
-      //   3.1 not really recursive call: when recursive call form a different concrete function,
-      //       then just like the processing of this notice to concrete it
-      //     a. function already concreted, then call it directly
-      //     b. function not concreted, concreted it and then call it
-      //   3.2 really recursive call: when the function form a same concrete function,
-      //       then it's no need to do function concretion for the called same function, so just generate call to it
-      // 4. about the caches of concreted generic functions, there is a cache to store the concreted function
-      //    for each generic function definition in a scope with it's symbol table, so it should be good to maintain
-      //    the data structure in the one entry of generic function
+      /*
+       * Handle generic function concretions.
+       *
+       * 1. Get the generic function signature with the generic type list.
+       *    1.1 Retrieve the parameter list of the function and pick up the
+       *        generic types in the parameter list.
+       *    1.2 For hidden expansion (e.g., `add(a, b)` without generic type),
+       *        check if the generic parameter list can cover the provided
+       *        generic type.
+       *        a. If it cannot cover all, report an error, as not all
+       *           generic types can be inferred.
+       *        b. If it can cover all, infer the generic parameter type from
+       *           the true argument list.
+       *    1.3 For `add<i32>(a, b)` with generic type checking, ensure it
+       *        includes all the generic types.
+       *    1.4 Form the generic function signature from the function name and
+       *        the bound generic types in order.
+       *    1.5 The upper process will also check and determine the parameter
+       *        type.
+       *
+       * 2. Check if the function has already been created.
+       *    2.1 If it exists, create a call with the prepared argument list.
+       *    2.2 If it does not exist, walk the generic function, form the LLVM
+       *        function, and then call it.
+       *
+       * 3. When the generic function exists, recursively call itself.
+       *    3.1 Not really a recursive call: when the recursive call forms a
+       *        different concrete function, process this notice to concretize it.
+       *        a. If the function has already been concretized, call it directly.
+       *        b. If the function is not concretized, concretize it and then
+       *           call it.
+       *    3.2 Real recursive call: when the function forms the same concrete
+       *        function, there's no need to do function concretization for the
+       *        called same function; just generate a call to it.
+       *
+       * 4. Regarding the caches of concretized generic functions, there is a
+       *    cache to store the concretized function for each generic function
+       *    definition in a scope with its symbol table. Thus, it should be
+       *    efficient to maintain the data structure in one entry of the
+       *    generic function.
+       */
     }
 
     check_and_determine_param_type(name, args, istuple, entry, nullptr, typeid_novalue, 0);
@@ -3404,7 +3620,7 @@ static void walk_ret(ASTNode *p) {
     if (enable_debug_info())
       diinfo->emit_location(p->endloc.row, p->endloc.col, curr_lexical_scope->discope);
 
-    // match the function return value and the literal return value
+    // check if the type is match of the function return value and the literal return value
     if (rettype != v->getType()) {
       typeid_t retty = curr_fn_node->fndefn.fn_decl->fndecln.ret;
       CADataType *retdt = catype_get_by_name(p->symtable, retty);
@@ -3478,12 +3694,15 @@ static void walk_expr_landor(CADataType *dt1, Value *v1, ASTNode *p) {
   auto pair2 = pop_right_value("v2");
   Value *v2 = pair2.first;
 
-  // because the upper walk may appended new BB, so here cannot use thenbb directly, so just get it
+  /*
+   * Because the upper walk may have appended a new basic block (BB), 
+   * we cannot use `thenbb` directly here; instead, we need to retrieve it.
+   */
   BasicBlock *v2bb = ir1.builder().GetInsertBlock();
 
   ir1.builder().CreateBr(outbb);
 
-  // out block, when first bool expression already meet requirement
+  // Jump out of the block, if first bool expression already meet the requirement
   curr_fn->getBasicBlockList().push_back(outbb);
   ir1.builder().SetInsertPoint(outbb);
 
@@ -3685,7 +3904,7 @@ static void walk_expr_array(ASTNode *p) {
     leftco = *co;
   }
 
-  // allocate new array and copy related elements to the array
+  // allocate new array and copy related elements to the it
   Type *arraytype = llvmtype_from_catype(arraycatype);
   AllocaInst *arr = ir1.gen_entry_block_var(curr_fn, arraytype);
   Value *idxv0 = ir1.gen_int(0);
@@ -3698,7 +3917,7 @@ static void walk_expr_array(ASTNode *p) {
       arraycatype->array_layout->type->size == 1) {
     // condition of: let a = [x; 10000];
     if (!values.empty()) {
-      // using memset when type is 1 byte length to do the job
+      // using memset when type is 1 byte length
       // Type *i8type = ir1.intptr_type<int8_t>();
       // Value *i8var = ir1.builder().CreatePointerCast(values[0], i8type);
       // TypeSize size = ir1.module().getDataLayout().getTypeAllocSize(type);
@@ -3708,9 +3927,9 @@ static void walk_expr_array(ASTNode *p) {
           arr, values[0], anode->anoden.aexpr.repeat_count, align);
     }
   } else {
-#if 0 // TODO: here should handle the multi-byte constant value
+#if 0 // TODO: handle the multi-byte constant value here
     if (anode->anoden.aexpr.repeat_count && !values.empty()) {
-      // using memcpy the constant when type is multi-byte type
+      // using memcpy on the constant when type is multi-byte type
       ArrayType *constant_array = static_cast<ArrayType *>(arraytype);
       std::vector<Constant *> array_elements(anode->anoden.aexpr.repeat_count,
                                              constant_array);
@@ -3770,7 +3989,7 @@ static void walk_expr_struct(ASTNode *p) {
 
   CAStructField *fields = structcatype->struct_layout->fields;
 
-  // when is named field then store the field order in struct definition
+  // when it is a named field then store the order of the field in struct definition
   std::vector<int> fieldorder;
   std::vector<Value *> values;
   for (size_t i = 0; i < vnodes->size(); ++i) {
@@ -3809,7 +4028,7 @@ static void walk_expr_struct(ASTNode *p) {
   }
 
   if (snode->snoden.named) {
-    // rearrange values order according to the named order
+    // rearrange the order of values according to the named order
     std::vector<int> copy = fieldorder;
     std::sort(copy.begin(), copy.end());
     for (int i = 1; i < copy.size(); ++i) {
@@ -3937,7 +4156,9 @@ static void walk_expr(ASTNode *p) {
   if (walk_pass == 1)
     return;
 
-  // not allow global assign value, global variable definition is not assign
+  /* Not allowed: global variable assignment.
+   * Global variable definitions cannot be assigned a value.
+   */
   if (!curr_fn)
     return;
 
@@ -4017,10 +4238,16 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
       return -1;
     }
 
-    // NEXT TODO: consider how to handle the trait default implementation ASTNode tree into struct implementation
-    // 1. operate the only one ASTNode entry and walk for it, the node is shared by every struct implemenation that
-    // implement it.
-    // 2. clone the trait fn ASTNode tree into struct and walk the struct
+    /*
+     * NEXT TODO: Consider how to handle the trait default implementation
+     * ASTNode tree in struct implementations.
+     *
+     * 1. Operate on the single ASTNode entry and walk through it;
+     *    this node is shared by every struct implementation that
+     *    implements it.
+     * 2. Clone the trait function ASTNode tree into the struct and
+     *    walk the struct.
+     */
     varshielding_rotate_variable(&preventry->u.varshielding);
     CADataType *prevcatype = catype_get_by_name(prevargs->symtable, preventry->u.varshielding.current->datatype);
     varshielding_rotate_variable(&preventry->u.varshielding, true);
@@ -4042,7 +4269,7 @@ static int post_check_fn_proto(STEntry *prev, typeid_t fnname, ST_ArgList *curra
   CADataType *prevret = catype_get_by_name(prevargs->symtable, prev->u.f.rettype);
   CADataType *currret = catype_get_by_name(currargs->symtable, rettype);
 
-  // check if function return type is the same as declared
+  // check if the function return type is the same as declared
   if (prevret->signature != currret->signature) {
     caerror(&prev->sloc, NULL, "function '%s' return type not identical, see: line %d, col %d.",
 	    catype_get_function_name(fnname), prev->sloc.row, prev->sloc.col);
@@ -4058,7 +4285,7 @@ static const char *mangling_function_name_nottype(int lexical_stack_size, Fn fun
   std::stringstream name;
   name << MANGLED_NAME_PREFIX;
 
-  // first pass fill prefix, second pass fill name
+  // first pass: fill prefix, second pass: fill name
   bool first_pass = true;
   int i = 0;
   while (i++ < 2) {
@@ -4148,8 +4375,11 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
   if (cls_entry)
     *cls_entry = entry;
 
-  // get the structure path in the form of `lexical_scope_stack`, means using the struct definition
-  // position as the implementation path, but not the implementation path itself
+  /*
+   * Get the structure path in the form of `lexical_scope_stack`,
+   * which means using the struct definition position as the
+   * implementation path, but not the implementation path itself.
+   */
   int pos = lexical_find_symtable_pos(entry_st);
   if (pos == -1) {
     caerror(entry ? &entry->sloc : NULL, NULL, "cannot find struct '%s' lexical position",
@@ -4159,14 +4389,16 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
 
   auto trait_name_fn = [fnname, impl_info](std::stringstream &name, bool first_pass) {
     if (first_pass) {
-      // for implementing struct mangling name with `struct + function`
-      // for implementing trait for struct mangling name with `trait + struct + function`
+      /* In the first pass, it's:
+       * For implementing struct mangling names of `struct + function`.
+       * For implementing trait mangling names for structs of `trait + struct + function`.
+       */
       if (impl_info->trait_id != -1) {
 	name << 'T';
       }
       name << "SF";
     } else {
-      // NEXT TODO: implement trait mangling considering traits path, trait has it's own path
+      // NEXT TODO: implement trait mangling considering traits path, each trait has it's own path
       if (impl_info->trait_id != -1) {
         const char *trait_name = catype_get_type_name(impl_info->trait_id);
         size_t len = strlen(trait_name);
@@ -4177,7 +4409,7 @@ static const char *mangling_function_name(SymTable *symtable, typeid_t fnname, T
       size_t len = strlen(struct_name);
       name << len << struct_name;
 
-      // the local_name here is in the struct impl form: AAA::func or Struct1::<Trait1>::func1
+      // the local_name here is in the form of struct impl: AAA::func or Struct1::<Trait1>::func1
       const char *local_name = catype_struct_impl_id_to_function_name_str(fnname);
       len = strlen(local_name);
       name << len << local_name;
@@ -4191,7 +4423,7 @@ static Function *walk_fn_declare_full_withsym(ASTNode *p, TypeImplInfo *impl_inf
   STEntry *cls_entry = nullptr;
   STEntry **cls_entry_out = impl_info ? &cls_entry : nullptr;
 
-  // here using symbol table of class implementation
+  // here using the class implementation symbol table
   const char *fnname_full = mangling_function_name(p->symtable, p->fndecln.name, impl_info, cls_entry_out, st_type);
 
   // if impl_info is not null then cls_entry must cannot be null
@@ -4204,7 +4436,7 @@ static Function *walk_fn_declare_full_withsym(ASTNode *p, TypeImplInfo *impl_inf
   auto fitr = g_function_post_check_map.find(fnname_full_id);
   if (fitr != g_function_post_check_map.end()) {
     // check global redeclared function parameter, some function declared
-    // multiple times in source code, check if they have same argument here
+    // multiple times in source code, check if they have the same argument here
     post_check_fn_proto(preventry, p->fndecln.name, &p->fndecln.args,
                         p->fndecln.ret);
   } else {
@@ -4215,7 +4447,7 @@ static Function *walk_fn_declare_full_withsym(ASTNode *p, TypeImplInfo *impl_inf
   auto itr = function_map.find(fnname_full);
   if (itr != function_map.end()) {
     if (!fn) {
-      // when consider name, the function map set belongs to ir1 module set
+      // when considering names, the function map set belongs to ir1 module set
       yyerror("very strange, function must exists in the module");
       return nullptr;
     }
@@ -4244,7 +4476,7 @@ static Function *walk_fn_declare_full_withsym(ASTNode *p, TypeImplInfo *impl_inf
     SymTable *st = p->symtable;
     typeid_t typeid_st = entry->u.varshielding.current->datatype;
     if (i == 0 && impl_info) {
-      // for the first parameter
+      // get the first parameter
       typeid_t trait_self_ptr_id = catype_trait_self_ptr_id();
       typeid_t trait_type = entry->u.varshielding.current->datatype;
       if (trait_type == trait_self_ptr_id) {
@@ -4280,7 +4512,8 @@ static Function *walk_fn_declare_full_withsym(ASTNode *p, TypeImplInfo *impl_inf
     if (cls_entry) {
       typeid_t name = catype_struct_impl_id_to_function_name(p->fndecln.name);
       if (st_type) {
-	// for trait copied default method of generic method, then copy an entry
+	// get the copied method from the default implementation of trait of a
+	// generic method, then copy an entry
 	typeid_t fnname = sym_form_method_id(name, impl_info->class_id, impl_info->trait_id);
 
 	STEntry *preventry_copyed = sym_check_insert(st_type, fnname, Sym_FnDef);
@@ -4315,7 +4548,7 @@ static void walk_fn_declare(ASTNode *p) {
 }
 
 static void generate_final_return(ASTNode *p) {
-  // should check if the function returned a value instead of append a return value always
+  // should check if the function returns a value instead of appending a return value
   CADataType *retdt = catype_get_by_name(p->symtable, p->fndefn.fn_decl->fndecln.ret);
   CHECK_GET_TYPE_VALUE(p, retdt, p->fndefn.fn_decl->fndecln.ret);
 
@@ -4364,8 +4597,11 @@ static Function *walk_fn_define_full_withsym_generic(ASTNode *p, TypeImplInfo *i
   curr_fn_node = p;
   curr_fn = fn;
 
-  // because support inner function, so here save the old BB may be in previous function definition
-  // and restore it after this function is processed over
+  /*
+   * Because we support inner functions, save the old basic block (BB)
+   * which may be in the previous function definition and restore it
+   * after this function has been processed.
+   */
   BasicBlock *saved_insert_bb = ir1.builder().GetInsertBlock();
 
   BasicBlock *retbb = ir1.gen_bb("ret");
@@ -4390,7 +4626,7 @@ static Function *walk_fn_define_full_withsym_generic(ASTNode *p, TypeImplInfo *i
 
   walk_stack(p->fndefn.stmts);
 
-  // the return statement is not in source code, but be added by the compiler
+  // the return statement is not in source code, it is added by the compiler
   if (enable_debug_info())
     diinfo->emit_location(p->endloc.row, p->endloc.col);
 
@@ -4505,7 +4741,7 @@ static bool compare_self_type(CADataType *cls_catype, ASTNode *traitfnn, ASTNode
 	return false;
       }
 
-      // check impl self type, the self type must be the struct pointer type
+      // check self type, the self type must be the pointer type to the struct
       STEntry *impl_entry = sym_getsym(impl_args.symtable, impl_args.argnames[0], 0);
       typeid_t impl_type = impl_entry->u.varshielding.current->datatype;
       CADataType *impl_catype = catype_get_by_name(impl_args.symtable, impl_type);
@@ -4617,15 +4853,15 @@ static void check_trait_impl_match(ASTNode *node, std::vector<std::pair<typeid_t
   assert(trait_defn->traitfnlistn.trait_id == trait_id);
   assert(trait_defn->type == TTE_TraitFn);
 
-  // each node in trait defs is a function declaration or default definition
+  // the node of trait defs in the entry, is a function declaration or default definition
   TraitNodeInfo *trait_info = (TraitNodeInfo *)entry->u.trait_def.trait_entry;
 
   CADataType *cls_catype = catype_get_by_name(node->symtable, node->fndefn_impl.impl_info.class_id);
 
-  // the trait function definition calcaulted firstly in sym_create_trait_defs_entry
+  // the function definition in trait is calcaulted firstly in sym_create_trait_defs_entry
   std::set<typeid_t> fnids_impls;
   for (int i = 0; i < node->fndefn_impl.count; ++i) {
-    // each impl node is a function definition
+    // each node in impl grammar is a function definition
     ASTNode *impl_fn_node = (ASTNode *)vec_at(node->fndefn_impl.data, i);
     ASTNode *decln = impl_fn_node->fndefn.fn_decl;
     typeid_t purename = catype_struct_impl_id_to_function_name(decln->fndecln.name);
@@ -4645,7 +4881,7 @@ static void check_trait_impl_match(ASTNode *node, std::vector<std::pair<typeid_t
     fnids_impls.insert(purename);
   }
 
-  // check not implemented method for trait
+  // check the unimplemented method for the trait
   std::set<typeid_t> fnids_not_impls;
   set_difference(trait_info->fnnodes, fnids_impls, fnids_not_impls);
 
@@ -4680,9 +4916,11 @@ static void walk_fn_define_impl(ASTNode *node) {
   // pair.second: the method implementation
   SymTableAssoc *assoc = nullptr;
 
-  // in order to not copy the entire ASTNode tree for trait method definition, so here just
-  // create temporary symbol table for storing `Self` type alias or generic type alias
-  // information (used in generic function)
+  /*
+   * To avoid copying the entire ASTNode tree for trait method definitions,
+   * create a temporary symbol table here to store `Self` type alias
+   * or generic type alias information (used in generic functions).
+   */
   int self_id = symname_check_insert(CSELF);
   SymTable *symtable = push_new_symtable_with_parent(node->symtable);
   STEntry *entry = make_type_def_entry(self_id, node->fndefn_impl.impl_info.class_id,
@@ -4690,7 +4928,10 @@ static void walk_fn_define_impl(ASTNode *node) {
   assoc = new_SymTableAssoc(STAT_Generic, symtable);
   sym_assoc_add_item(assoc, entry->sym_name); // sym_name: t:Self, for Self stub type
 
-  // tell it to find struct entry from association table, because current template may have no such type information
+  /*
+   * Instruct it to find the struct entry from the association table,
+   * as the current template may lack this type information.
+   */
   sym_assoc_add_item(assoc, node->fndefn_impl.impl_info.class_id);
 
   std::vector<std::pair<typeid_t, ASTNode *>> use_default_impls;
@@ -4705,8 +4946,10 @@ static void walk_fn_define_impl(ASTNode *node) {
     walk_fn_define_full(node_impl, &node->fndefn_impl.impl_info);
   }
 
-  // copy trait default method implementation and walk
-  // pick up the method with *Self as the first parameter
+  /*
+   * Copy the trait default method implementation and walk through it.
+   * Pick up the method with `*Self` as the first parameter.
+   */
   for (auto pair : use_default_impls) {
     pair.second->symtable->assoc = assoc;
 
@@ -4714,7 +4957,9 @@ static void walk_fn_define_impl(ASTNode *node) {
     STEntry *cls_entry = sym_getsym_with_symtable(symtable, impl_info->class_id, 1, nullptr);
     runable_add_entry_assoc(impl_info, cls_entry, pair.first, assoc);
 
-    // NEXT TODO: need clone ASTNode here and pass symtable? or steal the sym
+    /* NEXT TODO: Determine whether to clone the ASTNode here and pass
+     * the symbol table, or to steal the symbol.
+     */
     walk_fn_define_full_withsym(pair.second, impl_info, symtable);
     pair.second->symtable->assoc = nullptr;
     //free_symtable(symtable);
@@ -4766,13 +5011,16 @@ static void walk_lexical_body(ASTNode *node) {
   LexicalScope *parentscope = curr_lexical_scope; // also = lexical_scope_stack.back().get();
   if (walk_pass > 1 && enable_debug_info()) {
     if (node->lnoden.fnbuddy) {
-      // when the scope have a buddy function scope then use the function scope as the scope but not lexical scope
+      /*
+       * When the scope has a buddy function scope, use the function scope as the scope,
+       * not the lexical scope.
+       */
       auto itr = fn_debug_map.find(curr_fn);
       assert(itr != fn_debug_map.end());
 
       lscope->discope = itr->second->disp;
     } else {
-      // when the scope is not under a function scope then create lexical scope 
+      // When the scope is not under a function scope, create a lexical scope.
       lscope->discope = diinfo->dibuilder->createLexicalBlock(parentscope->discope, diunit, node->begloc.row, node->begloc.col);
     }
   }
@@ -4791,7 +5039,7 @@ static void walk_lexical_body(ASTNode *node) {
 
   walk_stack(node->lnoden.stmts);
 
-  // emit the location here, to avoid upper inner function definition mess the debug info
+  // emit the location here, to avoid upper inner function definition messing with the debug info
   if (enable_debug_info())
     diinfo->emit_location(node->begloc.row, node->begloc.col, curr_lexical_scope->discope);
 
@@ -4799,7 +5047,7 @@ static void walk_lexical_body(ASTNode *node) {
   lexical_scope_stack.pop_back();
   curr_lexical_scope = parentscope;
 
-  // TODO: extend here: coping with auto variable release operation when the scope `lscope` end up
+  // TODO: Extend here: coping with auto variable release operation when the scope `lscope` ends up.
 }
 
 typedef void (*walk_fn_t)(ASTNode *p);
@@ -5063,9 +5311,11 @@ static int llvm_codegen_end() {
     Value *v = ir1.builder().CreateLoad((Value *)main_fn_node->fndefn.retslot, "retret");
     ir1.builder().CreateRet(v);
 
-    // pop off the lexical block for the main function. When enhanced and define
-    // other functions it will need encapsulate the related functions into function
-    // or class
+    /*
+     * Pop off the lexical block for the main function. When enhanced and other
+     * functions are defined, it will need to encapsulate the related functions into a
+     * function or class.
+     */
     if (enable_debug_info()) {
       diinfo->lexical_blocks.pop_back();
 
@@ -5075,10 +5325,12 @@ static int llvm_codegen_end() {
   }
 
 #if 0
-  // this code fragment should put into when generating a function failed
-  // when generating each new function a lexical block should be pushed and when
-  // the new function is generate over, then the should pop up the lexical block
-  // when any error occurs when generating function body, then remove function.
+  /*
+   * This code fragment should be put into when generating a function fails.
+   * When generating each new function, a lexical block should be pushed.
+   * When the new function is generated over, then the lexical block should be popped up.
+   * When any error occurs when generating the function body, then remove the function.
+   */
   main_fn->eraseFromParent();
 
   // pop up the lexical block for the function since it is added unconditionally
@@ -5149,8 +5401,8 @@ void init_llvm_env() {
 }
 
 int walk(RootTree *tree) {
-  // first walk for iterating function prototype into llvm object
-  // second walk for iterating all tree nodes
+  // the first walk pass is for iterating function prototype into LLVM object
+  // the second walk pass is for iterating all tree nodes
   int first_lexical_count = 0;
 
   llvm_codegen_begin(tree);

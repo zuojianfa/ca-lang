@@ -10,6 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file The type system in upper level environment.
+ */
+
 #ifndef __type_system_h__
 #define __type_system_h__
 
@@ -57,12 +61,14 @@ CADataType *catype_get_by_name(SymTable *symtable, typeid_t name);
 CADataType *catype_from_capattern(CAPattern *cap, SymTable *symtable);
 CADataType *catype_from_range(ASTNode *node, GeneralRangeType type, int inclusive, CADataType *startdt, CADataType *enddt);
 
-// create a slice catype with only the item catype, but not the item pointer
-// catype for convenient, because there are many data types that can do the
-// slice operation: like array, pointer, slice, and the catype for them not
-// provide the pointer type of theirs elements directly, so here just use the
-// item catype and in the function it will create pointer type from the element
-// (item) type
+/*
+ * Create a slice catype with only the item catype, not the item pointer
+ * catype for convenience. Many data types can perform slice operations,
+ * such as arrays, pointers, and slices. The catype for these does not
+ * provide the pointer type for their elements directly. Therefore, we use
+ * the item catype here, and in the function, it will create the pointer
+ * type from the element (item) type.
+ */
 CADataType *slice_create_catype(CADataType *item_catype);
 
 int catype_check_identical(CADataType *type1, CADataType *type2);

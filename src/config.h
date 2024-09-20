@@ -10,6 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file
+ * Contains options related to the compiler environment and command line options.
+ */
+
 #ifndef __config_h__
 #define __config_h__
 
@@ -38,10 +43,10 @@ typedef enum LLVM_Gen_Type {
 } LLVM_Gen_Type;
 
 typedef enum Optimize_Level {
-  OL_NONE,      // no optimization also no debug information
-  OL_O1,        // do level 1 optimization
-  OL_O2,        // do level 2 optimization
-  OL_O3,        // do level 3 optimization
+  OL_NONE,      /// no optimization also no debug information
+  OL_O1,        /// do level 1 optimization
+  OL_O2,        /// do level 2 optimization
+  OL_O3,        /// do level 3 optimization
 } Optimize_Level;
 
 typedef struct CompileEnv {
@@ -53,13 +58,13 @@ typedef struct CompileEnv {
   int stackbased;
   FPIC_AddrEnv fpic_addr;
 
-  char outfile[MAX_PATH + 1];   // used in llvm generator
+  char outfile[MAX_PATH + 1];   /// used in llvm generator
   LLVM_Gen_Type llvm_gen_type;
   Optimize_Level opt_level;
-  int emit_debug; // if enable debug information
-  int emit_main;  // if emit main function
-  int emit_dot;   // if emit dot format file (graphviz) for the grammar
-  char dotpath[MAX_PATH + 1];   // dot file path when emit_dot is set
+  int emit_debug; /// if enable debug information
+  int emit_main;  /// if emit main function
+  int emit_dot;   /// if emit dot format file (graphviz) for the grammar
+  char dotpath[MAX_PATH + 1];   /// dot file path when emit_dot is set
   int dot_sparsed;
   FILE *dotout;
   int dot_step;

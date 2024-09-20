@@ -81,8 +81,8 @@ SymTable *curr_fn_symtable = NULL;
  * first value with a fixed type in the expression. If any other part of the
  * expression has a different type, an error will be reported.
  */
-int extern_flag = 0; /// indicate if handling the extern function
-// int call_flag = 0;  // indicate if under a call statement, used for actual
+int extern_flag = 0; /// indicate if need handling the extern function
+// int call_flag = 0;  // indicate if it under a call statement, used for actual
 // parameter checking
 ST_ArgList curr_arglist;
 
@@ -461,7 +461,7 @@ ASTNode *make_fn_decl(ASTNode *proto) {
 static void check_expr_arglists(ST_ArgList *al) {
   int noperands = al->argc;
 
-  // for checking void type function, can only have void parameter
+  // the variable is for checking void type function, can only have void parameter
   int void_count = 0;
   for (int i = 0; i < noperands; ++i) {
     int name = al->argnames[i];
@@ -516,8 +516,8 @@ ASTNode *make_stmt_expr(ASTNode *expr) {
 
 ASTNode *make_stmt_ret_expr(ASTNode *expr) {
   if (!curr_fn_rettype && genv.emit_main) {
-    // when not in a function and emit main provided, then use int as the
-    // rettype
+    // when not in a function and emit main provided, then use i32 type as the
+    // return type `rettype`
     curr_fn_rettype = sym_form_type_id_from_token(I32);
   }
 
@@ -606,8 +606,11 @@ typeid_t make_tuple_type(ST_ArgList *arglist) {
 
 STEntry *make_type_def_entry(int id, typeid_t type, SymTable *symtable,
                              SLoc *beg, SLoc *end) {
-  // make it can have the same name for the type name and variable name
-  // implemented just like the label type: add a prefix before the type name
+  /*
+   * Allow the type name and variable name to share the same name.
+   * This is implemented similarly to the label type: add a prefix
+   * before the type name.
+   */
   typeid_t newtype = sym_form_type_id(id);
   CADataType *primtype = catype_get_primitive_by_name(newtype);
   if (primtype) {
@@ -661,17 +664,21 @@ void check_return_type(typeid_t fnrettype) {
   }
 }
 
-// TODO: check if text match the typetok, example: 'a' means char, and it cannot
-// apply any postfix true, false means boolean, it cannot apply any postfix if
-// postfixtypetok == -1, means only get type from littypetok or both typetok
-// will be considered to check the error messages
-
-// U64 stand for positive integer value in lexical
-// I64 stand for positive integer value in lexical
-// F64 stand for floating point number in lexical
-// BOOL stand for boolean point number in lexical
-// U8 stand for \. transfermation value in lexical
-// I8 stand for any character value in lexical
+/*
+ * TODO: Check if the text matches the typetok. For example:
+ * - 'a' means char and cannot apply any postfix.
+ * - true and false indicate boolean values and cannot apply any postfix.
+ *
+ * If postfixtypetok == -1, only the type from littypetok will be used,
+ * or both typetok values will be considered for error message checking.
+ *
+ * U64 stands for a positive integer value in lexical context.
+ * I64 stands for a signed integer value in lexical context.
+ * F64 stands for a floating-point number in lexical context.
+ * BOOL stands for a boolean value in lexical context.
+ * U8 stands for an unsigned 8-bit integer value in lexical context.
+ * I8 stands for a character value in lexical context.
+ */
 
 /**
  * @details literal type depends on the input of
@@ -714,9 +721,10 @@ void create_literal(CALiteral *lit, int textid, tokenid_t littypetok,
                     tokenid_t postfixtypetok) {
   lit->textid = textid;
   lit->littypetok = littypetok;
+
+  //  The 'a' character is equivalent to the postfixed typetok
   lit->postfixtypetok =
-      littypetok == I8 ? I8 : postfixtypetok; // the 'a' character is the same
-                                              // as postfixed typetok
+      littypetok == I8 ? I8 : postfixtypetok;
   lit->fixed_type = 0;
   lit->datatype = typeid_novalue;
 }
@@ -1153,7 +1161,7 @@ static const char *capattern_check_ignore(CAPattern *cap) {
 
 /**
  * @brief When the `exprn` is NULL, it indicates an uninitialized let binding:
- * let a: i32;.
+ *        let a: i32;
  */
 ASTNode *make_let_stmt(CAPattern *cap, ASTNode *exprn) {
   const char *error = NULL;
@@ -1812,8 +1820,8 @@ typeid_t inference_expr_expr_type(ASTNode *node) {
 
 /**
  * @brief Infer from and set the type property to `expr` when the `expr` have no
- * determined type associated. This is different from the function
- * `determine_expr_type`, which need to pass a defined type when it is called.
+ *        determined type associated. This is different from the function
+ *        `determine_expr_type`, which need to pass a defined type when it is called.
  */
 typeid_t inference_expr_type(ASTNode *p) {
   /*
@@ -2144,8 +2152,8 @@ static int determine_expr_expr_type(ASTNode *node, typeid_t type) {
 
 /**
  * @brief Determining and set the type property to `expr`. The type property is
- * coming from @param type. This function is different from function
- * `inference_expr_type` which lack of @param type.
+ *        coming from @param type. This function is different from function
+ *        `inference_expr_type` which lack of @param type.
 */
 int determine_expr_type(ASTNode *node, typeid_t type) {
   // TODO: handle when complex type
@@ -2407,9 +2415,9 @@ typeid_t reduce_node_and_type_group(ASTNode **nodes, typeid_t *expr_types,
 /**
  * For the expression of UMINUS + - * / < > GE LE NE EQ
  * The left and right side type are calculated or inferred separately.
- * If the right side has a fixed type, or if the right side will use the 
- * left side's type, and the left side does not have a type yet, then it 
- * will use the right side's type. If the right side has no fixed type, 
+ * If the right side has a fixed type, or if the right side will use the
+ * left side's type, and the left side does not have a type yet, then it
+ * will use the right side's type. If the right side has no fixed type,
  * the right side literal will use its default type or intended type.
  */
 ASTNode *make_expr(int op, int noperands, ...) {
@@ -2949,15 +2957,20 @@ ASTNode *make_ident_expr(int id) {
 }
 
 ASTNode *make_uminus_expr(ASTNode *expr) {
-  // only U64 literal type can combinate '-' here, when littypetok is I64,
-  // it means the literal already combined with '-' so here no need combined
-  // again, when littypetok is other type like BOOL I8 U8 etc, they are
-  // not support combine with '-' so just walk with a UMINUS operator
+  /*
+   * Only U64 literal type can combine with '-' here. When littypetok is I64,
+   * it means the literal has already been combined with '-', so there is no
+   * need to combine it again. When littypetok is of other types, such as BOOL,
+   * I8, U8, etc., they do not support combination with '-', so we will just
+   * proceed with a UMINUS operator.
+   */
   if (expr->type != TTE_Literal || expr->litn.litv.littypetok != U64)
     return make_expr(UMINUS, 1, expr);
 
-  // handle uminus literal combining, to patch the lexier cannot coping with
-  // uminus value
+  /*
+   * Handle the combination of unary minus literals to address the lexer's
+   * inability to process unary minus values correctly.
+   */
   CALiteral *lit = &expr->litn.litv;
   const char *littext = symname_get(lit->textid);
   char buffer[1024] = "-";
@@ -2969,9 +2982,11 @@ ASTNode *make_uminus_expr(ASTNode *expr) {
   return expr;
 }
 
+/**
+ * @brief Similar to the function 'add_fn_args'
+ */
 int add_struct_member(ST_ArgList *arglist, SymTable *st, CAVariable *var) {
-  // just similar as add_fn_args,
-  // TODO: combine with add_fn_args into one function
+  // TODO: combine this function with add_fn_args into one function
   int name = var->name;
   if (arglist->argc >= MAX_ARGS) {
     SLoc stloc = {glineno, gcolno};
@@ -3032,13 +3047,17 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
   // see make_fn_proto
   arglist->symtable = curr_symtable;
 
-  // popup the structure member symbol table
-  // after that will define type name in it
+  /*
+   * Populate the structure member symbol table.
+   * After that, the type name will be defined within it.
+   */
   if (!tuple)
     curr_symtable = pop_symtable();
 
-  // 0. check if current scope already exists such type and report error when
-  // already exists
+  /*
+   * 0. Check if the current scope already contains such type and
+   * report an error if it already exists.
+   */
   const char *structname = symname_get(id);
   if (check_function_name(id)) {
     SLoc stloc = {glineno, gcolno};
@@ -3071,7 +3090,7 @@ ASTNode *make_struct_type(int id, ST_ArgList *arglist, int tuple) {
   entry->u.datatype.runables.opaque = NULL;
   entry->u.datatype.members = (ST_ArgList *)malloc(sizeof(ST_ArgList));
 
-  // just remember the argument list and for later use
+  // just remember the argument list for later use
   *entry->u.datatype.members = *arglist;
   entry->sloc = (SLoc){glineno, gcolno};
   p->entry = entry;
@@ -3135,7 +3154,7 @@ StructFieldOp make_element_field(ASTNode *expr, int fieldname, int direct,
 #if 1
   int count = 0;
   if (tuple) {
-    // patches for a list of tuples aa.1.2.0: FIXME
+    // FIXME: Patches for a list of tuples (aa.1.2.0)
     const char *name = symname_get(fieldname);
     int len = strlen(name);
     char *names = strdup(name);
@@ -3183,7 +3202,7 @@ void put_astnode_into_list(ASTNode *stmt, int begin) {
   dot_emit("stmt_list", "stmt");
 
   if (begin) {
-    // push a new list handle here when first encounter the list
+    // Push a new list handle here when the list is first encountered
     ASTNodeList *newlist = (ASTNodeList *)malloc(sizeof(ASTNodeList));
     newlist->len = 0;
     newlist->capacity = 10;
@@ -3259,11 +3278,13 @@ ASTNode *make_stmt_list_zip() {
   return p;
 }
 
-// TODO: change the name of related to arrayitem into a proper name, because the
-// arrayitem can be used not only for array type, such as slice type, or pointer
-// type can should also be used for arrayitem type
-// The related name include: ARRAYITEM, TTE_ArrayItemLeft, TTE_ArrayItemRight,
-// extract_value_from_array etc.
+/*
+ * TODO: Change the name related to 'arrayitem' to a more appropriate name,
+ * as 'arrayitem' can be used for more than just array types (e.g., slice
+ * types or pointer types). The related names include:
+ * ARRAYITEM, TTE_ArrayItemLeft, TTE_ArrayItemRight,
+ * extract_value_from_array, etc.
+ */
 ArrayItem arrayitem_begin(ASTNode *expr) {
   void *handle = vec_new();
   vec_append(handle, expr);
@@ -3342,7 +3363,10 @@ TypeImplInfo begin_impl_trait_for_type(int class_id, int trait_id) {
   return type_impl;
 }
 
-// push current type impl info and copy new impl info into current impl info
+/**
+ * @brief Push the current type implementation info and copy
+ *        the new implementation info into the current.
+ */
 void push_type_impl(TypeImplInfo *new_info) {
   if (!type_impl_stack)
     type_impl_stack = vec_new();
@@ -3352,7 +3376,9 @@ void push_type_impl(TypeImplInfo *new_info) {
   *current_type_impl = *new_info;
 }
 
-// pop saved type impl info and save it into current impl info
+/*
+ * @brief Pop the saved type implementation info and save it into current
+ */
 void pop_type_impl() {
   free(current_type_impl);
   current_type_impl = vec_popback(type_impl_stack);
@@ -3502,3 +3528,4 @@ int yyparser_init() {
 
   return 0;
 }
+

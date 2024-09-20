@@ -33,7 +33,7 @@ void IR1::init_llvm_env() {
   InitializeNativeTargetDisassembler();
 
 #if 0
-  // initialize all target than native if needed
+  // initialize all target if needed
   InitializeAllTargetInfos();
   InitializeAllTargets();
   InitializeAllTargetMCs();

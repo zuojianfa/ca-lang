@@ -17,6 +17,7 @@
 BEGIN_EXTERN_C
 #endif
 
+
 int strutil_parse_ident_str(const char *input, char *output);
 int strutil_parse_alnum_str(const char *input, char *output);
 int strutil_parse_number_str(const char *input, char *output);

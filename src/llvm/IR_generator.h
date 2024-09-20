@@ -10,6 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file The LLVM intermediate represention generateor.
+ */
+
 #ifndef __IR_generator_h__
 #define __IR_generator_h__
 

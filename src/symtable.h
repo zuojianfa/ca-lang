@@ -10,6 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file The symbol table module - C interface file.
+ */
+
 #ifndef __symtable_h__
 #define __symtable_h__
 
@@ -24,10 +28,12 @@ BEGIN_EXTERN_C
 
 #define MAX_SYMS 1024
 
-/* source code location */
+/*
+ * @brief Represents the source code location.
+ */
 typedef struct SLoc {
-  int row; /* row or lineno */
-  int col; /* column */
+  int row; /// row or lineno
+  int col; /// column
 } SLoc;
 
 typedef enum SymType {
@@ -46,53 +52,64 @@ typedef enum SymType {
 #define MAX_ARGS 16
 
 typedef enum CADTStatus {
-  CADT_None,    // not normalized
-  CADT_Orig,    // primitive type, no need expanding or compacting
-  CADT_Expand,  // normalized by expanding
-  CADT_Compact, // normalized by compacting
+  CADT_None,    /// not normalized
+  CADT_Orig,    /// primitive type, no need expanding or compacting
+  CADT_Expand,  /// normalized by expanding
+  CADT_Compact, /// normalized by compacting
 } CADTStatus;
 
 typedef struct CADataType {
-  tokenid_t type;       // type type: I16 I32 I64 ... STRUCT ARRAY, RANGE, SLICE
-  typeid_t formalname; // type name symname_xxx
-  size_t size;       // type size
-  typeid_t signature;  // the signature of the type, which is used to avoid store multiple instance, it used in the symbol table
-  CADTStatus status;   // only when status is not None, the signature can be used directly
+  tokenid_t type;      /// type type: I16 I32 I64 ... STRUCT ARRAY, RANGE, SLICE
+  typeid_t formalname; /// type name symname_xxx
+  size_t size;         /// type size
+  typeid_t signature;  /// The signature of the type, used to avoid storing, multiple instances. It is utilized in the symbol table.
+  CADTStatus status;   /// only if status is not None, the signature can be used directly
   union {
-    struct CAStruct *struct_layout;  // when type is STRUCT, TUPLE, SLICE
-    struct CAArray *array_layout;    // when type is ARRAY,
-    struct CAPointer *pointer_layout;// when type is POINTER
-    struct CARange *range_layout;    // when type is RANGE, the llvm::Value can be of single type or a tuple type infact
+    struct CAStruct *struct_layout;  /// when type is STRUCT, TUPLE, SLICE
+    struct CAArray *array_layout;    /// when type is ARRAY,
+    struct CAPointer *pointer_layout;/// when type is POINTER
+    struct CARange *range_layout;    /// when type is RANGE, the llvm::Value can be of single type or a tuple type infact
   };
 } CADataType;
 
-// the inner form of slice can be of the form struct TSlice { T *ptr; int len; }
-// or with 2 llvm::Value one ptr, one len
-// when using structure llvm value:
-// struct {
-// Value *ptr;
-// Value *len;
-// } Value;
-//
-// when using 2 value
-// Value *ptr;
-// Value *len;
-//
-// here use CAStruct for SLICE, but limited the `fieldnum` to `2` and
-// `fields[0].type` is pointer type to the sliced array or memory
-// `fields[1].type` is the length type which always be i64
-//typedef struct CASlice {
-//  CADataType *ptr_type;
-// CADataType *len_type; // can be make fixed u32 type
-//} CASlice;
-
+/**
+ * The inner form of a slice can be represented in two ways:
+ *
+ * 1. As a structure:
+ *    struct TSlice {
+ *        T *ptr;  // Pointer to the sliced array or memory
+ *        int len;  // Length of the slice
+ *    };
+ *
+ * 2. Using two llvm::Value instances:
+ *    - One for the pointer:
+ *      Value *ptr;
+ *    - One for the length:
+ *      Value *len;
+ *
+ * When using a structure with llvm value:
+ *    struct {
+ *        Value *ptr;  // Pointer to the sliced array or memory
+ *        Value *len;  // Length of the slice
+ *    } Value;
+ *
+ * For the CAStruct representing SLICE, `fieldnum` is limited to `2`:
+ * - `fields[0].type` is the pointer type to the sliced array or memory.
+ * - `fields[1].type` is the length type, which is always i64.
+ *
+ * Typedefinition for CASlice:
+ * typedef struct CASlice {
+ *     CADataType *ptr_type;  // Type of the pointer
+ *     CADataType *len_type;   // Length type (can be fixed to u32)
+ * } CASlice;
+ */
 typedef enum GeneralRangeType {
-  FullRange,                 // ..
-  InclusiveRange,            // a..=b
-  InclusiveRangeTo,          // ..=b
-  RightExclusiveRange,       // a..b
-  RightExclusiveRangeTo,     // ..b
-  RangeFrom,                 // a..
+  FullRange,                 /// ..
+  InclusiveRange,            /// a..=b
+  InclusiveRangeTo,          /// ..=b
+  RightExclusiveRange,       /// a..b
+  RightExclusiveRangeTo,     /// ..b
+  RangeFrom,                 /// a..
 } GeneralRangeType;
 
 typedef struct CARange {
@@ -100,69 +117,108 @@ typedef struct CARange {
   int inclusive;
   CADataType *start;
   CADataType *end;
-  CADataType *range; // when start end have value then range type is used, and it is a tuple type
+
+  /**
+   * When both start and end have values, the range type is used,
+   * and it is represented as a tuple type.
+   */
+  CADataType *range;
 } CARange;
 
 typedef struct CAStructField {
-  int name;           // field name
-  size_t offset;      // field address offset to the struct beginning
-  CADataType *type;   // field type
+  int name;           /// field name
+  size_t offset;      /// field address offset to the beginning of struct
+  CADataType *type;   /// field type
   //typeid_t type;
 } CAStructField;
 
 typedef enum CAStructType {
-  Struct_NamedStruct, // 0: common structure
-  Struct_NamedTuple,  // 1: tuple, 
-  Struct_GeneralTuple,// 2: general tuple (unnamed)
-  Struct_Slice,       // 3: slice
-  Struct_Union,       // 4: union type
-  Struct_Enum,        // 5: enum type, NOTE: enum type seems not suitable here
-  Struct_General,     // n: can add new enum variant before this, this stand for the undetermined general struct form, like slice, enum, union etc
+  Struct_NamedStruct, /// 0: common structure
+  Struct_NamedTuple,  /// 1: tuple,
+  Struct_GeneralTuple,/// 2: general tuple (unnamed)
+  Struct_Slice,       /// 3: slice
+  Struct_Union,       /// 4: union type
+  Struct_Enum,        /// 5: enum type, NOTE: enum type seems not suitable here
+
+  /**
+   * n: You can add a new enum variant before this.
+   * This variant will represent an undetermined general struct form,
+   * such as slice, enum, union, etc.
+   */
+  Struct_General,
 } CAStructType;
 
 typedef struct CAStruct {
   CAStructType type; 
   int name;
   int fieldnum;
-  int capacity;  // private
-  int packed;    // 0: default, 1: pack 1, ...
+  int capacity;  /// private
+  int packed;    /// 0: default, 1: pack 1, ...
   int fieldmaxalign;
   struct CAStructField *fields;
 } CAStruct;
 
-// the c language treat mutiple dimension array or typedef-ed array as the same
-// array, e.g. typedef int aint[3][4]; typedef aint aaint[3]; aaint ca[6];
-// (gdb) ptype ca:
-// type = int [6][3][3][4]
-//
-// for pointer it is similar with array:
-// typedef int *pint; typedef pint *ppint; typedef ppint *pppint; pppint *a;
-// (gdb) ptype a
-// type = int ****
-//
-// for pointer plus array type: aaint *pca[4]; aaint *pc;
-// (gdb) ptype pca
-// type = int (*[4])[3][3][4]
-// (gdb) ptype pc
-// type = int (*)[3][3][4]
-// the dimension may need compact, ((int [3])[4])[5], after compact, int
-// [3][4][5] complex condition combine array and pointer:
-// typedef pppint apppint[5]; typedef apppint *papppint; papppint *ppap;
-// (gdb) ptype ppap
-// type = int ***(**)[5]
-//
+/*
+ * The C language treats multiple dimension arrays or typedef-ed arrays
+ * as the same type. For example:
+ *
+ * typedef int aint[3][4];
+ * typedef aint aaint[3];
+ * aaint ca[6];
+ *
+ * In GDB:
+ * (gdb) ptype ca
+ * type = int [6][3][4]
+ *
+ * For pointers, the behavior is similar:
+ * typedef int *pint;
+ * typedef pint *ppint;
+ * typedef ppint *pppint;
+ * pppint *a;
+ *
+ * In GDB:
+ * (gdb) ptype a
+ * type = int ****
+ *
+ * For pointer plus array types:
+ * aaint *pca[4];
+ * aaint *pc;
+ *
+ * In GDB:
+ * (gdb) ptype pca
+ * type = int (*[4])[3][4]
+ * (gdb) ptype pc
+ * type = int (*)[3][4]
+ *
+ * Dimensions may need to be compacted, e.g., ((int [3])[4])[5] becomes
+ * int [3][4][5].
+ *
+ * Complex conditions combining arrays and pointers:
+ * typedef pppint apppint[5];
+ * typedef apppint *papppint;
+ * papppint *ppap;
+ *
+ * In GDB:
+ * (gdb) ptype ppap
+ * type = int ***(**)[5]
+ */
 #define MAX_DIM 16
-// for normalized array item the dimension always be 1, and the `type` can be
-// another array. Using this method it is convenient to walk values
 
+/*
+ * For normalized array items, the dimension is always 1,
+ * and the `type` can be another array.
+ * This method makes it convenient to traverse values.
+ */
 typedef struct CAArray {
   CADataType *type;   // array type
   int dimension;      // array size
   int dimarray[MAX_DIM];      // dimension array 3, 5, 9
 } CAArray;
 
-// the dimension need compact when constructing type, because
-// e.g. ((int *) *) *a; after compact, it should be int ***a;
+/*
+ * The dimensions need to be compacted when constructing the type.
+ * For example, ((int **) *) *a; should be compacted to int ***a;
+ */
 typedef enum CAPointerAllocPos {
   PP_Stack,
   PP_Heap,
@@ -188,10 +244,13 @@ typedef struct CAStructLit {
 } CAStructLit;
 
 typedef struct CAArrayExpr {
-  // when == 0, just use the `data` as array elements
-  // when  > 0, repeat the first element of `data` `repeat_count` times
+  /*
+   * When the value is == 0, use `data` as the array elements.
+   * When the value is > 0, repeat the first element of `data`
+   * for `repeat_count` times.
+   */
   size_t repeat_count;
-  void *data; // vector, each array element occupies one vector item
+  void *data; /// Vector: each array element occupies one item in the vector
 } CAArrayExpr;
 
 typedef struct CAStructNamed {
@@ -200,43 +259,57 @@ typedef struct CAStructNamed {
 } CAStructNamed;
 
 typedef struct CAStructExpr {
-  typeid_t name; // struct name
-  int named;    // true: named field expression, false: unnamed expression
-  void *data;    // struct fields expression vec_new handle
+  typeid_t name; /// struct name
+  int named;     /// true: named field expression, false: unnamed expression
+  void *data;    /// the handle of struct fields expression
 } CAStructExpr;
 
 typedef struct CALiteral {
-  // specify if literal type is defined (fixed) with postfix (u32,f64, ...).
-  // indicate if the literal type is determined
-  // if need remove this field, just use datatype null or not null for the existance
+  /**
+   * Specify if the literal type is defined (fixed) with a postfix
+   * (e.g., u32, f64, etc.). Indicate whether the literal type
+   * is determined.
+   *
+   * If this field needs to be removed, simply use a null or non-null
+   * datatype to indicate its existence.
+   */
   int fixed_type;
 
-  // -1 when have no postfix type, else have postfix type, like 33u32
+  /**
+   * Equal to -1 if there is no postfix type; otherwise, it indicates
+   * the presence of a postfix type, such as in 33u32.
+   */
   tokenid_t postfixtypetok;
 
-  // the literal I64 for negative integer value, U64 for positive integer value,
-  // F64 for floating point value, BOOL is true false value, I8 is 'x' value,
-  // U8 is '\x' value
+  /**
+   * Literal types:
+   * - I64: Represents negative integer values.
+   * - U64: Represents positive integer values.
+   * - F64: Represents floating-point values.
+   * - BOOL: Represents true/false values.
+   * - I8: Represents 'x' character values.
+   * - U8: Represents '\x' values.
+   */
   tokenid_t littypetok;
 
-  // text id in symname table, text is used for latering literal type inference
+  /// Text id in the symname table; text is used for later literal type inference.
   int textid;
 
-  // when the literal type already determined then datatype is not NULL 
+  /// When the literal type is already determined, the datatype is not NULL.
   typeid_t datatype;
 
-  // when littypetok is STRUCT ARRAY POINTER CSTRING, and fixed_type true, then it is used
+  /// when littypetok is STRUCT ARRAY POINTER CSTRING, and fixed_type true, then the field is used
   CADataType *catype;
 
-  SLoc begloc; // the literal start location
-  SLoc endloc; // the literal end location
+  SLoc begloc; /// the literal start location
+  SLoc endloc; /// the literal end location
   union {
-    int64_t  i64value;      // store either signed or unsigned integer value
-    double   f64value;      // store floating point value
+    int64_t  i64value;       /// store either a signed or unsigned integer value
+    double   f64value;       /// store floating point value
 
-    CAStringLit strvalue;      // string literal value
-    CAStructLit structvalue;  // struct literal value
-    CAArrayLit  arrayvalue;   // array literal value
+    CAStringLit strvalue;    /// string literal value
+    CAStructLit structvalue; /// struct literal value
+    CAArrayLit  arrayvalue;  /// array literal value
   } u;
 } CALiteral;
 
@@ -255,9 +328,13 @@ typedef struct CAVariable {
   typeid_t datatype;
   SLoc loc;
   int name;
-  int global; // is global variable
+  int global; /// is global variable
 
-  // opaque memory, for storing llvm Value * type, used here for code generation, in code generation it will be filled and used, when type is Variable
+  /**
+   * Opaque memory for storing LLVM Value* type.
+   * Used during code generation; it will be filled and utilized
+   * when the type is Variable.
+   */
   void *llvm_value;
 } CAVariable;
 
@@ -288,33 +365,38 @@ typedef struct CAP_GenTuple {
 typedef struct CAPattern {
   enum PatternType type;
   typeid_t datatype;
-  // used for locating the field of struct or tuple (with numeric field name),
-  // only used in parent CAPattern to determine the child CAPattern's field position in catype, and do binding
+
+  /*
+   * Used for locating the field of a struct or tuple (with numeric field names).
+   * This is only utilized in the parent Pattern to determine the child
+   * Pattern's field position in the type and to perform binding.
+   */
   int fieldname;
 
-  void *morebind; // vec int
+  void *morebind; /// vec int
   SLoc loc;
-  int name;  // struct name or tuple name or variable name
-  PatternGroup *items; // vec for CAPattern *
+  int name;  /// struct name, tuple name or variable name
+  PatternGroup *items; /// vec for CAPattern *
 } CAPattern;
 
 typedef struct ST_ArgList {
-  int argc;                 // function argument count
-  int contain_varg;         // contain variable argument
+  int argc;                   /// function argument count
+  int contain_varg;           /// contain variable argument
   union {
-    int argnames[MAX_ARGS];   // function argument name
-    typeid_t types[MAX_ARGS]; // for tuple type list
+    int argnames[MAX_ARGS];   /// function argument name
+    typeid_t types[MAX_ARGS]; /// for tuple type list
   };
   struct SymTable *symtable;
 } ST_ArgList;
 
-typedef struct ST_MemberList { // TODO: will use later
+// TODO: will use later
+typedef struct ST_MemberList {
   struct ST_ArgList member;
-  int visibility[MAX_ARGS];   // member visibilities
+  int visibility[MAX_ARGS];   /// member visibilities
 } ST_MemberList;
 
 typedef struct ST_RunableList {
-  void *opaque; // storing method / function list
+  void *opaque; /// storing method / function list
 } ST_RunableList;
 
 typedef enum ArgType {
@@ -324,8 +406,8 @@ typedef enum ArgType {
 } ArgType;
 
 typedef struct ST_ArgListActual {
-  int argc;                 // function argument count
-  struct ASTNode *args[MAX_ARGS];  // function argument name
+  int argc;                 /// function argument count
+  struct ASTNode *args[MAX_ARGS];  /// function argument name
 } ST_ArgListActual;
 
 typedef struct CAVariableShielding {
@@ -336,59 +418,85 @@ typedef struct CAVariableShielding {
 typedef struct TraitFnList {
   int trait_id;
   int count;
-  void *data; // vector, eacho element is a function proto or function default implementation with ASTNode *
+
+  /*
+   * Vector: each element is a function prototype or a function's default
+   * implementation with ASTNode* type.
+   */
+  void *data;
 } TraitFnList, TTraitFnList;
 
 typedef struct TypeImplInfo {
   int class_id;
   int trait_id;
-  // the id of trait implementation for struct, created from class_id and trait_id, when is not
-  // trait implementation, it's value is typeid_novalue. The id in this struct just for performance
+  /*
+   * The ID of the trait implementation for the struct, created from
+   * class_id and trait_id. When it is not a trait implementation,
+   * its value is typeid_novalue. The ID in this struct is used for
+   * performance purposes.
+   */
   typeid_t trait_impl_id;
-  // for control the common function recursive define count, when count > 0 then it is implement
-  // common function, else implement the struct method, and they will use different name convention
+
+  /*
+   * Controls the common function recursive definition count.
+   * When count > 0, it implements a common function;
+   * otherwise, it implements the struct method.
+   * They will use different naming conventions.
+   */
   int fn_def_recursive_count;
 } TypeImplInfo;
 
 typedef int CAFunctionType;
-#define CAFT_Function 0        // The general function
-#define CAFT_Method 1          // The method impled for a type
-#define CAFT_MethodForTrait 2  // The method impled for a trait
-#define CAFT_MethodInTrait 4   // The default method impled for a trait
-#define CAFT_GenericFunction 8 // The generic function
+#define CAFT_Function 0        /// The general function
+#define CAFT_Method 1          /// The method impled for a type
+#define CAFT_MethodForTrait 2  /// The method impled for a trait
+#define CAFT_MethodInTrait 4   /// The default method impled for a trait
+#define CAFT_GenericFunction 8 /// The generic function
 
 #define IS_GENERIC_FUNCTION(FUNC_TYPE) ((FUNC_TYPE) | CAFT_GenericFunction)
 
-// for the labels the symbol name will append a prefix of 'l:' which is
-// impossible to be as a variable name. example: l:l1
-// for function it will append a prefix of 'f:'. example: f:fibs
+/*
+ * For labels, the symbol name will append a prefix of 'l:',
+ * which cannot be used as a variable name. Example: l:l1.
+ * For functions, it will append a prefix of 'f:'. Example: f:fibs.
+ */
 typedef struct STEntry {
-  int sym_name;		// symbol name index in global symbol table
-  SymType sym_type;	// symbol type
-  SLoc sloc;		// symbol definition line number and column
+  int sym_name;		/// symbol name index in global symbol table
+  SymType sym_type;	/// symbol type
+  SLoc sloc;		/// symbol definition line number and column
   union {
     struct {
-      ST_ArgList *arglists; // when type is Sym_ArgList
+      ST_ArgList *arglists; /// when type is Sym_ArgList
       typeid_t rettype;
       typeid_t mangled_id;
       CAFunctionType ca_func_type;
-      void *generic_types; // int vector, null when the function is generic typed function
-    } f;                // when type is Sym_FnDef (Sym_ArgList and contains return type)
-    //CAVariable *var;    // when sym_type are Sym_Variable Sym_Member
+      void *generic_types; /// int vector, null when the function is generic typed
+    } f;                   /// when type is Sym_FnDef (Sym_ArgList and contains return type)
+    //CAVariable *var;     /// when sym_type are Sym_Variable Sym_Member
     CAVariableShielding varshielding;  // when sym_type are Sym_Variable Sym_Member
-    //CADataType *datatype; // when sym_type is Sym_DataType
+    //CADataType *datatype; /// when sym_type is Sym_DataType
     struct {
-      CAStructType tuple; // 1: when it is a tuple else it is a struct
-      typeid_t id;  // when sym_type is Sym_DataType
-      ST_ArgList *members; // when id is of struct type it have members, TODO: refactor it make it extensible to other complex type like enum etc.
-      struct SymTable *idtable; // TODO: assign symtable value for the id, and use it when unwinding type, or it have bug when not use the symbol table in the type is defining, because when unwinding, it may find the symbol in other level scope
+      CAStructType tuple;  /// 1: When it is a tuple type; otherwise, it is a struct
+      typeid_t id;         /// when sym_type is Sym_DataType
+
+      /// When id is of struct type, it has members.
+      // TODO: Refactor to make it extensible to other complex types like enum, etc.
+      ST_ArgList *members;
+
+      /*
+       * TODO: Assign symtable value for the id and use it when unwinding
+       * the type. Not using the symbol table during type definition may
+       * lead to bugs, as unwinding could find the symbol in another
+       * scope level.
+       */
+      struct SymTable *idtable;
       struct ST_RunableList runables;
     } datatype;
 
     struct {
-      struct ASTNode *node; // the node->type must be TTE_TraitFn
+      struct ASTNode *node; /// the node->type must be TTE_TraitFn
       void *trait_entry;
-    } trait_def;                // when type is Sym_TraitDef
+    } trait_def;            /// when type is Sym_TraitDef
 
     struct {
       TypeImplInfo impl_info;
@@ -403,32 +511,47 @@ typedef enum SymTableAssocType {
 
 typedef struct SymTableAssoc {
   SymTableAssocType type;
-  // assoc table is a table related to the struct plus a level of symbol table
-  // which store Self or template parameter definitions
+  /**
+   * Assoc table is related to the struct plus a level of symbol table,
+   * which stores Self or template parameter definitions.
+   */
   struct SymTable *assoc_table;
-  void *extra_id_list; // this is set type of std::set<int>
+  void *extra_id_list; /// this is a set type of std::set<int>
 } SymTableAssoc;
 
+/**
+ * @brief The symbol table structure
+ */
 typedef struct SymTable {
   void *opaque;
 
-  // for association Symbol Table, some node travel need more than one symbol table
-  // like generic type and trait method, because the node come from several part.
-  // e.g. When implement struct with and use the trait method default implementation
-  // one part is coming from the trait method symbol table, another part coming from
-  // the struct method symbol table part. so here need association type.
-  // when assoc is null, then just use the normal symbol table search path
-  // when assoc is not null, then according to the assoc type to do the job.
-  // the assoc just like a hook, when using it, it take affect, when not use, it will
-  // not take affect
+  /**
+   * For the association Symbol Table, some node traversal requires
+   * more than one symbol table, such as with generic types and
+   * trait methods, because the nodes come from several parts.
+   * For example, when implementing a struct and using the trait
+   * method's default implementation, one part comes from the
+   * trait method symbol table, while another comes from the
+   * struct method symbol table. Therefore, an association type
+   * is needed.
+   *
+   * When assoc is null, use the normal symbol table search path.
+   * When assoc is not null, the operation will depend on the
+   * assoc type. The assoc acts like a hook: when used, it takes
+   * effect; when not used, it does not take effect.
+   */
   SymTableAssoc *assoc;
   struct SymTable *parent;
 } SymTable;
 
 // The general range inner object, have no type definition grammar, just have
 // inner type:
-// when both start and end are NULL, then it is 
+// when both start and end are NULL, then it is
 
+/*
+ * The general range inner object has no type definition grammar, just an inner
+ * type. When both start and end are NULL, then it is a general tuple.
+ */
 typedef struct GeneralRange {
   short type;  // GeneralRangeType
   short inclusive;
@@ -444,18 +567,21 @@ typedef struct SymbolQueryParams {
   int parent;
 } SymbolQueryParams;
 
-// parameter handling
-// because function call can use embed form:
-// let a = func1(1 + func2(2 + func3(3, 4))), so the actual argument list should
-// use a stack struct for handling, just using function defined in symtable.h
+/*
+ * Parameter handling:
+ * Because function calls can use an embedded form, such as:
+ * let a = func1(1 + func2(2 + func3(3, 4))), the actual argument
+ * list should use a stack structure for handling. This utilizes
+ * the function defined in symtable.h.
+ */
 
-// get current actual argument list object
+/// Get current actual argument list object
 ST_ArgListActual *actualarglist_current();
 
-// create new actual argument list object and push into layer
+/// Create a new actual argument list object and push it onto the layer.
 ST_ArgListActual *actualarglist_new_push();
 
-// popup a actual argument list object and destroy it
+/// Pop an actual argument list object and destroy it
 void actualarglist_pop();
 
 ST_ArgList *tuplelist_current();
@@ -500,7 +626,7 @@ void patterngroup_pop(PatternGroup *pg);
 CAPattern *patterngroup_top(PatternGroup *pg);
 CAPattern *patterngroup_at(PatternGroup *pg, int i);
 
-// the globally symbol name table, it store names and it's index
+/// The global symbol name table, it stores names and it's index
 int symname_init();
 int symname_insert(const char *name);
 int symname_check(const char *name);
@@ -516,7 +642,7 @@ int sym_check_insert_withname(SymTable *t, const char *name, SymType type);
 STEntry *sym_insert(SymTable *st, int encode, SymType type);
 int sym_dump(SymTable *st, FILE *file);
 
-// parent: if search parent symtable
+// parent: if searching parent symtable
 SymTable *symtable_get_with_assoc(SymTable *symtable, int idx);
 STEntry *sym_getsym_with_symtable(SymTable *st, int idx, int parent, SymTable **entry_st);
 STEntry *sym_getsym(SymTable *st, int idx, int parent);

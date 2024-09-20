@@ -185,7 +185,7 @@ MethodImplInfo *runable_find_entry(STEntry *cls_entry, int fnname, int trait_nam
 
   MethodImplInfo *result = nullptr;
   if (trait_name == -1) {
-    // first find from the struct impl part
+    // firstly find from the struct impl part
     if ((result = runable_find_entry_from_map(m->method_in_struct, fnname)) != nullptr)
       return result;
   }
@@ -357,8 +357,10 @@ STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_
          name->exprn.noperand == 1 &&
          name->exprn.operands[0]->type == TTE_StructFieldOpRight);
 
-  // here try to extract the value except the last field, because the last
-  // field is treated as a method name
+  /*
+   * Here, try to extract the value except for the last field,
+   * because the last field is treated as a method name.
+   */
   TStructFieldOp *sfopn = &name->exprn.operands[0]->sfopn;
   CADataType *catype = query_fn(sfopn, self_value);
   if (struct_catype)
@@ -374,11 +376,15 @@ STEntry *sym_get_function_entry_for_method(ASTNode *name, query_type_fn_t query_
     return nullptr;
   }
 
-  // find function entry for from structitemop
-  // using the way find method in struct definition entry
-  // here not using direct way, but it have drawback that cannot know whether
-  // the function is a trait function and don't know how to find the trait name,
-  // except when calling function with trait name (full name)
+  /*
+   * Find function entry for structitemop using the same way when searching a
+   * function in the struct definition entry.
+   * Here not using the direct way to searching, becasue
+   * this approach does not directly indicate whether the function
+   * is a trait function and does not provide a way to find the
+   * trait name, except when calling the function with the trait
+   * name (full name).
+   */
   int struct_name = sfopn->direct
                         ? catype->struct_layout->name
                         : catype->pointer_layout->type->struct_layout->name;
@@ -682,7 +688,7 @@ SymTable *symtable_get_with_assoc(SymTable *symtable, int idx) {
   if (st->assoc) {
     switch (st->assoc->type) {
     case STAT_Generic: {
-      // find if the idx is under the association table scope
+      // find if the idx is under the scope of association table
       std::set<int> *ids = (std::set<int> *)st->assoc->extra_id_list;
       auto iter = ids->find(idx);
       if (iter != ids->end()) {
@@ -733,9 +739,12 @@ static MethodImplInfo *sym_get_function_entry_for_domain(ASTNode *name, ASTNode 
   }
 
 #if 0
-  // not find from full path here for it is not flexible to support the path searching and
-  // support all kinds of ways to find the type implementation
-  // try to find method from struct impl
+  /*
+   * Do not search from the full path here, as it is not flexible
+   * enough to support path searching and support all types of
+   * type implementation lookups.
+   * Try to find the method from the struct implementation.
+   */
   std::stringstream ss;
   ss << symname_get((long)vec_at(domainn.parts, 0));
   for (int i = 1; i < domainn.count; ++i) {
@@ -762,7 +771,7 @@ static MethodImplInfo *sym_get_function_entry_for_domain(ASTNode *name, ASTNode 
   // for the TT::method(&a, ...) call
   int trait_name = struct_name;
 
-  // get struct name by the first real parameter type
+  // get the struct name by the first real parameter type
   if (args->arglistn.argc < 1) {
     caerror(&(name->begloc), &(name->endloc),
 	    "cannot find declared method: '%s' on struct `%s`",
@@ -791,10 +800,16 @@ static MethodImplInfo *sym_get_function_entry_for_domain(ASTNode *name, ASTNode 
 }
 
 static MethodImplInfo *sym_get_function_entry_for_domainas(ASTNode *name, STEntry **cls_entry) {
-  // there are 2 ways to find for the `domain as` type path `<AA as TT>::method_name()`
-  // 1. throught the manged full path to find the entry directly
-  // 2. find the impl struct entry and then find the called method
-  // I choose the option 2 for the entending purpose later (using absolute path, or using mod)
+  /*
+   * There are two ways to find the `domain as` type path:
+   * `<AA as TT>::method_name()`:
+   * 1. Through the mangled full path to find the entry directly.
+   * 2. Find the implementation struct entry and then find the
+   * called method.
+   *
+   * I choose option 2 for extensibility purposes later (using
+   * absolute paths or using mod).
+   */
 
   // try to find method from trait impl
   DomainAs &domain_as = *name->domainfn.u.domain_as;
@@ -1178,7 +1193,10 @@ GeneralRange *general_range_init(GeneralRange *gr, short inclusive,
 void *sym_create_trait_defs_entry(ASTNode *node) {
   TraitNodeInfo *info = new TraitNodeInfo;
 
-  // reorganize the trait function defines, distinguish the functions with implements
+  /*
+   * Reorganize the trait function definitions to distinguish
+   * between functions with default implementations.
+   */
   for (int i = 0; i < node->traitfnlistn.count; ++i) {
     ASTNode *fnnode = (ASTNode *)vec_at(node->traitfnlistn.data, i);
     assert(fnnode->type == TTE_FnDef);

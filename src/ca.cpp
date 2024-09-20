@@ -10,6 +10,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file
+ * The driver module for the compiler program. It parses options
+ * and drives the execution of tasks.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -43,7 +49,7 @@ static void usage() {
 	  "         -O[123]:  do optimization of level 1 2 3, default is level 2\n"
 	  "         -g:       do not do any optimization (default value)\n"
 	  "         -main:    do generate the default main function\n"
-	  "         -dot <dotfile>:  generate the do not generate the default main function\n"
+	  "         -dot <dotfile>:  generate the dot graph files\n"
 	  );
   exit(-1);
 }
@@ -175,4 +181,6 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
+
+
 

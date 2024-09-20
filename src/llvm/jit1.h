@@ -10,6 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file The JIT functionality supports CA by running the compiled code
+ * directly in memory without generating an executable file.
+ */
+
 #ifndef __codegen_jit1_h__
 #define __codegen_jit1_h__
 
@@ -40,10 +45,10 @@ public:
 
   ~JIT1();
 
-  // this function can be called multiple time to register more symbols
+  /// this function can be called multiple time to register more symbols
   void register_one_imported_symbol(const char *name, void *address);
 
-  // this function can be called multiple time to register more symbols
+  /// this function can be called multiple time to register more symbols
   void register_imported_symbols(std::vector<std::pair<const char *, void *>> &name_addresses);
 
   const DataLayout &get_datalayout() const { return _dl; }

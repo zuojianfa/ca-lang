@@ -99,7 +99,7 @@ typedef enum {
   NGT_Num,
 } ASTNodeGrammartype;
 
-// following part define the statement structure of grammar tree
+// following part defines the statement structure of grammar tree
 
 struct ASTNode;
 

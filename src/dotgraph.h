@@ -10,6 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @brief Generate dot graph files representing the program's grammar tree.
+ */
+
 #ifndef __dotgraph_h__
 #define __dotgraph_h__
 

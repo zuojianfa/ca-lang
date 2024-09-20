@@ -14,6 +14,7 @@
 
 #include <ctype.h>
 
+
 // return the consumed input size, 0: means no string is consumed, also means no output put
 int strutil_parse_ident_str(const char *input, char *output) {
   if (!isalpha(*input))

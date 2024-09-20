@@ -10,6 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file The type system in LLVM environment.
+ */
+
 #ifndef __type_system_llvm_h__
 #define __type_system_llvm_h__
 

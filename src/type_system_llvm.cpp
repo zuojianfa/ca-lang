@@ -34,8 +34,11 @@ extern ir_codegen::IR1 ir1;
 
 using namespace llvm;
 
-// storing type signature to llvm type map for shorten the generation of named
-// struct and speedup the map performance
+/*
+ * This data structure is used to store the type signature
+ * to LLVM type map, aiming to shorten the generation of named
+ * structs and speed up map performance.
+ */
 std::unordered_map<typeid_t, llvm::Type *> g_llvmtype_map;
 
 std::vector<CALiteral> *arraylit_deref(CAArrayLit obj);
@@ -106,10 +109,13 @@ static Type *llvmtype_from_catype_inner(CADataType *catype, std::map<CADataType 
     return ptrtype;
   }
   case ARRAY: {
-    // create llvm array type
-    // it seems here no need to do type checking, because the array kernel type
-    // should cannot be recursively defined, or the size is unlimited, the checking
-    // should already blocked by the type system analyze
+    /*
+     * Create LLVM array type.
+     * It seems there is no need for type checking here, as the array
+     * kernel type should not be recursively defined, nor should
+     * the size be unlimited. The type system analysis should
+     * have already blocked such cases.
+     */
     assert(rcheck.find(catype->pointer_layout->type) == rcheck.end());
     Type *kerneltype = llvmtype_from_catype_inner(catype->array_layout->type, rcheck);
 
@@ -255,7 +261,10 @@ Value *gen_array_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
 }
 
 Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
-  // TODO: use type also from symbol table, when literal also support array or struct, e.g. AA {d,b}
+  /*
+   * TODO: Use the type which coming from the symbol table as well,
+   * when literals support arrays or structs, e.g., AA {d, b}.
+   */
   Type *type = nullptr;
   Value *llvmvalue = nullptr;
   switch(catype->type) {
@@ -273,7 +282,7 @@ Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
     if (lit->u.i64value == 0) {
       llvmvalue = ConstantPointerNull::get(static_cast<PointerType *>(type));
 
-      // TODO: other pointer literal value should not supported
+      // TODO: for other pointer literal value should not supported
       //yyerror("other pointer literal not implemented yet");
       //return nullptr;
     } else {
@@ -298,8 +307,10 @@ Value *gen_literal_value(CALiteral *lit, CADataType *catype, SLoc loc) {
   }
 }
 
-// row: VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER
-// col: < > GE LE NE EQ
+/**
+ * row: VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER
+ * col: < > GE LE NE EQ
+ */
 CmpInst::Predicate s_cmp_predicate[ATOMTYPE_END-VOID][6] = {
   {CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE, CmpInst::FCMP_FALSE}, // VOID
   {CmpInst::ICMP_SLT, CmpInst::ICMP_SGT, CmpInst::ICMP_SGE, CmpInst::ICMP_SLE, CmpInst::ICMP_NE, CmpInst::ICMP_EQ}, // I16
@@ -376,10 +387,12 @@ Value *create_default_integer_value(tokenid_t typetok, int64_t defv) {
   }
 }
 
-// used for `as` value convertion
-// VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
-// Trunc ZExt SExt FPToUI FPToSI UIToFP SIToFP FPTrunc FPExt PtrToInt IntToPtr BitCast AddrSpaceCast
-// CastOpsBegin stand for no need convert, CastOpsEnd stand for cannot convert
+/**
+ * The table is used for value conversion expression in `as`
+ * VOID I16 I32 I64 U16 U32 U64 F32 F64 BOOL I8 U8 ATOMTYPE_END STRUCT ARRAY POINTER CSTRING
+ * Trunc ZExt SExt FPToUI FPToSI UIToFP SIToFP FPTrunc FPExt PtrToInt IntToPtr BitCast AddrSpaceCast
+ * CastOpsBegin stand for no need convert, CastOpsEnd stand for cannot convert
+ */
 static Instruction::CastOps
 llvmtype_cast_table[CSTRING - VOID + 1][CSTRING - VOID + 1] = {
   { // Begin VOID
